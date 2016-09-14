@@ -22,6 +22,7 @@
         "crysalead/kahlan": "^2.5",
         "phpunit/phpunit": "~4.0"
     },
+    "minimum-stability": "dev",
     "autoload": {
         "files": [
             "lib/lib.php"
