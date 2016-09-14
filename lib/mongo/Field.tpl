@@ -1,0 +1,22 @@
+            '##field##' => [
+                'label'             => '##label##',
+                'form_type'         => '##form_type##',
+                'helper'            => ##helper##,
+                'length'            => ##length##,
+
+                'required'          => ##required##,
+                'is_listable'       => ##is_listable##,
+                'is_exportable'     => ##is_exportable##,
+                'is_searchable'     => ##is_searchable##,
+                'is_sortable'       => ##is_sortable##,
+                'is_readable'       => ##is_readable##,
+                'is_creatable'      => ##is_creatable##,
+                'is_updatable'      => ##is_updatable##,
+                'is_deletable'      => ##is_deletable##,
+                'form_plus'         => ##form_plus##,
+
+                'content_view'      => ##content_view##,
+                'content_list'      => ##content_list##,
+                'content_search'    => ##content_search##,
+                'content_create'    => ##content_create##,
+            ],
