@@ -23,6 +23,16 @@
             $uri        = array_shift($a);
             $callback   = array_shift($a);
 
+            if (!$callback instanceof \Closure) {
+                $callback = function () use ($callback) {
+                    list($controller, $action, $render) = explode('#', $callback, 3);
+
+                    $render = empty($render) ? true : false;
+
+                    return [$controller, $action, $render];
+                };
+            }
+
             $method     = Strings::lower($m);
 
             $methods = [];
@@ -99,8 +109,12 @@
                 $name   = str_replace_first("($seg)", $param, $name);
             }
 
+            $name = str_replace('/', '.', $name);
+
+            $name = '.' === $name ? 'home' : $name;
+
             $route = model('uri', [
-                'name'      => str_replace('/', '.', $name),
+                'name'      => $name,
                 'uri'       => $uri,
                 'url'       => $url,
                 'method'    => $method,
@@ -146,7 +160,11 @@
                 $name   = str_replace_first("($seg)", $param, $name);
             }
 
-            return str_replace('/', '.', $name);
+            $name = str_replace('/', '.', $name);
+
+            $name = '.' === $name ? 'home' : $name;
+
+            return $name;
         }
 
         public static function getUri($url, callable $callback)

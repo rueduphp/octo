@@ -83,8 +83,10 @@
             return !strlen($uri) ? '/' : $uri;
         }
 
-        public function run($cb404 = null)
+        public function run($namespace = null, $cb404 = null)
         {
+            $namespace = empty($namespace) ? __NAMESPACE__ : $namespace;
+
             if (empty($cb404)) {
                 $cb404 = Registry::get('cb.404', null);
             }
@@ -127,7 +129,7 @@
 
                 require_once $controllerFile;
 
-                $class      = '\\Octo\\App' . ucfirst(Inflector::lower($controllerName)) . 'Controller';
+                $class      = '\\' . $namespace . '\\App' . ucfirst(Inflector::lower($controllerName)) . 'Controller';
 
                 $actions    = get_class_methods($class);
                 $father     = get_parent_class($class);
@@ -178,7 +180,7 @@
                 }
 
                 if (true === $render) {
-                    self::render($controller, Registry::get('cb.404', null));
+                    self::render($controller, Registry::get('cb.404', $cb404));
                 }
             }
         }
@@ -222,6 +224,8 @@
                     }
                 }
 
+                $content = self::compile($content);
+
                 $content = str_replace(
                     '$this->partial(\'',
                     '\\Octo\\Router::partial($controller, \'' . path('app') . DS . 'views' . DS . 'partials' . DS,
@@ -252,10 +256,25 @@
             }
         }
 
+        public static function compile($content)
+        {
+            $rows = explode('<partial file=', $content);
+            array_shift($rows);
+
+            foreach ($rows as $row) {
+                $file = cut('"', '"', $row);
+                $content = str_replace('<partial file="' . $file . '">', '<?php $this->partial(\'' . str_replace('.', DS, $file) . '.phtml\'); ?>', $content);
+            }
+
+            return $content;
+        }
+
         public static function partial($controller, $partial, $args = [])
         {
             if (File::exists($partial)) {
                 $content = File::read($partial);
+
+                $content = self::compile($content);
 
                 $content = str_replace(
                     '$this->partial(\'',
