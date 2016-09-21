@@ -10,6 +10,7 @@
         public static $files    = [];
         public static $server   = [];
         public static $session  = [];
+        public static $custom   = [];
         public static $errors   = [];
 
         public static function init()
@@ -36,7 +37,7 @@
 
         public static function required($field, $message = '##field## is required', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = strlen(isAke(static::$$type, $field, null)) > 0;
 
@@ -49,7 +50,7 @@
 
         public static function min($field, $min, $message = '##field## is too short', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = strlen(isAke(static::$$type, $field, null)) < $min + 0;
 
@@ -62,7 +63,7 @@
 
         public static function max($field, $max, $message = '##field## is too long', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = strlen(isAke(static::$$type, $field, null)) > $max + 0;
 
@@ -75,7 +76,7 @@
 
         public static function fnmatch($field, $fnmatch, $message = '##field## is incorrect', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = fnmatch($fnmatch, isAke(static::$$type, $field, null));
 
@@ -88,7 +89,7 @@
 
         public static function match($field, $pattern, $message = '##field## is incorrect', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = false;
 
@@ -105,7 +106,7 @@
 
         public static function int($field, $message = '##field## is not an integer', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = reallyInt(isAke(static::$$type, $field, null));
 
@@ -118,7 +119,7 @@
 
         public static function float($field, $message = '##field## is not a float', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = isAke(static::$$type, $field, null) === floatval(isAke(static::$$type, $field, null));
 
@@ -131,7 +132,7 @@
 
         public static function number($field, $message = '##field## is not a number', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = isAke(static::$$type, $field, null) === isAke(static::$$type, $field, null) + 0;
 
@@ -144,7 +145,7 @@
 
         public static function numeric($field, $message = '##field## is not numeric', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = is_numeric(isAke(static::$$type, $field, null));
 
@@ -157,7 +158,7 @@
 
         public static function email($field, $message = '##field## is not an email', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = filter_var(isAke(static::$$type, $field, null), FILTER_VALIDATE_EMAIL);
 
@@ -170,7 +171,7 @@
 
         public static function bool($field, $message = '##field## is not a boolean', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = isAke(static::$$type, $field, null) === (bool) isAke(static::$$type, $field, null);
 
@@ -183,7 +184,7 @@
 
         public static function custom($field, callable $custom, $message = '##field## is incorrect', $type = null)
         {
-            $type = empty($type) ? static::$nag : $type;
+            $type = empty($type) ? static::$bag : $type;
 
             $check = call($custom, [isAke(static::$$type, $field, null)]);
 
@@ -210,13 +211,27 @@
             static::$bag = $type;
         }
 
+        public static function errors()
+        {
+            return static::$errors;
+        }
+
+        public static function make(array $data = null)
+        {
+            $data = empty($data) ? $_POST : $data;
+
+            static::$bag = 'custom';
+
+            static::$custom = Input::clean($data);
+        }
+
         public static function __callStatic($m, $a)
         {
-            $type       = static::$nag;
+            $type       = static::$bag;
             $field      = array_shift($a);
             $value      = isAke(static::$$type, $field, null);
 
-            $args = array_merge([$value], $a);
+            $args       = array_merge([$value], $a);
 
             try {
                 call_user_func_array(['Octo\\Assert', $m], $args);

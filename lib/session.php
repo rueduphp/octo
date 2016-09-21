@@ -76,7 +76,7 @@
                 return $this;
             }
 
-            $_SESSION[$this->_name . '.' . $key] = $value;
+            $_SESSION[$this->_name . '.' . $key] = value($value);
 
             if (isset($_SESSION['infos_' . session_id()][$this->_name])) {
                 $_SESSION['infos_' . session_id()][$this->_name]['end'] = time() + Config::get('session.duration', 3600);
@@ -128,7 +128,7 @@
         {
             $this->check();
 
-            $check = sha1(__file__);
+            $check = sha1(__FILE__);
 
             return $check != isAke($_SESSION, $this->_name . '.' . $key, $check);
         }
@@ -150,7 +150,7 @@
         {
             $this->check();
 
-            $_SESSION[$this->_name . '.' . $key] = $value;
+            $_SESSION[$this->_name . '.' . $key] = value($value);
 
             if (isset($_SESSION['infos_' . session_id()][$this->_name])) {
                 $_SESSION['infos_' . session_id()][$this->_name]['end'] = time() + Config::get('session.duration', 3600);
@@ -164,12 +164,12 @@
             return $this->put($key, $value);
         }
 
-        public function flash($key, $val = null)
+        public function flash($key, $val = 'octodummy')
         {
             $this->check();
             $key = "flash_{$key}";
 
-            if ($val != null) {
+            if ($val != 'octodummy') {
                 $this->set($key, $val);
 
                 if (isset($_SESSION['infos_' . session_id()][$this->_name])) {
@@ -177,10 +177,10 @@
                 }
             } else {
                 $val = $this->get($key);
-                $this->remove($key);
+                $this->forget($key);
             }
 
-            return $val != null ? $this : $val;
+            return $val != 'octodummy' ? $this : $val;
         }
 
         public function __call($m, $a)
@@ -366,5 +366,43 @@
             }
 
             return call_user_func_array([$session, $m], $a);
+        }
+
+        public function pull($k, $d = null)
+        {
+            $value = $this->get($k, $d);
+
+            $this->forget($k);
+
+            return $value;
+        }
+
+        public function expire($k, $ttl = 60)
+        {
+            at(time() + $ttl, function ($name, $key) {
+                session($name)->erase($key);
+            }, [$this->_name, $k]);
+
+            return $this;
+        }
+
+        public function setExpire($k, $v, $ttl = 60)
+        {
+            return $this->set($k, $v)->expire($k, $ttl);
+        }
+
+        public function once($k, $v = 'octodummy')
+        {
+            $k = 'once.' . $k;
+
+            if ($v == 'octodummy') {
+                $value = $this->get($k);
+
+                $this->forget($k);
+
+                return $value;
+            }
+
+            return $this->set($k, $v);
         }
     }

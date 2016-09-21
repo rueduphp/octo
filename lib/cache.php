@@ -849,4 +849,13 @@
 
             return time();
         }
+
+        public function getDel($k, $d = null)
+        {
+            $value = $this->get($k, $d);
+
+            $this->delete($k);
+
+            return $value;
+        }
     }

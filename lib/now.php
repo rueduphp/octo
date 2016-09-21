@@ -153,9 +153,11 @@
 
         public function offsetGet($k)
         {
-            if (isset(self::$data[$this->ns][$k])) {
-                return self::$data[$this->ns][$k];
+            if ($this->has($k)) {
+                return $this->get($k);
             }
+
+            return null;
         }
 
         public function has($k)
@@ -424,5 +426,23 @@
         public function toSerialize()
         {
             return serialize($this->toArray());
+        }
+
+        public function getDel($k, $d = null)
+        {
+            $value = $this->get($k, $d);
+
+            $this->del($k);
+
+            return $value;
+        }
+
+        public function pull($k, $d = null)
+        {
+            $value = $this->get($k, $d);
+
+            $this->del($k);
+
+            return $value;
         }
     }

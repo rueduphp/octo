@@ -965,6 +965,35 @@
                 return $this;
             }
 
+            if ($m == 'list') {
+                $field = array_shift($a);
+
+                if (!$field) {
+                    $field = ['id'];
+                } elseif (fnmatch('*|*', $field)) {
+                    $field = explode('|', $field);
+                }
+
+                if (!is_array($field)) {
+                    $fields = [$field];
+                }
+
+                $list = [];
+                $rows = $this->get();
+
+                foreach ($rows as $row) {
+                    $value = [];
+
+                    foreach ($field as $f) {
+                        $values[] = isAke($row, $f, null);
+                    }
+
+                    $list[$row['id']] = implode(' ', $value);
+                }
+
+                return $list;
+            }
+
             if (fnmatch('findBy*', $m) && strlen($m) > 5) {
                 $field = callField($m, 'findBy');
                 $value = array_shift($a);
