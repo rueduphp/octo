@@ -13,19 +13,21 @@
         "php": ">=7.0",
         "ext-mbstring": "*",
         "ext-curl": "*",
-        "fzaninotto/faker": "~1.4",
-        "aws/aws-sdk-php": "3.0.x-dev",
-        "illuminate/database": "^5.4",
+        "fzaninotto/faker": "@stable",
+        "aws/aws-sdk-php": "@stable",
+        "illuminate/database": "@stable",
         "psy/psysh": "@stable"
     },
     "require-dev": {
-        "crysalead/kahlan": "^2.5",
-        "phpunit/phpunit": "~4.0"
+        "crysalead/kahlan": "@stable",
+        "phpunit/phpunit": "@stable"
     },
-    "minimum-stability": "dev",
     "autoload": {
         "files": [
             "lib/lib.php"
         ]
+    },
+    "config": {
+        "preferred-install": "dist"
     }
 }
