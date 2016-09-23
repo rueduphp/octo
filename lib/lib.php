@@ -1481,14 +1481,15 @@
 
     function csrf_field($echo = true)
     {
+        $tokenName = Config::get('token_name', 'octo_token');
         $token = csrf_make();
-        $field = '<input type="hidden" name="octo_token" id="octo_token" value="' . $token . '">';
+        $field = '<input type="hidden" name="' . $tokenName . '" id="octo_token" value="' . $token . '">';
 
         if ($echi) {
             echo $field;
+        } else {
+            return $field;
         }
-
-        return $field;
     }
 
     function csrf_make()
@@ -1508,9 +1509,8 @@
     function findMethod($method)
     {
         $reflFunc = new \ReflectionFunction($method);
-        echo $reflFunc->getFileName() . ':' . $reflFunc->getStartLine();
 
-        exit;
+        return $reflFunc->getFileName() . ':' . $reflFunc->getStartLine();
     }
 
     function app($make = null, $params = [])
@@ -2982,7 +2982,7 @@
             sleep(1);
         }
 
-        return is_callable($cb) ? call($callback, $args) : true;
+        return is_callable($callback) ? call($callback, $args) : true;
     }
 
     function toNumber($number)
@@ -3070,4 +3070,19 @@
         if (!session_id()) {
             session_start();
         }
+    }
+
+    function lower($str)
+    {
+        return Strings::lower($str);
+    }
+
+    function upper($str)
+    {
+        return Strings::upper($str);
+    }
+
+    function tsToTime($timestamp, $tz = null)
+    {
+        return Time::createFromTimestamp($timestamp, $tz);
     }

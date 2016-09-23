@@ -28,6 +28,66 @@
             }
         }
 
+        public function versioning()
+        {
+            if ($this->hasModel()) {
+                if ($this->exists()) {
+                    $versions   = isAke($this->initial, 'versions', []);
+                    $versions[count($versions) + 1] = $this->initial;
+
+                    $this->data['versions'] = $versions;
+                }
+
+                return $this->save();
+            }
+
+            return $this;
+        }
+
+        public function versions()
+        {
+            if ($this->hasModel()) {
+                if ($this->exists()) {
+                    return isAke($this->initial, 'versions', []);
+                }
+            }
+
+            return [];
+        }
+
+        public function version($index = null)
+        {
+            $versions = $this->versions();
+
+            return empty($index) ? end($versions) : aget($versions, $index, []);
+        }
+
+        public function versionedAt($timestamp)
+        {
+            $versions = $this->versions();
+
+            return current(
+                array_values(
+                    coll($versions)
+                    ->where(['updated_at', '=', (int) $timestamp])
+                    ->toArray()
+                )
+            );
+        }
+
+        function checkAndSave(callable $cb)
+        {
+            if ($this->hasModel()) {
+                $check = $cb($this->data);
+
+                if (true === $check) {
+                    return $this->save();
+                }
+
+                return $check;
+            }
+        }
+
         public function touch($model)
         {
             return odb($this->db(), $model)->findOrFail((int) $this->data[$model . '_id'])->now();
@@ -346,6 +406,11 @@
             return $this->fn($m, $c);
         }
 
+        public function scope($m, callable $c)
+        {
+            return $this->fn($m, $c);
+        }
+
         public function toArray()
         {
             return $this->data;
@@ -548,7 +613,7 @@
         public function take($fk)
         {
             if (!$this->exists()) {
-                throw new Exception('id must be defined to use take.');
+                exception('model', 'id must be defined to use take.');
             }
 
             $db = fnmatch('*s', $fk) ? odb($this->db(), substr($fk, 0, -1)) : odb($this->db(), $fk);
@@ -559,7 +624,7 @@
         public function through($t1, $t2)
         {
             if (!$this->exists()) {
-                throw new Exception('id must be defined to use through.');
+                exception('model', 'id must be defined to use through.');
             }
 
             $db1 = odb($this->db(), $t1);
@@ -582,7 +647,7 @@
         public function hasThrough($t1, $t2)
         {
             if (!$this->exists()) {
-                throw new Exception('id must be defined to use hasThrough.');
+                exception('model', 'id must be defined to use hasThrough.');
             }
 
             return $this->countThrough($t1, $t2) > 0;
@@ -591,7 +656,7 @@
         public function countThrough($t1, $t2)
         {
             if (!$this->exists()) {
-                throw new Exception('id must be defined to use countThrough.');
+                exception('model', 'id must be defined to use countThrough.');
             }
 
             $database = $this->db();
@@ -616,19 +681,19 @@
         public function timestamps()
         {
             return [
-                'created_at' => lib('time')->createFromTimestamp(isAke($this->data, 'created_at', time())),
-                'updated_at' => lib('time')->createFromTimestamp(isAke($this->data, 'updated_at', time()))
+                'created_at' => Time::createFromTimestamp(isAke($this->data, 'created_at', time())),
+                'updated_at' => Time::createFromTimestamp(isAke($this->data, 'updated_at', time()))
             ];
         }
 
         public function updated()
         {
-            return lib('time')->createFromTimestamp(isAke($this->data, 'updated_at', time()));
+            return Time::createFromTimestamp(isAke($this->data, 'updated_at', time()));
         }
 
         public function created()
         {
-            return lib('time')->createFromTimestamp(isAke($this->data, 'updated_at', time()));
+            return Time::createFromTimestamp(isAke($this->data, 'updated_at', time()));
         }
 
         public function now()
