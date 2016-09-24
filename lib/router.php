@@ -163,7 +163,7 @@
                     }
 
                     if (in_array($action, $actions)) {
-                        $controller->$action();
+                        $return = $controller->$action();
                     } else {
                         return $this->is404($cb404);
                     }
@@ -174,6 +174,10 @@
 
                     if (in_array('unboot', $actions)) {
                         $controller->unboot();
+                    }
+
+                    if ($return instanceof Object) {
+                        return $return->go();
                     }
                 } else {
                     $controller = new $class($action);

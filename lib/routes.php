@@ -25,7 +25,13 @@
 
             if (!$callback instanceof \Closure) {
                 $callback = function () use ($callback) {
-                    list($controller, $action, $render) = explode('#', $callback, 3);
+                    if (fnmatch('*#*', $callback)) {
+                        list($controller, $action, $render) = explode('#', $callback, 3);
+                    } elseif (fnmatch('*@*', $callback)) {
+                        list($controller, $action, $render) = explode('@', $callback, 3);
+                    } elseif (fnmatch('*.*', $callback)) {
+                        list($controller, $action, $render) = explode('.', $callback, 3);
+                    }
 
                     $render = empty($render) ? true : false;
 
@@ -143,7 +149,7 @@
         {
             $name = $url;
 
-            $reflection = new ReflectionFunction($callback);
+            $reflection = reflectClosure($callback);
             $arguments  = $reflection->getParameters();
 
             $params = [];
@@ -224,6 +230,8 @@
             if (is_callable($cb)) {
                 return call($cb, [$uri]);
             }
+
+            return null;
         }
 
         public static function group($name, $middleware, array $routes)

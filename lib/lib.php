@@ -92,17 +92,6 @@
         abort($code, $html);
     }
 
-    function redirect($url = '/')
-    {
-        if (!fnmatch('*://*', $url)) {
-            $url = WEBROOT . '/' . trim($url, '/');
-        }
-
-        header("Location: $url");
-
-        exit(1);
-    }
-
     function controller()
     {
         return Registry::get('app.controller');
@@ -585,14 +574,15 @@
 
         $type = Strings::upper($type);
 
-        $db = odb('logs', $ns);
+        $db = System::Log();
+
         $db->create([
             'message'   => $message,
             'type'      => $type
         ])->save();
     }
 
-    function getLogs($type = 'INFO', $ns = 'core')
+    function logs($type = 'INFO', $ns = 'core')
     {
         $type = Strings::upper($type);
 
@@ -1280,13 +1270,19 @@
         return lib('guard', [$ns]);
     }
 
-    function abort($code = 403, $message = 'Forbidden')
+    function status($code = 200)
     {
         $headerMessage = Api::getMessage($code);
+        $protocol = isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.1';
 
         if (!headers_sent()) {
-            header("HTTP/1.0 $code $headerMessage");
+            header($protocol . " $code $headerMessage");
         }
+    }
+
+    function abort($code = 403, $message = 'Forbidden')
+    {
+        status($code);
 
         die($message);
     }
@@ -1317,7 +1313,7 @@
 
     function paths()
     {
-        return Registry::get('octo.paths', []);
+        return (new Now)->get('octo.paths', []);
     }
 
     function systemBoot($dir)
@@ -1885,24 +1881,55 @@
         return $content;
     }
 
-    function _($k, $a = [], $d = null)
+    function lang($k, $args =  [], $default = null)
     {
         $lng = lng();
+        $dictionary = null;
+        $translated = Registry::get('translated.' . $lng, []);
 
-        $file = path('translations') . DS . $lng . '.php';
-
-        if (!file_exists($file)) {
-            $lng    = Config::get('default.language', 'fr');
-            $file   = path('translations') . DS . $lng . '.php';
+        if (isset($translated[$k])) {
+            return $translated[$k];
         }
 
-        try {
-            Lang::load($file, $lng);
+        if (!Registry::has('lang.loaded.' . $lng)) {
+            $file = path('translations') . DS . $lng . '.php';
 
-            return Lang::get($lng, $k, $a, $d);
-        } catch (\Exception $e) {
-            return $d;
+            if (!file_exists($file)) {
+                $lng    = Config::get('default.language', 'fr');
+                $file   = path('translations') . DS . $lng . '.php';
+            }
+
+            if (!file_exists($file)) {
+                return $default ? : $k;
+            } else {
+                $dictionary = include($file);
+                Registry::set('lang.loaded.' . $lng, true);
+                Registry::set('lang.dictionary.' . $lng, $dictionary);
+            }
         }
+
+        if (empty($dictionary)) {
+            $dictionary = Registry::get('lang.dictionary.' . $lng, []);
+        }
+
+        $val = isAke($dictionary, $k, $default);
+
+        if (!empty($args)) {
+            foreach ($args as $key => $value) {
+                $val = str_replace("%$key%", $value, $val);
+            }
+        }
+
+        $translated[$k] = $val;
+
+        Registry::get('translated.' . $lng, $translated);
+
+        return $val;
+    }
+
+    function _($k, $a = [], $d = null)
+    {
+        echo lang($k, $a, $d);
     }
 
     function sqlite($db = null)
@@ -1993,7 +2020,7 @@
         header("Etag: $etag");
 
         if ((isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) === $time) || (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $etag === trim($_SERVER['HTTP_IF_NONE_MATCH']))) {
-            header('HTTP/1.1 304 Not Modified');
+            status(304);
 
             exit();
         }
@@ -2586,7 +2613,7 @@
 
         $zip = new \ZipArchive();
 
-        if (!$zip->open($destination, \ZIPARCHIVE::CREATE)) {
+        if (!$zip->open($destination, \ZipArchive::CREATE)) {
             return false;
         }
 
@@ -2738,13 +2765,16 @@
         $back = o();
         $url = empty($url) ? isAke($_SERVER, 'HTTP_REFERER', URLSITE) : $url;
 
-        $back->macro('with', function (array $meta = []) {
+        $back->macro('with', function (array $meta = []) use ($back) {
             foreach ($meta as $k => $v) {
-                flash($k, $v);
+                session()->once($k, $v);
             }
+
+            return $back;
         });
 
         $back->macro('go', function () use ($url) {
+            status(302);
             header('Location: ' . $url);
 
             exit;
@@ -2753,7 +2783,7 @@
         return $back;
     }
 
-    function to($url)
+    function redirect($url)
     {
         $url = !fnmatch('*://*', $url) ? WEBROOT . '/' . trim($url, '/') : $url;
 
@@ -2865,7 +2895,9 @@
 
     function urlFor($name, array $args = [])
     {
-        return Route::url($name, $args);
+        $url = Routes::url($name, $args);
+
+        return WEBROOT . '/' . trim($url, '/');
     }
 
     function reflectClosure(callable $closure)
@@ -2954,7 +2986,7 @@
         $to = strtotime($expression);
 
         if ($now >= $to) {
-            exception('Please provide an expression in future.');
+            exception('argument', 'Please provide an expression in future.');
         }
 
         return $to - $now;
@@ -2967,7 +2999,7 @@
         $from = strtotime($expression);
 
         if ($now <= $from) {
-            exception('Please provide an expression in past.');
+            exception('argument', 'Please provide an expression in past.');
         }
 
         return $now - $from;
@@ -3084,5 +3116,5 @@
 
     function tsToTime($timestamp, $tz = null)
     {
-        return Time::createFromTimestamp($timestamp, $tz);
+        return Date::createFromTimestamp($timestamp, $tz);
     }
