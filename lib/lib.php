@@ -92,6 +92,55 @@
         abort($code, $html);
     }
 
+    function render($file, $context = 'controller', $args = [], $code = 200)
+    {
+        if (fnmatch('*#*', $file)) {
+            list($c, $a) = explode('#', $file, 2);
+
+            $file = path('app') . DS . 'views' . DS . $c . DS . $a . '.phtml';
+        }
+
+        if (fnmatch('*@*', $file)) {
+            list($c, $a) = explode('@', $file, 2);
+
+            $file = path('app') . DS . 'views' . DS . $c . DS . $a . '.phtml';
+        }
+
+        if (fnmatch('*:*', $file)) {
+            list($c, $a) = explode(':', $file, 2);
+
+            $file = path('app') . DS . 'views' . DS . $c . DS . $a . '.phtml';
+        }
+
+        if (file_exists($file)) {
+            $content = File::read($file);
+
+            if ('controller' == $context) {
+                $controller = Registry::get('app.controller', null);
+                $content    = str_replace(['{{', '}}'], ['<?php $controller->e("', '");?>'], $content);
+                $content    = str_replace(['[[', ']]'], ['<?php $controller->trad("', '");?>'], $content);
+
+                $content    = Router::compile($content);
+            } else {
+                $controller = o($args);
+            }
+
+            $content = str_replace('$this->', '$controller->', $content);
+
+            ob_start();
+
+            eval(' namespace Octo; ?>' . $content . '<?php ');
+
+            $html = ob_get_contents();
+
+            ob_end_clean();
+
+            abort($code, $html);
+        } else {
+            exception('render', "The file $file does not exist.");
+        }
+    }
+
     function controller()
     {
         return Registry::get('app.controller');
@@ -1454,8 +1503,65 @@
 
         path('public', realpath($dir));
 
-        bag('Post');
-        Post::fill(oclean($_POST));
+        if (!empty($_POST)) {
+            bag('Post');
+            Post::fill(oclean($_POST));
+        }
+
+        register('view', function ($what, $method = 'get', callable $before = null, callable $after = null) {
+            list($controllerName, $action) = explode('.', $what, 2);
+
+            $actualController = Registry::get('app.controller', null);
+
+            if (!empty($actualController)) {
+                if (is_object($actualController)) {
+                    $classC = get_class($actualController);
+                    $tab = explode('\\', $classC);
+                    $namespace = array_shift($tab);
+
+                    $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
+
+                    if (!is_file($controllerFile)) {
+                        exception('Controller', 'The controller ' . $controllerName . ' does not exist.');
+                    }
+
+                    require_once $controllerFile;
+
+                    $class = '\\' . $namespace . '\\App' . ucfirst(Inflector::lower($controllerName)) . 'Controller';
+
+                    $actions = get_class_methods($class);
+
+                    $a = $action;
+
+                    $action = Strings::lower($method) . ucfirst(
+                        Strings::camelize(
+                            strtolower($action)
+                        )
+                    );
+
+                    $controller         = new $class;
+                    $controller->_name  = $controllerName;
+                    $controller->action = $a;
+
+                    if (!in_array($action, $actions)) {
+                        exception('Controller', 'The action ' . $action . ' does not exist.');
+                    }
+
+                    if (is_callable($before)) {
+                        call($before, [$actualController, $controller]);
+                    }
+
+                    $return = $controller->$action();
+
+                    if ($return instanceof Object) {
+                        return $return->go();
+                    }
+
+                    return Router::render($controller, Registry::get('cb.404'));
+                }
+            }
+
+        });
 
         register_shutdown_function(function () {
             on('shutdown', function () {
@@ -1463,6 +1569,11 @@
                 Later::shutdown();
             });
         });
+    }
+
+    function register($class, callable $resolver)
+    {
+        return app()->bind($class, $resolver);
     }
 
     function old($key, $default = null)

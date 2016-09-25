@@ -192,7 +192,7 @@
         public static function render($controller, $is404 = false)
         {
             if (!headers_sent()) {
-                header("HTTP/1.1 200 OK");
+                status(200);
             }
 
             ob_start();
@@ -317,7 +317,7 @@
             if (isset($cb404) && is_callable($cb404)) {
                 Registry::set('page404', true);
 
-                call_user_func($cb404);dd('ici');
+                call_user_func($cb404);
                 exit;
             } else {
                 header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found');
