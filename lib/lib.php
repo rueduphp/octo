@@ -3389,3 +3389,43 @@
 
         return $validator;
     }
+
+    function laravel53($laravelApp, $name = 'laravel_app')
+    {
+        Config::set('laravel', $laravelApp);
+
+        $basePath = $laravelApp->basePath();
+
+        Config::set('application.name',     $name);
+        Config::set('application.dir',      realpath($basePath . '/app'));
+
+        Config::set('model.dir',            realpath($basePath . '/storage/models'));
+        Config::set('octalia.dir',          realpath($basePath . '/storage/data'));
+        Config::set('dir.cache',            realpath($basePath . '/storage/cache'));
+
+        path('config',                      realpath($basePath . '/config'));
+        path('app',                         realpath($basePath . '/app'));
+        path('models',                      realpath($basePath . '/storage/models'));
+        path('translations',                realpath($basePath . '/storage/translations'));
+        path('storage',                     realpath($basePath . '/storage'));
+        path('public',                      realpath($basePath . '/public'));
+
+        path('octalia',                     Config::get('octalia.dir', session_save_path()));
+        path('cache',                       Config::get('dir.cache', session_save_path()));
+
+        if (!is_dir(path('models'))) {
+            Dir::mkdir(path('models'));
+        }
+
+        if (!is_dir(path('cache'))) {
+            Dir::mkdir(path('cache'));
+        }
+
+        if (!is_dir(path('octalia'))) {
+            Dir::mkdir(path('octalia'));
+        }
+
+        $laravelApp->bind('data', function ($table) {
+            return \Octo\Model::$table();
+        });
+    }

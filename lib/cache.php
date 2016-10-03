@@ -113,7 +113,7 @@
 
             File::delete($k);
 
-            $v = File::value($v);
+            $v = value($v);
 
             File::put($file, serialize($v));
 
@@ -129,13 +129,24 @@
             return $this->set($k, $v, $expire);
         }
 
-        public function many(array $values, $e = null)
+        public function setMany(array $values, $e = null)
         {
             foreach ($values as $k => $v) {
                 $this->set($k, $v, $e);
             }
 
             return $this;
+        }
+
+        public function many(array $keys)
+        {
+            $return = [];
+
+            foreach ($keys as $key) {
+                $return[$key] = $this->get($key);
+            }
+
+            return $return;
         }
 
         public function setnx($key, $value, $expire = null)
