@@ -84,6 +84,12 @@
 
         public static function delete($file, $deleteDir = false)
         {
+            if (is_array($file)) {
+                foreach ($file as $f) {
+                    return static::delete($f);
+                }
+            }
+
             if (is_dir($file) && true === $deleteDir) {
                 return static::rmdir($file);
             }

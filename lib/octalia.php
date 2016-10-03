@@ -32,6 +32,11 @@
             Registry::set('octalia.instance', $this);
         }
 
+        public function validator()
+        {
+            return validator('model.' . $this->db . '.' . $this->table);
+        }
+
         public function reset()
         {
             $queries    = Registry::get('octalia.queries', []);
@@ -1522,6 +1527,10 @@
                 list($key, $operator, $value) = func_get_args();
             } else {
                 throw new Exception("This method requires at least one argument to proceed.");
+            }
+
+            if ($value instanceof \Closure) {
+                $value = $value($this);
             }
 
             $operator = Strings::lower($operator);

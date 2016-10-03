@@ -83,8 +83,23 @@
         }
     });
 
-    function view($html, $code = 200, $title = 'Octo')
+    function view($html = null, $code = 200, $title = 'Octo')
     {
+        if (empty($html)) {
+            $class = o();
+
+            $class->macro('assign', function ($k, $v) {
+                $vars = Registry::get('views.vars', []);
+                $vars[$k] = value($v);
+
+                Registry::set('views.vars', $vars);
+
+                return view();
+            });
+
+            return $class;
+        }
+
         $tpl = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . $title . '</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.5.0/css/font-awesome.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Oswald:100,300,400,700,900"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/css/bootstrap.min.css"><style>body{font-family:"Oswald";}</style></head><body id="app-layout"><div class="container-fluid">##html##</div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/js/bootstrap.min.js"></script></body></html>';
 
         $html = str_replace('##html##', $html, $tpl);
@@ -1309,11 +1324,6 @@
         }
     }
 
-    function event()
-    {
-        return lib('event');
-    }
-
     function auth($ns = 'web')
     {
         return lib('guard', [$ns]);
@@ -1331,15 +1341,22 @@
 
     function abort($code = 403, $message = 'Forbidden')
     {
+        $message = value($message);
+
         status($code);
+
+        if (is_array($message)) {
+            $message = json_encode($message);
+            header('content-type: application/json; charset=utf-8');
+        }
+
+        extract(Registry::get('views.vars', []));
 
         die($message);
     }
 
     function response($message = 'Forbidden', $code = 200)
     {
-        $message = value($message);
-
         abort($code, $message);
     }
 
@@ -1348,7 +1365,7 @@
         $paths = (new Now)->get('octo.paths', []);
 
         if (is_null($k)) {
-            return $paths;
+            return coll($paths);
         }
 
         if (is_null($v)) {
@@ -1495,8 +1512,6 @@
             }
 
             ini_set('error_log', path('storage') . DS . 'logs' . DS . 'error.log');
-
-            lib('flood')->check();
         }
 
         define('OCTO_DAY_KEY', sha1((OCTO_MAX / 7) + strtotime('today') . forever()));
@@ -1507,61 +1522,6 @@
             bag('Post');
             Post::fill(oclean($_POST));
         }
-
-        register('view', function ($what, $method = 'get', callable $before = null, callable $after = null) {
-            list($controllerName, $action) = explode('.', $what, 2);
-
-            $actualController = Registry::get('app.controller', null);
-
-            if (!empty($actualController)) {
-                if (is_object($actualController)) {
-                    $classC = get_class($actualController);
-                    $tab = explode('\\', $classC);
-                    $namespace = array_shift($tab);
-
-                    $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
-
-                    if (!is_file($controllerFile)) {
-                        exception('Controller', 'The controller ' . $controllerName . ' does not exist.');
-                    }
-
-                    require_once $controllerFile;
-
-                    $class = '\\' . $namespace . '\\App' . ucfirst(Inflector::lower($controllerName)) . 'Controller';
-
-                    $actions = get_class_methods($class);
-
-                    $a = $action;
-
-                    $action = Strings::lower($method) . ucfirst(
-                        Strings::camelize(
-                            strtolower($action)
-                        )
-                    );
-
-                    $controller         = new $class;
-                    $controller->_name  = $controllerName;
-                    $controller->action = $a;
-
-                    if (!in_array($action, $actions)) {
-                        exception('Controller', 'The action ' . $action . ' does not exist.');
-                    }
-
-                    if (is_callable($before)) {
-                        call($before, [$actualController, $controller]);
-                    }
-
-                    $return = $controller->$action();
-
-                    if ($return instanceof Object) {
-                        return $return->go();
-                    }
-
-                    return Router::render($controller, Registry::get('cb.404'));
-                }
-            }
-
-        });
 
         register_shutdown_function(function () {
             on('shutdown', function () {
@@ -1590,9 +1550,9 @@
     {
         $tokenName = Config::get('token_name', 'octo_token');
         $token = csrf_make();
-        $field = '<input type="hidden" name="' . $tokenName . '" id="octo_token" value="' . $token . '">';
+        $field = '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
 
-        if ($echi) {
+        if ($echo) {
             echo $field;
         } else {
             return $field;
@@ -1606,6 +1566,13 @@
         session('csrf')->setOldToken(session('csrf')->getToken())->setToken($token);
 
         return $token;
+    }
+
+    function csrf_match()
+    {
+        $tokenName = Config::get('token_name', 'octo_token');
+
+        return posted($tokenName) == session('csrf')->getToken();
     }
 
     function slug($title, $separator = '-')
@@ -1634,7 +1601,7 @@
         $value = getenv($key);
 
         if ($value === false) {
-            return File::value($default);
+            return value($default);
         }
 
         switch (Strings::lower($value)) {
@@ -2081,7 +2048,7 @@
         $octia->bootEloquent();
     }
 
-    function listen($event, $args = [])
+    function listen($event, array $args = [])
     {
         $events = Registry::get('core_events', []);
 
@@ -2096,7 +2063,11 @@
 
     function on($event, callable $cb, $args = [])
     {
-        $res = listen($event, $args);
+        if (is_callable($event)) {
+            $res = $event();
+        } else {
+            $res = listen($event, $args);
+        }
 
         return call_user_func_array($cb, [$res]);
     }
@@ -2122,6 +2093,20 @@
         return array_key_exists(PHP_OS, $keys);
     }
 
+    function staticEtag()
+    {
+        $controller = Registry::get('app.controller.file');
+        $tpl        = Registry::get('app.view.file');
+
+        if ($controller && $tpl) {
+            if (File::exists($controller) && File::exists($tpl)) {
+                $ages = [filemtime($controller), filemtime($tpl)];
+
+                return etag(max($ages));
+            }
+        }
+    }
+
     function etag($time)
     {
         $etag = 'W/"' . md5($time) . '"';
@@ -2144,7 +2129,7 @@
         foreach($fakes as $koMail) {
             list($dummy, $mailDomain) = explode('@', Strings::lower($mail));
 
-            if(strcasecmp($mailDomain, $koMail) === 0){
+            if (strcasecmp($mailDomain, $koMail) === 0){
                 return true;
             }
         }
@@ -2668,14 +2653,14 @@
 
     function dbJson($file)
     {
-        if (file_exists($file)) {
+        if (File::exists($file)) {
             $file = File::read($file);
         }
 
         return coll(json_decode($file, true));
     }
 
-    function dbCsv($file, $sep = ';')
+    function dbCsv($file)
     {
         if (file_exists($file)) {
             $rows = array_map('str_getcsv', file($file));
@@ -2786,7 +2771,7 @@
 
     function mergeObjects($obj1, $obj2)
     {
-        return (object)array_merge((array)$obj1, (array)$obj2);
+        return (object) array_merge((array) $obj1, (array) $obj2);
     }
 
     function truncate($string, $limit = 150, $breaker = false, $break = " ", $end = "&hellip;")
@@ -3011,6 +2996,82 @@
         return WEBROOT . '/' . trim($url, '/');
     }
 
+    function url($name, array $args = [])
+    {
+        $url = Routes::url($name, $args);
+
+        if (!$url) {
+            $url = $name;
+        }
+
+        return URLSITE . '/' . trim($url, '/');
+    }
+
+    function forward($what, $method = 'get', callable $before = null, callable $after = null)
+    {
+        if (fnmatch('*.*', $what)) {
+            list($controllerName, $action) = explode('.', $what, 2);
+        }
+
+        if (fnmatch('*@*', $what)) {
+            list($controllerName, $action) = explode('@', $what, 2);
+        }
+
+        if (fnmatch('*#*', $what)) {
+            list($controllerName, $action) = explode('#', $what, 2);
+        }
+
+        $actualController = Registry::get('app.controller', null);
+
+        if (!empty($actualController)) {
+            if (is_object($actualController)) {
+                $classC = get_class($actualController);
+                $tab = explode('\\', $classC);
+                $namespace = array_shift($tab);
+
+                $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
+
+                if (!is_file($controllerFile)) {
+                    exception('Controller', 'The controller ' . $controllerName . ' does not exist.');
+                }
+
+                require_once $controllerFile;
+
+                $class = '\\' . $namespace . '\\App' . ucfirst(Strings::lower($controllerName)) . 'Controller';
+
+                $actions = get_class_methods($class);
+
+                $a = $action;
+
+                $action = Strings::lower($method) . ucfirst(
+                    Strings::camelize(
+                        strtolower($action)
+                    )
+                );
+
+                $controller         = new $class;
+                $controller->_name  = $controllerName;
+                $controller->action = $a;
+
+                if (!in_array($action, $actions)) {
+                    exception('Controller', 'The action ' . $action . ' does not exist.');
+                }
+
+                if (is_callable($before)) {
+                    call($before, [$actualController, $controller]);
+                }
+
+                $return = $controller->$action();
+
+                if ($return instanceof Object) {
+                    return $return->go();
+                }
+
+                return Router::render($controller, Registry::get('cb.404'));
+            }
+        }
+    }
+
     function reflectClosure(callable $closure)
     {
         $reflection = dyn(new \ReflectionFunction($closure));
@@ -3228,4 +3289,103 @@
     function tsToTime($timestamp, $tz = null)
     {
         return Date::createFromTimestamp($timestamp, $tz);
+    }
+
+    function event($name, callable $closure = null, array $args = [])
+    {
+        $events = Registry::get('core.events', []);
+
+        $eventBag = isAke($events, $name, []);
+
+        if (!is_callable($closure)) {
+            if (!empty($eventBag)) {
+                $res = [];
+
+                foreach ($eventBag as $event) {
+                    $res[] = call_user_func_array($event, $args);
+                }
+
+                return $res;
+            }
+        } else {
+            if (!isset($events[$name])) {
+                $events[$name] = [];
+            }
+
+            $events[$name][] = $closure;
+
+            Registry::set('core.events', $events);
+
+            $fluent = o();
+
+            $fluent->macro('new', function($name, callable $closure = null, array $args = []) {
+                return event($name, $closure, $args);
+            });
+
+            $fluent->macro('fire', function($name, array $args = []) {
+                return event($name, null, $args);
+            });
+
+            return $fluent;
+        }
+    }
+
+    function fire($event, array $args = [])
+    {
+        return event($event, null, $args);
+    }
+
+    function validator($name)
+    {
+        $validators = Registry::get('core.validators', []);
+
+        $validator = isAke($validators, $name, null);
+
+        if ($validator) {
+            return $validator;
+        }
+
+        $validator = o();
+
+        $validator->macro('rule', function ($field, callable $checker) use ($name, $validator) {
+            $allRules = Registry::get('core.validators.rules', []);
+
+            $rules = isAke($allRules, $name, []);
+
+            $rules[$field] = $checker;
+
+            $allRules[$name] = $rules;
+
+            Registry::set('core.validators.rules', $allRules);
+
+            return $validator;
+        });
+
+        $validator->macro('check', function (array $data = []) {
+            $errors = [];
+
+            $data = empty($data) ? $_POST : $data;
+
+            $allRules = Registry::get('core.validators.rules', []);
+
+            $rules = isAke($allRules, $name, []);
+
+            if (!empty($rules)) {
+                foreach ($rules as $field => $checker) {
+                    $status = $checker($data);
+
+                    if (true !== $status) {
+                        $errors[$field] = $status;
+                    }
+                }
+            }
+
+            return empty($errors) ? true : $errors;
+        });
+
+        $validators[$name] = $validator;
+
+        Registry::set('core.validators', $validators);
+
+        return $validator;
     }

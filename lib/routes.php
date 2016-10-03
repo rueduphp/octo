@@ -18,6 +18,69 @@
             'option'    => []
         ];
 
+        public static function model($model, $prefix = '', $suffix = 'model')
+        {
+            if (is_object($model)) {
+                $db     = $model->db();
+                $table  = $model->table();
+
+                if ('core' != $db) {
+                    $prefix = trim(trim($orefix, '/') . '/' . $db, '/');
+                }
+
+                $prefix = trim(trim($orefix, '/') . '/' . $table, '/');
+
+                $controller = $db . $table . $suffix;
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Create
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::getPost($prefix . '/create', $controller . '#create');
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Read
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::get($prefix . '/read/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'read'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Update
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::getPost($prefix . '/update/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'update'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Delete
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::getPost($prefix . '/delete/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'delete'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | List
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::getPost($prefix . '/list', $controller . '#list');
+            }
+        }
+
         public static function __callStatic($m, $a)
         {
             $uri        = array_shift($a);
@@ -33,7 +96,7 @@
                         list($controller, $action, $render) = explode('.', $callback, 3);
                     }
 
-                    $render = empty($render) ? true : false;
+                    $render = empty($render);
 
                     return [$controller, $action, $render];
                 };
@@ -132,12 +195,17 @@
             });
 
             $route->macro('uses', function ($string) use ($route) {
-                list($controller, $action) = explode('@', $string, 2);
+                if (fnmatch('*@*', $string)) {
+                    list($controller, $action) = explode('@', $string, 2);
+                }
+
+                if (fnmatch('*#*', $string)) {
+                    list($controller, $action) = explode('#', $string, 2);
+                }
 
                 return $route
                     ->setController($controller)
-                    ->setAction($action)
-                    ->setName(str_replace('@', '.', $string));
+                    ->setAction($action);
             });
 
             static::$list[] = $route;

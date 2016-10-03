@@ -227,6 +227,23 @@
 
         public function __call($m, $a)
         {
+            try {
+                return call_user_func_array(['\\Octo\\OctaliaHelpers', $m], $a);
+            } catch (\Exception $e) {
+                if (function_exists('\\Octo\\' . $m)) {
+                    return call_user_func_array('\\Octo\\' . $m, $a);
+                }
+
+                exception('controller', "Method $m does not exist.");
+            }
+        }
+
+        public static function __callStatic($m, $a)
+        {
+            if (function_exists('\\Octo\\' . $m)) {
+                return call_user_func_array('\\Octo\\' . $m, $a);
+            }
+
             return call_user_func_array(['\\Octo\\OctaliaHelpers', $m], $a);
         }
 
@@ -306,6 +323,7 @@
             }
 
             File::put($file, implode($implode, $content));
+
             fmr('minify')->set($key, true);
             fmr('minify')->set($keyage, $a);
 

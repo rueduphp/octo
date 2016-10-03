@@ -12,7 +12,7 @@
 
         public function auth($key)
         {
-            $db = db('api', 'resource');
+            $db = odb('api', 'resource');
 
             $auth = $db
             ->where(['resource', '=', $this->resource])
@@ -34,7 +34,7 @@
 
         public static function clean()
         {
-            return db('api', 'auth')->where(['expire', '<', time()])->delete();
+            return odb('api', 'auth')->where(['expire', '<', time()])->delete();
         }
 
         public static function check($resourceApi)
@@ -45,7 +45,7 @@
                 self::unauthorized();
             }
 
-            $auth = db('api', 'auth')->where(['token', '=', $token])->first(true);
+            $auth = odb('api', 'auth')->where(['token', '=', $token])->first(true);
 
             if (empty($auth)) {
                 self::unauthorized();
@@ -75,7 +75,7 @@
             }
 
             if (2 == (int) $auth->is_admin) {
-                $rigth = db('api', 'right')
+                $rigth = odb('api', 'right')
                 ->where(['resource', '=', $resource])
                 ->where(['action', '=', $action])
                 ->where(['user_id', '=', $auth->user_id])

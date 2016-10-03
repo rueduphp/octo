@@ -343,7 +343,7 @@
                 if (is_array($data)) {
                     $sync = Registry::get('octalia.sync', []);
 
-                    if (empty($sync)) {
+                    if (!empty($sync)) {
                         $syncKey    = key($sync);
                         $syncTable  = $sync[$syncKey];
 
@@ -372,7 +372,7 @@
                 if (is_array($data)) {
                     $sync = Registry::get('octalia.sync', []);
 
-                    if (empty($sync)) {
+                    if (!empty($sync)) {
                         $syncKey    = key($sync);
                         $syncTable  = $sync[$syncKey];
 
@@ -738,5 +738,22 @@
             $this->data[$field] = $key;
 
             return $this;
+        }
+
+        public function validate()
+        {
+            if ($this->hasModel() && $this->exists()) {
+                $check = odb($this->db(), $this->table())->validator()->check($this->toArray());
+
+                if ($check) {
+                    $this->save();
+
+                    return true;
+                }
+
+                return $check;
+            }
+
+            return false;
         }
     }

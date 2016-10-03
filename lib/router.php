@@ -57,6 +57,10 @@
                 if (isset($headers['X-HTTP-Method-Override']) && in_array($headers['X-HTTP-Method-Override'], ['PUT', 'DELETE', 'PATCH'])) {
                     $method = isAke($headers, 'X-HTTP-Method-Override', 'PUT');
                 }
+
+                if (isset($headers['_method']) && in_array($headers['_method'], ['PUT', 'DELETE', 'PATCH'])) {
+                    $method = isAke($headers, '_method', 'PUT');
+                }
             }
 
             return $method;
@@ -103,7 +107,7 @@
             if ($found < 1) {
                 return $this->is404($cb404);
             } else {
-                if ($_SERVER['REQUEST_METHOD'] == 'HEAD') {
+                if ($method == 'HEAD') {
                     ob_end_clean();
                 }
 
@@ -149,6 +153,7 @@
                     $controller->action = $a;
 
                     Registry::set('app.controller', $controller);
+                    Registry::set('app.controller.file', $controllerFile);
 
                     if (in_array('bootstrap', $actions)) {
                         $controller->bootstrap();
@@ -191,6 +196,8 @@
 
         public static function render($controller, $is404 = false)
         {
+            extract(Registry::get('views.vars', []));
+
             if (!headers_sent()) {
                 status(200);
             }
@@ -210,9 +217,12 @@
 
         private static function html($controller)
         {
+            extract(Registry::get('views.vars', []));
+
             $tpl = path('app') . DS . 'views' . DS . $controller->_name . DS . $controller->action . '.phtml';
 
             if (File::exists($tpl)) {
+                Registry::set('app.view.file', $tpl);
                 $content = File::read($tpl);
 
                 $layout = cut('<layout>', '</layout>', $content);
@@ -276,6 +286,8 @@
         public static function partial($controller, $partial, $args = [])
         {
             if (File::exists($partial)) {
+                extract(Registry::get('views.vars', []));
+
                 $content = File::read($partial);
 
                 $content = self::compile($content);
@@ -314,6 +326,8 @@
 
         private function is404($cb404)
         {
+            extract(Registry::get('views.vars', []));
+
             if (isset($cb404) && is_callable($cb404)) {
                 Registry::set('page404', true);
 
