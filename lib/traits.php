@@ -388,7 +388,7 @@
         protected function hasTooManyAttempts()
         {
             return lib('limiter')->tooManyAttempts(
-                $this->getThrottleKey($request),
+                $this->getThrottleKey(),
                 $this->maxAttempts(),
                 $this->lockoutTime() / 60
             );
@@ -397,7 +397,7 @@
         protected function incrementAttempts()
         {
             lib('limiter')->hit(
-                $this->getThrottleKey($request)
+                $this->getThrottleKey()
             );
         }
 

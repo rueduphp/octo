@@ -21,9 +21,9 @@
             $this->items = (array) $items;
         }
 
-        public function create()
+        public function create($collec = false)
         {
-            $affected = 0;
+            $coll = [];
 
             if (!empty($this->items)) {
                 $first = current($this->items);
@@ -32,13 +32,28 @@
                     foreach ($this->items as $item) {
                         if ($item->hasModel()) {
                             $row = $item->save();
-                            $affected++;
+                            $coll[] = $row;
                         }
                     }
                 }
             }
 
-            return $affected;
+            return $collec ? coll($coll) : count($coll);
+        }
+
+        public function lastFake()
+        {
+            if (!empty($this->items)) {
+                $end = end($this->items);
+
+                if ($end instanceof Object) {
+                    if ($end->hasModel()) {
+                        return $end->save();
+                    }
+                }
+            }
+
+            return null;
         }
 
         public static function make($items = null)
@@ -719,6 +734,8 @@
                     case '<>':
                     case '!=':
                         return sha1(serialize($actual)) != sha1(serialize($value));
+                    case '!==':
+                        return $actual !== $value;
                     case '>':
                         return $actual > $value;
                     case '<':
@@ -748,10 +765,13 @@
 
                         return !$check;
                     case 'is':
-                        return is_null($actual);
+                        return null === $actual;
                     case 'is not':
-                        return !is_null($actual);
+                        return null !== $actual;
+                    case '===':
+                        return $actual === $value;
                     case '=':
+                    case '==':
                     default:
                         return sha1(serialize($actual)) == sha1(serialize($value));
                 }

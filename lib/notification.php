@@ -10,6 +10,11 @@
         $subject,
         $action = ['name' => null, 'url' => null];
 
+        /**
+         * Notification constructor.
+         * @param null $driver
+         * @param array $data
+         */
         public function __construct($driver = null, array $data = [])
         {
             $driver         = is_null($driver) ? Config::get('notification.driver', 'mail') : $driver;
@@ -17,6 +22,10 @@
             $this->data     = $data;
         }
 
+        /**
+         * @param $line
+         * @return $this
+         */
         public function line($line)
         {
             $segment = is_null($this->action['name']) ? 'start' : 'end';
@@ -26,6 +35,10 @@
             return $this;
         }
 
+        /**
+         * @param $subject
+         * @return $this
+         */
         public function subject($subject)
         {
             $this->subject = $subject;
@@ -33,6 +46,9 @@
             return $this;
         }
 
+        /**
+         * @return $this
+         */
         public function success()
         {
             $this->status = 'success';
@@ -40,6 +56,9 @@
             return $this;
         }
 
+        /**
+         * @return $this
+         */
         public function warning()
         {
             $this->status = 'warning';
@@ -47,6 +66,11 @@
             return $this;
         }
 
+        /**
+         * @param $m
+         * @param $a
+         * @return $this
+         */
         public function __call($m, $a)
         {
             $this->status = $m;
@@ -54,6 +78,9 @@
             return $this;
         }
 
+        /**
+         * @return $this
+         */
         public function status()
         {
             $this->status = 'info';
@@ -61,6 +88,9 @@
             return $this;
         }
 
+        /**
+         * @return $this
+         */
         public function error()
         {
             $this->status = 'error';
@@ -68,6 +98,11 @@
             return $this;
         }
 
+        /**
+         * @param $name
+         * @param null $url
+         * @return $this
+         */
         public function action($name, $url = null)
         {
             $url = is_null($url) ? def('URLSITE') : $url;
@@ -78,12 +113,18 @@
             return $this;
         }
 
+        /**
+         * @return mixed
+         */
         public function send()
         {
             return call_user_func_array([$this, $this->driver . 'To'], []);
         }
 
-        function mailTo()
+        /**
+         * @return bool
+         */
+        public function mailTo()
         {
             $status     = $this->status;
             $subject    = $this->subject;
@@ -119,6 +160,9 @@
             return true;
         }
 
+        /**
+         * @return bool
+         */
         public function logTo()
         {
             $status     = $this->status;
@@ -146,6 +190,9 @@
             return true;
         }
 
+        /**
+         * @return bool
+         */
         public function databaseTo()
         {
             $status     = $this->status;

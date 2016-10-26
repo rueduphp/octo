@@ -66,7 +66,7 @@
             $fp = fopen($file, 'w');
 
             if (!flock($fp, LOCK_EX)) {
-                throw new \Exception("The file '$file' can not be locked.");
+                exception('file', "The file '$file' can not be locked.");
             }
 
             $result = fwrite($fp, $data);
@@ -480,7 +480,7 @@
 
             while (!feof($fp) && (connection_status() == 0)) {
                 set_time_limit(0);
-                print(fread($fp, 1024*$maxSpeed));
+                print(fread($fp, 1024 * $maxSpeed));
                 flush();
                 ob_flush();
                 sleep(1);

@@ -85,7 +85,7 @@
                 return $this->user();
             }
 
-            return OctalSystemAccount::firstByForever($identifier);
+            return System::Account()->firstByForever($identifier);
         }
 
         public function getVisitorByIdentifier($identifier = null)
@@ -94,13 +94,13 @@
                 return $this->user();
             }
 
-            return OctalSystemVisitor::firstByForever($identifier);
+            return System::Visitor()->firstByForever($identifier);
         }
 
         public function login($login, $password)
         {
             if (!$this->isLogged()) {
-                $user = OctalSystemAccount::firstByLogin($login);
+                $user = System::Account()->firstByLogin($login);
 
                 if (lib('hasher')->check($password, $user['password'])) {
                     session('web')->setUser($user);
@@ -120,7 +120,7 @@
 
         public function logout()
         {
-            session('front')->erase('user');
+            session('log')->erase('user');
             session('web')->erase('user');
 
             $controller = Registry::get('octo.controller');
@@ -134,7 +134,7 @@
 
         public function loginById($id)
         {
-            $user = OctalSystemAccount::findOrFail((int) $id);
+            $user = System::Account()->findOrFail((int) $id);
 
             session('web')->setUser($user->toArray());
 
@@ -149,7 +149,7 @@
 
         public function loginByLogin($login)
         {
-            $user = OctalSystemAccount::firstByLogin((string) $login);
+            $user = System::Account()->firstByLogin((string) $login);
 
             if (!$user) {
                 throw new Exception("User with login $login does not exist.");
@@ -168,7 +168,7 @@
 
         public function loginByEmail($email)
         {
-            $user = OctalSystemAccount::firstByEmail((string) $email);
+            $user = System::Account()->firstByEmail((string) $email);
 
             if (!$user) {
                 throw new Exception("User with email $email does not exist.");

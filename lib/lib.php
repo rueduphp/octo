@@ -38,49 +38,6 @@
                 return;
             }
         }
-
-        $check = str_replace('\\', '', $class);
-
-        if (fnmatch('OctoLib*', $check)) {
-            $dir = realpath(path('app') . '/lib');
-            $rep = str_replace('Octo\\Lib\\', '', $class);
-            $name = Strings::uncamelize($rep);
-            $file = $dir;
-
-            $check = count(explode('\\', $rep));
-
-            if (2 <= $check) {
-                $tab = explode('\\', $rep);
-            } else {
-                $tab = explode('_', $name);
-            }
-
-            foreach ($tab as $part) {
-                $file .= DS . ucwords($part);
-            }
-
-            $file .= '.php';
-
-            if (File::exists($file)) {
-                require_once $file;
-            }
-        } elseif (fnmatch('OctoModel*', $check) && 'OctoModel' != $check) {
-            $repo = Strings::uncamelize(str_replace('OctoModel', '', $check));
-
-            modelFacade($repo, $class);
-        } elseif (fnmatch('OctoDb*', $check) && 'OctoDb' != $check) {
-            $repo = Strings::uncamelize(str_replace('OctoDb', '', $check));
-
-            modelFacade($repo, $class);
-        } elseif (fnmatch('OctoData*', $check) && 'OctoData' != $check) {
-            $repo = Strings::uncamelize(str_replace('OctoData', '', $check));
-
-            modelFacade($repo, $class);
-        } elseif (fnmatch('OctoOctal*', $check) && 'OctoOctal' != $check) {
-            $repo = Strings::uncamelize(str_replace('OctoOctal', '', $check));
-
-            octalFacade($repo, $class);
-        }
     });
 
     function view($html = null, $code = 200, $title = 'Octo')
@@ -1123,6 +1080,28 @@
         return $data;
     }
 
+    function includer($file)
+    {
+        $return = [];
+
+        if (file_exists($file)) {
+            return include $file;
+        }
+
+        return $return;
+    }
+
+    function includers(array $files)
+    {
+        $return = [];
+
+        foreach ($files as $file) {
+            $return[$file] = includer($file);
+        }
+
+        return $return;
+    }
+
     function isAke($tab, $key, $default = [])
     {
         if (true === is_object($tab)) {
@@ -1295,6 +1274,7 @@
 
     function lib($lib, $args = [])
     {
+
         $class = '\\Octo\\' . Strings::camelize($lib);
 
         if (!class_exists($class)) {
@@ -1382,9 +1362,12 @@
         return (new Now)->get('octo.paths', []);
     }
 
-    function systemBoot($dir)
+    function systemBoot($dir = null)
     {
         forever();
+
+        require_once __DIR__ . DS . 'di.php';
+        require_once __DIR__ . DS . 'cachei.php';
 
         define('OCTO_MAX', 9223372036854775808);
         define('OCTO_MIN', -9223372036854775808);
@@ -1529,6 +1512,40 @@
                 Later::shutdown();
             });
         });
+    }
+
+    function perms($path)
+    {
+        return substr(
+            sprintf(
+                '%o',
+                fileperms($path)
+            ),
+            -4
+        );
+    }
+
+    function timezones()
+    {
+        $zones  = [];
+        $ts     = time();
+        $actual = date_default_timezone_get();
+
+        foreach (timezone_identifiers_list() as $k => $zone) {
+            date_default_timezone_set($zone);
+
+            $zones[$k]['zone']  = $zone;
+            $zones[$k]['text']  = '(GMT' . date('P', $ts) . ') ' . $zones[$k]['zone'];
+            $zones[$k]['order'] = str_replace('-', '1', str_replace('+', '2', date('P', $ts))) . $zone;
+        }
+
+        usort($zones, function ($a, $b) {
+            return strcmp($a['order'], $b['order']);
+        });
+
+        date_default_timezone_set($actual);
+
+        return $zones;
     }
 
     function register($class, callable $resolver)
@@ -2064,12 +2081,35 @@
     function on($event, callable $cb, $args = [])
     {
         if (is_callable($event)) {
-            $res = $event();
+            $res = call_user_func_array($event, $args);
         } else {
             $res = listen($event, $args);
         }
 
         return call_user_func_array($cb, [$res]);
+    }
+
+    function promise()
+    {
+        $promise = o();
+
+        $promise->macro('success', function (callable $succes = null) {
+            if (is_callable($success)) {
+                return $success();
+            }
+
+            return true;
+        });
+
+        $promise->macro('error', function (callable $error = null) {
+            if (is_callable($error)) {
+                return $error();
+            }
+
+            return false;
+        });
+
+        return $promise;
     }
 
     function broadcast($event, callable $cb)
@@ -2662,7 +2702,7 @@
 
     function dbCsv($file)
     {
-        if (file_exists($file)) {
+        if (File::exists($file)) {
             $rows = array_map('str_getcsv', file($file));
 
             array_walk($rows, function(&$a) use ($rows) {
@@ -2679,22 +2719,12 @@
 
     function b64_encode($str)
     {
-        $str = base64_encode($str);
-        $str = preg_replace('/\//', '_', $str);
-        $str = preg_replace('/\+/', '.', $str);
-        $str = preg_replace('/\=/', '-', $str);
-
-        return trim($str, '-');
+        return strtr(base64_encode($str), '+/=', '-_,');
     }
 
     function b64_decode($str)
     {
-        $str = preg_replace('/\_/', '/', $str);
-        $str = preg_replace('/\./', '+', $str);
-        $str = preg_replace('/\-/', '=', $str);
-        $str = base64_decode($str);
-
-        return $str;
+        return base64_decode(strtr($str, '-_,', '+/='));
     }
 
     function zip($source, $destination, $include_dir = false)
@@ -2739,7 +2769,7 @@
 
     function shorten($string = null, $char = 80)
     {
-        if(empty($string)) {
+        if (empty($string)) {
             return $string;
         }
 
@@ -3271,7 +3301,7 @@
 
     function start_session()
     {
-        if (!session_id()) {
+        if (!session_id() && !headers_sent() && !isset($_SESSION)) {
             session_start();
         }
     }
@@ -3284,6 +3314,18 @@
     function upper($str)
     {
         return Strings::upper($str);
+    }
+
+    function polymorph(Object $object)
+    {
+        return odb($object->db(), $object->polymorph_type)->find((int) $object->polymorph_id);
+    }
+
+    function polymorphs(Object $object, $parent)
+    {
+        return odb($object->db(), $parent)
+        ->where('polymorph_type', $object->table())
+        ->where('polymorph_id', (int) $object->id);
     }
 
     function tsToTime($timestamp, $tz = null)
@@ -3371,12 +3413,16 @@
             $rules = isAke($allRules, $name, []);
 
             if (!empty($rules)) {
+                $check = lib('checker', [$data]);
+
                 foreach ($rules as $field => $checker) {
-                    $status = $checker($data);
+                    $status = $checker(isAke($data, $field, null), $data, $check);
 
                     if (true !== $status) {
                         $errors[$field] = $status;
                     }
+
+                    $check->fresh();
                 }
             }
 
@@ -3390,22 +3436,48 @@
         return $validator;
     }
 
-    function laravel53($laravelApp, $name = 'laravel_app')
+    function laravel53($app, $name = 'laravel_app', callable $config = null)
     {
-        Config::set('laravel', $laravelApp);
+        Timer::start();
 
-        $basePath = $laravelApp->basePath();
+        $basePath = base_path();
+
+        systemBoot($basePath . '/public');
+
+        if (!is_dir($basePath . '/database/octalia')) {
+            Dir::mkdir($basePath . '/database/octalia');
+        }
+
+        if (!is_dir($basePath . '/database/octalia/models')) {
+            Dir::mkdir($basePath . '/database/octalia/models');
+        }
+
+        if (!is_dir($basePath . '/database/octalia/factories')) {
+            Dir::mkdir($basePath . '/database/octalia/factories');
+        }
+
+        if (!is_dir($basePath . '/storage/cache')) {
+            Dir::mkdir($basePath . '/storage/cache');
+        }
+
+        if (!is_dir($basePath . '/database/octalia/data')) {
+            Dir::mkdir($basePath . '/database/octalia/data');
+        }
+
+        Config::set('laravel', $app);
 
         Config::set('application.name',     $name);
         Config::set('application.dir',      realpath($basePath . '/app'));
 
-        Config::set('model.dir',            realpath($basePath . '/storage/models'));
-        Config::set('octalia.dir',          realpath($basePath . '/storage/data'));
+        Config::set('model.dir',            realpath($basePath . '/database/octalia/models'));
+        Config::set('factories.dir',        realpath($basePath . '/database/octalia/factories'));
+        Config::set('octalia.dir',          realpath($basePath . '/database/octalia/data'));
         Config::set('dir.cache',            realpath($basePath . '/storage/cache'));
 
         path('config',                      realpath($basePath . '/config'));
         path('app',                         realpath($basePath . '/app'));
-        path('models',                      realpath($basePath . '/storage/models'));
+        path('models',                      realpath($basePath . '/database/octalia/models'));
+        path('factories',                   realpath($basePath . '/database/octalia/factories'));
         path('translations',                realpath($basePath . '/storage/translations'));
         path('storage',                     realpath($basePath . '/storage'));
         path('public',                      realpath($basePath . '/public'));
@@ -3413,19 +3485,128 @@
         path('octalia',                     Config::get('octalia.dir', session_save_path()));
         path('cache',                       Config::get('dir.cache', session_save_path()));
 
-        if (!is_dir(path('models'))) {
-            Dir::mkdir(path('models'));
-        }
+        $methods = get_defined_functions();
 
-        if (!is_dir(path('cache'))) {
-            Dir::mkdir(path('cache'));
-        }
+        getHelpers();
+        getHelpers('App');
 
-        if (!is_dir(path('octalia'))) {
-            Dir::mkdir(path('octalia'));
-        }
+        lib('MigrationCommand');
 
-        $laravelApp->bind('data', function ($table) {
-            return \Octo\Model::$table();
+        $app['command.octo.migration'] = $app->share(
+            function ($app) {
+                return new MigrationCommand;
+            }
+        );
+
+        $commands[] = 'command.octo.migration';
+
+        $app['command.octo.seed'] = $app->share(
+            function ($app) {
+                return new SeedCommand;
+            }
+        );
+
+        $commands[] = 'command.octo.seed';
+
+        $app['command.octo.clean'] = $app->share(
+            function ($app) {
+                return new CleanFakeCommand;
+            }
+        );
+
+        $commands[] = 'command.octo.clean';
+
+        $events = $app['events'];
+
+        $events->listen(\Illuminate\Console\Events\ArtisanStarting::class, function ($event) use ($commands) {
+            $event->artisan->resolveCommands($commands);
         });
+
+        if (is_callable($config)) {
+            $config($app);
+        }
+    }
+
+    function tinker()
+    {
+        laravel53(\app());
+    }
+
+    function createModel(Octalia $model, array $fields = [])
+    {
+        if ($model->count() == 0) {
+            $row = [];
+
+            if (!empty($fields)) {
+                foreach ($fields as $field) {
+                    $row[$field] = $field;
+                }
+            }
+
+            $model->create($row)->save();
+            $model->forget();
+
+            return true;
+        }
+
+        exception('system', 'This model ever exists.');
+    }
+
+    function getHelpers($from = '', $to = 'octo')
+    {
+        static $methods = null;
+
+        $methods = is_null($methods) ? get_defined_functions() : $methods;
+
+        foreach ($methods as $group) {
+            foreach ($group as $function) {
+                if (fnmatch($to . '*', $function)) {
+                    if (strlen($from)) $native = str_replace_first($to, $from, $function);
+                    else $native = str_replace_first($to . '\\', $from, $function);
+
+                    if (!function_exists($native)) {
+                        $fn = str_replace($from . '\\', '', $native);
+                    } else {
+                        $fn = 'octo_' . $native;
+                    }
+
+                    if (!function_exists($from . '\\' . $fn)) {
+                        $code = 'namespace ' . $from . ' {
+                            function '. $fn .' ()
+                            {
+                                return call_user_func_array("\\' . str_replace('\\', '\\\\', $function) . '", func_get_args());
+                            };
+                        };';
+
+                        eval($code);
+                    }
+                }
+            }
+        }
+    }
+
+    function cache_start($default = null)
+    {
+        $bt = debug_backtrace();
+        array_shift($bt);
+        $last = array_shift($bt);
+        $key = sha1(serialize($last) . File::read($last['file']) . filemtime($last['file']));
+
+        return fmr()->start($key, $default);
+    }
+
+    function cache_end()
+    {
+        return fmr()->end();
+    }
+
+    function input()
+    {
+        $args = func_get_args();
+
+        $method = array_shift($args);
+
+        $input = lib('input');
+
+        return $method ? call_user_func_array([$input, $method], $args) : $input;
     }

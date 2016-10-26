@@ -30,13 +30,11 @@
 
         public function versioning()
         {
-            if ($this->hasModel()) {
-                if ($this->exists()) {
-                    $versions   = isAke($this->initial, 'versions', []);
-                    $versions[count($versions) + 1] = $this->initial;
+            if ($this->hasModel() && $this->exists()) {
+                $versions   = isAke($this->initial, 'versions', []);
+                $versions[count($versions) + 1] = $this->initial;
 
-                    $this->data['versions'] = $versions;
-                }
+                $this->data['versions'] = $versions;
 
                 return $this->save();
             }
@@ -46,10 +44,8 @@
 
         public function versions()
         {
-            if ($this->hasModel()) {
-                if ($this->exists()) {
-                    return isAke($this->initial, 'versions', []);
-                }
+            if ($this->hasModel() && $this->exists()) {
+                return isAke($this->initial, 'versions', []);
             }
 
             return [];
@@ -129,38 +125,9 @@
             return $this;
         }
 
-        public function set($k, $v)
-        {
-            if ($k == 'password') {
-                $v = lib('hasher')->make($v);
-            }
-
-            Arrays::set($this->data, $k, value($v));
-
-            return $this;
-        }
-
-        public function get($k, $d = null)
-        {
-            return value(
-                Arrays::get(
-                    $this->data,
-                    $k,
-                    value($d)
-                )
-            );
-        }
-
         public function contains($k)
         {
             return 'octodummy' != $this->get($key, 'octodummy');
-        }
-
-        public function del($k)
-        {
-            Arrays::forget($this->data, $k);
-
-            return $this;
         }
 
         public function collection()
@@ -298,14 +265,25 @@
                                         }
                                     }
 
-                                    $tables = [$this->table(), $fkParent];
-                                    sort($tables);
-
-                                    Registry::set('octalia.sync', $this);
-
                                     return odb($this->db(), $fkParent)->where([$fk, '=', (int) $this->get('id')]);
                                 } else {
-                                    return odb($this->db(), $fktable)->find((int) $this->get($fktable . '_id'), $o);
+                                    $id = isAke($this->data, $fktable . '_id', 'octodummy');
+
+                                    if (is_numeric($id)) {
+                                        return odb($this->db(), $fktable)->find((int) $id, $o);
+                                    } else {
+                                        $fk = $this->table() . '_id';
+
+                                        if (!$model) {
+                                            $model = false;
+                                        } else {
+                                            if (true !== $model) {
+                                                $model = false;
+                                            }
+                                        }
+
+                                        return odb($this->db(), $fktable)->where([$fk, '=', (int) $this->get('id')])->first($model);
+                                    }
                                 }
                             }
                         }
@@ -326,64 +304,6 @@
         {
             if ($this->hasModel() && $this->exists()) {
                 return odb($this->db(), $this->table())->find((int) $this->data['id']);
-            }
-
-            return $this;
-        }
-
-        public function attach($data)
-        {
-            if ($this->hasModel() && $this->exists()) {
-                if ($data instanceof self) {
-                    $data = [$data->getId()];
-                } elseif (is_numeric($data)) {
-                    $data = [(int) $data];
-                }
-
-                if (is_array($data)) {
-                    $sync = Registry::get('octalia.sync', []);
-
-                    if (!empty($sync)) {
-                        $syncKey    = key($sync);
-                        $syncTable  = $sync[$syncKey];
-
-                        foreach ($data as $id) {
-                            odb($this->db, $syncTable)->firstOrCreate([
-                                $syncKey => $id,
-                                $this->table() . '_id' => $this->get('id')
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            return $this;
-        }
-
-        public function detach($data)
-        {
-            if ($this->hasModel() && $this->exists()) {
-                if ($data instanceof self) {
-                    $data = [$data->getId()];
-                } elseif (is_numeric($data)) {
-                    $data = [(int) $data];
-                }
-
-                if (is_array($data)) {
-                    $sync = Registry::get('octalia.sync', []);
-
-                    if (!empty($sync)) {
-                        $syncKey    = key($sync);
-                        $syncTable  = $sync[$syncKey];
-
-                        foreach ($data as $id) {
-                            odb($this->db, $syncTable)
-                            ->where([$syncKey, '=', (int) $id])
-                            ->where([$this->table() . '_id', '=', (int) $this->get('id')])
-                            ->delete();
-                        }
-                    }
-                }
             }
 
             return $this;
@@ -428,7 +348,7 @@
 
         public function exists()
         {
-            return is_numeric(isAke($this->data, 'id', 'dummy'));
+            return is_numeric(isAke($this->data, 'id', 'octodummy'));
         }
 
         public function __toString()
@@ -454,33 +374,7 @@
             return $this;
         }
 
-        public function __get($k)
-        {
-            $driver = isAke($this->callbacks, "driver", null);
-
-            if ($driver && !$this->has($k)) {
-                if (fnmatch('*s', $k)) {
-                    $fk = $this->table() . '_id';
-                    $fkParent = substr($k, 0, -1);
-
-                    $query = odb($this->db(), $fkParent)->where([$fk, '=', (int) $this->get('id')]);
-
-                    if ($query->count() > 0) {
-                        return $query;
-                    }
-                } else {
-                    $id = $this->get($k . '_id', 'octodummy');
-
-                    if (is_numeric($id)) {
-                        return odb($this->db(), $k)->row((int) $this->get($k . '_id'));
-                    }
-                }
-            }
-
-            return $this->get($k);
-        }
-
-        public function __set($k, $v)
+        public function set($k, $v)
         {
             $driver = isAke($this->callbacks, "driver", null);
 
@@ -490,7 +384,7 @@
 
                     if ($first instanceof self) {
                         foreach ($v as $model) {
-                            $setter =setter($this->table() . '_id');
+                            $setter = setter($this->table() . '_id');
                             $model->$setter($this->get('id'))->save();
                         }
 
@@ -503,14 +397,77 @@
                 return $this->set($k . '_id', $v->id);
             }
 
+            if ($k == 'password') {
+                $v = lib('hasher')->make($v);
+            }
+
+            Arrays::set($this->data, $k, value($v));
+
+            return $this;
+        }
+
+        public function get($k, $d = null)
+        {
+            $driver = isAke($this->callbacks, "driver", null);
+
+            if ($driver && !isset($this->data[$k])) {
+                if (fnmatch('*s', $k)) {
+                    $fk = $this->table() . '_id';
+                    $fkParent = substr($k, 0, -1);
+
+                    $query = odb($this->db(), $fkParent)->where([$fk, '=', (int) $this->get('id')]);
+
+                    if ($query->count() > 0) {
+                        return $query;
+                    }
+                } else {
+                    $id = isAke($this->data, $k . '_id', 'octodummy');
+
+                    if (is_numeric($id)) {
+                        return odb($this->db(), $k)->row((int) $this->get($k . '_id'));
+                    } else {
+                        $fk = $this->table() . '_id';
+
+                        $query = odb($this->db(), $k)->where([$fk, '=', (int) $this->get('id')]);
+
+                        if ($query->count() > 0) {
+                            return $query->first();
+                        }
+                    }
+                }
+            }
+
+            if (in_array($k, ['created_at', 'updated_at'])) {
+                return Time::createFromTimestamp(isAke($this->data, $k, time()));
+            }
+
+            return value(
+                Arrays::get(
+                    $this->data,
+                    $k,
+                    value($d)
+                )
+            );
+        }
+
+        public function __get($k)
+        {
+            return $this->get($k);
+        }
+
+        public function __set($k, $v)
+        {
             return $this->set($k, $v);
         }
 
         public function __isset($k)
         {
-            $driver = isAke($this->callbacks, "driver", null);
+            return $this->has($k);
+        }
 
-            if ($driver && !$this->has($k)) {
+        public function has($k)
+        {
+            if ($this->hasModel() && $this->exists() && !isset($this->data[$k])) {
                 if (fnmatch('*s', $k)) {
                     $fk = $this->table() . '_id';
                     $fkParent = substr($k, 0, -1);
@@ -538,16 +495,25 @@
             return 'octodummy' != $this->get($k, 'octodummy');
         }
 
-        public function has($k)
+        public function incr($k, $by = 1)
         {
-            return 'octodummy' != $this->get($k, 'octodummy');
+            $old = $this->get($k, 0);
+            $new = $old + $by;
+
+            return $this->set($k, $new);
+        }
+
+        public function decr($k, $by = 1)
+        {
+            $old = $this->get($k, 0);
+            $new = $old - $by;
+
+            return $this->set($k, $new);
         }
 
         public function __unset($k)
         {
-            $driver = isAke($this->callbacks, "driver", null);
-
-            if ($driver && !$this->has($k)) {
+            if ($this->hasModel() && $this->exists() && !$this->has($k)) {
                 if (fnmatch('*s', $k)) {
                     $fk = $this->table() . '_id';
                     $fkParent = substr($k, 0, -1);
@@ -588,10 +554,15 @@
 
         public function offsetExists($key)
         {
-            return 'octodummy' != $this->get($key, 'octodummy');
+            return $this->has($key);
         }
 
         public function offsetUnset($key)
+        {
+            unset($this->data[$key]);
+        }
+
+        public function del($key)
         {
             unset($this->data[$key]);
         }
@@ -621,13 +592,11 @@
             return $db->where([$this->table() . '_id', '=', (int) $this->data['id']]);
         }
 
-        public function through($t1, $t2)
+        public function through(Octalia $db1, Octalia $db2)
         {
             if (!$this->exists()) {
                 exception('model', 'id must be defined to use through.');
             }
-
-            $db1 = odb($this->db(), $t1);
 
             $fk = $this->table() . '_id';
 
@@ -639,21 +608,21 @@
                 $ids[] = $row['id'];
             }
 
-            $fk2 = $t1 . '_id';
+            $fk2 = $db1->table . '_id';
 
-            return odb($this->db(), $t2)->where([$fk2, 'IN', implode(',', $ids)])->get();
+            return $db2->where([$fk2, 'IN', implode(',', $ids)])->get();
         }
 
-        public function hasThrough($t1, $t2)
+        public function hasThrough(Octalia $db1, Octalia $db2)
         {
             if (!$this->exists()) {
                 exception('model', 'id must be defined to use hasThrough.');
             }
 
-            return $this->countThrough($t1, $t2) > 0;
+            return $this->countThrough($db1, $db2) > 0;
         }
 
-        public function countThrough($t1, $t2)
+        public function countThrough(Octalia $db1, Octalia $db2)
         {
             if (!$this->exists()) {
                 exception('model', 'id must be defined to use countThrough.');
@@ -661,8 +630,6 @@
 
             $database = $this->db();
 
-            $db1 = odb($database, $t1);
-
             $fk = $this->table() . '_id';
 
             $sub = $db1->where([$fk, '=', (int) $this->data['id']])->get();
@@ -673,9 +640,9 @@
                 $ids[] = $row['id'];
             }
 
-            $fk2 = $t1 . '_id';
+            $fk2 = $db1->table . '_id';
 
-            return odb($database, $t2)->where([$fk2, 'IN', implode(',', $ids)])->count();
+            return $db2->where([$fk2, 'IN', implode(',', $ids)])->count();
         }
 
         public function timestamps()
@@ -713,7 +680,6 @@
                 $field = $model->table() . '_id';
 
                 $this->data[$field] = $model->id;
-                $this->data[$model->table()] = $model->toArray();
             }
 
             return $this;
@@ -725,7 +691,6 @@
                 $field  = $model->table() . '_id';
 
                 unset($this->data[$field]);
-                unset($this->data[$model->table()]);
             }
 
             return $this;
@@ -755,5 +720,154 @@
             }
 
             return false;
+        }
+
+        public function polymorph(Object $polymorph = null)
+        {
+            if ($this->hasModel() && $this->exists()) {
+                if (is_null($polymorph)) {
+                    return odb($this->db(), $this->polymorph_type)->find((int) $this->polymorph_id);
+                }
+
+                $this->data['polymorph_type'] = $polymorph->table();
+                $this->data['polymorph_id'] = (int) $polymorph->id;
+            }
+
+            return $this;
+        }
+
+        public function polymorphs($parent)
+        {
+            if ($this->hasModel() && $this->exists()) {
+                return odb($this->db(), $parent)
+                ->where('polymorph_type', $this->table())
+                ->where('polymorph_id', (int) $this->id);
+            }
+
+            return $this;
+        }
+
+        public function relationship(Octalia $model, $many = true)
+        {
+            if ($this->hasModel() && $this->exists()) {
+                $fk = $model->table;
+                $idFk = $fk . '_id';
+
+                if (isset($this->data[$idFk]) && is_numeric($this->data[$idFk])) {
+                    return odb($this->db(), $fk)->find((int) $this->data[$idFk]);
+                } else {
+                    $query = odb($this->db(), $fk)->where($this->table() . '_id', (int) $this->get('id'));
+
+                    return $many ? $query : $query->first(true);
+                }
+            }
+
+            return $this;
+        }
+
+        public function hasOne(Octalia $model)
+        {
+            return $this->relationship($model, false);
+        }
+
+        public function belongsTo(Octalia $model)
+        {
+            return $this->relationship($model, false);
+        }
+
+        public function hasMany(Octalia $model)
+        {
+            return $this->relationship($model);
+        }
+
+        public function belongsToMany(Octalia $model)
+        {
+            return $this->relationship($model);
+        }
+
+        public function manyToMany(Octalia $model)
+        {
+            if ($this->hasModel() && $this->exists()) {
+                $tables = [$this->table(), $model->table];
+                sort($tables);
+                $pivot = implode('', $tables);
+
+                return odb($this->db(), $pivot)
+                ->where($this->table() . '_id', (int) $this->get('id'));
+            }
+
+            return $this;
+        }
+
+        public function pivots(Octalia $model)
+        {
+            if ($this->hasModel() && $this->exists()) {
+                $relations = $this->manyToMany($model);
+                $ids = [];
+
+                if ($relations->count()) {
+                    foreach ($relations->get() as $relation) {
+                        $ids[] = $relation[$model->table . '_id'];
+                    }
+                }
+
+                if (empty($ids)) {
+                    return odb($this->db(), $model->table)
+                    ->where(['id', '<', 0]);
+                } else {
+                    return odb($this->db(), $model->table)
+                    ->where(['id', 'IN', $ids]);
+                }
+            }
+
+            return $this;
+        }
+
+        public function attach(Object $model, array $data = [], $sync = false)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                $tables = [$this->table(), $model->table()];
+                sort($tables);
+                $pivot = implode('', $tables);
+
+                if ($sync) {
+                    $relation = odb($this->db(), $pivot)->firstOrCreate([
+                        $this->table() . '_id' => (int) $this->get('id'),
+                        $model->table() . '_id' => (int) $model->id
+                    ]);
+                } else {
+                    $relation = odb($this->db(), $pivot)->create([
+                        $this->table() . '_id' => (int) $this->get('id'),
+                        $model->table() . '_id' => (int) $model->id
+                    ])->save();
+                }
+
+                if (!empty($data)) {
+                    $relation->fill($data)->save();
+                }
+            }
+
+            return $this;
+        }
+
+        public function sync(Object $model, array $data = [])
+        {
+            return $this->attach($model, $data, true);
+        }
+
+        public function detach(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                $tables = [$this->table(), $model->table()];
+                sort($tables);
+                $pivot = implode('', $tables);
+
+                return odb($this->db(), $pivot)
+                ->where($this->table() . '_id', (int) $this->get('id'))
+                ->where($model->table() . '_id', (int) $model->id)
+                ->delete();
+            }
+
+            return $this;
         }
     }

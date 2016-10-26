@@ -445,4 +445,74 @@
 
             return $value;
         }
+
+        public function bind($k, callable $c)
+        {
+            return $this->set('binds.' . $k, $c);
+        }
+
+        public function instance($object)
+        {
+            if (is_callable($object)) {
+                $object = $object();
+            }
+
+            $class = get_class($object);
+
+            $resolver = function () use ($object) {
+                return $object;
+            };
+
+            return $this->bind($class, $resolver);
+        }
+
+        public function make($k, array $args = [])
+        {
+            $c = $this->get('binds.' . $k, null);
+
+            if (is_callable($c)) {
+                return call_user_func_array($c, $args);
+            } else {
+                $ref = new \ReflectionClass($k);
+                $canMakeInstance = $ref->isInstantiable();
+
+                if ($canMakeInstance) {
+                    $maker = $ref->getConstructor();
+
+                    if ($maker) {
+                        $params = $maker->getParameters();
+
+                        $instanceParams = [];
+
+                        foreach ($params as $param) {
+                            $classParam = $param->getClass();
+
+                            if ($classParam) {
+                                $p = $this->make($classParam->getName());
+                            } else {
+                                $p = $param->getDefaultValue();
+                            }
+
+                            $instanceParams[] = $p;
+                        }
+
+                        if (!empty($instanceParams)) {
+                            $this->instance($i = $ref->newInstanceArgs($instanceParams));
+                        } else {
+                            $this->instance($i = $ref->newInstance());
+                        }
+
+                        return $i;
+                    } else {
+                        $this->instance($i = $ref->newInstance());
+
+                        return $i;
+                    }
+                } else {
+                    exception('Dic', "The class $k is not intantiable.");
+                }
+            }
+
+            exception('Dic', "The class $k is not set.");
+        }
     }

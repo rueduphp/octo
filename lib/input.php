@@ -3,11 +3,71 @@
 
     Class Input
     {
-        public static function get($k, $d = null)
+        public static function all($k = null, $d = null)
         {
             $all = self::clean($_GET) + self::clean($_POST) + self::clean($_REQUEST);
 
-            return isAke(oclean($all), $k, value($d));
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function post($k = null, $d = null)
+        {
+            $all = self::clean($_POST);
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function get($k = null, $d = null)
+        {
+            $all = self::clean($_GET);
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function request($k = null, $d = null)
+        {
+            $all = self::clean($_REQUEST);
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function session($k = null, $d = null)
+        {
+            start_session();
+
+            $all = self::clean($_SESSION);
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function server($k = null, $d = null)
+        {
+            $all = self::clean($_SERVER);
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function globals($k = null, $d = null)
+        {
+            $all = self::clean($GLOBALS);
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function cookie($k = null, $d = null)
+        {
+            $all = self::clean($_COOKIE);
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function data(array $data = [], $k = null, $d = null)
+        {
+            $data = empty($data) ? $_POST : $data;
+
+            $all = self::clean($data);
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
 
         public static function has($k)

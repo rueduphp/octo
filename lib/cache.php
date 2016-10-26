@@ -1,11 +1,12 @@
 <?php
     namespace Octo;
 
-    class Cache
+    class Cache implements CacheI
     {
         use Notifiable;
 
         private $dir;
+        private $id;
         private static $instances = [];
 
         private function getPath($k)
@@ -57,6 +58,8 @@
             if (!is_dir($this->dir)) {
                 File::mkdir($this->dir);
             }
+
+            $this->id = sha1($ns);
         }
 
         public static function instance($ns = 'core', $dir = null)
@@ -337,6 +340,11 @@
         }
 
         public function forget($k)
+        {
+            return $this->delete($k);
+        }
+
+        public function destroy($k)
         {
             return $this->delete($k);
         }
@@ -868,5 +876,48 @@
             $this->delete($k);
 
             return $value;
+        }
+
+        public function start($k, $d = null)
+        {
+            if (!$this->has($k)) {
+                Registry::set('cache.buffer.' . $this->id, $k);
+                ob_start();
+
+                return $d;
+            }
+
+            Registry::delete('cache.buffer.' . $this->id);
+
+            return $this->get($k);
+        }
+
+        public function end()
+        {
+            if ($k = Registry::get('cache.buffer.' . $this->id)) {
+                $value = ob_get_clean();
+
+                $this->set($k, $value, $this->getTtl());
+
+                return $value;
+            }
+
+            return false;
+        }
+
+        public function ttl($e = null)
+        {
+            if ($e) {
+                Registry::set('cache.ttl.' . $this->id, $e);
+
+                return $this;
+            }
+
+            return Registry::get('cache.ttl.' . $this->id, $e);
+        }
+
+        public function getTtl($e = null)
+        {
+            return $e ? $e : Registry::get('cache.ttl.' . $this->id, $e);
         }
     }

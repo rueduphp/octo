@@ -1282,7 +1282,7 @@
             if (fnmatch('*_*', $db)) {
                 list($database, $table) = explode('_', $db, 2);
             } else {
-                $database   = Strings::uncamelize(def('SITE_NAME', 'core'));
+                $database   = Strings::uncamelize(Config::get('application.name', 'core'));
                 $table      = $db;
             }
 

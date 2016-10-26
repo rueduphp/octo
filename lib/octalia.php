@@ -54,9 +54,7 @@
 
         public function tableExists()
         {
-            $file = path('models') .
-            DS . 'factories' .
-            DS . 'odb' .
+            $file = path('factories') .
             DS .
             $this->db .
             DS .
@@ -65,11 +63,9 @@
             return File::exists($file);
         }
 
-        function make()
+        public function make()
         {
-            $file = path('models') .
-            DS . 'factories' .
-            DS . 'odb' .
+            $file = path('factories') .
             DS .
             $this->db .
             DS .
@@ -159,6 +155,15 @@
             $this->driver->set('lastid', $id);
 
             return $id;
+        }
+
+        public function forget()
+        {
+            $this->find($this->lastid())->delete();
+            $id = $this->driver->decr('ids');
+            $this->driver->set('lastid', $id);
+
+            return true;
         }
 
         public function lastid()
@@ -388,6 +393,23 @@
                 return $this->get(true);
             }
 
+            if (is_array($id)) {
+                $coll = [];
+
+                foreach ($id as $key) {
+                    $row = $this->driver->get($key);
+
+                    if ($row) {
+                        $row = $this->read($row);
+                        $coll[] = $model ? $this->model($row) : $row;
+                    }
+                }
+
+                $this->reset();
+
+                return coll($coll);
+            }
+
             $row = $this->driver->get($id);
 
             if (!$row) {
@@ -434,7 +456,7 @@
         {
             $class = Strings::camelize($this->db . '_' . $this->table . '_model');
 
-            $file = path('app') . '/models/odb/' . $this->db . '/' . $this->table . '.php';
+            $file = path('models') . '/' . $this->db . '/' . $this->table . '.php';
 
             $row = treatCast($row);
 
@@ -462,12 +484,12 @@
                     }
                 }
             } else {
-                if (!is_dir(path('app') . '/models/odb')) {
-                    File::mkdir(path('app') . '/models/odb');
+                if (!is_dir(path('models'))) {
+                    File::mkdir(path('models'));
                 }
 
-                if (!is_dir(path('app') . '/models/odb/' . $this->db)) {
-                    File::mkdir(path('app') . '/models/odb/' . $this->db);
+                if (!is_dir(path('models') . '/' . $this->db)) {
+                    File::mkdir(path('models') . '/' . $this->db);
                 }
 
                 $fks = array_keys(Arrays::pattern($row, '*_id'));
@@ -493,9 +515,17 @@
                 $fs = '[' . "\n\t\t\t";
 
                 foreach ($fields as $field) {
-                    if ($field == 'age' || $field == 'id' || $field == 'created_at' || $field == 'updated_at' || $field == 'deleted_at') {
+                    if ($field == 'age' || $field == 'number' || $field == 'quantity' || $field == 'id' || $field == 'created_at' || $field == 'updated_at' || $field == 'deleted_at' || fnmatch('*_id', $field)) {
                         $type = 'integer';
-                    } elseif ($field == 'price') {
+                    } elseif (in_array(
+                        $field, [
+                            'price',
+                            'size',
+                            'width',
+                            'height',
+                            'depth'
+                        ]
+                    )) {
                         $type = 'float';
                     } else {
                         $type = gettype($row[$field]);
@@ -517,13 +547,7 @@
                 require $file;
             }
 
-            $dir = path('models') . DS . 'factories';
-
-            if (!is_dir($dir)) {
-                File::mkdir($dir);
-            }
-
-            $dir .= DS . 'odb';
+            $dir = path('factories');
 
             if (!is_dir($dir)) {
                 File::mkdir($dir);
@@ -609,13 +633,14 @@
                             'size',
                             'width',
                             'height',
+                            'depth',
                             'quantity',
                             'number'
                         ]
                     )) {
                         $val = '$faker->numberBetween(15, 85)';
                     } elseif (fnmatch('*_id', $field)) {
-                        $val = '$faker->numberBetween(1, 999)';
+                        $val = 'odb("' . $this->db . '", "' . str_replace('_id', '', $field) . '")->createFake()->id';
                     }
 
                     if ($n < count($fields) - 1) {
@@ -651,7 +676,7 @@
                     $check = call_user_func_array($hook, [$model]);
 
                     if (true !== $check) {
-                        throw new Exception("Thos model must be valid to be saved. [$check]");
+                        exception('model', $check);
                     }
                 }
 
@@ -759,7 +784,7 @@
             })->fn('count', function ($what) use ($model) {
                 $m = $what . 's';
 
-                return count($model->$m());
+                return $model->$m()->count();
             })->fn('owns', function (Object $object) use ($row) {
                 $field = $object->table() . '_id';
 
@@ -769,15 +794,18 @@
             return $model;
         }
 
-        public function fake($amount = 1)
+        public function createFake()
+        {
+            return $this->fake(1, false)->create(true)->lastFake();
+        }
+
+        public function fake($amount = 1, $create = true)
         {
             if (!is_int($amount)) {
                 $amount = 1;
             }
 
-            $file = path('models') .
-            DS . 'factories' .
-            DS . 'odb' .
+            $file = path('factories') .
             DS .
             $this->db .
             DS .
@@ -800,7 +828,7 @@
                 $coll[] = $this->model($row);
             }
 
-            return $coll;
+            return $create ? $coll->create() : $coll;
         }
 
         public function fields()
@@ -882,7 +910,7 @@
 
             if ($m == 'or') {
                 if (empty($this->query)) {
-                    throw new Exception('You must have at least one where clause before using the method or.');
+                    exception('octalia', 'You must have at least one where clause before using the method or.');
                 }
 
                 $oldIds = $this->ids;
@@ -902,7 +930,7 @@
 
             if ($m == 'xor') {
                 if (empty($this->query)) {
-                    throw new Exception('You must have at least one where clause before using the method xor.');
+                    exception('octalia', 'You must have at least one where clause before using the method xor.');
                 }
 
                 $oldIds = $this->iterator();
@@ -922,7 +950,7 @@
 
             if ($m == 'rawOr') {
                 if (empty($this->query)) {
-                    throw new Exception('You must have at least one where clause before using the method or.');
+                    exception('octalia', 'You must have at least one where clause before using the method rawOr.');
                 }
 
                 $oldIds = $this->ids;
@@ -942,7 +970,7 @@
 
             if ($m == 'rawXor') {
                 if (empty($this->query)) {
-                    throw new Exception('You must have at least one where clause before using the method xor.');
+                    exception('octalia', 'You must have at least one where clause before using the method rawXor.');
                 }
 
                 $oldIds = $this->iterator();
@@ -976,7 +1004,9 @@
                 if (!$field) {
                     $field = ['id'];
                 } elseif (fnmatch('*|*', $field)) {
-                    $field = explode('|', $field);
+                    $field = explode('|', str_replace(" ", "", $field));
+                } elseif (fnmatch('*,*', $field)) {
+                    $field = explode(',', str_replace(" ", "", $field));
                 }
 
                 if (!is_array($field)) {
@@ -999,8 +1029,15 @@
                 return $list;
             }
 
-            if (fnmatch('findBy*', $m) && strlen($m) > 5) {
+            if (fnmatch('findBy*', $m) && strlen($m) > 6) {
                 $field = callField($m, 'findBy');
+                $value = array_shift($a);
+
+                return $this->where([$field, '=', $value]);
+            }
+
+            if (fnmatch('by*', $m) && strlen($m) > 2) {
+                $field = callField($m, 'by');
                 $value = array_shift($a);
 
                 return $this->where([$field, '=', $value]);
@@ -1010,6 +1047,12 @@
                 $field = callField($m, 'sortWith');
 
                 return $this->sortBy($field);
+            }
+
+            if (fnmatch('asortWith*', $m)) {
+                $field = callField($m, 'sortWith');
+
+                return $this->sortByDesc($field);
             }
 
             if (fnmatch('sortDescWith*', $m)) {
@@ -1693,9 +1736,9 @@
         {
             $deleted = 0;
 
-            foreach ($this->iterator() as $item) {
+            foreach ($this->get() as $item) {
                 if (isset($item['id'])) {
-                    $row = $this->db->find((int) $item['id']);
+                    $row = $this->find((int) $item['id']);
 
                     if ($row) {
                         $row->delete();
@@ -1711,13 +1754,14 @@
         {
             $affected = 0;
 
-            foreach ($this->iterator() as $item) {
+            foreach ($this->get() as $item) {
                 if (isset($item['id'])) {
                     $row = $this->find((int) $item['id']);
 
                     if ($row) {
                         foreach ($criteria as $k => $v) {
                             $setter = setter($k);
+                            $v = value($v);
                             $row->$setter($v);
                         }
 
@@ -1737,6 +1781,11 @@
             $iterator = lib('OctaliaIterator', [$this]);
 
             return $model ? $iterator->model() : $iterator;
+        }
+
+        public function all()
+        {
+            return coll($this->get()->toArray());
         }
 
         public function models()
@@ -1922,7 +1971,7 @@
             $row = $this->first();
 
             if (!$row) {
-                throw new Exception("The row does not exist.");
+                exception('octalia', "The row does not exist.");
             } else {
                 return $model ? $this->model($row) : $row;
             }
@@ -1980,7 +2029,7 @@
             }, $this->age());
 
             if (!$row) {
-                return $this->save($conditions, true);
+                return $this->save($conditions);
             } else {
                 return $this->find($row['id']);
             }
@@ -2599,5 +2648,41 @@
             }
 
             return $collection;
+        }
+
+        public function has(Octalia $model)
+        {
+            $ids = [];
+
+            $rows = $this->get();
+
+            $fk = $this->table . '_id';
+
+            foreach ($rows as $row) {
+                $relations = $model->where($fk, (int) $row['id'])->get();
+
+                if ($relations->count()) {
+                    $ids[] = $row['id'];
+                }
+            }
+
+            if (empty($ids)) {
+                return $this->where(['id', '<', 0]);
+            }
+
+            return $this->where(['id', 'IN', $ids]);
+        }
+
+        public static function getFields(Octalia $model)
+        {
+            $file = path('models') . DS . $model->db . DS  . $model->table . '.php';
+
+            if (File::exists($file)) {
+                $infos = include($file);
+
+                return array_keys($infos['fields']);
+            }
+
+            return ['id', 'created_at', 'updated_at'];
         }
     }

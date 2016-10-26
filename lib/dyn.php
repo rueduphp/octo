@@ -7,7 +7,11 @@
 
         public function __construct($native = null)
         {
-            $this->native = $native;
+            if (is_string($native)) {
+                $this->native = app()->make($native, $args);
+            } else {
+                $this->native = $native;
+            }
         }
 
         public function fn($m, callable $c)
