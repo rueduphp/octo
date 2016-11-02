@@ -17,7 +17,7 @@
             $this->ns       = "$db.$table";
             $this->path     = "$db.$table";
 
-            if ($driver instanceof Cache) {
+            if ($driver instanceof Cache || $driver instanceof Cachelite) {
                 $this->ns .= str_replace(DS, '.', $driver->getDirectory());
             }
 

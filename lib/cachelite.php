@@ -1,43 +1,18 @@
 <?php
     namespace Octo;
 
-    class Cache implements CacheI
+    class Cachelite
     {
         use Notifiable;
 
         private $dir;
         private $id;
+        private $db;
         private static $instances = [];
 
         private function getPath($k)
         {
-            $dir = $this->dir;
-
-            $hash = sha1($k);
-
-            $one    = substr($hash, 0, 2);
-            $two    = substr($hash, 2, 2);
-            $three  = substr($hash, 4, 2);
-
-            $dir .= DS . $one;
-
-            if (!is_dir($dir)) {
-                File::mkdir($dir);
-            }
-
-            $dir .= DS . $two;
-
-            if (!is_dir($dir)) {
-                File::mkdir($dir);
-            }
-
-            $dir .= DS . $three;
-
-            if (!is_dir($dir)) {
-                File::mkdir($dir);
-            }
-
-            return $dir . DS . $k . '.kh';
+            return $this->dir . '.' . $k;
         }
 
         public function pull($key, $default = null)
@@ -49,17 +24,22 @@
             return $value;
         }
 
-        public function __construct($ns = 'core', $dir = null)
+        public function __construct($ns = 'core')
         {
-            $dir = is_null($dir) ? Config::get('dir.cache', session_save_path()) : $dir;
+            $this->dir = $ns;
 
-            $this->dir = $dir . DS . $ns;
+            $file = path('storage') . DS . Strings::urlize($ns, '');
 
-            if (!is_dir($this->dir)) {
-                File::mkdir($this->dir);
+            $new = !file_exists($file);
+
+            $this->db = new \PDO('sqlite:' . $file);
+            $this->db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING);
+
+            if ($new) {
+                File::copy(__DIR__ . DS . 'db', $file);
             }
 
-            $this->id = sha1($ns);
+            $this->id = sha1('lite' . $ns);
         }
 
         public static function instance($ns = 'core', $dir = null)
@@ -98,9 +78,7 @@
 
         public function setDirectory($dir)
         {
-            if (realpath($dir)) {
-                $this->dir = realpath($dir);
-            }
+            $this->dir = $dir;
 
             return $this;
         }
@@ -114,15 +92,11 @@
         {
             $file = $this->getPath($k);
 
-            File::delete($file);
+            $this->_delete($file);
 
-            $v = value($v);
+            $v = File::value($v);
 
-            File::put($file, serialize($v));
-
-            $expire = is_null($expire) ? strtotime('+10 year') : time() + $expire;
-
-            @touch($file, $expire);
+            $this->_put($file, serialize($v), is_null($expire) ? 0 : time() + $expire);
 
             return $this;
         }
@@ -167,11 +141,9 @@
         {
             $file = $this->getPath($k);
 
-            File::delete($file);
+            $this->_delete($file);
 
-            File::put($file, serialize($v));
-
-            touch($file, $timestamp);
+            $this->_put($file, serialize($v), $timestamp);
 
             return $this;
         }
@@ -204,13 +176,17 @@
         {
             $file = $this->getPath($k);
 
-            if (file_exists($file)) {
-                $age = filemtime($file);
+            if ($this->_exists($file)) {
+                $row = $this->_read($file);
 
-                if ($age >= time()) {
-                    return File::value(unserialize(File::read($file)));
-                } else {
-                    File::delete($file);
+                if ($row) {
+                    $age = $row['e'];
+
+                    if (0 == $age || $age >= time()) {
+                        return File::value(unserialize($row['v']));
+                    } else {
+                        $this->_delete($file);
+                    }
                 }
             }
 
@@ -286,13 +262,19 @@
         {
             $file = $this->getPath($k);
 
-            if (file_exists($file)) {
-                $age = filemtime($file);
+            if ($this->_exists($file)) {
+                $row = $this->_read($file);
 
-                if ($age >= time()) {
+                if (!$row) {
+                    return false;
+                }
+
+                $age = $row['e'];
+
+                if (0 == $age || $age >= time()) {
                     return true;
                 } else {
-                    File::delete($file);
+                    $this->_delete($file);
                 }
             }
 
@@ -303,13 +285,18 @@
         {
             $file = $this->getPath($k);
 
-            if (file_exists($file)) {
-                $age = filemtime($file);
+            if ($this->_exists($file)) {
+                $row = $this->_read($file);
+                $age = $row['e'];
 
-                if ($age >= time()) {
+                if (!$row) {
+                    return null;
+                }
+
+                if (0 == $age || $age >= time()) {
                     return $age;
                 } else {
-                    File::delete($file);
+                    $this->_delete($file);
                 }
             }
 
@@ -320,8 +307,8 @@
         {
             $file = $this->getPath($k);
 
-            if (file_exists($file)) {
-                File::delete($file);
+            if ($this->_exists($file)) {
+                $this->_delete($file);
 
                 return true;
             }
@@ -379,37 +366,44 @@
             return $this->decr($k, $by);
         }
 
-        public function keys($pattern = '*')
+        private function cleanCache()
         {
-            $keys = $this->glob($this->dir . DS . $pattern . '.kh', GLOB_NOSORT);
-
-            foreach ($keys as $key) {
-                $key    = Arrays::last(explode(DS, $key));
-                $k      = str_replace(['.kh'], '', $key);
-
-                yield $k;
-            }
+            $q = "DELETE FROM d WHERE e > 0 AND e < " . time();
+            $this->q($q);
         }
 
-        public function glob($pattern, $flags = 0)
+        public function keys($pattern = '*')
         {
-            $files = glob($pattern, $flags);
+            $this->cleanCache();
+            $pattern    = str_replace('*', '%', $pattern);
+            $q          = "SELECT k FROM d WHERE k LIKE '$pattern'";
+            $res        = $this->q($q)->fetchAll();
 
-            foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR|GLOB_NOSORT) as $dir) {
-                $files = array_merge($files, $this->glob($dir . DS . basename($pattern), $flags));
+            if (is_array($res)) {
+                $count = count($res);
+            } else {
+                $count = $res->rowCount();
             }
 
-            return $files;
+            $collection = [];
+
+            if (0 < $count) {
+                foreach ($res as $row) {
+                    array_push($collection, str_replace($this->dir . '.', '', $row['k']));
+                }
+            }
+
+            return $collection;
         }
 
         public function flush($pattern = '*')
         {
-            $keys = $this->glob($this->dir . DS . $pattern . '.kh', GLOB_NOSORT);
+            $keys = $this->keys($pattern);
 
             $affected = 0;
 
             foreach ($keys as $key) {
-                File::delete($key);
+                $this->_delete($this->getPath($key));
                 $affected++;
             }
 
@@ -418,17 +412,21 @@
 
         public function clean($pattern = '*')
         {
-            $keys = $this->glob($this->dir . DS . $pattern . '.kh', GLOB_NOSORT);
+            $keys = $this->keys($pattern);
 
             $affected = 0;
 
             foreach ($keys as $key) {
-                $age = filemtime($key);
+                $row = $this->_read($this->getPath($key));
 
-                if ($age < time()) {
-                    File::delete($key);
+                if ($row) {
+                    $age = $row['e'];
 
-                    $affected++;
+                    if (0 < $age && $age < time()) {
+                        $this->_delete($this->getPath($key));
+
+                        $affected++;
+                    }
                 }
             }
 
@@ -591,38 +589,38 @@
 
         public function hgetall($hash)
         {
-            $keys = $this->glob($this->dir . DS . 'hash.' . $hash . '.*.kh', GLOB_NOSORT);
+            $this->keys('hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
-                $key = str_replace(['.kh', "hash.$hash."], '', Arrays::last(explode(DS, $row)));
+                $key = str_replace([$this->dir . '.', "hash.$hash."], '', Arrays::last(explode(DS, $row)));
 
                 yield $key;
-                yield unserialize(File::read($row));
+                yield unserialize($this->_read($this->getPath($row))['v']);
             }
         }
 
         public function hvals($hash)
         {
-            $keys = $this->glob($this->dir . DS . 'hash.' . $hash . '.*.kh', GLOB_NOSORT);
+            $this->keys('hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
-                yield unserialize(File::read($row));
+                yield unserialize($this->_read($this->getPath($row))['v']);
             }
         }
 
         public function hlen($hash)
         {
-            $keys = $this->glob($this->dir . DS . 'hash.' . $hash . '.*.kh', GLOB_NOSORT);
+            $keys = $this->keys('hash.' . $hash . '.*');
 
             return count($keys);
         }
 
         public function hremove($hash)
         {
-            $keys = $this->glob($this->dir . DS . 'hash.' . $hash . '.*.kh', GLOB_NOSORT);
+            $keys = $this->keys('hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
-                File::delete($row);
+                $this->_delete($this->getPath($row));
             }
 
             return true;
@@ -630,10 +628,10 @@
 
         public function hkeys($hash)
         {
-            $keys = $this->glob($this->dir . DS . 'hash.' . $hash . '.*.kh', GLOB_NOSORT);
+            $keys = $this->keys('hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
-                $key = str_replace(['.kh', "hash.$hash."], '', Arrays::last(explode(DS, $row)));
+                $key = str_replace([$this->dir . '.', "hash.$hash."], '', Arrays::last(explode(DS, $row)));
 
                 yield $key;
             }
@@ -822,28 +820,26 @@
         {
             $file = $this->getPath($k);
 
-            File::delete($k);
+            $this->_delete($file);
 
             $v = File::value($v);
 
-            File::put($file, serialize($v));
-
-            $expire = is_null($expire) ? time() : time() + $expire;
-
-            @touch($file, $expire);
+            $this->_put($file, serialize($v), is_null($expire) ? time() : time() + $expire);
 
             return $this;
         }
 
         public function hasNow($k)
         {
-            return file_exists($this->getPath($k));
+            return $this->_exists($this->getPath($k));
         }
 
         public function getNow($k, $d = null)
         {
-            if (file_exists($file = $this->getPath($k))) {
-                return unserialize(File::read($file));
+            $file = $this->getPath($k);
+
+            if ($this->_exists($file)) {
+                return unserialize($this->_read($file)['v']);
             }
 
             return $d;
@@ -851,8 +847,10 @@
 
         public function delNow($k)
         {
-            if (file_exists($file = $this->getPath($k))) {
-                File::delete($file);
+            $file = $this->getPath($k);
+
+            if ($this->_exists($file)) {
+                $this->_delete($file);
 
                 return true;
             }
@@ -862,8 +860,14 @@
 
         public function ageNow($k)
         {
-            if (file_exists($file = $this->getPath($k))) {
-                return filemtime($file);
+            $file = $this->getPath($k);
+
+            if ($this->_exists($file)) {
+                $row = $this->_read($file);
+
+                if ($row) {
+                    return $row['e'];
+                }
             }
 
             return time();
@@ -919,5 +923,82 @@
         public function getTtl($e = null)
         {
             return $e ? $e : Registry::get('cache.ttl.' . $this->id, $e);
+        }
+
+        private function _delete($k)
+        {
+            return $this->q("DELETE FROM d WHERE k = " . $this->quote($k));
+        }
+
+        private function _put($k, $v, $e)
+        {
+            $q = "INSERT INTO d (k, v, e)
+                VALUES (
+                    " . $this->quote($k) . ",
+                    " . $this->quote($v) . ",
+                    " . $this->quote($e) . "
+                );";
+
+            $res = $this->q($q);
+        }
+
+        private function _read($k)
+        {
+            $q          = "SELECT v,e FROM d WHERE k = " . $this->quote($k);
+            $res        = $this->q($q)->fetch();
+
+            if (is_array($res)) {
+                $count = count($res);
+            } else {
+                $count = $res->rowCount();
+            }
+
+            if (0 < $count) {
+                return ['v' => $res['v'], 'e' => (int) $res['e']];
+            }
+
+            return false;
+        }
+
+        private function _exists($k)
+        {
+            $q          = "SELECT k FROM d WHERE k = " . $this->quote($k);
+            $res        = $this->q($q)->fetch();
+
+            if (is_array($res)) {
+                $count = count($res);
+            } else {
+                if (false === $res) {
+                    return false;
+                }
+
+                $count = $res->rowCount();
+            }
+
+            return $count == 2;
+        }
+
+        private function q($query)
+        {
+            $res = $this->db->prepare($query);
+
+            if (is_object($res)) {
+                $res->execute();
+            }
+
+            return $res;
+        }
+
+        private function quote($value, $parameterType = \PDO::PARAM_STR)
+        {
+            if (null === $value) {
+                return "NULL";
+            }
+
+            if (is_string($value)) {
+                return $this->db->quote($value, $parameterType);
+            }
+
+            return $value;
         }
     }

@@ -14,7 +14,7 @@
 
         private static $_running = false;
 
-        private static $_queue = array();
+        private static $_queue = [];
 
         public static function start()
         {
@@ -28,7 +28,7 @@
 
         public static function reset()
         {
-            static::$_queue = array();
+            static::$_queue = [];
         }
 
         private static function _pushTime($cmd)

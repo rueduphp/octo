@@ -86,7 +86,7 @@
 
         public function touch($model)
         {
-            return odb($this->db(), $model)->findOrFail((int) $this->data[$model . '_id'])->now();
+            return odb($this->db(), $model, $this->driver())->findOrFail((int) $this->data[$model . '_id'])->now();
         }
 
         public function hasModel()
@@ -159,7 +159,7 @@
                 if ($this->initial == $this->data && $this->exists()) {
                     return $this;
                 } else {
-                    $db = odb($this->db(), $this->table());
+                    $db = odb($this->db(), $this->table(), $this->driver());
 
                     return $db->save($this->array());
                 }
@@ -265,12 +265,12 @@
                                         }
                                     }
 
-                                    return odb($this->db(), $fkParent)->where([$fk, '=', (int) $this->get('id')]);
+                                    return odb($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
                                 } else {
                                     $id = isAke($this->data, $fktable . '_id', 'octodummy');
 
                                     if (is_numeric($id)) {
-                                        return odb($this->db(), $fktable)->find((int) $id, $o);
+                                        return odb($this->db(), $fktable, $this->driver())->find((int) $id, $o);
                                     } else {
                                         $fk = $this->table() . '_id';
 
@@ -282,7 +282,7 @@
                                             }
                                         }
 
-                                        return odb($this->db(), $fktable)->where([$fk, '=', (int) $this->get('id')])->first($model);
+                                        return odb($this->db(), $fktable, $this->driver())->where([$fk, '=', (int) $this->get('id')])->first($model);
                                     }
                                 }
                             }
@@ -303,7 +303,7 @@
         public function fresh()
         {
             if ($this->hasModel() && $this->exists()) {
-                return odb($this->db(), $this->table())->find((int) $this->data['id']);
+                return odb($this->db(), $this->table(), $this->driver())->find((int) $this->data['id']);
             }
 
             return $this;
@@ -415,7 +415,7 @@
                     $fk = $this->table() . '_id';
                     $fkParent = substr($k, 0, -1);
 
-                    $query = odb($this->db(), $fkParent)->where([$fk, '=', (int) $this->get('id')]);
+                    $query = odb($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
 
                     if ($query->count() > 0) {
                         return $query;
@@ -424,11 +424,11 @@
                     $id = isAke($this->data, $k . '_id', 'octodummy');
 
                     if (is_numeric($id)) {
-                        return odb($this->db(), $k)->row((int) $this->get($k . '_id'));
+                        return odb($this->db(), $k, $this->driver())->row((int) $this->get($k . '_id'));
                     } else {
                         $fk = $this->table() . '_id';
 
-                        $query = odb($this->db(), $k)->where([$fk, '=', (int) $this->get('id')]);
+                        $query = odb($this->db(), $k, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
 
                         if ($query->count() > 0) {
                             return $query->first();
@@ -480,14 +480,14 @@
                         }
                     }
 
-                    $query = odb($this->db(), $fkParent)->where([$fk, '=', (int) $this->get('id')]);
+                    $query = odb($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
 
                     return $query->count() > 0;
                 } else {
                     $id = $this->get($k . '_id', 'octodummy');
 
                     if (is_numeric($id)) {
-                        return !empty(odb($this->db(), $k)->row((int) $this->get($k . '_id')));
+                        return !empty(odb($this->db(), $k, $this->driver())->row((int) $this->get($k . '_id')));
                     }
                 }
             }
@@ -526,7 +526,7 @@
                         }
                     }
 
-                    $rows = odb($this->db(), $fkParent)->where([$fk, '=', (int) $this->get('id')]);
+                    $rows = odb($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
 
                     if ($rows->count() > 0) {
                         $rows->delete();
@@ -535,7 +535,7 @@
                     $id = $this->get($k . '_id', 'octodummy');
 
                     if (is_numeric($id)) {
-                        $row = odb($this->db(), $k)->find((int) $this->get($k . '_id'));
+                        $row = odb($this->db(), $k, $this->driver())->find((int) $this->get($k . '_id'));
 
                         if ($row) {
                             $row->delete();
@@ -587,7 +587,7 @@
                 exception('model', 'id must be defined to use take.');
             }
 
-            $db = fnmatch('*s', $fk) ? odb($this->db(), substr($fk, 0, -1)) : odb($this->db(), $fk);
+            $db = fnmatch('*s', $fk) ? odb($this->db(), substr($fk, 0, -1), $this->driver()) : odb($this->db(), $fk, $this->driver());
 
             return $db->where([$this->table() . '_id', '=', (int) $this->data['id']]);
         }
@@ -708,7 +708,7 @@
         public function validate()
         {
             if ($this->hasModel() && $this->exists()) {
-                $check = odb($this->db(), $this->table())->validator()->check($this->toArray());
+                $check = odb($this->db(), $this->table(), $this->driver())->validator()->check($this->toArray());
 
                 if ($check) {
                     $this->save();
@@ -726,7 +726,7 @@
         {
             if ($this->hasModel() && $this->exists()) {
                 if (is_null($polymorph)) {
-                    return odb($this->db(), $this->polymorph_type)->find((int) $this->polymorph_id);
+                    return odb($this->db(), $this->polymorph_type, $this->driver())->find((int) $this->polymorph_id);
                 }
 
                 $this->data['polymorph_type'] = $polymorph->table();
@@ -739,7 +739,7 @@
         public function polymorphs($parent)
         {
             if ($this->hasModel() && $this->exists()) {
-                return odb($this->db(), $parent)
+                return odb($this->db(), $parent, $this->driver())
                 ->where('polymorph_type', $this->table())
                 ->where('polymorph_id', (int) $this->id);
             }
@@ -754,9 +754,9 @@
                 $idFk = $fk . '_id';
 
                 if (isset($this->data[$idFk]) && is_numeric($this->data[$idFk])) {
-                    return odb($this->db(), $fk)->find((int) $this->data[$idFk]);
+                    return odb($this->db(), $fk, $this->driver())->find((int) $this->data[$idFk]);
                 } else {
-                    $query = odb($this->db(), $fk)->where($this->table() . '_id', (int) $this->get('id'));
+                    $query = odb($this->db(), $fk, $this->driver())->where($this->table() . '_id', (int) $this->get('id'));
 
                     return $many ? $query : $query->first(true);
                 }
@@ -792,7 +792,7 @@
                 sort($tables);
                 $pivot = implode('', $tables);
 
-                return odb($this->db(), $pivot)
+                return odb($this->db(), $pivot, $this->driver())
                 ->where($this->table() . '_id', (int) $this->get('id'));
             }
 
@@ -812,10 +812,10 @@
                 }
 
                 if (empty($ids)) {
-                    return odb($this->db(), $model->table)
+                    return odb($this->db(), $model->table, $this->driver())
                     ->where(['id', '<', 0]);
                 } else {
-                    return odb($this->db(), $model->table)
+                    return odb($this->db(), $model->table, $this->driver())
                     ->where(['id', 'IN', $ids]);
                 }
             }
@@ -831,12 +831,12 @@
                 $pivot = implode('', $tables);
 
                 if ($sync) {
-                    $relation = odb($this->db(), $pivot)->firstOrCreate([
+                    $relation = odb($this->db(), $pivot, $this->driver())->firstOrCreate([
                         $this->table() . '_id' => (int) $this->get('id'),
                         $model->table() . '_id' => (int) $model->id
                     ]);
                 } else {
-                    $relation = odb($this->db(), $pivot)->create([
+                    $relation = odb($this->db(), $pivot, $this->driver())->create([
                         $this->table() . '_id' => (int) $this->get('id'),
                         $model->table() . '_id' => (int) $model->id
                     ])->save();
@@ -862,7 +862,7 @@
                 sort($tables);
                 $pivot = implode('', $tables);
 
-                return odb($this->db(), $pivot)
+                return odb($this->db(), $pivot, $this->driver())
                 ->where($this->table() . '_id', (int) $this->get('id'))
                 ->where($model->table() . '_id', (int) $model->id)
                 ->delete();
