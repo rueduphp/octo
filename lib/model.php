@@ -1277,6 +1277,8 @@
 
         public static function __callStatic($method, $args)
         {
+            $driver = Config::get('octalia.driver', 'sql') == 'sql' ? 'ldb' : 'odb';
+
             $db = Strings::uncamelize($method);
 
             if (fnmatch('*_*', $db)) {
@@ -1287,12 +1289,12 @@
             }
 
             if (empty($args)) {
-                return odb($database, $table);
+                return $driver($database, $table);
             } elseif (count($args) == 1) {
                 $id = array_shift($args);
 
                 if (is_numeric($id)) {
-                    return odb($database, $table)->find($id);
+                    return $driver($database, $table)->find($id);
                 }
             }
         }

@@ -258,6 +258,16 @@
         return lib('Octalia', [$db, $table, $driver]);
     }
 
+    function ldb($db, $table, $driver = null)
+    {
+        return lib('octalia', [$db, $table, lib('cachelite', ["$db.$table"])]);
+    }
+
+    function mdb($db, $table, $driver = null)
+    {
+        return lib('octalia', [$db, $table, lib('Cachesql', ["$db.$table"])]);
+    }
+
     function ramdb($db, $table)
     {
         return lib('Octalia', [$db, $table, null, Config::get('ram.dir', '/home/ram')]);
@@ -3609,4 +3619,52 @@
         $input = lib('input');
 
         return $method ? call_user_func_array([$input, $method], $args) : $input;
+    }
+
+    function multiCurl($data, $options = [])
+    {
+        $curly = [];
+        $result = [];
+
+        $mh = curl_multi_init();
+
+        foreach ($data as $k => $v) {
+            $curly[$k] = curl_init();
+
+            $url = (is_array($v) && !empty($v['url'])) ? $v['url'] : $v;
+
+            curl_setopt($curly[$k], CURLOPT_URL, $url);
+            curl_setopt($curly[$k], CURLOPT_HEADER, 0);
+            curl_setopt($curly[$k], CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($curly[$k], CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($curly[$k], CURLOPT_SSL_VERIFYPEER, 0);
+
+            if (is_array($v)) {
+                if (!empty($v['post'])) {
+                    curl_setopt($curly[$k], CURLOPT_POST, 1);
+                    curl_setopt($curly[$k], CURLOPT_POSTFIELDS, $v['post']);
+                }
+            }
+
+            if (!empty($options)) {
+                curl_setopt_array($curly[$k], $options);
+            }
+
+            curl_multi_add_handle($mh, $curly[$k]);
+        }
+
+        $running = null;
+
+        do {
+            curl_multi_exec($mh, $running);
+        } while($running > 0);
+
+        foreach($curly as $k => $c) {
+            $result[$k] = curl_multi_getcontent($c);
+            curl_multi_remove_handle($mh, $c);
+        }
+
+        curl_multi_close($mh);
+
+        return $result;
     }

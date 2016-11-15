@@ -2006,58 +2006,47 @@
             return $this->noTuple($conditions);
         }
 
+        function search($conditions)
+        {
+            foreach ($conditions as $field => $value) {
+                $this->where($field, $value);
+            }
+
+            return $this;
+        }
+
         public function firstOrCreate($conditions)
         {
-            $keyCache = sha1('search.' . $this->ns . serialize($conditions));
+            $q = $this;
 
-            $row = $this->driver->until($keyCache, function () use ($conditions) {
-                $data = $this->select(array_keys($conditions));
-
-                return Arrays::firstOne($data, function ($k, $row) use ($conditions) {
-                    foreach ($conditions as $k => $v) {
-                        if (fnmatch('*_id', $k) || $k == 'id') {
-                            $v = (int) $v;
-                        }
-
-                        if ($row[$k] !== $v) {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }, null);
-            }, $this->age());
-
-            if (!$row) {
-                return $this->save($conditions);
-            } else {
-                return $this->find($row['id']);
+            foreach ($conditions as $field => $value) {
+                $q->where($field, $value);
             }
+
+            $exists = $q->first(true);
+
+            if (null === $exists) {
+                return $this->save($conditions);
+            }
+
+            return $exists;
         }
 
         public function firstOrNew($conditions)
         {
-            $keyCache = sha1('search.' . $this->ns . serialize($conditions));
+            $q = $this;
 
-            $row = $this->driver->until($keyCache, function () use ($conditions) {
-                $data = $this->select(array_keys($conditions));
-
-                return Arrays::firstOne($data, function ($k, $row) use ($conditions) {
-                    foreach ($conditions as $k => $v) {
-                        if ($row[$k] != $v) {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }, null);
-            }, $this->age());
-
-            if (!$row) {
-                return $this->model($conditions);
-            } else {
-                return $this->find($row['id']);
+            foreach ($conditions as $field => $value) {
+                $q->where($field, $value);
             }
+
+            $exists = $q->first(true);
+
+            if (null === $exists) {
+                return $this->model($conditions);
+            }
+
+            return $exists;
         }
 
         public function getQuery()
