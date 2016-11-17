@@ -3668,3 +3668,13 @@
 
         return $result;
     }
+
+    function redis($ns = null)
+    {
+        return lib('redis', [$ns]);
+    }
+
+    function oredis()
+    {
+        return lib('redis')->client();
+    }

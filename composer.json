@@ -16,7 +16,8 @@
         "fzaninotto/faker": "@stable",
         "aws/aws-sdk-php": "@stable",
         "illuminate/database": "@stable",
-        "psy/psysh": "@stable"
+        "psy/psysh": "@stable",
+        "predis/predis": "1.1.*@dev"
     },
     "require-dev": {
         "crysalead/kahlan": "@stable",
