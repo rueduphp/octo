@@ -1,11 +1,14 @@
 <?php
     namespace Octo;
 
-    class Cachelite
+    use MongoClient as MGC;
+
+    class Cachemongo
     {
         use Notifiable;
 
         private $dir;
+        private $table;
         private $id;
         private $db;
         private static $instances = [];
@@ -15,31 +18,62 @@
             return $this->dir . '.' . $k;
         }
 
-        public function pull($key, $default = null)
-        {
-            $value = $this->get($key, $default);
-
-            $this->forget($key);
-
-            return $value;
-        }
-
         public function __construct($ns = 'core')
         {
-            $this->dir = $ns;
+            $this->dir   = $ns;
+            $this->table = 'mongto.' . Strings::urlize($ns, '');
 
-            $file = path('storage') . DS . Strings::urlize($ns, '');
+            $host       = Config::get('mongo.host', '127.0.0.1');
+            $port       = Config::get('mongo.port', 27017);
+            $protocol   = Config::get('mongo.protocol', 'mongodb');
+            $auth       = Config::get('mongo.auth', true);
 
-            $new = !file_exists($file);
+            if (true === $auth) {
+                $user       = Config::get('mongo.username', SITE_NAME . '_master');
+                $password   = Config::get('mongo.password');
 
-            $this->db = new \PDO('sqlite:' . $file);
-            $this->db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING);
-
-            if ($new) {
-                File::copy(__DIR__ . DS . 'db', $file);
+                $this->connect($protocol, $user, $password, $host, $port);
+            } else {
+                $this->db  = new MGC($protocol . '://' . $host . ':' . $port, ['connect' => true]);
             }
 
-            $this->id = sha1('lite' . $ns);
+            $this->id = sha1('mongo' . $ns);
+        }
+
+        private function connect($protocol, $user, $password, $host, $port, $incr = 0)
+        {
+            try {
+                $this->db = new MGC($protocol . '://' . $user . ':' . $password . '@' . $host . ':' . $port, ['connect' => true]);
+            } catch (\MongoConnectionException $e) {
+                if (APPLICATION_ENV == 'production') {
+                    $incr++;
+
+                    if (20 < $incr) {
+                        $this->connect($protocol, $user, $password, $host, $port, $incr);
+                    } else {
+                        exception('mongo', $e->getMessage());
+                    }
+                } else {
+                    $this->connect($protocol, $user, $password, $host, $port, $incr);
+                }
+            }
+        }
+
+        public function getOdm($db = null)
+        {
+            $db = is_null($db) ? SITE_NAME : $db;
+
+            return $this->db->selectDB($db);
+        }
+
+        public function getCollection($collection = null, $db = null)
+        {
+            $collection = is_null($collection) ? $this->collection : $collection;
+            $db         = is_null($db) ? SITE_NAME : $db;
+
+            $odm = $this->getOdm($db);
+
+            return $odm->selectCollection($collection);
         }
 
         public static function instance($ns = 'core', $dir = null)
@@ -94,7 +128,7 @@
 
             $this->_delete($file);
 
-            $v = File::value($v);
+            $v = value($v);
 
             $this->_put($file, serialize($v), is_null($expire) ? 0 : time() + $expire);
 
@@ -104,6 +138,15 @@
         public function put($k, $v, $expire = null)
         {
             return $this->set($k, $v, $expire);
+        }
+
+        public function pull($key, $default = null)
+        {
+            $value = $this->get($key, $default);
+
+            $this->forget($key);
+
+            return $value;
         }
 
         public function setMany(array $values, $e = null)
@@ -143,7 +186,7 @@
 
             $this->_delete($file);
 
-            $this->_put($file, serialize($v), $timestamp);
+            $this->_put($file, serialize(value($v)), $timestamp);
 
             return $this;
         }
@@ -190,7 +233,7 @@
                 }
             }
 
-            return File::value($d);
+            return value($d);
         }
 
         public function forever($k, $v)
@@ -368,29 +411,23 @@
 
         private function cleanCache()
         {
-            $q = "DELETE FROM d WHERE e > 0 AND e < " . time();
-            $this->q($q);
+            $table = $this->getCollection($this->table);
+
+            return $table->remove(['e' => ['$gt' => 0], 'e' => ['$lt' => time()]]);
         }
 
         public function keys($pattern = '*')
         {
             $this->cleanCache();
-            $pattern    = str_replace('*', '%', $pattern);
-            $q          = "SELECT k FROM d WHERE k LIKE '$pattern'";
-            $res        = $this->q($q)->fetchAll();
 
-            if (is_array($res)) {
-                $count = count($res);
-            } else {
-                $count = $res->rowCount();
-            }
+            $table      = $this->getCollection($this->table);
+            $pattern    = str_replace('*', '.*', $pattern);
+            $res        = $table->find(['k' => new \MongoRegex('/^' . $pattern . '/imxsu')]);
 
             $collection = [];
 
-            if (0 < $count) {
-                foreach ($res as $row) {
-                    array_push($collection, str_replace($this->dir . '.', '', $row['k']));
-                }
+            foreach ($res as $row) {
+                array_push($collection, str_replace($this->dir . '.', '', $row['k']));
             }
 
             return $collection;
@@ -822,7 +859,7 @@
 
             $this->_delete($file);
 
-            $v = File::value($v);
+            $v = value($v);
 
             $this->_put($file, serialize($v), is_null($expire) ? time() : time() + $expire);
 
@@ -927,34 +964,23 @@
 
         private function _delete($k)
         {
-            return $this->q("DELETE FROM d WHERE k = " . $this->quote($k));
+            $table  = $this->getCollection($this->table);
+            $table->remove(['k' => $k], ["justOne" => true]);
         }
 
         private function _put($k, $v, $e)
         {
-            $q = "INSERT INTO d (k, v, e)
-                VALUES (
-                    " . $this->quote($k) . ",
-                    " . $this->quote($v) . ",
-                    " . $this->quote($e) . "
-                );";
-
-            $res = $this->q($q);
+            $table  = $this->getCollection($this->table);
+            $table->insert(['k' => $k, 'v' => $v, 'e' => (int) $e]);
         }
 
         private function _read($k)
         {
-            $q          = "SELECT v,e FROM d WHERE k = " . $this->quote($k);
-            $res        = $this->q($q)->fetch();
+            $table  = $this->getCollection($this->table);
+            $res    = $table->find(['k' => $k]);
 
-            if (is_array($res)) {
-                $count = count($res);
-            } else {
-                $count = $res->rowCount();
-            }
-
-            if (0 < $count) {
-                return ['v' => $res['v'], 'e' => (int) $res['e']];
+            foreach ($res as $row) {
+                return ['v' => $row['v'], 'e' => (int) $row['e']];
             }
 
             return false;
@@ -962,43 +988,10 @@
 
         private function _exists($k)
         {
-            $q          = "SELECT k FROM d WHERE k = " . $this->quote($k);
-            $res        = $this->q($q)->fetch();
+            $table  = $this->getCollection($this->table);
+            $res    = $table->find(['k' => $k]);
+            $count  = $res->count();
 
-            if (is_array($res)) {
-                $count = count($res);
-            } else {
-                if (false === $res) {
-                    return false;
-                }
-
-                $count = $res->rowCount();
-            }
-
-            return $count == 2;
-        }
-
-        private function q($query)
-        {
-            $res = $this->db->prepare($query);
-
-            if (is_object($res)) {
-                $res->execute();
-            }
-
-            return $res;
-        }
-
-        private function quote($value, $parameterType = \PDO::PARAM_STR)
-        {
-            if (null === $value) {
-                return "NULL";
-            }
-
-            if (is_string($value)) {
-                return $this->db->quote($value, $parameterType);
-            }
-
-            return $value;
+            return $count > 0;
         }
     }

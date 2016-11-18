@@ -1,13 +1,12 @@
 <?php
     namespace Octo;
 
-    class Cachelite
+    class Cacheredis
     {
         use Notifiable;
 
         private $dir;
         private $id;
-        private $db;
         private static $instances = [];
 
         private function getPath($k)
@@ -26,20 +25,10 @@
 
         public function __construct($ns = 'core')
         {
+
             $this->dir = $ns;
 
-            $file = path('storage') . DS . Strings::urlize($ns, '');
-
-            $new = !file_exists($file);
-
-            $this->db = new \PDO('sqlite:' . $file);
-            $this->db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING);
-
-            if ($new) {
-                File::copy(__DIR__ . DS . 'db', $file);
-            }
-
-            $this->id = sha1('lite' . $ns);
+            $this->id = sha1('redis' . $ns);
         }
 
         public static function instance($ns = 'core', $dir = null)
@@ -78,7 +67,9 @@
 
         public function setDirectory($dir)
         {
-            $this->dir = $dir;
+            if (realpath($dir)) {
+                $this->dir = realpath($dir);
+            }
 
             return $this;
         }
@@ -92,11 +83,21 @@
         {
             $file = $this->getPath($k);
 
-            $this->_delete($file);
+            $v = value($v);
 
-            $v = File::value($v);
+            redis()->set($file . '.u', time());
 
-            $this->_put($file, serialize($v), is_null($expire) ? 0 : time() + $expire);
+            if (!$this->has($k)) {
+                redis()->set($file . '.c', time());
+            }
+
+            redis()->set($file, serialize($v));
+
+            if ($expire) {
+                redis()->expire($file, time() + $expire);
+                redis()->expire($file . '.c', time() + $expire);
+                redis()->expire($file . '.u', time() + $expire);
+            }
 
             return $this;
         }
@@ -140,10 +141,7 @@
         public function setExpireAt($k, $v, $timestamp)
         {
             $file = $this->getPath($k);
-
-            $this->_delete($file);
-
-            $this->_put($file, serialize($v), $timestamp);
+            redis()->setex($file, serialize($v), $timestamp - time());
 
             return $this;
         }
@@ -176,21 +174,11 @@
         {
             $file = $this->getPath($k);
 
-            if ($this->_exists($file)) {
-                $row = $this->_read($file);
-
-                if ($row) {
-                    $age = $row['e'];
-
-                    if (0 == $age || $age >= time()) {
-                        return value(unserialize($row['v']));
-                    } else {
-                        $this->_delete($file);
-                    }
-                }
+            if ($this->has($k)) {
+                return value(unserialize(redis()->get($file)));
             }
 
-            return File::value($d);
+            return value($d);
         }
 
         public function forever($k, $v)
@@ -262,42 +250,15 @@
         {
             $file = $this->getPath($k);
 
-            if ($this->_exists($file)) {
-                $row = $this->_read($file);
-
-                if (!$row) {
-                    return false;
-                }
-
-                $age = $row['e'];
-
-                if (0 == $age || $age >= time()) {
-                    return true;
-                } else {
-                    $this->_delete($file);
-                }
-            }
-
-            return false;
+            return redis()->exists($file);
         }
 
         public function age($k)
         {
             $file = $this->getPath($k);
 
-            if ($this->_exists($file)) {
-                $row = $this->_read($file);
-                $age = $row['e'];
-
-                if (!$row) {
-                    return null;
-                }
-
-                if (0 == $age || $age >= time()) {
-                    return $age;
-                } else {
-                    $this->_delete($file);
-                }
+            if ($this->has($k)) {
+                return redis()->get($file . '.u');
             }
 
             return null;
@@ -307,8 +268,10 @@
         {
             $file = $this->getPath($k);
 
-            if ($this->_exists($file)) {
-                $this->_delete($file);
+            if ($this->has($k)) {
+                redis()->del($file);
+                redis()->del($file . '.c');
+                redis()->del($file . '.u');
 
                 return true;
             }
@@ -366,89 +329,54 @@
             return $this->decr($k, $by);
         }
 
-        private function cleanCache()
-        {
-            $q = "DELETE FROM d WHERE e > 0 AND e < " . time();
-            $this->q($q);
-        }
-
         public function keys($pattern = '*')
         {
-            $this->cleanCache();
-            $pattern    = str_replace('*', '%', $pattern);
-            $q          = "SELECT k FROM d WHERE k LIKE '$pattern'";
-            $res        = $this->q($q)->fetchAll();
+            $keys = redis()->keys($this->dir . '.' . $pattern);
 
-            if (is_array($res)) {
-                $count = count($res);
-            } else {
-                $count = $res->rowCount();
-            }
+            foreach ($keys as $key) {
+                if (!fnmatch('*.c', $key) && !fnmatch('*.u', $key)) {
+                    $key = Arrays::last(explode('.', $key));
 
-            $collection = [];
-
-            if (0 < $count) {
-                foreach ($res as $row) {
-                    array_push($collection, str_replace($this->dir . '.', '', $row['k']));
+                    yield $key;
                 }
             }
-
-            return $collection;
         }
 
         public function flush($pattern = '*')
         {
-            $keys = $this->keys($pattern);
+            $keys = redis()->keys($this->dir . '.' . $pattern);
 
             $affected = 0;
 
             foreach ($keys as $key) {
-                $this->_delete($this->getPath($key));
+                redis()->del($key);
                 $affected++;
             }
 
             return $affected;
         }
 
-        public function clean($pattern = '*')
-        {
-            $keys = $this->keys($pattern);
-
-            $affected = 0;
-
-            foreach ($keys as $key) {
-                $row = $this->_read($this->getPath($key));
-
-                if ($row) {
-                    $age = $row['e'];
-
-                    if (0 < $age && $age < time()) {
-                        $this->_delete($this->getPath($key));
-
-                        $affected++;
-                    }
-                }
-            }
-
-            return $affected;
-        }
-
-        public function readAndDelete($key, $default = null)
+        public function getDel($key, $default = null)
         {
             if ($this->has($key)) {
                 $value = $this->get($key);
 
                 $this->delete($key);
 
-                return $value;
+                return value($value);
             }
 
-            return $default;
+            return value($default);
+        }
+
+        public function readAndDelete($key, $default = null)
+        {
+            return $this->getDel($key, $default);
         }
 
         public function rename($keyFrom, $keyTo, $default = null)
         {
-            $value = $this->readAndDelete($keyFrom, $default);
+            $value = $this->getDel($keyFrom, $default);
 
             return $this->set($keyTo, $value);
         }
@@ -589,51 +517,59 @@
 
         public function hgetall($hash)
         {
-            $this->keys('hash.' . $hash . '.*');
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
 
             foreach ($keys as $row) {
-                $key = str_replace([$this->dir . '.', "hash.$hash."], '', Arrays::last(explode(DS, $row)));
+                if (!fnmatch('*.c', $row) && !fnmatch('*.u', $row)) {
+                    $key = str_replace("hash.$hash.", '', Arrays::last(explode('.', $row)));
 
-                yield $key;
-                yield unserialize($this->_read($this->getPath($row))['v']);
+                    yield $key;
+                    yield value(unserialize(redis()->get($row)));
+                }
             }
         }
 
         public function hvals($hash)
         {
-            $this->keys('hash.' . $hash . '.*');
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
 
             foreach ($keys as $row) {
-                yield unserialize($this->_read($this->getPath($row))['v']);
+                yield value(unserialize(redis()->get($row)));
             }
         }
 
         public function hlen($hash)
         {
-            $keys = $this->keys('hash.' . $hash . '.*');
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
 
             return count($keys);
         }
 
         public function hremove($hash)
         {
-            $keys = $this->keys('hash.' . $hash . '.*');
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
+
+            $affected = 0;
 
             foreach ($keys as $row) {
-                $this->_delete($this->getPath($row));
+                redis()->del($row);
+
+                $affected++;
             }
 
-            return true;
+            return $affected;
         }
 
         public function hkeys($hash)
         {
-            $keys = $this->keys('hash.' . $hash . '.*');
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
 
             foreach ($keys as $row) {
-                $key = str_replace([$this->dir . '.', "hash.$hash."], '', Arrays::last(explode(DS, $row)));
+                if (!fnmatch('*.c', $row) && !fnmatch('*.u', $row)) {
+                    $key = str_replace("hash.$hash.", '', Arrays::last(explode('.', $row)));
 
-                yield $key;
+                    yield $key;
+                }
             }
         }
 
@@ -816,72 +752,6 @@
             return $this;
         }
 
-        public function setNow($k, $v, $expire = null)
-        {
-            $file = $this->getPath($k);
-
-            $this->_delete($file);
-
-            $v = File::value($v);
-
-            $this->_put($file, serialize($v), is_null($expire) ? time() : time() + $expire);
-
-            return $this;
-        }
-
-        public function hasNow($k)
-        {
-            return $this->_exists($this->getPath($k));
-        }
-
-        public function getNow($k, $d = null)
-        {
-            $file = $this->getPath($k);
-
-            if ($this->_exists($file)) {
-                return unserialize($this->_read($file)['v']);
-            }
-
-            return $d;
-        }
-
-        public function delNow($k)
-        {
-            $file = $this->getPath($k);
-
-            if ($this->_exists($file)) {
-                $this->_delete($file);
-
-                return true;
-            }
-
-            return false;
-        }
-
-        public function ageNow($k)
-        {
-            $file = $this->getPath($k);
-
-            if ($this->_exists($file)) {
-                $row = $this->_read($file);
-
-                if ($row) {
-                    return $row['e'];
-                }
-            }
-
-            return time();
-        }
-
-        public function getDel($k, $d = null)
-        {
-            $value = $this->get($k, $d);
-
-            $this->delete($k);
-
-            return $value;
-        }
-
         public function start($k, $d = null)
         {
             if (!$this->has($k)) {
@@ -923,82 +793,5 @@
         public function getTtl($e = null)
         {
             return $e ? $e : Registry::get('cache.ttl.' . $this->id, $e);
-        }
-
-        private function _delete($k)
-        {
-            return $this->q("DELETE FROM d WHERE k = " . $this->quote($k));
-        }
-
-        private function _put($k, $v, $e)
-        {
-            $q = "INSERT INTO d (k, v, e)
-                VALUES (
-                    " . $this->quote($k) . ",
-                    " . $this->quote($v) . ",
-                    " . $this->quote($e) . "
-                );";
-
-            $res = $this->q($q);
-        }
-
-        private function _read($k)
-        {
-            $q          = "SELECT v,e FROM d WHERE k = " . $this->quote($k);
-            $res        = $this->q($q)->fetch();
-
-            if (is_array($res)) {
-                $count = count($res);
-            } else {
-                $count = $res->rowCount();
-            }
-
-            if (0 < $count) {
-                return ['v' => $res['v'], 'e' => (int) $res['e']];
-            }
-
-            return false;
-        }
-
-        private function _exists($k)
-        {
-            $q          = "SELECT k FROM d WHERE k = " . $this->quote($k);
-            $res        = $this->q($q)->fetch();
-
-            if (is_array($res)) {
-                $count = count($res);
-            } else {
-                if (false === $res) {
-                    return false;
-                }
-
-                $count = $res->rowCount();
-            }
-
-            return $count == 2;
-        }
-
-        private function q($query)
-        {
-            $res = $this->db->prepare($query);
-
-            if (is_object($res)) {
-                $res->execute();
-            }
-
-            return $res;
-        }
-
-        private function quote($value, $parameterType = \PDO::PARAM_STR)
-        {
-            if (null === $value) {
-                return "NULL";
-            }
-
-            if (is_string($value)) {
-                return $this->db->quote($value, $parameterType);
-            }
-
-            return $value;
         }
     }

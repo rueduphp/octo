@@ -263,9 +263,19 @@
         return lib('octalia', [$db, $table, lib('cachelite', ["$db.$table"])]);
     }
 
-    function mdb($db, $table, $driver = null)
+    function sdb($db, $table, $driver = null)
     {
         return lib('octalia', [$db, $table, lib('Cachesql', ["$db.$table"])]);
+    }
+
+    function mdb($db, $table, $driver = null)
+    {
+        return lib('octalia', [$db, $table, lib('cachemongo', ["$db.$table"])]);
+    }
+
+    function rdb($db, $table, $driver = null)
+    {
+        return lib('octalia', [$db, $table, lib('cacheredis', ["$db.$table"])]);
     }
 
     function ramdb($db, $table)
@@ -3671,7 +3681,19 @@
 
     function redis($ns = null)
     {
-        return lib('redis', [$ns]);
+        static $kh = [];
+
+        $k = $ns;
+
+        if (!$ns) {
+            $k = 'core';
+        }
+
+        if (!isset($kh[$k])) {
+            $kh[$k] = lib('redis', [$ns]);
+        }
+
+        return $kh[$k];
     }
 
     function oredis()

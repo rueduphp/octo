@@ -13,6 +13,11 @@
             $this->ns = is_null($ns) ? 'core' : $ns;
         }
 
+        public function __call($m, $a)
+        {
+            return call_user_func_array([$this->client(), $m], $a);
+        }
+
         private function client()
         {
             defined("APPLICATION_ENV") || define('APPLICATION_ENV', 'production');
