@@ -420,7 +420,7 @@
             $fileTypes['divx'] = 'video/x-msvideo';
 
             $fileTypes['mp3']  = 'audio/mpeg';
-            $fileTypes['mp4']  = 'audio/mpeg';
+            $fileTypes['mp4']  = 'video/mpeg';
             $fileTypes['mpeg'] = 'video/mpeg';
             $fileTypes['mpg']  = 'video/mpeg';
             $fileTypes['mpe']  = 'video/mpeg';

@@ -1416,13 +1416,13 @@
             Alias::facade('Octal', 'Entitykv', 'Octo');
         }
 
-        if (!class_exists('Octo\Octus')) {
-            Alias::facade('Octus', 'Manager', 'Illuminate\Database\Capsule');
-        }
+        // if (!class_exists('Octo\Octus')) {
+        //     Alias::facade('Octus', 'Manager', 'Illuminate\Database\Capsule');
+        // }
 
-        if (!class_exists('Octo\Octia')) {
-            Alias::facade('Octia', 'Manager', 'Illuminate\Database\Capsule');
-        }
+        // if (!class_exists('Octo\Octia')) {
+        //     Alias::facade('Octia', 'Manager', 'Illuminate\Database\Capsule');
+        // }
 
         if (!class_exists('Octo\Testing')) {
             entityFacade('testing');
