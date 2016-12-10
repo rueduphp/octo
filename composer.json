@@ -17,6 +17,7 @@
         "aws/aws-sdk-php": "@stable",
         "illuminate/database": "@stable",
         "psy/psysh": "@stable",
+        "wisembly/elephant.io": "~3.0",
         "predis/predis": "1.1.*@dev"
     },
     "require-dev": {
