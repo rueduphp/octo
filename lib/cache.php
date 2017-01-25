@@ -11,9 +11,8 @@
 
         private function getPath($k)
         {
-            $dir = $this->dir;
-
-            $hash = sha1($k);
+            $dir    = $this->dir;
+            $hash   = sha1($k);
 
             $one    = substr($hash, 0, 2);
             $two    = substr($hash, 2, 2);
@@ -86,8 +85,8 @@
 
         public function cacheIf($k, $condition, $value, $expire = null)
         {
-            $condition  = File::value($condition);
-            $value      = File::value($value);
+            $condition  = value($condition);
+            $value      = value($value);
 
             if ($condition) {
                 $this->set($k, $value, $expire);
@@ -214,7 +213,7 @@
                 }
             }
 
-            return File::value($d);
+            return value($d);
         }
 
         public function forever($k, $v)

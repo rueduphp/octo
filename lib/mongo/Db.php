@@ -4276,9 +4276,6 @@ echo 'done'";
 
                 passthru($cmd);
             }
-
-            vd($i);
-            dd(Timer::get());
         }
 
         public function cursor($closure = null)

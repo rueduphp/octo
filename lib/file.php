@@ -184,7 +184,7 @@
             $parent = implode(DS, $tab);
 
             if (!is_writable($parent)) {
-                try {vd($path);
+                try {
                     chmod($parent, $chmod);
                 } catch (\Exception $e) {
                     throw new Exception("You have not sufficient rights to write in $parent Please chmod 0777 $parent");

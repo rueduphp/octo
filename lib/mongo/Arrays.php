@@ -48,7 +48,6 @@
 
         public function __call($method, $arguments)
         {
-            vd($method);
             $function   = [$this->cursor, $method];
             $result     = call_user_func_array($function, $arguments);
 

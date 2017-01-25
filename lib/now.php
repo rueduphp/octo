@@ -249,7 +249,7 @@
             }
         }
 
-        public function getInstance($ns = 'core', array $data = [])
+        public static function getInstance($ns = 'core', array $data = [])
         {
             if (!isset(self::$data[$ns])) {
                 self::$data[$ns] = new self($ns, $data);

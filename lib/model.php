@@ -1289,12 +1289,13 @@
             }
 
             if (empty($args)) {
-                return $driver($database, $table);
+                return lib('octalia', [$database, $table, lib('cachelite', ["$database.$table"])]);
             } elseif (count($args) == 1) {
                 $id = array_shift($args);
 
                 if (is_numeric($id)) {
-                    return $driver($database, $table)->find($id);
+                    return lib('octalia', [$database, $table, lib('cachelite', ["$database.$table"])])
+                    ->find($id);
                 }
             }
         }

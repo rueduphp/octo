@@ -3700,3 +3700,8 @@
     {
         return lib('redis')->client();
     }
+
+    function di()
+    {
+        return new Utils;
+    }

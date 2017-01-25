@@ -94,7 +94,7 @@
 
             $this->_delete($file);
 
-            $v = File::value($v);
+            $v = value($v);
 
             $this->_put($file, serialize($v), is_null($expire) ? 0 : time() + $expire);
 
@@ -190,7 +190,7 @@
                 }
             }
 
-            return File::value($d);
+            return value($d);
         }
 
         public function forever($k, $v)

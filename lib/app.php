@@ -15,7 +15,7 @@
         protected $bindings = [];
         protected $instances = [];
         protected $aliases = [];
-        protected $extenders = [];
+        protected $children = [];
         protected $tags = [];
         protected $buildStack = [];
         public $contextual = [];
@@ -196,8 +196,7 @@
 
         public function refresh($toResolve, $target, $method)
         {
-            return $this->rebinding($toResolve, function($app, $instance) use ($target, $method)
-            {
+            return $this->rebinding($toResolve, function($app, $instance) use ($target, $method) {
                 $target->{$method}($instance);
             });
         }
