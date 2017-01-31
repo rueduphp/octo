@@ -11,7 +11,7 @@
 
             Cli::show("Start of execution", 'SUCCESS');
 
-            $db     = odb('cron', 'task');
+            $db     = engine('cron', 'task');
             $dbCron = $db->firstOrCreate(['name' => $name]);
             $nextDb = $dbCron->next;
 

@@ -124,7 +124,7 @@
                 if (is_callable($callable)) {
                     return call_user_func_array($callable, $a);
                 } else {
-                    throw new Exception("The method $m is not yet implemented.");
+                    exception('Soul', "The method $m is not yet implemented.");
                 }
             } else {
                 return $this->set($m, current($a));

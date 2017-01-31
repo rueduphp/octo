@@ -30,9 +30,18 @@
             $this->dir = $ns;
             $this->table = Strings::urlize($ns, '');
 
-            $this->db = new \PDO('mysql:host=' . Config::get('mysql.host', 'localhost') . ';dbname=' . Config::get('mysql.db', def('SITE_NAME', 'project')), Config::get('mysql.user', 'root'), Config::get('mysql.password', 'root'));
+            $this->db = new \PDO(
+                'mysql:host=' .
+                Config::get('mysql.host', 'localhost') . ';dbname=' .
+                Config::get('mysql.db', def('SITE_NAME', 'project')),
+                Config::get('mysql.user', 'root'),
+                Config::get('mysql.password', 'root')
+            );
 
-            $this->db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING);
+            $this->db->setAttribute(
+                \PDO::ATTR_ERRMODE,
+                \PDO::ERRMODE_WARNING
+            );
 
             $sql = "CREATE TABLE IF NOT EXISTS `" . $this->table . "` (
   `k` varchar(255) NOT NULL,

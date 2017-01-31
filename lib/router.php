@@ -199,7 +199,13 @@
             extract(Registry::get('views.vars', []));
 
             if (!headers_sent()) {
+                $headers = Registry::get('response.headers', []);
+
                 status(200);
+
+                foreach ($headers as $k => $v) {
+                    header($k . ': ' . $v, false, 200);
+                }
             }
 
             ob_start();
@@ -352,13 +358,22 @@
 
                     $params = array_map(function ($match, $index) use ($matches) {
                         if (isset($matches[$index + 1]) && isset($matches[$index + 1][0]) && is_array($matches[$index + 1][0])) {
-                            return trim(substr($match[0][0], 0, $matches[$index + 1][0][1] - $match[0][1]), '/');
+                            return trim(
+                                substr(
+                                    $match[0][0],
+                                    0,
+                                    $matches[$index + 1][0][1] - $match[0][1]
+                                ),
+                                '/'
+                            );
                         } else {
                             return isset($match[0][0]) ? trim($match[0][0], '/') : null;
                         }
                     }, $matches, array_keys($matches));
 
                     $this->uri = Route::getUri($route['uri'], $route['callback']);
+
+                    route($route);
 
                     if ($middleware = $this->uri->getMiddleware()) {
                         Route::filter($middleware, $this->uri);

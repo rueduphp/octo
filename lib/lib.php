@@ -439,12 +439,12 @@
                     $table = Strings::uncamelize($method);
 
                     if (empty($args)) {
-                        return odb("' . $database . '", $table);
+                        return engine("' . $database . '", $table);
                     } elseif (count($args) == 1) {
                         $id = array_shift($args);
 
                         if (is_numeric($id)) {
-                            return odb("' . $database . '", $table)->find($id);
+                            return engine("' . $database . '", $table)->find($id);
                         }
                     }
                 }
@@ -486,7 +486,7 @@
 
             if ($method == "table") return $table;
 
-            return call_user_func_array([odb($db, $table), $method], $args);
+            return call_user_func_array([engine($database, $table)($db, $table), $method], $args);
         }}';
 
             eval($code);
@@ -627,7 +627,7 @@
     {
         $type = Strings::upper($type);
 
-        $db = odb('logs', $ns);
+        $db = engine('logs', $ns);
 
         return $db->where(['type', '=', $type])->sortByDesc('id')->get();
     }
@@ -2085,6 +2085,29 @@
         $octia->bootEloquent();
     }
 
+    function promise()
+    {
+        $promise = o();
+
+        $promise->macro('success', function (callable $succes = null) {
+            if (is_callable($success)) {
+                return $success();
+            }
+
+            return true;
+        });
+
+        $promise->macro('error', function (callable $error = null) {
+            if (is_callable($error)) {
+                return $error();
+            }
+
+            return false;
+        });
+
+        return $promise;
+    }
+
     function listen($event, array $args = [])
     {
         $events = Registry::get('core_events', []);
@@ -2107,29 +2130,6 @@
         }
 
         return call_user_func_array($cb, [$res]);
-    }
-
-    function promise()
-    {
-        $promise = o();
-
-        $promise->macro('success', function (callable $succes = null) {
-            if (is_callable($success)) {
-                return $success();
-            }
-
-            return true;
-        });
-
-        $promise->macro('error', function (callable $error = null) {
-            if (is_callable($error)) {
-                return $error();
-            }
-
-            return false;
-        });
-
-        return $promise;
     }
 
     function broadcast($event, callable $cb)
@@ -2369,16 +2369,17 @@
                 die($data);
             } else {
                 $storage = path('public') . DS . 'qr';
+                $png = DS . sha1(serialize(func_get_args())) . '.png';
 
                 if (!is_dir($storage)) {
                     Dir::mkdir($storage);
                 }
 
-                $storage .= DS . sha1(serialize(func_get_args())) . '.png';
+                $storage .= $png;
 
                 File::put($storage, $data);
 
-                return WEBROOT . DS . 'qr' . DS . sha1(serialize(func_get_args())) . '.png';
+                return WEBROOT . DS . 'qr' . $png;
             }
         }
     }
@@ -3338,12 +3339,12 @@
 
     function polymorph(Object $object)
     {
-        return odb($object->db(), $object->polymorph_type)->find((int) $object->polymorph_id);
+        return engine($object->db(), $object->polymorph_type)->find((int) $object->polymorph_id);
     }
 
     function polymorphs(Object $object, $parent)
     {
-        return odb($object->db(), $parent)
+        return engine($object->db(), $parent)
         ->where('polymorph_type', $object->table())
         ->where('polymorph_id', (int) $object->id);
     }
@@ -3704,4 +3705,251 @@
     function di()
     {
         return new Utils;
+    }
+
+    function engine($database = 'core', $table = 'core')
+    {
+        $engine = Config::get('octalia.engine', 'ldb');
+
+        if (function_exists('\\Octo\\' . $engine)) {
+            return call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
+        } else {
+            exception('core', "Engine $engine does not exist.");
+        }
+    }
+
+    function keep($k, $v = 'octodummy')
+    {
+        $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
+
+        if ('octodummy' != $v) {
+            return fmr('keep')->set($key, $v);
+        }
+
+        return fmr('keep')->get($key);
+    }
+
+    function unkeep($k)
+    {
+        $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
+
+        return fmr('keep')->del($key);
+    }
+
+    function em($model, $force = false)
+    {
+        $models = Registry::get('em.models', []);
+
+        $model = Strings::uncamelize($model);
+
+        if (!isset($models[$model]) || true === $force) {
+            if (fnmatch('*_*', $model)) {
+                list($database, $table) = explode('_', $model, 2);
+            } else {
+                $database   = Strings::uncamelize(Config::get('application.name', 'core'));
+                $table      = $model;
+            }
+
+            $models[$model] = engine($database, $table);
+
+            Registry::set('em.models', $models);
+        }
+
+        return $models[$model];
+    }
+
+    function roulette(array $a)
+    {
+        $sum    = 0.0;
+        $total  = array_sum(array_values($a));
+        $r      = (float) rand() / (float) getrandmax();
+
+        if ($r == $sum) {
+            return array_keys($a)[0];
+        }
+
+        foreach ($a as $key => $percentage) {
+            $newsum = $sum + (float) $percentage / (float) $total;
+
+            if ($r > $sum && $r <= $newsum) {
+                return $key;
+            }
+
+            $sum = $newsum;
+        }
+
+        return array_keys($a)[count($a) - 1];
+    }
+
+    function dic()
+    {
+        $dic = Registry::get('core.dic');
+
+        if (!$dic) {
+            $dic = o();
+
+            $dic->macro('get', function ($k, $d = null) {
+                $key = 'dic.' . Strings::urlize($k, '.');
+
+                return Registry::get($key, $d);
+            });
+
+            $dic->macro('set', function ($k, $v) {
+                $key = 'dic.' . Strings::urlize($k, '.');
+
+                return Registry::get($key, $v);
+            });
+
+            Registry::set('core.dic', $dic);
+        }
+
+        return $dic;
+    }
+
+    function guest()
+    {
+        $u = session('web')->getUser();
+
+        return is_null($u);
+    }
+
+    function role()
+    {
+        if (!guest()) {
+            $user = session('web')->getUser();
+            $role = System::Role()->find((int) $user['role_id']);
+
+            if ($role) {
+                return $role;
+            }
+        }
+
+        return 'guest';
+    }
+
+    function dom()
+    {
+        require_once __DIR__ . DS . 'dom.php';
+    }
+
+    function route($route = null)
+    {
+        if ($route) {
+            Registry::set('core.route', $route);
+        }
+
+        return Registry::get('core.route');
+    }
+
+    function headers()
+    {
+        $instance = Registry::get('headers.instance');
+
+        if (!$instance) {
+            $instance = o();
+
+            $instance->macro('new', function ($k, $v) {
+                $headers = Registry::get('response.headers', []);
+
+                $headers[$k] = $v;
+
+                return Registry::set('response.headers', $headers);
+            });
+
+            $instance->macro('remove', function ($k) {
+                $headers = Registry::get('response.headers', []);
+
+                unset($headers[$k]);
+
+                return Registry::set('response.headers', $headers);
+            });
+
+            Registry::set('headers.instance', $instance);
+        }
+
+        return $instance;
+    }
+
+    function gate()
+    {
+        $gate = Registry::get('core.gate');
+
+        if (!$gate) {
+            $gate = o();
+
+            $gate->macro('new', function ($k, $cb) {
+                $key = 'gate.' . Strings::urlize($k, '.');
+
+                return Registry::set($key, $cb);
+            });
+
+            $gate->macro('allows', function ($k) {
+                $key = 'gate.' . Strings::urlize($k, '.');
+
+                if (!guest()) {
+                    $cb = Registry::get($key);
+
+                    if ($cb) {
+                        return $cb(session('web')->getUser());
+                    }
+                }
+
+                return false;
+            });
+
+            Registry::set('core.gate', $gate);
+        }
+
+        return $gate;
+    }
+
+    /*
+        $mailer = mailer();
+        $message = message()
+        ->setSubject('subjecy')
+        ->setTo(['client@site.com' => 'Client'])
+        ->setFrom(['contact@site.com' => 'Contact'])
+        ->setBody('This is a message!!', 'text/html');
+
+        $mailer->send($message);
+    */
+
+    function message()
+    {
+        require_once (__DIR__ . '/swift/swift_required.php');
+
+        return \Swift_Message::newInstance();
+    }
+
+    function mailer()
+    {
+        require_once (__DIR__ . '/swift/swift_required.php');
+
+        $mailer = Config::get('app.mailer', 'php'); /* smtp, sendmail, php */
+
+        switch ($mailer) {
+            case 'smtp':
+                $transport = \Swift_SmtpTransport::newInstance(
+                    Config::get('smtp.host', 'localhost'),
+                    Config::get('smtp.port', 443),
+                    'ssl'
+                )
+                ->setUsername(Config::get('smtp.user'))
+                ->setPassword(Config::get('smtp.password'));
+
+                break;
+            case 'sendmail':
+                $transport = \Swift_SendmailTransport::newInstance(
+                    Config::get('sendmail', '/usr/bin/sendmail')
+                );
+
+                break;
+            case 'php':
+            default:
+                $transport = \Swift_MailTransport::newInstance();
+
+                break;
+        }
+
+        return \Swift_Mailer::newInstance($transport);
     }

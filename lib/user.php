@@ -8,12 +8,12 @@
             return forever();
         }
 
-        public function session($k, $v = null)
+        public function session($k, $v = 'octodummy')
         {
             $k = 'user.' . $this->id() . '.' . $k;
 
-            if ($v) {
-                fmr('user')->set($k, serialize($v));
+            if ('octodummy' != $v) {
+                fmr('user')->set($k, $v);
                 fmr('user')->expire($k, 3600);
 
                 return true;

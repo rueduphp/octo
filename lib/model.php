@@ -1277,8 +1277,6 @@
 
         public static function __callStatic($method, $args)
         {
-            $driver = Config::get('octalia.driver', 'sql') == 'sql' ? 'ldb' : 'odb';
-
             $db = Strings::uncamelize($method);
 
             if (fnmatch('*_*', $db)) {
@@ -1289,13 +1287,12 @@
             }
 
             if (empty($args)) {
-                return lib('octalia', [$database, $table, lib('cachelite', ["$database.$table"])]);
+                return engine($database, $table);
             } elseif (count($args) == 1) {
                 $id = array_shift($args);
 
                 if (is_numeric($id)) {
-                    return lib('octalia', [$database, $table, lib('cachelite', ["$database.$table"])])
-                    ->find($id);
+                    return engine($database, $table)->find($id);
                 }
             }
         }

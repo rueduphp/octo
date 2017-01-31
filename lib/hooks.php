@@ -29,7 +29,7 @@
 
                 if ($table && $database) {
                     if (is_callable($table) && is_callable($database)) {
-                        $db = odb($this->object->db(), $this->object->table());
+                        $db = engine($this->object->db(), $this->object->table());
                     }
                 }
 

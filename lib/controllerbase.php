@@ -3,7 +3,8 @@
 
     class ControllerBase extends FrontController
     {
-        public $title = '';
+        protected $title = '';
+        protected $models = [];
 
         public function init()
         {
@@ -328,5 +329,23 @@
             fmr('minify')->set($keyage, $a);
 
             return Registry::get('octo.subdir', '') . '/cache/' . $a . '.' . $type;
+        }
+
+        protected function model($model, $force = false)
+        {
+            $model = Strings::uncamelize($model);
+
+            if (!isset($this->models[$model]) || true === $force) {
+                if (fnmatch('*_*', $model)) {
+                    list($database, $table) = explode('_', $model, 2);
+                } else {
+                    $database   = Strings::uncamelize(Config::get('application.name', 'core'));
+                    $table      = $model;
+                }
+
+                $this->models[$model] = engine($database, $table);
+            }
+
+            return $this->models[$model];
         }
     }

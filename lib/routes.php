@@ -97,9 +97,17 @@
                             list($controller, $action) = explode('#', $callback, 2);
                         }
                     } elseif (fnmatch('*@*', $callback)) {
-                        list($controller, $action, $render) = explode('@', $callback, 3);
+                        if (fnmatch('*@*@*', $callback)) {
+                            list($controller, $action, $render) = explode('@', $callback, 3);
+                        } else {
+                            list($controller, $action) = explode('@', $callback, 2);
+                        }
                     } elseif (fnmatch('*.*', $callback)) {
-                        list($controller, $action, $render) = explode('.', $callback, 3);
+                        if (fnmatch('*.*.*', $callback)) {
+                            list($controller, $action, $render) = explode('.', $callback, 3);
+                        } else {
+                            list($controller, $action) = explode('.', $callback, 2);
+                        }
                     }
 
                     $render = empty($render);

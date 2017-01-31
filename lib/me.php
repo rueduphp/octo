@@ -8,7 +8,7 @@
 
         public function __construct($ns = 'core')
         {
-            $this->db = db('me', $ns . '_' . sha1(forever()));
+            $this->db = engine('me', $ns . '_' . sha1(forever()));
         }
 
         public function __set($k, $v)

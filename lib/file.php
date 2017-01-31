@@ -548,6 +548,11 @@
 
         public static function is777($file)
         {
-            return (file_exists($file) && substr(sprintf("%o", fileperms($file)), -3) === "777");
+            return file_exists($file) && static::getPerms($file) === "777";
+        }
+
+        public static function getPerms($file)
+        {
+            return substr(sprintf('%o', fileperms($file)), -3);
         }
     }

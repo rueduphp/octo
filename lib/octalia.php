@@ -1010,7 +1010,7 @@
                 }
 
                 if (!is_array($field)) {
-                    $fields = [$field];
+                    $field = [$field];
                 }
 
                 $list = [];
@@ -1569,7 +1569,7 @@
             } elseif ($nargs == 3) {
                 list($key, $operator, $value) = func_get_args();
             } else {
-                throw new Exception("This method requires at least one argument to proceed.");
+                exception('Octalia', "This method requires at least one argument to proceed.");
             }
 
             if ($value instanceof \Closure) {

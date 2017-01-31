@@ -15,7 +15,6 @@
         protected $query_id = 0;
         protected $query_show;
 
-
         /**
          * Database::__construct()
          *
@@ -27,10 +26,21 @@
          */
         function __construct($server = null, $user = null, $password = null, $database = null)
         {
-            $server     = is_null($server)      ? Config::get('mysql.server', 'localhost')          : $server;
-            $user       = is_null($user)        ? Config::get('mysql.user', 'root')                 : $user;
-            $password   = is_null($password)    ? Config::get('mysql.password', 'root')             : $password;
-            $database   = is_null($database)    ? Config::get('mysql.database', def('SITE_NAME'))   : $database;
+            $server = is_null($server)
+            ? Config::get('mysql.server', 'localhost')
+            : $server;
+
+            $user = is_null($user)
+            ? Config::get('mysql.user', 'root')
+            : $user;
+
+            $password = is_null($password)
+            ? Config::get('mysql.password', 'root')
+            : $password;
+
+            $database = is_null($database)
+            ? Config::get('mysql.database', def('SITE_NAME'))
+            : $database;
 
             $this->server   = $server;
             $this->user     = $user;
@@ -48,11 +58,11 @@
             $this->link_id = $this->connect_db($this->server, $this->user, $this->pass);
 
             if (!$this->link_id) {
-                throw new Exception("Connection to Database " . $this->database . " Failed.");
+                exception("mysql", "Connection to Database " . $this->database . " Failed.");
             }
 
             if (!$this->select_db($this->database, $this->link_id)) {
-                throw new Exception("SQL database (" . $this->database . ")cannot be used.");
+                exception("mysql", "SQL database (" . $this->database . ")cannot be used.");
             }
 
             mysqli_set_charset($this->link_id, "utf8");
@@ -137,7 +147,9 @@
             if ($query_id) $this->query_id = $query_id;
 
             if (isset($this->query_id)) {
-                $record = ($type) ? mysqli_fetch_array($this->query_id, MYSQL_ASSOC) : mysqli_fetch_object($this->query_id);
+                $record = ($type)
+                ? mysqli_fetch_array($this->query_id, MYSQL_ASSOC)
+                : mysqli_fetch_object($this->query_id);
             } else $this->error("Invalid query_id: <b>" . $this->query_id . "</b>. Records could not be fetched.");
 
             return $record;
@@ -185,9 +197,7 @@
         public function insert($table = null, $data)
         {
             if ($table === null || empty($data) || !is_array($data)) {
-                Throw new Exception("Invalid array for table: <b>".$table."</b>.");
-
-                return false;
+                exception("mysql", "Invalid array for table: <strong>" . $table . "</strong>.");
             }
 
             $q = "INSERT INTO `" . $table . "` ";
@@ -219,7 +229,7 @@
         public function update($table = null, $data, $where = '1')
         {
             if ($table === null || empty($data) || !is_array($data)) {
-                throw new Exception("Invalid array for table: <b>" . $table . "</b>.");
+                exception("mysql", "Invalid array for table: <b>" . $table . "</b>.");
             }
 
             $q = "UPDATE `" . $table . "` SET ";
@@ -352,7 +362,7 @@
          */
         public function show()
         {
-            return "<br /><br /><b> Debug Mode - All Queries :</b><hr size='1' /> " . $this->query_show . "<br />";
+            return "<br><br><b>Debug Mode - All Queries :</b><hr size=1> " . $this->query_show . "<br>";
         }
 
         /**

@@ -14,7 +14,7 @@
 
         public function table($table)
         {
-            return odb($this->db, $table);
+            return engine($this->db, $table);
         }
 
         public function from($table)

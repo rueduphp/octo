@@ -20,6 +20,10 @@
                 session_start();
             }
 
+            if (!isset($_SESSION['octobag'])) {
+                $_SESSION['octobag'] = [];
+            }
+
             if (!isset($_SESSION['infos_' . session_id()])) {
                 $_SESSION['infos_' . session_id()] = [];
             }
