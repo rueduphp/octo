@@ -422,7 +422,7 @@
                 if ($row) {
                     $age = $row['e'];
 
-                    if (0 < $age && $age < time()) {
+                    if (0 < (int) $age && (int) $age < time()) {
                         $this->_delete($this->getPath($key));
 
                         $affected++;

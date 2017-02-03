@@ -3,11 +3,11 @@
 
     require_once (__DIR__ . '/sessionadapter.php');
 
-    class SessionFmr extends SessionAdapter implements \SessionHandlerInterface
+    class SessionRedis extends SessionAdapter implements \SessionHandlerInterface
     {
         public function __construct($ttl = 1800)
         {
-            $this->handler = fmr('sessions');
+            $this->handler = redis('sessions');
             $this->ttl = $ttl;
         }
 
@@ -18,7 +18,9 @@
 
         public function write($id, $data)
         {
-            $this->handler->set($this->prepareId($id), $data, (int) $this->ttl);
+            $key = $this->prepareId($id);
+            $this->handler->set($key, $data, (int) $this->ttl);
+            $this->handler->expire($key, (int) $this->ttl);
         }
 
         public function destroy($id)
@@ -28,6 +30,6 @@
 
         public function gc($maxLifetime)
         {
-            $this->handler->clean();
+            return true;
         }
     }

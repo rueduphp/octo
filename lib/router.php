@@ -373,10 +373,14 @@
 
                     $this->uri = Route::getUri($route['uri'], $route['callback']);
 
-                    route($route);
+                    if ($this->uri) {
+                        route($route);
 
-                    if ($middleware = $this->uri->getMiddleware()) {
-                        Route::filter($middleware, $this->uri);
+                        if ($middleware = Route::getMiddleware($this->uri->getName())) {
+                            if (is_callable($middleware)) {
+                                call($middleware, [$this->uri]);
+                            }
+                        }
                     }
 
                     if ($quit) {

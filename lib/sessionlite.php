@@ -3,12 +3,13 @@
 
     require_once (__DIR__ . '/sessionadapter.php');
 
-    class SessionFmr extends SessionAdapter implements \SessionHandlerInterface
+    class SessionLite extends SessionAdapter implements \SessionHandlerInterface
     {
-        public function __construct($ttl = 1800)
+        public function __construct($ttl = 1800, $prefix = 'octosession')
         {
-            $this->handler = fmr('sessions');
+            $this->handler = lite('sessions');
             $this->ttl = $ttl;
+            $this->prefix = $prefix;
         }
 
         public function read($id)

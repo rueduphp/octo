@@ -1224,6 +1224,11 @@
         return new Cache($ns, $dir);
     }
 
+    function lite($ns = null)
+    {
+        return new Cachelite($ns);
+    }
+
     function mem($ns = null, $dir = null)
     {
         return new OctaliaMemory($ns, $dir);
@@ -3911,7 +3916,7 @@
         ->setFrom(['contact@site.com' => 'Contact'])
         ->setBody('This is a message!!', 'text/html');
 
-        $mailer->send($message);
+        $status = $mailer->send($message);
     */
 
     function message()
@@ -3940,7 +3945,7 @@
                 break;
             case 'sendmail':
                 $transport = \Swift_SendmailTransport::newInstance(
-                    Config::get('sendmail', '/usr/bin/sendmail')
+                    Config::get('sendmail', '/usr/lib/sendmail')
                 );
 
                 break;

@@ -222,6 +222,11 @@
                     ->setAction($action);
             });
 
+            if (!empty($a)) {
+                $middleware = array_shift($a);
+                static::$middlewares[$name] = $middleware;
+            }
+
             static::$list[] = $route;
 
             return $route;
@@ -305,6 +310,11 @@
             static::$middlewares[$name] = $cb;
         }
 
+        public static function getMiddleware($name)
+        {
+            return isAke(static::$middlewares, $name, null);
+        }
+
         public static function filter($middleware, Uri $uri)
         {
             $cb = isAke(static::$middlewares, $middleware, null);
@@ -316,10 +326,10 @@
             return null;
         }
 
-        public static function group($name, $middleware, array $routes)
+        public static function group($middleware, array $routes)
         {
             foreach ($routes as $route) {
-                $route->setGroup($name)->setMiddleware($middleware);
+                static::$middlewares[$route->getName()] = $middleware;
             }
         }
     }
