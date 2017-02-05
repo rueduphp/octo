@@ -206,7 +206,8 @@
             return round($size, 2) . ' ' . $units[$i];
         }
 
-        function foldersize($path) {
+        function foldersize($path)
+        {
             $total_size = 0;
             $files = scandir($path);
 

@@ -259,9 +259,6 @@
                     $content
                 );
 
-                $content = str_replace(['{{', '}}'], ['<?php $controller->e("', '");?>'], $content);
-                $content = str_replace(['[[', ']]'], ['<?php $controller->trad("', '");?>'], $content);
-
                 ob_start();
 
                 eval(' namespace Octo; ?>' . $content . '<?php ');
@@ -285,6 +282,9 @@
                 $file = cut('"', '"', $row);
                 $content = str_replace('<partial file="' . $file . '">', '<?php $this->partial(\'' . str_replace('.', DS, $file) . '.phtml\'); ?>', $content);
             }
+
+            $content = str_replace(['{{', '}}'], ['<?php $controller->e("', '");?>'], $content);
+            $content = str_replace(['[[', ']]'], ['<?php $controller->trad("', '");?>'], $content);
 
             return $content;
         }
@@ -315,9 +315,6 @@
                         $controller->$k = $v;
                     }
                 }
-
-                $content = str_replace(['{{', '}}'], ['<?php $controller->e("', '");?>'], $content);
-                $content = str_replace(['[[', ']]'], ['<?php $controller->trad("', '");?>'], $content);
 
                 $tab        = explode(DS, $partial);
                 $last       = str_replace('.phtml', '', array_pop($tab));
