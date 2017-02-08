@@ -223,7 +223,7 @@
         public function optimize()
         {
             $cb = function ($database, $table) {
-                $db = \Octo\odb($database, $table);
+                $db = \Octo\engine($database, $table);
 
                 foreach ($db->fields() as $field) {
                     $db->select($field);
@@ -421,6 +421,11 @@
             $this->reset();
 
             return $model ? $this->model($row) : $row;
+        }
+
+        public function findMany(array $ids)
+        {
+            return $this->where(['id', 'IN', $ids]);
         }
 
         public function findAndDelete($id, $model = true)
@@ -640,7 +645,7 @@
                     )) {
                         $val = '$faker->numberBetween(15, 85)';
                     } elseif (fnmatch('*_id', $field)) {
-                        $val = 'odb("' . $this->db . '", "' . str_replace('_id', '', $field) . '")->createFake()->id';
+                        $val = 'engine("' . $this->db . '", "' . str_replace('_id', '', $field) . '")->createFake()->id';
                     }
 
                     if ($n < count($fields) - 1) {
@@ -1634,8 +1639,16 @@
                         case 'not between':
                             return $actual < $value[0] || $actual > $value[1];
                         case 'in':
+                            $value = !is_array($value)
+                                ? explode(',', str_replace([' ,', ', '], '', $value))
+                                : $value;
+
                             return in_array($actual, $value);
                         case 'not in':
+                            $value = !is_array($value)
+                                ? explode(',', str_replace([' ,', ', '], '', $value))
+                                : $value;
+
                             return !in_array($actual, $value);
                         case 'like':
                             $value  = str_replace("'", '', $value);
@@ -2546,7 +2559,7 @@
 
             $where = empty($where) ? [['id', '>', 0]] : $where;
 
-            $db1 = odb($database, $t1);
+            $db1 = engine($database, $t1);
 
             $fk = $this->table . '_id';
 
@@ -2574,7 +2587,7 @@
                 list($database, $t2) = explode('.', $t2, 2);
             }
 
-            return odb($database, $t2)->where([$fk2, 'IN', implode(',', $ids)])->get();
+            return engine($database, $t2)->where([$fk2, 'IN', implode(',', $ids)])->get();
         }
 
         public function findAndModify($where, array $update)

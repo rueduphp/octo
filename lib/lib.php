@@ -1421,13 +1421,9 @@
             Alias::facade('Octal', 'Entitykv', 'Octo');
         }
 
-        // if (!class_exists('Octo\Octus')) {
-        //     Alias::facade('Octus', 'Manager', 'Illuminate\Database\Capsule');
-        // }
-
-        // if (!class_exists('Octo\Octia')) {
-        //     Alias::facade('Octia', 'Manager', 'Illuminate\Database\Capsule');
-        // }
+        if (!class_exists('Octo\Octus')) {
+            Alias::facade('Octus', 'Manager', 'Illuminate\Database\Capsule');
+        }
 
         if (!class_exists('Octo\Testing')) {
             entityFacade('testing');
@@ -2072,6 +2068,20 @@
 
         $octus->setAsGlobal();
         $octus->bootEloquent();
+
+        return $octus;
+    }
+
+    function eloquent(array $settings = [])
+    {
+        $eloquent = new Octus;
+
+        $eloquent->addConnection($settings);
+
+        $eloquent->setAsGlobal();
+        $eloquent->bootEloquent();
+
+        return $eloquent;
     }
 
     function octia($db = null)

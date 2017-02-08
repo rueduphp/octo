@@ -18,11 +18,12 @@
         "illuminate/database": "@stable",
         "psy/psysh": "@stable",
         "wisembly/elephant.io": "~3.0",
-        "intervention/image": "dev-master",
+        "nitmedia/wkhtml2pdf": "dev-master#6b9daf3cca9a2eadc16935b440e1e80a5b7a01cd",
+        "intervention/image": "^2.3",
+        "intervention/imagecache": "^2.3",
         "predis/predis": "1.1.*@dev"
     },
     "require-dev": {
-        "crysalead/kahlan": "@stable",
         "phpunit/phpunit": "@stable"
     },
     "autoload": {
