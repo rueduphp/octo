@@ -3968,3 +3968,18 @@
 
         return \Swift_Mailer::newInstance($transport);
     }
+
+    function memory()
+    {
+        $memory = Registry::get('db.memory');
+
+        if (!$memory) {
+            $memory = new \PDO('sqlite::memory:');
+            $memory->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+            $memory->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+
+            Registry::set('db.memory', $memory);
+        }
+
+        return $memory;
+    }
