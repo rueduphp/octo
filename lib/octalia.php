@@ -1022,16 +1022,16 @@
                 $rows = $this->get();
 
                 foreach ($rows as $row) {
-                    $value = [];
+                    $value = ['id' => $row['id']];
 
                     foreach ($field as $f) {
-                        $values[] = isAke($row, $f, null);
+                        $value[$f] = isAke($row, $f, null);
                     }
 
-                    $list[$row['id']] = implode(' ', $value);
+                    $list[] = $value;
                 }
 
-                return $list;
+                return coll($list);
             }
 
             if (fnmatch('findBy*', $m) && strlen($m) > 6) {
@@ -1640,13 +1640,13 @@
                             return $actual < $value[0] || $actual > $value[1];
                         case 'in':
                             $value = !is_array($value)
-                                ? explode(',', str_replace([' ,', ', '], '', $value))
+                                ? explode(',', str_replace([' ,', ', '], ',', $value))
                                 : $value;
 
                             return in_array($actual, $value);
                         case 'not in':
                             $value = !is_array($value)
-                                ? explode(',', str_replace([' ,', ', '], '', $value))
+                                ? explode(',', str_replace([' ,', ', '], ',', $value))
                                 : $value;
 
                             return !in_array($actual, $value);

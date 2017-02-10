@@ -3751,7 +3751,7 @@
         return fmr('keep')->del($key);
     }
 
-    function em($model, $force = false)
+    function em($model, $engine = 'engine', $force = false)
     {
         $models = Registry::get('em.models', []);
 
@@ -3765,7 +3765,8 @@
                 $table      = $model;
             }
 
-            $models[$model] = engine($database, $table);
+            // $models[$model] = engine($database, $table);
+            $models[$model] = call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
 
             Registry::set('em.models', $models);
         }

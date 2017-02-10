@@ -118,12 +118,15 @@
                 $code = str_replace('}' . $last, '}', $code);
             }
 
-            return Octal::SystemClosure()->firstOrCreate(['name' => $name, 'key' => $id])->setCode($code)->save();
+            return em('SystemClosure')
+            ->firstOrCreate(['name' => $name, 'key' => $id])
+            ->setCode($code)
+            ->save();
         }
 
         public function fireStore($id, $args = [])
         {
-            $row = Octal::SystemClosure()->findOrFail((int) $id);
+            $row = em('SystemClosure')->findOrFail((int) $id);
 
             $closure = eval('return ' . $row->code . ';');
 
@@ -133,7 +136,7 @@
                 return $res;
             }
 
-            throw new Exception('This closure does not exist.');
+            exception('closure', 'This closure does not exist.');
         }
 
         public function extract(callable $callback)
@@ -150,12 +153,11 @@
 
             if (fnmatch('*function*', $content)) {
                 list($dummy, $code) = explode('function', $content, 2);
-                $code = 'function' . $code;
 
-                $tab = explode('}', $code);
-                $last = end($tab);
-
-                $code = str_replace('}' . $last, '}', $code);
+                $code   = 'function' . $code;
+                $tab    = explode('}', $code);
+                $last   = end($tab);
+                $code   = str_replace('}' . $last, '}', $code);
 
                 return $code;
             }

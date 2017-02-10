@@ -6,7 +6,7 @@
         public static function set($name, $closure, $args = [], $when = 0)
         {
             $closure_id = lib('closures')->store($name, $closure)->id;
-            $db         = Octal::SystemLatertask();
+            $db         = em('SystemLatertask');
 
             $db->optimized = false;
 
@@ -21,8 +21,8 @@
         {
             set_time_limit(false);
 
-            $dbTask     = Octal::SystemLatertask();
-            $dbInstance = Octal::SystemLaterinstance();
+            $dbTask     = em('SystemLatertask');
+            $dbInstance = em('SystemLaterinstance');
 
             $dbTask->optimized      = false;
             $dbInstance->optimized  = false;
@@ -65,7 +65,7 @@
 
                         $instance->delete();
 
-                        $dbHistory = Octal::SystemLaterhistory();
+                        $dbHistory = em('SystemLaterhistory');
 
                         $dbHistory->optimized = false;
 
@@ -110,7 +110,7 @@
 
                 File::delete($file);
 
-                File::put($file, '<?php' . ' namespace ' . __NAMESPACE__ . ' {' . "\n" . '$configs = '.var_export(Config::all(), true). ";\n\n" . 'foreach ($configs as $k => $v) Config::set($k, $v); '. "\n\n" .'return ' . var_export($afters, true) . ';};');
+                File::put($file, '<?php' . ' namespace ' . __NAMESPACE__ . ' {' . "\n" . '$configs = ' . var_export(Config::all(), true) . ";\n\n" . 'foreach ($configs as $k => $v) Config::set($k, $v); ' . "\n\n" . 'return ' . var_export($afters, true) . ';};');
 
                 $exec = realpath(__DIR__ . '/afterbin.php');
 
