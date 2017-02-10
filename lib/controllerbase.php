@@ -229,15 +229,11 @@
 
         public function __call($m, $a)
         {
-            try {
-                return call_user_func_array(['\\Octo\\OctaliaHelpers', $m], $a);
-            } catch (\Exception $e) {
-                if (function_exists('\\Octo\\' . $m)) {
-                    return call_user_func_array('\\Octo\\' . $m, $a);
-                }
-
-                exception('controller', "Method $m does not exist.");
+            if (function_exists('\\Octo\\' . $m)) {
+                return call_user_func_array('\\Octo\\' . $m, $a);
             }
+
+            return call_user_func_array(['\\Octo\\OctaliaHelpers', $m], $a);
         }
 
         public static function __callStatic($m, $a)
@@ -348,5 +344,10 @@
             }
 
             return $this->models[$model];
+        }
+
+        public function em()
+        {
+            return call_user_func_array('\\Octo\\em', func_get_args());
         }
     }
