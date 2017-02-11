@@ -19,7 +19,7 @@
 
             self::$resources[$name] = $resource;
 
-            return $this;
+            return $resource;
         }
 
         public static function makeFromResourceName($name, $default = [], $unserialize = true)

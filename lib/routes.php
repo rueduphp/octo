@@ -208,13 +208,17 @@
                 return $route->setName($name);
             });
 
+            $route->macro('middleware', function (callable $cb) use ($route) {
+                return $route->setMiddleware($cb);
+            });
+
             $route->macro('uses', function ($string) use ($route) {
                 if (fnmatch('*@*', $string)) {
                     list($controller, $action) = explode('@', $string, 2);
-                }
-
-                if (fnmatch('*#*', $string)) {
+                } elseif (fnmatch('*#*', $string)) {
                     list($controller, $action) = explode('#', $string, 2);
+                } elseif (fnmatch('*.*', $string)) {
+                    list($controller, $action) = explode('.', $string, 2);
                 }
 
                 return $route
