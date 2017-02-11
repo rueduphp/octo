@@ -5,6 +5,8 @@
         include_once __DIR__ . "/../vendor/autoload.php";
     }
 
+    require_once __DIR__ . '/base.php';
+
     /* constantes */
     defined('APPLICATION_ENV')  || define('APPLICATION_ENV', 'production');
     defined('SITE_NAME')        || define('SITE_NAME', 'Octo');

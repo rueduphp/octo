@@ -3,8 +3,9 @@
 
     class ControllerBase extends FrontController
     {
-        protected $title = '';
-        protected $models = [];
+        protected $app      = null;
+        protected $title    = '';
+        protected $models   = [];
 
         public function init()
         {
