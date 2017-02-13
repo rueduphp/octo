@@ -287,6 +287,25 @@
             return $this->add($row);
         }
 
+        public function createMany(array $rows = [], $return = false)
+        {
+            if ($return) {
+                $collection = [];
+            }
+
+            foreach ($rows as $data) {
+                $new = $this->model($data);
+
+                if ($return) {
+                    $collection[] = $new;
+                } else {
+                    $new->save();
+                }
+            }
+
+            return $return ? $collection : $this;
+        }
+
         public function create(array $data = [])
         {
             return $this->model($data);
@@ -466,7 +485,7 @@
             $row = treatCast($row);
 
             if (file_exists($file)) {
-                $cbs = require $file;
+                $cbs = require_once $file;
 
                 $fns    = isAke($cbs, 'scopes', []);
                 $hooks  = isAke($cbs, 'hooks', []);
@@ -520,12 +539,14 @@
                 $fs = '[' . "\n\t\t\t";
 
                 foreach ($fields as $field) {
-                    if ($field == 'age' || $field == 'number' || $field == 'quantity' || $field == 'id' || $field == 'created_at' || $field == 'updated_at' || $field == 'deleted_at' || fnmatch('*_id', $field)) {
+                    if ($field == 'year' || $field == 'age' || $field == 'number' || $field == 'quantity' || $field == 'id' || $field == 'created_at' || $field == 'updated_at' || $field == 'deleted_at' || $field == 'created_by' || $field == 'updated_by' || $field == 'deleted_by' || fnmatch('*_id', $field)) {
                         $type = 'integer';
                     } elseif (in_array(
                         $field, [
+                            'duration',
                             'price',
                             'size',
+                            'length',
                             'width',
                             'height',
                             'depth'
@@ -633,11 +654,16 @@
                         $val = 'token()';
                     } elseif (in_array(
                         $field, [
+                            'created_by',
+                            'updated_by',
+                            'deleted_by',
+                            'year',
                             'age',
                             'price',
                             'size',
                             'width',
                             'height',
+                            'length',
                             'depth',
                             'quantity',
                             'number'
@@ -645,7 +671,7 @@
                     )) {
                         $val = '$faker->numberBetween(15, 85)';
                     } elseif (fnmatch('*_id', $field)) {
-                        $val = 'engine("' . $this->db . '", "' . str_replace('_id', '', $field) . '")->createFake()->id';
+                        $val = 'em("' . $this->db . '", "' . str_replace('_id', '', $field) . '")->createFake()->id';
                     }
 
                     if ($n < count($fields) - 1) {
@@ -1036,9 +1062,32 @@
 
             if (fnmatch('findBy*', $m) && strlen($m) > 6) {
                 $field = callField($m, 'findBy');
-                $value = array_shift($a);
 
-                return $this->where([$field, '=', $value]);
+                $op = '=';
+
+                if (count($a) == 2) {
+                    $op     = array_shift($a);
+                    $value  = array_shift($a);
+                } else {
+                    $value  = array_shift($a);
+                }
+
+                return $this->where([$field, $op, $value]);
+            }
+
+            if (fnmatch('where*', $m) && strlen($m) > 5) {
+                $field = callField($m, 'where');
+
+                $op = '=';
+
+                if (count($a) == 2) {
+                    $op     = array_shift($a);
+                    $value  = array_shift($a);
+                } else {
+                    $value  = array_shift($a);
+                }
+
+                return $this->where([$field, $op, $value]);
             }
 
             if (fnmatch('by*', $m) && strlen($m) > 2) {
@@ -1094,6 +1143,31 @@
                 }
 
                 return $this->lastBy($field, $value, $model);
+            }
+
+            if (count($a) == 1) {
+                $o = array_shift($a);
+
+                if ($o instanceof Object) {
+                    $fk = Strings::uncamelize($m) . '_id';
+
+                    return $this->where([$fk, '=', (int) $o->id]);
+                }
+            }
+
+            $file = path('models') . '/' . $this->db . '/' . $this->table . '.php';
+
+            if (file_exists($file)) {
+                $cbs = require_once $file;
+
+                $scopes = isAke($cbs, 'scopes', []);
+                $cb     = isAke($scopes, $m, null);
+
+                if ($cb && is_callable($cb)) {
+                    $args = array_merge([$this], $a);
+
+                    return call_user_func_array($cb, $args);
+                }
             }
 
             $data = $this->data();
@@ -1865,6 +1939,16 @@
         }
 
         public function notIn($field, array $values)
+        {
+            return $this->where($field, 'not in', $values);
+        }
+
+        public function WhereIn($field, array $values)
+        {
+            return $this->where($field, 'in', $values);
+        }
+
+        public function whereNotIn($field, array $values)
         {
             return $this->where($field, 'not in', $values);
         }

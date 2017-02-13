@@ -3724,7 +3724,7 @@
         return new Utils;
     }
 
-    function engine($database = 'core', $table = 'core')
+    function engine($database = 'core', $table = 'core', $driver = 'ldb')
     {
         $engine = Config::get('octalia.engine', 'ldb');
 
