@@ -16,7 +16,7 @@
 
         public function __construct($items = [])
         {
-            $items = is_null($items) ? [] : $this->getArrayItems($items);
+            $items = is_null($items) ? [] : $this->getArrays($items);
 
             $this->items = (array) $items;
         }
@@ -94,9 +94,29 @@
             return in_array($key, $this->items);
         }
 
+        public function containsStrict($key, $value = null)
+        {
+            if (func_num_args() == 2) {
+                return $this->contains(function ($item) use ($key, $value) {
+                    return dget($item, $key) === $value;
+                });
+            }
+
+            if ($this->isClosure($key)) {
+                return !is_null($this->first($key));
+            }
+
+            return in_array($key, $this->items, true);
+        }
+
         public function diff($items)
         {
-            return $this->new(array_diff($this->items, $this->getArrayItems($items)));
+            return $this->new(array_diff($this->items, $this->getArrays($items)));
+        }
+
+        public function diffKeys($items)
+        {
+            return $this->new(array_diff_key($this->items, $this->getArrays($items)));
         }
 
         public function each(callable $callback)
@@ -111,6 +131,30 @@
             return $this->new(Arrays::fetchOne($this->items, $key));
         }
 
+        public function every($step, $offset = 0)
+        {
+            $new = [];
+
+            $position = 0;
+
+            foreach ($this->items as $item) {
+                if ($position % $step === $offset) {
+                    $new[] = $item;
+                }
+
+                $position++;
+            }
+
+            return $this->new($new);
+        }
+
+        public function except($keys)
+        {
+            $keys = is_array($keys) ? $keys : func_get_args();
+
+            return $this->new(Arrays::except($this->items, $keys));
+        }
+
         public function filter(callable $callback)
         {
             return $this->new(array_filter($this->items, $callback));
@@ -119,6 +163,20 @@
         public function whereLoose($key, $value)
         {
             return $this->where($key, $value, false);
+        }
+
+        public function whereIn($key, $values, $strict = false)
+        {
+            $values = $this->getArrays($values);
+
+            return $this->filter(function ($item) use ($key, $values, $strict) {
+                return in_array(dget($item, $key), $values, $strict);
+            });
+        }
+
+        public function whereInStrict($key, $values)
+        {
+            return $this->whereIn($key, $values, true);
         }
 
         public function first(callable $callback = null, $default = null)
@@ -151,13 +209,13 @@
                 return $this->items[$key];
             }
 
-            return File::value($default);
+            return value($default);
         }
 
         public function groupBy($groupBy)
         {
-            if ( ! $this->useAsCallable($groupBy)) {
-                return $this->groupBy($this->valueResolver($groupBy));
+            if ( ! $this->isClosure($groupBy)) {
+                return $this->groupBy($this->makeClosure($groupBy));
             }
 
             $results = [];
@@ -165,7 +223,7 @@
             foreach ($this->items as $key => $value) {
                 $groupKey = $groupBy($value, $key);
 
-                if ( ! array_key_exists($groupKey, $results)) {
+                if (!array_key_exists($groupKey, $results)) {
                     $results[$groupKey] = $this->new([]);
                 }
 
@@ -191,8 +249,8 @@
 
         public function keyBy($keyBy)
         {
-            if ( ! $this->useAsCallable($keyBy)) {
-                return $this->keyBy($this->valueResolver($keyBy));
+            if (!$this->isClosure($keyBy)) {
+                return $this->keyBy($this->makeClosure($keyBy));
             }
 
             $results = [];
@@ -206,8 +264,8 @@
 
         public function between($field = 'id', $min = 0, $max = 0)
         {
-            if (!$this->useAsCallable($field)) {
-                return $this->between($this->valueResolver($field), $min, $max);
+            if (!$this->isClosure($field)) {
+                return $this->between($this->makeClosure($field), $min, $max);
             }
 
             $results = [];
@@ -233,7 +291,7 @@
             $first = $this->first();
 
             if (is_array($first) || is_object($first)) {
-                return implode($glue, $this->lists($value));
+                return implode($glue, $this->pluck($value)->all());
             }
 
             return implode($value, $this->items);
@@ -241,7 +299,7 @@
 
         public function intersect($items)
         {
-            return $this->new(array_intersect($this->items, $this->getArrayItems($items)));
+            return $this->new(array_intersect($this->items, $this->getArrays($items)));
         }
 
         public function isEmpty()
@@ -249,9 +307,14 @@
             return empty($this->items);
         }
 
-        protected function useAsCallable($value)
+        protected function isClosure($value)
         {
             return !is_string($value) && is_callable($value);
+        }
+
+        public function union($items)
+        {
+            return $this->new($this->items + $this->getArrays($items));
         }
 
         public function keys()
@@ -269,14 +332,40 @@
             return Arrays::pluck($this->items, $value, $key);
         }
 
+        public function pluck($value, $key = null)
+        {
+            return Arrays::pluck($this->items, $value, $key);
+        }
+
         public function map(callable $callback)
         {
             return $this->new(array_map($callback, $this->items, array_keys($this->items)));
         }
 
+        public function mapWithKeys(callable $callback)
+        {
+            return $this->flatMap($callback);
+        }
+
+        public function flatMap(callable $callback)
+        {
+            return $this->map($callback)->collapse();
+        }
+
+        public function only($keys)
+        {
+            if (is_null($keys)) {
+                return $this->new($this->items);
+            }
+
+            $keys = is_array($keys) ? $keys : func_get_args();
+
+            return $this->new(Arrays::only($this->items, $keys));
+        }
+
         public function merge($items)
         {
-            return $this->new(array_merge($this->items, $this->getArrayItems($items)));
+            return $this->new(array_merge($this->items, $this->getArrays($items)));
         }
 
         public function forPage($page, $perPage)
@@ -317,7 +406,9 @@
 
             $keys = array_rand($this->items, $amount);
 
-            return is_array($keys) ? array_intersect_key($this->items, array_flip($keys)) : $this->items[$keys];
+            return is_array($keys)
+            ? array_intersect_key($this->items, array_flip($keys))
+            : $this->items[$keys];
         }
 
         public function reduce(callable $callback, $initial = null)
@@ -327,7 +418,7 @@
 
         public function reject($callback)
         {
-            if ($this->useAsCallable($callback)) {
+            if ($this->isClosure($callback)) {
                 return $this->filter(function($item) use ($callback) {
                     return !$callback($item);
                 });
@@ -345,7 +436,7 @@
 
         public function search($value, $strict = false)
         {
-            if (! $this->useAsCallable($value)) {
+            if (! $this->isClosure($value)) {
                 return array_search($value, $this->items, $strict);
             }
 
@@ -416,8 +507,8 @@
         {
             $results = [];
 
-            if (!$this->useAsCallable($callback)) {
-                $callback = $this->valueResolver($callback);
+            if (!$this->isClosure($callback)) {
+                $callback = $this->makeClosure($callback);
             }
 
             foreach ($this->items as $key => $value) {
@@ -455,8 +546,8 @@
                 return array_sum($this->items);
             }
 
-            if (!$this->useAsCallable($callback)) {
-                $callback = $this->valueResolver($callback);
+            if (!$this->isClosure($callback)) {
+                $callback = $this->makeClosure($callback);
             }
 
             return $this->reduce(function($result, $item) use ($callback) {
@@ -500,7 +591,7 @@
                 return $this->new(array_unique($this->items, SORT_REGULAR));
             }
 
-            $key = $this->valueResolver($key);
+            $key = $this->makeClosure($key);
 
             $exists = [];
 
@@ -523,7 +614,7 @@
             return array_values($this->items);
         }
 
-        protected function valueResolver($value)
+        protected function makeClosure($value)
         {
             return function($item) use ($value) {
                 return Arrays::data_get($item, $value);
@@ -533,7 +624,7 @@
         public function zip($items)
         {
             $arrayableItems = array_map(function ($items) {
-                return $this->getArrayItems($items);
+                return $this->getArrays($items);
             }, func_get_args());
 
             $params = array_merge([function () {
@@ -610,7 +701,7 @@
             return (isset($this->items[$key])) ? $this->items[$key] : $d;
         }
 
-        protected function getArrayItems($items)
+        protected function getArrays($items)
         {
             if ($items instanceof Collection) {
                 $items = $items->all();
@@ -908,7 +999,7 @@
         {
             if (File::exists($file)) {
                 $items = include($file);
-                $items = is_null($items) ? [] : $this->getArrayItems($items);
+                $items = is_null($items) ? [] : $this->getArrays($items);
 
                 $this->items = (array) $items;
             }

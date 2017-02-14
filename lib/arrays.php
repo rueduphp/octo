@@ -102,11 +102,11 @@
             while (count($keys) > 1) {
                 $key = array_shift($keys);
 
-                if (!isset($array[$key]) || ! is_array($array[$key])) {
+                if (!isset($array[$key]) || !is_array($array[$key])) {
                     $array[$key] = array();
                 }
 
-                $array =& $array[$key];
+                $array = &$array[$key];
             }
 
             $array[array_shift($keys)] = $value;
@@ -255,52 +255,70 @@
 
         public static function get($array, $key, $default = null, $sep = '.')
         {
+            if (!static::accessible($array)) {
+                return value($default);
+            }
+
             if (is_null($key)) {
                 return $array;
             }
 
-            if (isset($array[$key])) {
+            if (static::exists($array, $key)) {
                 return $array[$key];
             }
 
             foreach (explode($sep, $key) as $segment) {
-                if (!is_array($array) || !array_key_exists($segment, $array)) {
-                    return File::value($default);
+                if (static::accessible($array) && static::exists($array, $segment)) {
+                    $array = $array[$segment];
+                } else {
+                    return value($default);
                 }
-
-                $array = $array[$segment];
             }
 
             return $array;
         }
 
-        public static function pull(&$array, $key, $default = null)
+        public static function pull(&$array, $key, $default = null, $sep = '.')
         {
-            $value = static::get($array, $key, $default);
+            $value = static::get($array, $key, $default, $sep);
 
-            static::forget($array, $key);
+            static::forget($array, $key, $sep);
 
             return $value;
         }
 
         public static function forget(&$array, $keys, $sep = '.')
         {
-            $original =& $array;
+            $original = &$array;
 
-            foreach ((array) $keys as $key) {
+            $keys = (array) $keys;
+
+            if (count($keys) === 0) {
+                return;
+            }
+
+            foreach ($keys as $key) {
+                if (static::exists($array, $key)) {
+                    unset($array[$key]);
+
+                    continue;
+                }
+
                 $parts = explode($sep, $key);
+
+                $array = &$original;
 
                 while (count($parts) > 1) {
                     $part = array_shift($parts);
 
                     if (isset($array[$part]) && is_array($array[$part])) {
-                        $array =& $array[$part];
+                        $array = &$array[$part];
+                    } else {
+                        continue 2;
                     }
                 }
 
                 unset($array[array_shift($parts)]);
-
-                $array =& $original;
             }
         }
 
@@ -320,17 +338,34 @@
             return $found;
         }
 
-        public static function pluck($array, $key)
+        public static function pluck($array, $value, $key = null)
         {
-            $values = [];
+            $results = [];
 
-            foreach ($array as $row) {
-                if (isset($row[$key])) {
-                    $values[] = $row[$key];
+            list($value, $key) = static::explodePluckParameters($value, $key);
+
+            foreach ($array as $item) {
+                $itemValue = dget($item, $value);
+
+                if (is_null($key)) {
+                    $results[] = $itemValue;
+                } else {
+                    $itemKey = dget($item, $key);
+
+                    $results[$itemKey] = $itemValue;
                 }
             }
 
-            return $values;
+            return $results;
+        }
+
+        protected static function explodePluckParameters($value, $key)
+        {
+            $value = is_string($value) ? explode('.', $value) : $value;
+
+            $key = is_null($key) || is_array($key) ? $key : explode('.', $key);
+
+            return [$value, $key];
         }
 
         public static function newOne()
@@ -407,23 +442,35 @@
             return $array1;
         }
 
-        public static function first(array $tab)
+        public static function first($array, callable $callback = null, $default = null)
         {
-            if (!empty($tab)) {
-                return current($tab);
+            if (is_null($callback)) {
+                if (empty($array)) {
+                    return value($default);
+                }
+
+                foreach ($array as $item) {
+                    return $item;
+                }
             }
 
-            return null;
-        }
-
-        public static function last(array $tab)
-        {
-            if (!empty($tab)) {
-                return end($tab);
+            foreach ($array as $key => $value) {
+                if (call_user_func($callback, $value, $key)) {
+                    return $value;
+                }
             }
 
-            return null;
+            return value($default);
         }
+
+        public static function last($array, callable $callback = null, $default = null)
+    {
+        if (is_null($callback)) {
+            return empty($array) ? value($default) : end($array);
+        }
+
+        return static::first(array_reverse($array, true), $callback, $default);
+    }
 
         public static function overwrite(array $array1, array $array2)
         {
@@ -533,21 +580,19 @@
         public static function splitGroups($groups)
         {
             foreach ($groups as $k => $v) {
-                //set up an array of key = count
                 $g[$k] = strlen($v);
                 $totalItems += $g[$k];
             }
 
-            //the first half is the larger of the two
             $firstHalfCount = ceil($totalItems / 2);
 
-            //now go through the array and add the items to the two groups.
-            $first=true;
+            $first = true;
 
             foreach ($g as $k => $v) {
                 if ($first) {
                     $arrFirst[$k] = $groups[$k];
                     $count += $v;
+
                     if ($count > $firstHalfCount) {
                         $first = false;
                     }
@@ -580,9 +625,13 @@
             return $param;
         }
 
-        public static function exists($key, array $search)
+        public static function exists($array, $key)
         {
-            return array_key_exists($key, $search);
+            if ($array instanceof \ArrayAccess) {
+                return $array->offsetExists($key);
+            }
+
+            return array_key_exists($key, $array);
         }
 
         public static function indexReverse(array $tab, $index = 1)
@@ -828,5 +877,60 @@
         public static function accessible($value)
         {
             return is_array($value) || $value instanceof \ArrayAccess;
+        }
+
+        public static function has($array, $keys)
+        {
+            if (is_null($keys)) {
+                return false;
+            }
+
+            $keys = (array) $keys;
+
+            if (! $array) {
+                return false;
+            }
+
+            if ($keys === []) {
+                return false;
+            }
+
+            foreach ($keys as $key) {
+                $subKeyArray = $array;
+
+                if (static::exists($array, $key)) {
+                    continue;
+                }
+
+                foreach (explode('.', $key) as $segment) {
+                    if (static::accessible($subKeyArray) && static::exists($subKeyArray, $segment)) {
+                        $subKeyArray = $subKeyArray[$segment];
+                    } else {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public static function prepend($array, $value, $key = null)
+        {
+            if (is_null($key)) {
+                array_unshift($array, $value);
+            } else {
+                $array = [$key => $value] + $array;
+            }
+
+            return $array;
+        }
+
+        public static function add($array, $key, $value)
+        {
+            if (is_null(static::get($array, $key))) {
+                static::set($array, $key, $value);
+            }
+
+            return $array;
         }
     }

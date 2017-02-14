@@ -2681,8 +2681,6 @@
 
             $rows = $this->where($where)->get();
 
-            $collection = [];
-
             if (!empty($rows)) {
                 foreach ($rows as $row) {
                     $id = isAke($row, 'id', 0);
@@ -2690,12 +2688,11 @@
                     if ($id > 0) {
                         $data = array_merge($row, $update);
                         $this->model($data)->save();
-                        array_push($collection, $data);
                     }
                 }
             }
 
-            return $collection;
+            return $this->where($where);
         }
 
         public function refresh()
