@@ -39,6 +39,37 @@
             return $dir . DS . $k . '.kh';
         }
 
+        public function infos($dir = null, $topLevel = true, $recursion = false)
+        {
+            static $fileData = [];
+
+            $dir = empty($dir) ? $this->dir : $dir;
+
+            $relativePath = $dir;
+
+            if ($fp = @opendir($dir)) {
+                if ($recursion === false) {
+                    $fileData   = [];
+                    $dir        = rtrim(realpath($dir), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+                }
+
+                while (false !== ($file = readdir($fp))) {
+                    if (is_dir($dir . $file) && $file[0] !== '.' && $topLevel === false) {
+                        $this->infos($dir . $file . DIRECTORY_SEPARATOR, $topLevel, true);
+                    } elseif ($file[0] !== '.') {
+                        $fileData[$file]                  = $this->infos($dir . $file);
+                        $fileData[$file]['relative_path'] = $relativePath;
+                    }
+                }
+
+                closedir($fp);
+
+                return $fileData;
+            }
+
+            return false;
+        }
+
         public function pull($key, $default = null)
         {
             $value = $this->get($key, $default);
@@ -154,6 +185,17 @@
         public function setnx($key, $value, $expire = null)
         {
             if (!$this->has($key)) {
+                $this->set($key, $value, $expire);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public function replace($key, $value, $expire = null)
+        {
+            if ($this->has($key)) {
                 $this->set($key, $value, $expire);
 
                 return true;

@@ -677,6 +677,13 @@
             return $this->items[$key];
         }
 
+        public function add($value)
+        {
+            $this->items[] = $value;
+
+            return $this;
+        }
+
         public function offsetSet($key, $value)
         {
             if (is_null($key)) {

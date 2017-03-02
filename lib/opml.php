@@ -20,25 +20,32 @@
 
             // Header
             $this->writer->startElement('head');
+
             foreach ($this->data['head'] as $key => $value) {
                 $this->writer->writeElement($key, $value);
             }
+
             $this->writer->writeElement('dateModified', date("D, d M Y H:i:s T"));
             $this->writer->endElement();
 
             // Body
             $this->writer->startElement('body');
+
             foreach ($this->data['body'] as $outlines) {
                 $this->writer->startElement('outline');
+
                 foreach ($outlines as $key => $value) {
                     $this->writer->writeAttribute($key, $value);
                 }
+
                 $this->writer->endElement();
             }
+
             $this->writer->endElement();
 
             $this->writer->endElement();
             $this->writer->endDocument();
+
             return $this->writer->outputMemory();
         }
     }

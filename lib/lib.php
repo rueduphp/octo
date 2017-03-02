@@ -2106,7 +2106,7 @@
     {
         $promise = o();
 
-        $promise->macro('success', function (callable $succes = null) {
+        $promise->macro('success', function (callable $success = null) {
             if (is_callable($success)) {
                 return $success();
             }
@@ -2125,9 +2125,138 @@
         return $promise;
     }
 
+    function options()
+    {
+        $options = o();
+
+        $options->macro('set', function ($k, $v) use ($options) {
+            $option = em('systemOption')
+            ->firstOrCreate(['name' => $k])
+            ->setValue($v)
+            ->save();
+
+            return $options;
+        });
+
+        $options->macro('get', function ($k, $d = null) {
+            $option = em('systemOption')
+            ->where(['name', '=', $k])
+            ->first(true);
+
+            return $option ? $option->value : $d;
+        });
+
+        $options->macro('has', function ($k) {
+            $option = em('systemOption')
+            ->where(['name', '=', $k])
+            ->first(true);
+
+            return $option ? true : false;
+        });
+
+        $options->macro('delete', function ($k) {
+            $option = em('systemOption')
+            ->where(['name', '=', $k])
+            ->first(true);
+
+            return $option ? $option->delete() : false;
+        });
+
+        return $options;
+    }
+
+    function settings()
+    {
+        $settings = o();
+
+        $settings->macro('set', function ($k, $v) use ($settings) {
+            $k = sha1(forever() . $k);
+
+            em('systemSetting')
+            ->firstOrCreate(['name' => $k])
+            ->setValue($v)
+            ->save();
+
+            return $settings;
+        });
+
+        $settings->macro('get', function ($k, $d = null) {
+            $k = sha1(forever() . $k);
+
+            $setting = em('systemSetting')
+            ->where(['name', '=', $k])
+            ->first(true);
+
+            return $setting ? $setting->value : $d;
+        });
+
+        $settings->macro('has', function ($k) {
+            $k = sha1(forever() . $k);
+
+            $setting = em('systemSetting')
+            ->where(['name', '=', $k])
+            ->first(true);
+
+            return $setting ? true : false;
+        });
+
+        $settings->macro('delete', function ($k) {
+            $k = sha1(forever() . $k);
+
+            $setting = em('systemSetting')
+            ->where(['name', '=', $k])
+            ->first(true);
+
+            return $setting ? $setting->delete() : false;
+        });
+
+        return $settings;
+    }
+
+    function events()
+    {
+        $events = o();
+
+        $events->macro('on', function ($event, callable $cb) use ($events) {
+            $_events = Registry::get('core.events', []);
+
+            $_events[$event] = $cb;
+
+            Registry::set('core.events', $_events);
+
+            return $events;
+        });
+
+        $events->macro('broadcast', function ($event, array $args = []) {
+            $events = Registry::get('core.events', []);
+
+            $event = isAke($events, $event, null);
+
+            if (is_callable($event)) {
+                return call_user_func_array($event, $args);
+            }
+
+            return null;
+        });
+
+        $events->macro('fire', function ($event, array $args = []) {
+            $events = Registry::get('core.events', []);
+
+            $event = isAke($events, $event, null);
+
+            if (is_callable($event)) {
+                return call_user_func_array($event, $args);
+            }
+
+            return null;
+        });
+
+        return $events;
+    }
+
     function listen($event, array $args = [])
     {
-        $events = Registry::get('core_events', []);
+        $events = Registry::get('core.events', []);
 
         $e = isAke($events, $event, null);
 
@@ -2151,11 +2280,11 @@
 
     function broadcast($event, callable $cb)
     {
-        $events = Registry::get('core_events', []);
+        $events = Registry::get('core.events', []);
 
         $events[$event] = $cb;
 
-        Registry::set('core_events', $events);
+        Registry::set('core.events', $events);
     }
 
     function isWindows()
@@ -3009,7 +3138,7 @@
             }
         }
 
-        return md5($token_base);
+        return sha1($token_base);
     }
 
     function e($value, $flags = ENT_QUOTES, $encoding = 'UTF-8')
@@ -3724,15 +3853,44 @@
         return new Utils;
     }
 
-    function engine($database = 'core', $table = 'core', $driver = 'ldb')
+    function dic()
     {
-        $engine = Config::get('octalia.engine', 'ldb');
+        $dic = Registry::get('core.dic');
 
-        if (function_exists('\\Octo\\' . $engine)) {
-            return call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
-        } else {
-            exception('core', "Engine $engine does not exist.");
+        if (!$dic) {
+            $dic = o();
+
+            $dic->macro('get', function ($k, $d = null) {
+                $key = 'dic.' . Strings::urlize($k, '.');
+
+                return Registry::get($key, $d);
+            });
+
+            $dic->macro('set', function ($k, $v) {
+                $key = 'dic.' . Strings::urlize($k, '.');
+
+                return Registry::get($key, $v);
+            });
+
+            Registry::set('core.dic', $dic);
         }
+
+        return $dic;
+    }
+
+    function once($k, $v = 'octodummy')
+    {
+        $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
+
+        if ('octodummy' != $v) {
+            return fmr('once')->set($key, $v);
+        }
+
+        $value = fmr('once')->get($key);
+
+        fmr('once')->del($key);
+
+        return $value;
     }
 
     function keep($k, $v = 'octodummy')
@@ -3751,6 +3909,22 @@
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
 
         return fmr('keep')->del($key);
+    }
+
+    function engine($database = 'core', $table = 'core', $driver = 'ldb')
+    {
+        $engine = Config::get('octalia.engine', 'ldb');
+
+        if (function_exists('\\Octo\\' . $engine)) {
+            return call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
+        } else {
+            exception('core', "Engine $engine does not exist.");
+        }
+    }
+
+    function entity($model, array $data = [])
+    {
+        return em($model)->model($data);
     }
 
     function em($model, $engine = 'engine', $force = false)
@@ -3799,31 +3973,6 @@
         return array_keys($a)[count($a) - 1];
     }
 
-    function dic()
-    {
-        $dic = Registry::get('core.dic');
-
-        if (!$dic) {
-            $dic = o();
-
-            $dic->macro('get', function ($k, $d = null) {
-                $key = 'dic.' . Strings::urlize($k, '.');
-
-                return Registry::get($key, $d);
-            });
-
-            $dic->macro('set', function ($k, $v) {
-                $key = 'dic.' . Strings::urlize($k, '.');
-
-                return Registry::get($key, $v);
-            });
-
-            Registry::set('core.dic', $dic);
-        }
-
-        return $dic;
-    }
-
     function guest()
     {
         $u = session('web')->getUser();
@@ -3835,7 +3984,7 @@
     {
         if (!guest()) {
             $user = session('web')->getUser();
-            $role = System::Role()->find((int) $user['role_id']);
+            $role = em('systemRole')->find((int) $user['role_id']);
 
             if ($role) {
                 return $role;
@@ -3941,7 +4090,7 @@
 
     function mailer()
     {
-        require_once (__DIR__ . '/swift/swift_required.php');
+        require_once __DIR__ . '/swift/swift_required.php';
 
         $mailer = Config::get('app.mailer', 'php'); /* smtp, sendmail, php */
 
@@ -3985,4 +4134,154 @@
         }
 
         return $memory;
+    }
+
+    function formatSize($size)
+    {
+        $mod = 1024;
+        $units = explode(' ', 'B KB MB GB TB PB');
+
+        for ($i = 0; $size > $mod; $i++) {
+            $size /= $mod;
+        }
+
+        return round($size, 2) . ' ' . $units[$i];
+    }
+
+    function foldersize($path, $format = true)
+    {
+        $total_size = 0;
+        $files = scandir($path);
+
+        foreach($files as $t) {
+            if (is_dir(rtrim($path, '/') . '/' . $t)) {
+                if ($t <> "." && $t <> "..") {
+                    $size = foldersize(rtrim($path, '/') . '/' . $t);
+
+                    $total_size += $size;
+                }
+            } else {
+                $size = filesize(rtrim($path, '/') . '/' . $t);
+                $total_size += $size;
+            }
+        }
+
+        return $format ? formatSize($total_size) : $total_size;
+    }
+
+    function myarray($name, $row = null)
+    {
+        $arrays = Registry::get('core.arrays', []);
+
+        $array = isAke($name, $arrays, []);
+
+        if ($row) {
+            $array[] = $row;
+
+            $arrays[$name] = $array;
+
+            Registry::set('core.arrays', $arrays);
+        }
+
+        return $array;
+    }
+
+    function myarrayToCollection($name)
+    {
+        return coll(myarray($name));
+    }
+
+    /* Alias of myarrayToCollection */
+    function ma2c($name)
+    {
+        return coll(myarray($name));
+    }
+
+    function globalized($name, $default = null)
+    {
+        $key = 'globalize.' . Strings::urlize($name, '.');
+
+        return Registry::get($key, $default);
+    }
+
+    function globalize($name, $value)
+    {
+        $key = 'globalize.' . Strings::urlize($name, '.');
+
+        return Registry::set($key, $value);
+    }
+
+    function mylite($db = null)
+    {
+        $db = is_null($db) ? Config::get('sqlite.db', path('storage') . DS . 'lite') : $db;
+
+        $mylite  =  new \PDO('sqlite:' . $db);
+
+        $mylite->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $mylite->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+
+        return $mylite;
+    }
+
+    function mysql($host = '127.0.0.1', $database = null, $user = 'root', $password = '')
+    {
+        $dsn = 'mysql:dbname=' . Config::get('mysql.database', $database) . ';host=' . Config::get('mysql.host', $host);
+
+        $mysql =  new \PDO(
+            $dsn,
+            Config::get('mysql.user', $user),
+            Config::get('mysql.password', $password)
+        );
+
+        $mysql->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $mysql->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+
+        return $mysql;
+    }
+
+    function deNamespace($className)
+    {
+        $className = trim($className, '\\');
+
+        if ($lastSeparator = strrpos($className, '\\')) {
+            $className = substr($className, $lastSeparator + 1);
+        }
+
+        return $className;
+    }
+
+    function getNamespace($className)
+    {
+        $className = trim($className, '\\');
+
+        if ($lastSeparator = strrpos($className, '\\')) {
+            return substr($className, 0, $lastSeparator + 1);
+        }
+
+        return '';
+    }
+
+    function acl($data = null)
+    {
+        if (empty($data)) {
+            return coll(Registry::get('core.acl', []));
+        } else {
+            Registry::set('core.acl', array_values($data->toArray()));
+        }
+    }
+
+    function can($resource)
+    {
+        $role = role();
+
+        if ($role->getLabel() == 'admin') {
+            return true;
+        }
+
+        $row = acl()
+        ->where('resource', $resource)
+        ->where('role_id', $role)
+        ->first();
+
+        return $row ? true : false;
     }

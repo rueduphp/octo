@@ -195,39 +195,6 @@
             Api::render($array);
         }
 
-        public function formatSize($size)
-        {
-            $mod = 1024;
-            $units = explode(' ','B KB MB GB TB PB');
-
-            for ($i = 0; $size > $mod; $i++) {
-                $size /= $mod;
-            }
-
-            return round($size, 2) . ' ' . $units[$i];
-        }
-
-        function foldersize($path)
-        {
-            $total_size = 0;
-            $files = scandir($path);
-
-            foreach($files as $t) {
-                if (is_dir(rtrim($path, '/') . '/' . $t)) {
-                    if ($t<>"." && $t<>"..") {
-                        $size = $this->foldersize(rtrim($path, '/') . '/' . $t);
-
-                        $total_size += $size;
-                    }
-                } else {
-                    $size = filesize(rtrim($path, '/') . '/' . $t);
-                    $total_size += $size;
-                }
-            }
-
-            return $total_size;
-        }
-
         public function __call($m, $a)
         {
             if (function_exists('\\Octo\\' . $m)) {
@@ -350,5 +317,28 @@
         public function em()
         {
             return call_user_func_array('\\Octo\\em', func_get_args());
+        }
+
+        public function middleware()
+        {
+            $coreMiddlewares = Registry::get('core.middlewares', []);
+
+            $args = func_get_args();
+
+            $middlewares = array_shift($args);
+
+            if (!is_array($middlewares)) {
+                $middlewares = [$middlewares];
+            }
+
+            $a = array_merge([$this], $args);
+
+            foreach ($middlewares as $middlewareKey) {
+                $middleware = isAke($coreMiddlewares, $middlewareKey, null);
+
+                if (is_callable($middleware)) {
+                    call_user_func_array($middleware, $a);
+                }
+            }
         }
     }

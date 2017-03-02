@@ -215,7 +215,6 @@
 
     trait Macroable
     {
-
         protected static $macros = [];
 
         public static function macro($name, callable $macro)

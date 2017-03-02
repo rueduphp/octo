@@ -476,7 +476,7 @@
             return $this->read($row);
         }
 
-        public function model($row)
+        public function model(array $row = [])
         {
             $class = Strings::camelize($this->db . '_' . $this->table . '_model');
 
@@ -568,7 +568,7 @@
 
                 $fs .= "\n\t\t" . ']';
 
-                File::put($file, '<?' . 'php' . "\n\t" . 'namespace Octo;' . "\n\n\t" . 'if (!class_exists("Octo\\'.$class.'")):' . "\n\n\t" . 'class ' . $class . " extends Object\n\t" .  '{' . "\n\t\t" .  'public function __construct(array $model)' . "\n\t\t" .  '{' . "\n\t\t\t" .  'parent::__construct($model);' . "\n\t\t" .  '}' . "\n\t" .  '}' . "\n\n\t" . 'endif;' . "\n\n\t" . 'return [' . "\n\t\t" . '"fields" => ' . $fs . ',' . "\n\t\t" . '"scopes" => [],' . "\n\t\t" . '"hooks" => [' . "\n\t\t\t" . '"validate" => null,' . "\n\t\t\t" . '"before" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . '],' . "\n\t\t\t" . '"after" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . ']' . "\n\t\t" . '],' . "\n\t\t" . '"indices" => ' . $indices . "\n\t" . '];');
+                File::put($file, '<?' . 'php' . "\n\t" . 'namespace Octo;' . "\n\n\t" . 'if (!class_exists("Octo\\' . $class . '")):' . "\n\n\t" . 'class ' . $class . " extends Object\n\t" .  '{' . "\n\t\t" .  'public function __construct(array $model)' . "\n\t\t" .  '{' . "\n\t\t\t" .  'parent::__construct($model);' . "\n\t\t" .  '}' . "\n\t" .  '}' . "\n\n\t" . 'endif;' . "\n\n\t" . 'return [' . "\n\t\t" . '"fields" => ' . $fs . ',' . "\n\t\t" . '"scopes" => [],' . "\n\t\t" . '"hooks" => [' . "\n\t\t\t" . '"validate" => null,' . "\n\t\t\t" . '"before" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . '],' . "\n\t\t\t" . '"after" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . ']' . "\n\t\t" . '],' . "\n\t\t" . '"indices" => ' . $indices . "\n\t" . '];');
 
                 require $file;
             }
@@ -612,13 +612,13 @@
                         $val = '$faker->password';
                     } elseif ($field == 'email') {
                         $val = '$faker->safeEmail';
-                    } elseif ($field == 'username') {
+                    } elseif ($field == 'username' || $field == 'login') {
                         $val = '$faker->username';
                     } elseif ($field == 'name' || $field == 'lastname') {
                         $val = '$faker->lastName';
                     } elseif ($field == 'firstname') {
                         $val = '$faker->firstName';
-                    } elseif ($field == 'phone' || $field == 'tel' || $field == 'fax') {
+                    } elseif ($field == 'phone' || $field == 'tel' || $field == 'mobile' || $field == 'cellular' || $field == 'fax') {
                         $val = '$faker->phoneNumber';
                     } elseif ($field == 'latitude' || $field == 'lat') {
                         $val = '$faker->latitude';
@@ -660,6 +660,8 @@
                             'year',
                             'age',
                             'price',
+                            'distance',
+                            'weight',
                             'size',
                             'width',
                             'height',
@@ -671,7 +673,8 @@
                     )) {
                         $val = '$faker->numberBetween(15, 85)';
                     } elseif (fnmatch('*_id', $field)) {
-                        $val = 'em("' . $this->db . '", "' . str_replace('_id', '', $field) . '")->createFake()->id';
+                        $em = Strings::camelize($this->db . '_' . str_replace('_id', '', $field));
+                        $val = 'em("' . $em . '")->createFake()->id';
                     }
 
                     if ($n < count($fields) - 1) {
@@ -757,9 +760,9 @@
                     }
 
                     return $status;
-                } else {
-                    return false;
                 }
+
+                return false;
             })->fn('post', function (array $data = [], $save = false) use ($model) {
                 $data = empty($data) ? $_POST : $data;
 
@@ -804,6 +807,8 @@
                 return $this->table;
             })->fn('db', function () {
                 return $this->db;
+            })->fn('em', function () {
+                return $this;
             })->fn('instance', function () {
                 return $this;
             })->fn('driver', function () {
@@ -811,7 +816,7 @@
             })->fn('has', function ($what) use ($model) {
                 $m = $what . 's';
 
-                return count($model->$m()) > 0;
+                return $model->$m()->count() > 0;
             })->fn('count', function ($what) use ($model) {
                 $m = $what . 's';
 
