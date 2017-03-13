@@ -165,6 +165,11 @@
             return isset(self::$data[$this->ns][$k]);
         }
 
+        public function exists($k)
+        {
+            return isset(self::$data[$this->ns][$k]);
+        }
+
         public function offsetExists($k)
         {
             return $this->has($k);

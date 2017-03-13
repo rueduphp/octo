@@ -1882,7 +1882,7 @@
 
         public function models()
         {
-            return $this->get()->model();
+            return $this->get(true);
         }
 
         public function splice($offset, $length = null, $replacement = [])

@@ -1077,6 +1077,15 @@
             return isAke($this->items, $key, null);
         }
 
+        public function replace(array $items)
+        {
+            foreach ($items as $key => $value) {
+                $this->offsetSet($key, $value);
+            }
+
+            return $this;
+        }
+
         public function index($index, $d = null)
         {
             return aget($this->items, $index, $d);

@@ -293,6 +293,13 @@
             return json_encode($this->toArray());
         }
 
+        public function map(callable $closure)
+        {
+            $this->closure = $closure;
+
+            return $this;
+        }
+
         public function hook(callable $closure)
         {
             $this->closure = $closure;

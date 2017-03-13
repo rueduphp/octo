@@ -726,6 +726,25 @@
         }
     }
 
+    function customRequest($name, $cb = null)
+    {
+        $requests = Registry::get('core.requests', []);
+
+        if (is_callable($cb)) {
+            $requests[$name] = $cb;
+
+            Registry::set('core.requests', $requests);
+
+            return true;
+        }
+
+        $request = isAke($requests, $name, null);
+
+        if (is_callable($request)) {
+            $request();
+        }
+    }
+
     function sess($k = null, $d = null)
     {
         $data = [];
@@ -1124,19 +1143,13 @@
         return $return;
     }
 
-    function isAke($tab, $key, $default = [])
+    function isAke($array, $k, $d = [])
     {
-        if (true === is_object($tab)) {
-            $tab = (array) $tab;
+        if (true === is_object($array)) {
+            $array = (array) $array;
         }
 
-        return is_array($tab) ?
-            Arrays::isAssoc($tab) ?
-                Arrays::exists($key, $tab) ?
-                    $tab[$key] :
-                $default :
-            $default :
-        $default;
+        return Arrays::get($array, $k, $d);
     }
 
     function uuid()
@@ -1533,8 +1546,64 @@
             on('shutdown', function () {
                 Queue::listen();
                 Later::shutdown();
+                middlewares('after');
             });
         });
+
+        services();
+
+        middlewares();
+    }
+
+    function make(array $array = [], $instance = null)
+    {
+        return lib('ghost', [$array, $instance]);
+    }
+
+    function ionly()
+    {
+        $keys = func_get_args();
+        $inputs = [];
+
+        foreach ($keys as $key) {
+            $inputs[$key] = isAke($_REQUEST, $key, null);
+        }
+
+        return lib('ghost', [$inputs, null]);
+    }
+
+    function middlewares($when = 'before')
+    {
+        $request            = make($_REQUEST, "request");
+        $middlewaresFile    = path('app') . '/config/middlewares.php';
+
+        if (File::exists($middlewaresFile)) {
+            $middlewares = include $middlewaresFile;
+
+            foreach ($middlewares as $middlewareClass) {
+                $middleware = app($middlewareClass);
+
+                if ($middleware->$when) {
+                    $middleware->apply($request, app());
+                }
+            }
+        }
+    }
+
+    function services()
+    {
+        lib('serviceprovider');
+        $servicesFile = path('app') . '/config/services.php';
+
+        if (File::exists($servicesFile)) {
+            $services = include $servicesFile;
+
+            foreach ($services as $serviceClass) {
+                $service = app($serviceClass);
+
+                $service->register(app());
+            }
+        }
     }
 
     function perms($path)
@@ -1692,13 +1761,13 @@
             $account = null;
 
             if (is_numeric($email)) {
-                $account = System::Account()->find((int) $email);
+                $account = em('systemAccount')->find((int) $email);
 
                 if ($account) {
                     $email = $account->getEmail();
                 }
             } else {
-                $account = System::Account()->where(['email', '=', Strings::lower($email)])->first(true);
+                $account = em('systemAccount')->where(['email', '=', Strings::lower($email)])->first(true);
             }
 
             $default = URLSITE . 'assets/img/nobody.svg';
@@ -1729,7 +1798,7 @@
         $user = empty($user) ? auth()->user() : $user;
 
         if ($role_id    = isAke($user, 'role_id', null)) {
-            $role       = System::Role()->find((int) $role_id);
+            $role       = em('systemRole')->find((int) $role_id);
 
             return $role->name == 'admin';
         }
@@ -1742,7 +1811,7 @@
         $user = empty($user) ? auth()->user() : $user;
 
         if ($role_id    = isAke($user, 'role_id', null)) {
-            $role       = System::Role()->find((int) $role_id);
+            $role       = em('systemRole')->find((int) $role_id);
 
             return $role->name;
         }
@@ -1759,11 +1828,11 @@
         $account_id = auth()->user('id');
 
         if ($account_id) {
-            $account = System::Account()
+            $account = em('systemAccount')
             ->find((int) $account_id);
 
             if ($account) {
-                $permission = System::Permission()
+                $permission = em('systemPermission')
                 ->where(['action', '=', $action])
                 ->where(['account_id', '=', (int) $account_id])
                 ->first();
@@ -1802,7 +1871,7 @@
         return 0;
     }
 
-    function time_ago(Time $dt, $time_zone, $lang_code = 'en')
+    function timeAgo(Time $dt, $time_zone, $lang_code = 'en')
     {
         $sec = $dt->diffInSeconds(Time::now($time_zone));
         Time::setLocale($lang_code);
@@ -2324,7 +2393,7 @@
         if ((isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) === $time) || (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $etag === trim($_SERVER['HTTP_IF_NONE_MATCH']))) {
             status(304);
 
-            exit();
+            exit;
         }
     }
 

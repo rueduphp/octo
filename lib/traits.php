@@ -5,6 +5,24 @@
 
     use BadMethodCallException;
 
+    trait Tractor
+    {
+        public function bootTrait()
+        {
+            $traits = class_uses();
+
+            foreach ($traits as $trait) {
+                $class = str_replace('\\', '_', $trait);
+
+                $function = Inflector::camelize('boot_' . $class);
+
+                try {
+                    self::$function();
+                } catch (\Exception $e) {}
+            }
+        }
+    }
+
     trait Singleton
     {
         protected static $instance;
@@ -29,6 +47,22 @@
         public function __wakeup()
         {
             trigger_error('Unserializing ' . __CLASS__ . ' is not allowed.', E_USER_ERROR);
+        }
+    }
+
+    trait Instantiable
+    {
+        public static function getInstance()
+        {
+            $class = get_called_class();
+
+            if (!Registry::exists('instances.' . $class)) {
+                $ref = new \Reflectionclass($class);
+                $args = func_get_args();
+                Registry::set('instances.' . $class, $args ? $ref->newinstanceargs($args) : new $class);
+            }
+
+            return Registry::get('instances.' . $class);
         }
     }
 

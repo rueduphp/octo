@@ -88,11 +88,11 @@
                     $account = $this->getOption('account');
 
                     if ($account) {
-                        $user = System::Account()->find((int) $account, false);
+                        $user = em('systemAccount')->find((int) $account, false);
                     }
 
                     if (!$user) {
-                        $user = System::Visitor()->firstOrCreate(['forever' => $forever])->toArray();
+                        $user = em('systemVisitor')->firstOrCreate(['forever' => $forever])->toArray();
                         $user['accounted']  = false;
                         $user['visitor']    = true;
                     } else {
@@ -166,7 +166,7 @@
 
         public function logs()
         {
-            $rows = System::Track()->sortByDesc('created_at')->get();
+            $rows = em('systemTrack')->sortByDesc('created_at')->get();
 
             $csv = [];
 
@@ -313,6 +313,7 @@
             $url = "http://ip-api.com/json/$ip";
 
             $json = dwnCache($url);
+
             $json = str_replace(
                 array(
                     'query',

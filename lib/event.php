@@ -74,7 +74,7 @@
         public function __call($m, $a)
         {
             if ("on" == $m) {
-                return call_user_func_array([$this, 'fire'], $a);
+                return call_user_func_array([$this, 'set'], $a);
             }
 
             if (count($a) == 1) {
