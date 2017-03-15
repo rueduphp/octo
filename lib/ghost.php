@@ -117,7 +117,11 @@
 
                         return $this;
                     } else {
-                        return $this->$m;
+                        if (is_callable($this->$m)) {
+                            return call_user_func_array($this->$m, $a);
+                        } else {
+                            return $this->$m;
+                        }
                     }
                 } else {
                     $key = 'ghost.__macros.' . $this->_instance;

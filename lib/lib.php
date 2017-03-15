@@ -1590,6 +1590,25 @@
         return new $class($array, sha1($class));
     }
 
+    function provider($service = null, array $args = [])
+    {
+        $provider = classify('providers');
+
+        if ($service) {
+            $callable = $provider[$service];
+
+            if (!$callable) {
+                $callable = $provider[$service] = function () use ($service, $args) {
+                    return app()->make($service, $args);
+                };
+            }
+
+            return call_user_func_array($callable, $args);
+        }
+
+        return $provider;
+    }
+
     function eventer()
     {
         $made = Registry::get('eventer.made', false);
@@ -1598,7 +1617,7 @@
         if (!$made) {
             $cb = function () {
                 Registry::set('eventer.made', true);
-                $eventer = make([], 'eventer');
+                $eventer = classify('eventer');
 
                 $eventer->on(function ($event, callable $cb) use ($eventer) {
                     $events = Registry::get('eventer.events', []);
@@ -1767,7 +1786,7 @@
             foreach ($services as $serviceClass) {
                 $service = app($serviceClass);
 
-                $service->register(app());
+                $service->register(provider());
             }
         }
     }
@@ -3683,7 +3702,7 @@
         return \Faker\Factory::create(Config::get('faker.provider', 'fr_FR'));
     }
 
-    function provider($alias, callable $resolver = null)
+    function providers($alias, callable $resolver = null)
     {
         return app()->provider($alias, $resolver);
     }
