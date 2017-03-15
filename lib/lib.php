@@ -1590,9 +1590,102 @@
         return new $class($array, sha1($class));
     }
 
+    function eventer()
+    {
+        $made = Registry::get('eventer.made', false);
+        $cb = null;
+
+        if (!$made) {
+            $cb = function () {
+                Registry::set('eventer.made', true);
+                $eventer = make([], 'eventer');
+
+                $eventer->on(function ($event, callable $cb) use ($eventer) {
+                    $events = Registry::get('eventer.events', []);
+                    $events[$event] = $cb;
+                    Registry::set('eventer.events', $events);
+
+                    return $eventer;
+                });
+
+                $eventer->listen(function ($event, array $args = []) {
+                    $events = Registry::get('eventer.events', []);
+
+                    $eventToFire = isAke($events, $event, null);
+
+                    if ($eventToFire && is_callable($eventToFire)) {
+                        return call_user_func_array($eventToFire, $args);
+                    }
+                });
+
+                return $eventer;
+            };
+        }
+
+        return single('eventer', $cb);
+    }
+
+    function setting()
+    {
+        $made = Registry::get('settings.made', false);
+        $cb = null;
+
+        if (!$made) {
+            $cb = function () {
+                Registry::set('settings.made', true);
+                $settings = classify('settings');
+
+                $settings->set(function ($k, $v) use ($settings) {
+                    $k = sha1(forever() . $k);
+
+                    em('systemSetting')
+                    ->firstOrCreate(['name' => $k])
+                    ->setValue($v)
+                    ->save();
+
+                    return $settings;
+                });
+
+                $settings->get(function ($k, $d = null) {
+                    $k = sha1(forever() . $k);
+
+                    $setting = em('systemSetting')
+                    ->where(['name', '=', $k])
+                    ->first(true);
+
+                    return $setting ? $setting->value : $d;
+                });
+
+                $settings->has(function ($k) {
+                    $k = sha1(forever() . $k);
+
+                    $setting = em('systemSetting')
+                    ->where(['name', '=', $k])
+                    ->first(true);
+
+                    return $setting ? true : false;
+                });
+
+                $settings->delete(function ($k) {
+                    $k = sha1(forever() . $k);
+
+                    $setting = em('systemSetting')
+                    ->where(['name', '=', $k])
+                    ->first(true);
+
+                    return $setting ? $setting->delete() : false;
+                });
+
+                return $settings;
+            };
+        }
+
+        return single('settings', $cb);
+    }
+
     function objectify($instance, array $array = [])
     {
-        return single($instance, function () use ($array) {
+        return single($instance, function () use ($instance, $array) {
             return classify($instance, $array);
         });
     }

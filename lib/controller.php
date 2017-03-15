@@ -18,11 +18,6 @@
             return $this->$var;
         }
 
-        public function middleware($name)
-        {
-            return lib('middleware')->listen($name);
-        }
-
         public function __call($method, $args)
         {
             if (isset($this->$method)) {

@@ -93,18 +93,18 @@
 
         public function __call($m, $a)
         {
-            if (fnmatch('get*', $m)) {
+            if (fnmatch('get*', $m) && strlen($m) > 3) {
                 $key = Inflector::uncamelize(substr($m, 3));
                 $default = empty($a) ? null : current($a);
 
                 return isset($this->$key) ? $this->$key : $default;
-            } elseif (fnmatch('set*', $m)) {
+            } elseif (fnmatch('set*', $m) && strlen($m) > 3) {
                 $key = Inflector::uncamelize(substr($m, 3));
 
                 $this->$key = current($a);
 
                 return $this;
-            } elseif (fnmatch('has*', $m)) {
+            } elseif (fnmatch('has*', $m) && strlen($m) > 3) {
                 $key = Inflector::uncamelize(substr($m, 3));
 
                 return isset($this->$key);

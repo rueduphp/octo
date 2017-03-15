@@ -32,12 +32,12 @@
 
             $new = !file_exists($file);
 
-            $this->db = new \PDO('sqlite:' . $file);
-            $this->db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING);
-
             if ($new) {
                 File::copy(__DIR__ . DS . 'db', $file);
             }
+
+            $this->db = new \PDO('sqlite:' . $file);
+            $this->db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING);
 
             $this->id = sha1('lite' . $ns);
         }
