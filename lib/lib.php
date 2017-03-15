@@ -4539,3 +4539,22 @@
 
         return $row ? true : false;
     }
+
+    function stream($name, $contents = 'octodummy')
+    {
+        $streams = Registry::get('core.streams', []);
+
+        if ('octodummy' == $contents) {
+            $stream = isAke($streams, $name, null);
+        } else {
+            $stream = fopen('php://memory','r+');
+            fwrite($stream, $contents);
+            fseek($stream, 0);
+
+            $streams[$name] = $stream;
+
+            Registry::set('core.streams', $streams);
+        }
+
+        return $stream;
+    }
