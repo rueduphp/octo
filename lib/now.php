@@ -21,6 +21,11 @@
             }
         }
 
+        public function pattern($pattern = '*')
+        {
+            return Arrays::pattern(self::$data[$this->ns], $pattern);
+        }
+
         public function flush()
         {
             self::$data[$this->ns] = [];

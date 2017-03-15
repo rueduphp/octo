@@ -15,6 +15,31 @@
             }
         }
 
+        public function __invoke()
+        {
+            return $this->_instance;
+        }
+
+        public function rowing()
+        {
+            $collection = [];
+            $rows = Registry::pattern('ghost.*.' . $this->_instance);
+
+            foreach ($rows as $k => $v) {
+                if (!fnmatch('*__macros*', $k)) {
+                    $key = str_replace(['ghost.', '.' . $this->_instance], '', $k);
+                    $collection[$key] = $v;
+                }
+            }
+
+            return $collection;
+        }
+
+        public function __toString()
+        {
+            return json_encode($this->rowing($collection));
+        }
+
         public function __get($k)
         {
             $key = 'ghost.' . $k . '.' . $this->_instance;
@@ -111,6 +136,10 @@
                             $macros[$m] = $closure;
 
                             Registry::set($key, $macros);
+
+                            return $this;
+                        } else {
+                            $this->$m = $closure;
 
                             return $this;
                         }

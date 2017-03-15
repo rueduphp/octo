@@ -14,11 +14,7 @@
     		$this->app = $app;
     	}
 
-    	public function before() {}
-
-    	abstract public function register();
+        abstract public function register();
 
         public function services() {return [];}
-
-        public function after() {}
     }

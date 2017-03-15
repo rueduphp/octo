@@ -1555,9 +1555,79 @@
         middlewares();
     }
 
+    function getRow($instance)
+    {
+        return make([], $instance);
+    }
+
+    function collectify(array $rows = [])
+    {
+        $collection = [];
+
+        foreach ($rows as $row) {
+            $collection[] = make($row);
+        }
+
+        return coll($collection);
+    }
+
     function make(array $array = [], $instance = null)
     {
         return lib('ghost', [$array, $instance]);
+    }
+
+    function classify($instance, array $array = [])
+    {
+        $class = Strings::camelize('octo_' . Strings::uncamelize($instance));
+
+        if (!class_exists($class)) {
+            $code = 'class ' . $class . ' extends \\Octo\\Ghost {}';
+            eval($code);
+        }
+
+        $class = '\\' . $class;
+
+        return new $class($array, sha1($class));
+    }
+
+    function objectify($instance, array $array = [])
+    {
+        return single($instance, function () use ($array) {
+            return classify($instance, $array);
+        });
+    }
+
+    function resolve($class, array $args = [])
+    {
+        return single($class, null, $args);
+    }
+
+    function single($class, $resolver = null, array $args = [])
+    {
+        $key = sha1($class);
+        $singletons = Registry::get('core.singletons', []);
+
+        if ($resolver && is_callable($resolver)) {
+            $single = call_user_func_array($resolver, $args);
+
+            $singletons[$key] = $single;
+
+            Registry::set('core.singletons', $singletons);
+        } else {
+            $single = isAke($singletons, $key, null);
+
+            if (!$single) {
+                $single = app($class);
+
+                if ($single) {
+                    $singletons[$key] = $single;
+
+                    Registry::set('core.singletons', $singletons);
+                }
+            }
+        }
+
+        return $single;
     }
 
     function ionly()
@@ -1582,9 +1652,11 @@
 
             foreach ($middlewares as $middlewareClass) {
                 $middleware = app($middlewareClass);
+                $methods    = get_class_methods($middlewareClass);
+                $method     = lcfirst(Strings::camelize('apply_' . $when));
 
-                if ($middleware->$when) {
-                    $middleware->apply($request, app());
+                if (in_array($method, $methods)) {
+                    call_user_func_array([$middleware, $method], [$request, app()]);
                 }
             }
         }
@@ -1592,7 +1664,8 @@
 
     function services()
     {
-        lib('serviceprovider');
+        require_once __DIR__ . DS . 'serviceprovider.php';
+
         $servicesFile = path('app') . '/config/services.php';
 
         if (File::exists($servicesFile)) {
