@@ -106,6 +106,8 @@
                 return Registry::get('Octalia.' . sha1($this->ns) . '.optimized', Config::get('octalia.optimized', true));
             } elseif ($k == 'instance') {
                 return Registry::get('Octalia.' . sha1($this->ns) . '.instance', token());
+            } elseif ($k == 'modeler') {
+                return Registry::get('Octalia.' . sha1($this->ns) . '.modeler', 'Object');
             } else {
                 return $this->$k;
             }
@@ -121,6 +123,8 @@
                 return Registry::set('Octalia.' . sha1($this->ns) . '.kh', $v);
             } elseif ($k == 'optimized') {
                 return Registry::set('Octalia.' . sha1($this->ns) . '.optimized', $v);
+            } elseif ($k == 'modeler') {
+                return Registry::set('Octalia.' . sha1($this->ns) . '.modeler', $v);
             } elseif ($k == 'instance') {
                 Registry::set('Octalia.' . $v, $this);
 
@@ -316,6 +320,11 @@
             return $this->model($data)->save();
         }
 
+        public function persist(array $data = [])
+        {
+            return $this->model($data)->save();
+        }
+
         public function createIfNotExists(array $data = [])
         {
             return $this->firstOrCreate($data);
@@ -490,7 +499,7 @@
                 $fns    = isAke($cbs, 'scopes', []);
                 $hooks  = isAke($cbs, 'hooks', []);
 
-                foreach ($cbs as $cbname => $cb) {
+                foreach ($fns as $cbname => $cb) {
                     if (is_callable($cb)) {
                         $model->fn($cbname, $cb);
                     }
@@ -568,7 +577,9 @@
 
                 $fs .= "\n\t\t" . ']';
 
-                File::put($file, '<?' . 'php' . "\n\t" . 'namespace Octo;' . "\n\n\t" . 'if (!class_exists("Octo\\' . $class . '")):' . "\n\n\t" . 'class ' . $class . " extends Object\n\t" .  '{' . "\n\t\t" .  'public function __construct(array $model)' . "\n\t\t" .  '{' . "\n\t\t\t" .  'parent::__construct($model);' . "\n\t\t" .  '}' . "\n\t" .  '}' . "\n\n\t" . 'endif;' . "\n\n\t" . 'return [' . "\n\t\t" . '"fields" => ' . $fs . ',' . "\n\t\t" . '"scopes" => [],' . "\n\t\t" . '"hooks" => [' . "\n\t\t\t" . '"validate" => null,' . "\n\t\t\t" . '"before" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . '],' . "\n\t\t\t" . '"after" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . ']' . "\n\t\t" . '],' . "\n\t\t" . '"indices" => ' . $indices . "\n\t" . '];');
+                $modeler = $this->modeler;
+
+                File::put($file, '<?' . 'php' . "\n\t" . 'namespace Octo;' . "\n\n\t" . 'if (!class_exists("Octo\\' . $class . '")):' . "\n\n\t" . 'class ' . $class . " extends $modeler\n\t" .  '{' . "\n\t\t" .  'public function __construct(array $model)' . "\n\t\t" .  '{' . "\n\t\t\t" .  'parent::__construct($model);' . "\n\t\t" .  '}' . "\n\t" .  '}' . "\n\n\t" . 'endif;' . "\n\n\t" . 'return [' . "\n\t\t" . '"fields" => ' . $fs . ',' . "\n\t\t" . '"scopes" => [],' . "\n\t\t" . '"hooks" => [' . "\n\t\t\t" . '"validate" => null,' . "\n\t\t\t" . '"before" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . '],' . "\n\t\t\t" . '"after" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . ']' . "\n\t\t" . '],' . "\n\t\t" . '"indices" => ' . $indices . "\n\t" . '];');
 
                 require $file;
             }
@@ -696,8 +707,11 @@
             $model  = new $class($row);
             $self   = $this;
 
-            $model->model(Strings::camelize($this->db . '_' . $this->table . '_model'))
-            ->fn('save', function ($event = null) use ($model) {
+            $model->fn('save', function ($event = null) use ($model) {
+                if ($model->exists() && !$model->isDirty()) {
+                    return $model;
+                }
+
                 if (is_string($event)) {
                     $model = on($event, [$model]);
                 } elseif (is_callable($event)) {
@@ -724,19 +738,35 @@
                     $model = $before($model);
                 }
 
-                $row =  $this->save($model->toArray());
-
                 if ($model->exists()) {
-                    $after = aget($model->hooks, 'after.update', null);
+                    $model = modelEvent($model, 'updating');
                 } else {
-                    $after = aget($model->hooks, 'after.create', null);
+                    $model = modelEvent($model, 'creating');
                 }
 
-                if (is_callable($after)) {
-                    $row = $after($row);
+                if ($model) {
+                    $row =  $this->save($model->toArray());
+
+                    if ($model->exists()) {
+                        $after = aget($model->hooks, 'after.update', null);
+                    } else {
+                        $after = aget($model->hooks, 'after.create', null);
+                    }
+
+                    if (is_callable($after)) {
+                        $row = $after($row);
+                    }
+
+                    if ($model->exists()) {
+                        $row = modelEvent($row, 'updated');
+                    } else {
+                        $row = modelEvent($row, 'created');
+                    }
+
+                    return $row;
                 }
 
-                return $row;
+                return $model;
             })->fn('delete', function ($event = null) use ($row, $model) {
                 if (is_string($event)) {
                     $model = on($event, [$model]);
@@ -751,15 +781,21 @@
                         $model = $before($model);
                     }
 
-                    $status = $this->delete($row['id']);
+                    $model = modelEvent($model, 'deleting');
 
-                    $after = aget($model->hooks, 'after.delete', null);
+                    if ($model) {
+                        $status = $this->delete($row['id']);
 
-                    if (is_callable($after)) {
-                        $after($model->instance(), $status);
+                        $after = aget($model->hooks, 'after.delete', null);
+
+                        if (is_callable($after)) {
+                            $after($model->instance(), $status);
+                        }
+
+                        $model = modelEvent($model, 'deleted', [$status]);
+
+                        return $status;
                     }
-
-                    return $status;
                 }
 
                 return false;
@@ -826,6 +862,22 @@
 
                 return $object->getId() == isAke($row, $field, 0);
             });
+
+            $traits = class_uses($model);
+
+            if (!empty($traits)) {
+                foreach ($traits as $trait) {
+                    $tab = explode('\\', $trait);
+                    $traitName = Strings::lower(end($tab));
+                    $method = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
+
+                    $methods = get_class_methods($model);
+
+                    if (in_array($method, $methods)) {
+                        call_user_func_array([$model, $method], []);
+                    }
+                }
+            }
 
             return $model;
         }
@@ -2772,5 +2824,10 @@
             }
 
             return ['id', 'created_at', 'updated_at'];
+        }
+
+        public function __invoke(array $data = [])
+        {
+            return $this->model($data);
         }
     }

@@ -1555,6 +1555,29 @@
         middlewares();
     }
 
+    function modelEvent($model, $event, $next = [])
+    {
+        $allEvents = Registry::get('octalia.events', []);
+
+        $class = get_class($model);
+
+        if (is_callable($next)) {
+            $allEvents[sha1($class)][$event] = $next;
+
+            Registry::set('octalia.events', $allEvents);
+        } else {
+            $events = isAke($allEvents, sha1($class), []);
+
+            $cb = isAke($events, $event, null);
+
+            if (is_callable($cb)) {
+                return call_user_func_array($cb, array_merge([$model], $next));
+            }
+        }
+
+        return $model;
+    }
+
     function getRow($instance)
     {
         return make([], $instance);
@@ -1603,7 +1626,13 @@
                 };
             }
 
-            return call_user_func_array($callable, $args);
+            return call_user_func_array(
+                $callable,
+                array_merge(
+                    [$provider],
+                    $args
+                )
+            );
         }
 
         return $provider;
@@ -1622,6 +1651,29 @@
                 $eventer->on(function ($event, callable $cb) use ($eventer) {
                     $events = Registry::get('eventer.events', []);
                     $events[$event] = $cb;
+                    Registry::set('eventer.events', $events);
+
+                    return $eventer;
+                });
+
+                $eventer->service(function ($service) use ($eventer) {
+                    $events = Registry::get('eventer.events', []);
+
+                    $cb = function ($event) use ($service) {
+                        $app = provider();
+
+                        return call_user_func_array($app[$service], [$event]);
+                    };
+
+                    $events[$service] = $cb;
+                    Registry::set('eventer.events', $events);
+
+                    return $eventer;
+                });
+
+                $eventer->forget(function ($event) use ($eventer) {
+                    $events = Registry::get('eventer.events', []);
+                    unset($events[$event]);
                     Registry::set('eventer.events', $events);
 
                     return $eventer;

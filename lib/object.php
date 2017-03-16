@@ -91,7 +91,7 @@
 
         public function hasModel()
         {
-            return !empty($this->model);
+            return 'octodummy' != isAke($this->callbacks, "table", 'octodummy');
         }
 
         public function reset()
@@ -157,7 +157,7 @@
 
             if ('getCacheKey' == $m) {
                 if ($this->hasModel()) {
-                    if ($this->exits()) {
+                    if ($this->exists()) {
                         return sha1(
                             $this->db() .
                             $this->table() .
@@ -168,16 +168,6 @@
             }
 
             $c = isAke($this->callbacks, $m, null);
-
-            if ('save' == $m) {
-                if ($this->initial == $this->data && $this->exists()) {
-                    return $this;
-                } else {
-                    $db = odb($this->db(), $this->table(), $this->driver());
-
-                    return $db->save($this->array());
-                }
-            }
 
             if ($c) {
                 if (is_callable($c)) {
@@ -200,7 +190,7 @@
                     return new self($data);
                 }
 
-                if (substr($m, 0, 3) == 'set') {
+                if (substr($m, 0, 3) == 'set' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -209,7 +199,7 @@
                     return $this->set($field, $v);
                 }
 
-                if (substr($m, 0, 3) == 'get') {
+                if (substr($m, 0, 3) == 'get' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -218,14 +208,14 @@
                     return $this->get($field, $d);
                 }
 
-                if (substr($m, 0, 3) == 'has') {
+                if (substr($m, 0, 3) == 'has' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
                     return $this->has($field);
                 }
 
-                if (substr($m, 0, 3) == 'del') {
+                if (substr($m, 0, 3) == 'del' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -849,12 +839,12 @@
                 $pivot = implode('', $tables);
 
                 if ($sync) {
-                    $relation = odb($this->db(), $pivot, $this->driver())->firstOrCreate([
+                    $relation = engine($this->db(), $pivot, $this->driver())->firstOrCreate([
                         $this->table() . '_id' => (int) $this->get('id'),
                         $model->table() . '_id' => (int) $model->id
                     ]);
                 } else {
-                    $relation = odb($this->db(), $pivot, $this->driver())->create([
+                    $relation = engine($this->db(), $pivot, $this->driver())->create([
                         $this->table() . '_id' => (int) $this->get('id'),
                         $model->table() . '_id' => (int) $model->id
                     ])->save();
@@ -887,5 +877,10 @@
             }
 
             return $this;
+        }
+
+        public function isDirty()
+        {
+            return $this->initial != $this->data;
         }
     }
