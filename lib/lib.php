@@ -23,21 +23,27 @@
     }
 
     spl_autoload_register(function ($class) {
-        $tab    = explode('\\', $class);
-        $ns     = array_shift($tab);
-        $lib    = array_shift($tab);
+        if (!class_exists($class)) {
+            $status = aliases($class);
 
-        if ('Octo' == $ns && !class_exists($class)) {
-            if (!empty($tab)) {
-                $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
-            } else {
-                $file = __DIR__ . DS . strtolower($lib) . '.php';
-            }
+            if (!$status) {
+                $tab    = explode('\\', $class);
+                $ns     = array_shift($tab);
+                $lib    = array_shift($tab);
 
-            if (file_exists($file)) {
-                require_once $file;
+                if ('Octo' == $ns) {
+                    if (!empty($tab)) {
+                        $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
+                    } else {
+                        $file = __DIR__ . DS . strtolower($lib) . '.php';
+                    }
 
-                return;
+                    if (file_exists($file)) {
+                        require_once $file;
+
+                        return;
+                    }
+                }
             }
         }
     });
@@ -1808,38 +1814,63 @@
 
     function middlewares($when = 'before')
     {
+        $middlewares        = Registry::get('core.middlewares', []);
         $request            = make($_REQUEST, "request");
         $middlewaresFile    = path('app') . '/config/middlewares.php';
 
         if (File::exists($middlewaresFile)) {
-            $middlewares = include $middlewaresFile;
+            $middlewaresFromConfig  = include $middlewaresFile;
+            $middlewares            = array_merge($middlewares, $middlewaresFromConfig);
+        }
 
-            foreach ($middlewares as $middlewareClass) {
-                $middleware = app($middlewareClass);
-                $methods    = get_class_methods($middlewareClass);
-                $method     = lcfirst(Strings::camelize('apply_' . $when));
+        foreach ($middlewares as $middlewareClass) {
+            $middleware = app($middlewareClass);
+            $methods    = get_class_methods($middlewareClass);
+            $method     = lcfirst(Strings::camelize('apply_' . $when));
 
-                if (in_array($method, $methods)) {
-                    call_user_func_array([$middleware, $method], [$request, app()]);
-                }
+            if (in_array($method, $methods)) {
+                call_user_func_array([$middleware, $method], [$request, app()]);
             }
         }
     }
 
+    function aliases($className)
+    {
+        $aliases = Registry::get('core.aliases', []);
+
+        $aliasesFile = path('app') . '/config/aliases.php';
+
+        if (File::exists($aliasesFile)) {
+            $aliasesFromConfig  = include $aliasesFile;
+            $aliases            = array_merge($aliases, $aliasesFromConfig);
+        }
+
+        foreach ($aliases as $alias => $class) {
+            if ($alias == $className) {
+                return class_alias($class, $alias);
+            }
+        }
+
+        return false;
+    }
+
     function services()
     {
+        $services = Registry::get('core.services', []);
+
         require_once __DIR__ . DS . 'serviceprovider.php';
 
         $servicesFile = path('app') . '/config/services.php';
 
         if (File::exists($servicesFile)) {
-            $services = include $servicesFile;
+            $servicesFromConfig = include $servicesFile;
+            $services           = array_merge($services, $servicesFromConfig);
+        }
 
-            foreach ($services as $serviceClass) {
-                $service = app($serviceClass);
+        foreach ($services as $serviceClass) {
+            $service = app($serviceClass);
 
-                $service->register(provider());
-            }
+            $service->register(provider());
         }
     }
 
@@ -3909,11 +3940,11 @@
         return $validator;
     }
 
-    function laravel53($app, $name = 'laravel_app', callable $config = null)
+    function laravel5($app, $name = 'laravel_app', callable $config = null)
     {
         Timer::start();
 
-        $basePath = base_path();
+        $basePath = \base_path();
 
         systemBoot($basePath . '/public');
 
@@ -3958,11 +3989,6 @@
         path('octalia',                     Config::get('octalia.dir', session_save_path()));
         path('cache',                       Config::get('dir.cache', session_save_path()));
 
-        $methods = get_defined_functions();
-
-        getHelpers();
-        getHelpers('App');
-
         lib('MigrationCommand');
 
         $app['command.octo.migration'] = $app->share(
@@ -4002,7 +4028,7 @@
 
     function tinker()
     {
-        laravel53(\app());
+        laravel5(\app());
     }
 
     function createModel(Octalia $model, array $fields = [])
@@ -4045,7 +4071,7 @@
 
                     if (!function_exists($from . '\\' . $fn)) {
                         $code = 'namespace ' . $from . ' {
-                            function '. $fn .' ()
+                            function ' . $fn . ' ()
                             {
                                 return call_user_func_array("\\' . str_replace('\\', '\\\\', $function) . '", func_get_args());
                             };

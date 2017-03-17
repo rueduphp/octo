@@ -15,7 +15,7 @@
             parent::__construct();
         }
 
-        function fire()
+        public function fire()
         {
             $table  = $this->argument('table');
             $fields = $this->argument('fields');
@@ -53,7 +53,7 @@
             parent::__construct();
         }
 
-        function fire()
+        public function fire()
         {
             $table  = $this->argument('table');
             $amount  = $this->argument('amount');
@@ -95,7 +95,7 @@
             parent::__construct();
         }
 
-        function fire()
+        public function fire()
         {
             $table  = $this->argument('table');
 

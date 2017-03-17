@@ -525,4 +525,18 @@
 
             exception('Dic', "The class $k is not set.");
         }
+
+        public function core($k, $v = null)
+        {
+            $rows = $this->get('core.' . $k, []);
+
+            if ($v) {
+                $rows[] = $v;
+                $this->set('core.' . $k, $rows);
+
+                return $this;
+            } else {
+                return $rows;
+            }
+        }
     }
