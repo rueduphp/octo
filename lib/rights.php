@@ -1,14 +1,6 @@
 <?php
     namespace Octo;
 
-    $rights = [
-        'admin' => '*',
-        'guest' => null,
-        'manager' => [
-            'compta' => ['read', 'delete']
-        ],
-    ];
-
     class Rights
     {
         protected static $rules = [];
@@ -17,6 +9,11 @@
         public function __construct(array $rules = [])
         {
             self::$rules = $rules;
+        }
+
+        public static function register(array $rules = [])
+        {
+            new static($rules);
         }
 
         public static function can($resource, $action)
@@ -68,3 +65,20 @@
             self::$inline[$key] = false;
         }
     }
+
+    /*
+        Exemple
+
+        Rights::register([
+            'admin' => '*',
+            'guest' => null,
+            'manager' => [
+                'compta' => ['read', 'delete']
+            ],
+        ]);
+
+        Rights::allow('manager', 'compta', 'copy');
+        Rights::disallow('manager', 'compta', 'delete');
+    */
+
+
