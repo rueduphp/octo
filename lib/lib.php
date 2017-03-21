@@ -43,6 +43,11 @@
 
                         return;
                     }
+                } elseif (fnmatch('*Model', $class) && strlen($class) > 5) {
+                    $humanized = Inflector::uncamelize($class);
+                    list($dbTable, $dummy) = explode($humanized, '_model', 2);
+
+                    dd('ici');
                 }
             }
         }
@@ -1559,6 +1564,8 @@
         services();
 
         middlewares();
+
+        rights();
     }
 
     function modelEvent($model, $event, $next = [])
@@ -1605,6 +1612,57 @@
         return lib('ghost', [$array, $instance]);
     }
 
+    function rights()
+    {
+        $acl = path('app') . '/config/acl.php';
+
+        $rights = make([], 'rights');
+
+        $rights->add(function ($type, $data) use ($rights) {
+            $rights[$type] = obj('acl_' . $type, $data);
+
+            return $rights;
+        });
+
+        if (File::exists($acl)) {
+            $datas = include $acl;
+
+            foreach ($datas as $k => $v) {
+                $rights->add($k, $v);
+            }
+        }
+
+        return $rights;
+    }
+
+    function obj($instance, array $array = [])
+    {
+        $key = sha1($instance);
+
+        $objects = Registry::get('core.objects', []);
+
+        $object = isAke($objects, $key, null);
+
+        if (!$object) {
+            $class = Strings::camelize('octo_' . Strings::uncamelize($instance));
+
+            if (!class_exists($class)) {
+                $code = 'class ' . $class . ' extends \\Octo\\Collection {}';
+                eval($code);
+            }
+
+            $class = '\\' . $class;
+
+            $object = new $class($array);
+
+            $objects[$key] = $object;
+
+            Registry::set('core.objects', $objects);
+        }
+
+        return $object;
+    }
+
     function classify($instance, array $array = [])
     {
         $class = Strings::camelize('octo_' . Strings::uncamelize($instance));
@@ -1617,6 +1675,156 @@
         $class = '\\' . $class;
 
         return new $class($array, sha1($class));
+    }
+
+    function inMemory($array = null)
+    {
+        static $inMemoryData = [];
+
+        if ($array) {
+            $inMemoryData = $array;
+        }
+
+        return $inMemoryData;
+    }
+
+    function segment($ns = 'core', $array = null)
+    {
+        $data       = inMemory();
+        $segment    = aget($data, $ns, []);
+
+        if ($array) {
+            $segment = $array;
+            aset($data, $ns, $segment);
+            inMemory($data);
+        }
+
+        return $segment;
+    }
+
+    function set($k, $v)
+    {
+        $data = segment('core');
+        aset($data, $k, $v);
+
+        segment('core', $data);
+    }
+
+    function get($k, $d = null)
+    {
+        $data   = segment('core');
+        $value  = aget($data, $k, $d);
+
+        return value($value);
+    }
+
+    function getDel($k, $d = null)
+    {
+        if (has($k)) {
+            $data   = segment('core');
+            $value  = aget($data, $k, $d);
+            forget($k);
+
+            return value($value);
+        }
+
+        return $d;
+    }
+
+    function getMacro($k, array $args = [], $d = null)
+    {
+        if (has($k)) {
+            $data   = segment('core');
+            $cb     = aget($data, $k, $d);
+
+            if (is_callable($cb)) {
+                return call_user_func_array($cb, $args);
+            }
+        }
+
+        return $d;
+    }
+
+    function has($k)
+    {
+        return 'octodummy' != get($k, 'octodummy');
+    }
+
+    function forget($k)
+    {
+        if (has($k)) {
+            $data = segment('core');
+            adel($data, $k);
+
+            segment('core', $data);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    function del($k)
+    {
+        return forget($k);
+    }
+
+    function incr($k, $by = 1)
+    {
+        $old = get($k, 0);
+        $new = $old + $by;
+
+        set($k, $new);
+
+        return $new;
+    }
+
+    function increment($k, $by = 1)
+    {
+        return decr($k, $by);
+    }
+
+    function decr($k, $by = 1)
+    {
+        $old = get($k, 0);
+        $new = $old - $by;
+
+        set($k, $new);
+
+        return $new;
+    }
+
+    function decrement($k, $by = 1)
+    {
+        return decr($k, $by);
+    }
+
+    function getOr($k, callable $c, $e = null)
+    {
+        $res = get($k, 'octodummy');
+
+        if ('octodummy' == $res) {
+            set($k, $res = $c(), $e);
+        }
+
+        return $res;
+    }
+
+    function i18n()
+    {
+        $made = Registry::get('i18n.made', false);
+        $cb = null;
+
+        if (!$made) {
+            $cb = function () {
+                Registry::set('i18n.made', true);
+                $i18n = classify('i18n');
+
+                return $i18n;
+            };
+        }
+
+        return single('i18n', $cb);
     }
 
     function provider($service = null, array $args = [])
@@ -2059,19 +2267,6 @@
 
             return $gravatar->buildGravatarURL($email);
         });
-    }
-
-    function is_admin($user = null)
-    {
-        $user = empty($user) ? auth()->user() : $user;
-
-        if ($role_id    = isAke($user, 'role_id', null)) {
-            $role       = em('systemRole')->find((int) $role_id);
-
-            return $role->name == 'admin';
-        }
-
-        return false;
     }
 
     function octo_role($user = null)
@@ -4323,7 +4518,7 @@
             }
         }
 
-        return 'guest';
+        return o()->setLabel('guest');
     }
 
     function dom()
@@ -4600,6 +4795,11 @@
         } else {
             Registry::set('core.acl', array_values($data->toArray()));
         }
+    }
+
+    function is_admin()
+    {
+        return role()->getLabel() == 'admin';
     }
 
     function can($resource)
