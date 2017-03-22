@@ -14,7 +14,6 @@
         private $persistent;
         private $message;
 
-
         public function __construct(Courrier $message)
         {
             $this->message = $message;

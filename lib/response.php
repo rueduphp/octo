@@ -206,4 +206,46 @@
         {
             return $this->body;
         }
+
+        public static function tpl($tpl, $args, $code = 200)
+        {
+            $file = path('app') . DS . 'views' . DS . str_replace('.', DS, Strings::lower($tpl)) . '.phtml';
+
+            if (File::exists($file)) {
+                $content = File::read($file);
+
+                if (is_array($args)) {
+                    extract($args);
+                }
+
+                ob_start();
+
+                eval(' namespace Octo; ?>' . $content . '<?php ');
+
+                $html = ob_get_contents();
+
+                ob_end_clean();
+
+                abort($code, $html);
+            } else {
+                exception('View', "The file $file does not exist.");
+            }
+        }
+
+        public static function render($file, $context = 'controller', $args = [], $code = 200)
+        {
+            return render($file, $context, $args, $code);
+        }
+
+        public static function abort($code = 403, $message = 'Forbidden')
+        {
+            return abort($code, $message);
+        }
+
+        public static function json($data)
+        {
+            header('content-type: application/json; charset=utf-8');
+
+            die(json_encode((array) $data));
+        }
     }

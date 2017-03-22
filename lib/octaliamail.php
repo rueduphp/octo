@@ -20,14 +20,14 @@
 
             $fromName   = str_replace(" <$from>", '', $this->message->getEncodedHeader('From'));
 
-            $mail = System::Mail()->create([
+            $mail = em('systemMail')->store([
                 'to'        => $to,
                 'from'      => $from,
                 'from_name' => $fromName,
                 'subject'   => $subject,
                 'html'      => $html,
                 'text'      => $text
-            ])->save();
+            ]);
 
             if ($mail->id > 0) {
                 return true;

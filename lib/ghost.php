@@ -3,6 +3,8 @@
 
     class Ghost implements \ArrayAccess
     {
+        use Notifiable;
+
         private $_instance;
 
         public function __construct(array $data = [], $instance = null)

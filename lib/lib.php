@@ -55,19 +55,23 @@
 
     function view($html = null, $code = 200, $title = 'Octo')
     {
+        static $viewClass = null;
+
         if (empty($html)) {
-            $class = o();
+            if (is_null($viewClass)) {
+                $viewClass = o();
 
-            $class->macro('assign', function ($k, $v) {
-                $vars = Registry::get('views.vars', []);
-                $vars[$k] = value($v);
+                $viewClass->macro('assign', function ($k, $v) {
+                    $vars = Registry::get('views.vars', []);
+                    $vars[$k] = value($v);
 
-                Registry::set('views.vars', $vars);
+                    Registry::set('views.vars', $vars);
 
-                return view();
-            });
+                    return view();
+                });
+            }
 
-            return $class;
+            return $viewClass;
         }
 
         $tpl = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . $title . '</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.5.0/css/font-awesome.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Oswald:100,300,400,700,900"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/css/bootstrap.min.css"><style>body{font-family:"Oswald";}</style></head><body id="app-layout"><div class="container-fluid">##html##</div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/js/bootstrap.min.js"></script></body></html>';
@@ -93,6 +97,12 @@
 
         if (fnmatch('*:*', $file)) {
             list($c, $a) = explode(':', $file, 2);
+
+            $file = path('app') . DS . 'views' . DS . $c . DS . $a . '.phtml';
+        }
+
+        if (fnmatch('*.*', $file)) {
+            list($c, $a) = explode('.', $file, 2);
 
             $file = path('app') . DS . 'views' . DS . $c . DS . $a . '.phtml';
         }
@@ -128,7 +138,7 @@
 
     function controller()
     {
-        return Registry::get('app.controller');
+        return Registry::get('app.controller', null);
     }
 
     function is_home()
@@ -1325,7 +1335,6 @@
 
     function lib($lib, $args = [])
     {
-
         $class = '\\Octo\\' . Strings::camelize($lib);
 
         if (!class_exists($class)) {
@@ -1521,7 +1530,7 @@
         Registry::set('octo.subdir', $subdir);
 
         if (!defined('OCTO_STANDALONE')) {
-            defined('WEBROOT')  || define('WEBROOT', Registry::get('octo.subdir', '/'));
+            defined('WEBROOT') || define('WEBROOT', Registry::get('octo.subdir', '/'));
 
             date_default_timezone_set(Config::get('timezone', 'Europe/Paris'));
 
@@ -2033,7 +2042,7 @@
 
         foreach ($middlewares as $middlewareClass) {
             $middleware = app($middlewareClass);
-            $methods    = get_class_methods($middlewareClass);
+            $methods    =
             $method     = lcfirst(Strings::camelize('apply_' . $when));
 
             if (in_array($method, $methods)) {
@@ -4835,4 +4844,41 @@
         }
 
         return $stream;
+    }
+
+    function undot($collection)
+    {
+        $collection = (array) $collection;
+        $output = [];
+
+        foreach ($collection as $key => $value) {
+            aset($output, $key, $value);
+
+            if (is_array($value) && !strpos($key, '.')) {
+                $nested = undot($value);
+
+                $output[$key] = $nested;
+            }
+        }
+
+        return $output;
+    }
+
+    function notify($model, $instance, array $args = [])
+    {
+        if ($model->exists()) {
+            $channels = $instance->channels();
+
+            foreach ($channels as $channel) {
+                call_user_func_array([$instance, $channel], $args);
+
+                $dbRow = em('systemNotification')->store([
+                    'model'     => get_class($model),
+                    'model_id'  => $model->id,
+                    'type'      => get_class($instance),
+                    'channel'   => $channel,
+                    'read'      => false
+                ]);
+            }
+        }
     }

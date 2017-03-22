@@ -81,6 +81,79 @@
             }
         }
 
+        public static function resource($model, $controller = null)
+        {
+            if (is_object($model)) {
+                $db     = $model->db();
+                $table  = $model->table();
+
+                $prefix = '';
+
+                if ('core' != $db) {
+                    $prefix = trim(trim($orefix, '/') . '/' . $db, '/');
+                }
+
+                $controller = empty($controller) ? $table : $controller;
+
+                $prefix = trim(trim($orefix, '/') . '/' . $controller, '/');
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Create
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::get($prefix . '/add', $controller . '#add');
+                self::post($prefix . '/store', $controller . '#store');
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Read
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::get($prefix . '/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'find'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Update
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::get($prefix . '/edit/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'update'];
+                });
+
+                self::post($prefix . '/update/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'update'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Delete
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::getPost($prefix . '/delete/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'delete'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | List
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::getPost($prefix, $controller . '#index');
+                self::getPost($prefix . '/list', $controller . '#index');
+            }
+        }
+
         public static function __callStatic($m, $a)
         {
             $uri        = array_shift($a);
@@ -222,8 +295,8 @@
                 }
 
                 return $route
-                    ->setController($controller)
-                    ->setAction($action);
+                ->setController($controller)
+                ->setAction($action);
             });
 
             if (!empty($a)) {

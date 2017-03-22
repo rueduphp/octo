@@ -160,7 +160,7 @@
                     $row[$k] = $v;
                 }
 
-                System::Track()->create($row)->save();
+                em('systemTrack')->store($row);
             }
         }
 
@@ -284,9 +284,9 @@
             }
 
             if ($user['accounted']) {
-                return System::Account()->find((int) $user['id']);
+                return em('systemAccount')->find((int) $user['id']);
             } else {
-                return System::Visitor()->find((int) $user['id']);
+                return em('systemVisitor')->find((int) $user['id']);
             }
         }
 
@@ -307,7 +307,7 @@
             }
 
             if ($ip == '127.0.0.1') {
-                return ['ip' > $ip, 'language' => $lng];
+                return ['ip' => $ip, 'language' => $lng];
             }
 
             $url = "http://ip-api.com/json/$ip";
