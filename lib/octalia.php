@@ -1132,6 +1132,21 @@
                 return $this->where([$field, $op, $value]);
             }
 
+            if (fnmatch('getBy*', $m) && strlen($m) > 5) {
+                $field = callField($m, 'getBy');
+
+                $op = '=';
+
+                if (count($a) == 2) {
+                    $op     = array_shift($a);
+                    $value  = array_shift($a);
+                } else {
+                    $value  = array_shift($a);
+                }
+
+                return $this->where([$field, $op, $value]);
+            }
+
             if (fnmatch('where*', $m) && strlen($m) > 5) {
                 $field = callField($m, 'where');
 
@@ -1212,7 +1227,7 @@
                 }
             }
 
-            $file = path('models') . '/' . $this->db . '/' . $this->table . '.php';
+            $file = path('models') . DS . $this->db . DS . $this->table . '.php';
 
             if (file_exists($file)) {
                 $cbs = require_once $file;
@@ -1259,8 +1274,8 @@
 
         public function slice($offset, $length = null)
         {
-            $ids = array_values(array_slice((array) $this->iterator(), $offset, $length, true));
-            $this->ids = SplFixedArray::fromArray($ids);
+            $ids        = array_values(array_slice((array) $this->iterator(), $offset, $length, true));
+            $this->ids  = SplFixedArray::fromArray($ids);
 
             return $this;
         }
@@ -2767,6 +2782,7 @@
 
             foreach ($tab1 as $row) {
                 $id = isAke($row, 'id', null);
+
                 if (strlen($id)) {
                     array_push($ids1, $id);
                 }
@@ -2774,6 +2790,7 @@
 
             foreach ($tab2 as $row) {
                 $id = isAke($row, 'id', null);
+
                 if (strlen($id)) {
                     array_push($ids2, $id);
                 }

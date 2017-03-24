@@ -160,36 +160,36 @@
             $callback   = array_shift($a);
 
             if (!$callback instanceof \Closure) {
-                $callback = function () use ($callback) {
-                    $render = null;
+                $render = null;
 
-                    if (fnmatch('*#*', $callback)) {
-                        if (fnmatch('*#*#*', $callback)) {
-                            list($controller, $action, $render) = explode('#', $callback, 3);
-                        } else {
-                            list($controller, $action) = explode('#', $callback, 2);
-                        }
-                    } elseif (fnmatch('*@*', $callback)) {
-                        if (fnmatch('*@*@*', $callback)) {
-                            list($controller, $action, $render) = explode('@', $callback, 3);
-                        } else {
-                            list($controller, $action) = explode('@', $callback, 2);
-                        }
-                    } elseif (fnmatch('*.*', $callback)) {
-                        if (fnmatch('*.*.*', $callback)) {
-                            list($controller, $action, $render) = explode('.', $callback, 3);
-                        } else {
-                            list($controller, $action) = explode('.', $callback, 2);
-                        }
+                if (fnmatch('*#*', $callback)) {
+                    if (fnmatch('*#*#*', $callback)) {
+                        list($controller, $action, $render) = explode('#', $callback, 3);
+                    } else {
+                        list($controller, $action) = explode('#', $callback, 2);
                     }
+                } elseif (fnmatch('*@*', $callback)) {
+                    if (fnmatch('*@*@*', $callback)) {
+                        list($controller, $action, $render) = explode('@', $callback, 3);
+                    } else {
+                        list($controller, $action) = explode('@', $callback, 2);
+                    }
+                } elseif (fnmatch('*.*', $callback)) {
+                    if (fnmatch('*.*.*', $callback)) {
+                        list($controller, $action, $render) = explode('.', $callback, 3);
+                    } else {
+                        list($controller, $action) = explode('.', $callback, 2);
+                    }
+                }
 
-                    $render = empty($render);
+                $render = empty($render);
 
+                $callback = function () use ($controller, $action, $render) {
                     return [$controller, $action, $render];
                 };
             }
 
-            $method     = Strings::lower($m);
+            $method = Strings::lower($m);
 
             $methods = [];
 
@@ -269,13 +269,19 @@
 
             $name = '.' === $name ? 'home' : $name;
 
-            $route = model('uri', [
+            $dataRoute = [
                 'name'      => $name,
                 'uri'       => $uri,
                 'url'       => $url,
                 'method'    => $method,
                 'params'    => $params
-            ]);
+            ];
+
+            if (isset($controller)) $dataRoute["controller"]    = $controller;
+            if (isset($action))     $dataRoute["action"]        = $action;
+            if (isset($render))     $dataRoute["render"]        = $render;
+
+            $route = model('uri', $dataRoute);
 
             $route->macro('as', function ($name) use ($route) {
                 return $route->setName($name);
@@ -292,6 +298,8 @@
                     list($controller, $action) = explode('#', $string, 2);
                 } elseif (fnmatch('*.*', $string)) {
                     list($controller, $action) = explode('.', $string, 2);
+                } elseif (fnmatch('*:*', $string)) {
+                    list($controller, $action) = explode(':', $string, 2);
                 }
 
                 return $route

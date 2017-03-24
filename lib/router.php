@@ -234,13 +234,12 @@
                 $layout = cut('<layout>', '</layout>', $content);
 
                 if (!empty($layout)) {
-                    $content = Arrays::last(explode('</layout>', $content));
-                    $layout = path('app') . DS . 'views' . DS . 'layouts' . DS . $layout . '.phtml';
+                    $contents   = Arrays::last(explode('</layout>', $content));
+                    $layout     = path('app') . DS . 'views' . DS . 'layouts' . DS . $layout . '.phtml';
 
                     if (File::exists($layout)) {
-                        $layout = File::read($layout);
-
-                        $content = str_replace('<content></content>', $content, $layout);
+                        $layout     = File::read($layout);
+                        $content    = str_replace('<content></content>', $content, $layout);
                     }
                 }
 
@@ -279,8 +278,12 @@
             array_shift($rows);
 
             foreach ($rows as $row) {
-                $file = cut('"', '"', $row);
-                $content = str_replace('<partial file="' . $file . '">', '<?php $this->partial(\'' . str_replace('.', DS, $file) . '.phtml\'); ?>', $content);
+                $file       = cut('"', '"', $row);
+                $content    = str_replace(
+                    '<partial file="' . $file . '">',
+                    '<?php $this->partial(\'' . str_replace('.', DS, $file) . '.phtml\'); ?>',
+                    $content
+                );
             }
 
             $content = str_replace(['{{', '}}'], ['<?php $controller->e("', '");?>'], $content);
@@ -384,7 +387,15 @@
                         if (is_callable($route['callback'])) {
                             $this->route = call_user_func_array($route['callback'], $params);
                         } else {
-                            $this->route = explode('@', $route['callback']);
+                            if (fnmatch('*@*', $route['callback'])) {
+                                $this->route = explode('@', $route['callback']);
+                            } elseif (fnmatch('*#*', $route['callback'])) {
+                                $this->route = explode('#', $route['callback']);
+                            } elseif (fnmatch('*.*', $route['callback'])) {
+                                $this->route = explode('.', $route['callback']);
+                            } elseif (fnmatch('*:*', $route['callback'])) {
+                                $this->route = explode(':', $route['callback']);
+                            }
                         }
                     } else {
                         call_user_func_array($route['callback'], $params);

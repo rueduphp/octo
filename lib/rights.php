@@ -20,10 +20,10 @@
         {
             $role = role()->getLabel();
 
-            $inline = isAke(self::$inline, sha1($role . $resource . $action), false);
+            $inline = isAke(self::$inline, sha1($role . $resource . $action), 'octodummy');
 
-            if (true === $inline) {
-                return true;
+            if ('octodummy' != $inline) {
+                return value($inline);
             }
 
             $resources = isAke(self::$rules, $role, []);
@@ -43,7 +43,13 @@
                     }
 
                     if (is_array($actions)) {
-                        return in_array($action, $action);
+                        foreach ($actions as $ka => $va) {
+                            if ($ka == $action) {
+                                return value($va);
+                            } elseif (is_numeric($ka) && $va == $action) {
+                                return true;
+                            }
+                        }
                     }
                 }
             }
@@ -64,6 +70,13 @@
 
             self::$inline[$key] = false;
         }
+
+        public static function add($role, $resource, $action, $status = true)
+        {
+            $key = sha1($role . $resource . $action);
+
+            self::$inline[$key] = $status;
+        }
     }
 
     /*
@@ -73,7 +86,9 @@
             'admin' => '*',
             'guest' => null,
             'manager' => [
-                'compta' => ['read', 'delete']
+                'compta' => ['read' => function () {
+                    return user()->business_unit == 'CTO';
+                }, 'delete']
             ],
         ]);
 

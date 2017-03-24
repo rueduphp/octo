@@ -3759,13 +3759,17 @@
             list($controllerName, $action) = explode('#', $what, 2);
         }
 
+        if (fnmatch('*:*', $what)) {
+            list($controllerName, $action) = explode(':', $what, 2);
+        }
+
         $actualController = Registry::get('app.controller', null);
 
         if (!empty($actualController)) {
             if (is_object($actualController)) {
-                $classC = get_class($actualController);
-                $tab = explode('\\', $classC);
-                $namespace = array_shift($tab);
+                $classC     = get_class($actualController);
+                $tab        = explode('\\', $classC);
+                $namespace  = array_shift($tab);
 
                 $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
 
