@@ -277,6 +277,11 @@
             return coll($this->toArray());
         }
 
+        public function collection()
+        {
+            return coll($this->toArray());
+        }
+
         public function toModel()
         {
             $collection = [];

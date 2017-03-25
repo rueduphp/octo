@@ -46,8 +46,6 @@
                 } elseif (fnmatch('*Model', $class) && strlen($class) > 5) {
                     $humanized = Inflector::uncamelize($class);
                     list($dbTable, $dummy) = explode($humanized, '_model', 2);
-
-                    dd('ici');
                 }
             }
         }
@@ -632,13 +630,13 @@
         return $d;
     }
 
-    function log($message, $type = 'INFO', $ns = 'core')
+    function log($message, $type = 'INFO')
     {
         if (is_array($message)) $message = implode(PHP_EOL, $message);
 
         $type = Strings::upper($type);
 
-        $db = System::Log();
+        $db = em('systemLog');
 
         $db->create([
             'message'   => $message,
@@ -646,11 +644,11 @@
         ])->save();
     }
 
-    function logs($type = 'INFO', $ns = 'core')
+    function logs($type = 'INFO')
     {
         $type = Strings::upper($type);
 
-        $db = engine('logs', $ns);
+        $db = em('systemLog');
 
         return $db->where(['type', '=', $type])->sortByDesc('id')->get();
     }
@@ -1348,6 +1346,17 @@
         return (new App)->make($class, $args);
     }
 
+    function str()
+    {
+        static $stringInstance;
+
+        if (!$stringInstance) {
+            $stringInstance = new Inflector;
+        }
+
+        return $stringInstance;
+    }
+
     function factory()
     {
         $factory    = lib('OctaliaFactory')->construct(\Faker\Factory::create('fr_FR'));
@@ -1371,8 +1380,8 @@
 
     function status($code = 200)
     {
-        $headerMessage = Api::getMessage($code);
-        $protocol = isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.1';
+        $headerMessage  = Api::getMessage($code);
+        $protocol       = isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.1';
 
         if (!headers_sent()) {
             header($protocol . " $code $headerMessage");
@@ -1567,8 +1576,13 @@
                 Queue::listen();
                 Later::shutdown();
                 middlewares('after');
+                eventer()->listen('shutdown');
             });
         });
+
+        loadEvents();
+
+        eventer()->listen('bootstrap');
 
         services();
 
@@ -1623,6 +1637,7 @@
 
     function rights()
     {
+        eventer()->listen('rights');
         $acl = path('app') . '/config/acl.php';
 
         $rights = make([], 'rights');
@@ -1871,45 +1886,78 @@
                 Registry::set('eventer.made', true);
                 $eventer = classify('eventer');
 
-                $eventer->on(function ($event, callable $cb) use ($eventer) {
-                    $events = Registry::get('eventer.events', []);
-                    $events[$event] = $cb;
-                    Registry::set('eventer.events', $events);
+                $eventer->on(function () use ($eventer) {
+                    $args       = func_get_args();
+                    $event      = array_shift($args);
+                    $cb         = array_shift($args);
+                    $priority   = array_shift($args);
+                    $priority   = $priority || 0;
 
-                    return $eventer;
-                });
-
-                $eventer->service(function ($service) use ($eventer) {
                     $events = Registry::get('eventer.events', []);
 
-                    $cb = function ($event) use ($service) {
-                        $app = provider();
-
-                        return call_user_func_array($app[$service], [$event]);
-                    };
-
-                    $events[$service] = $cb;
-                    Registry::set('eventer.events', $events);
-
-                    return $eventer;
-                });
-
-                $eventer->forget(function ($event) use ($eventer) {
-                    $events = Registry::get('eventer.events', []);
-                    unset($events[$event]);
-                    Registry::set('eventer.events', $events);
-
-                    return $eventer;
-                });
-
-                $eventer->listen(function ($event, array $args = []) {
-                    $events = Registry::get('eventer.events', []);
-
-                    $eventToFire = isAke($events, $event, null);
-
-                    if ($eventToFire && is_callable($eventToFire)) {
-                        return call_user_func_array($eventToFire, $args);
+                    if (!$cb instanceof \Closure) {
+                        $cb = resolverClass($cb);
                     }
+
+                    $priorities = isAke($events, $event, []);
+
+                    $segment = isset($priorities[$priority]) ? $priorities[$priority] : [];
+
+                    $segment[] = $cb;
+
+                    $events[$event][$priority] = $segment;
+
+                    Registry::set('eventer.events', $events);
+
+                    return $eventer;
+                });
+
+                $eventer->listen(function () {
+                    $events = Registry::get('eventer.events', []);
+
+                    $args = func_get_args();
+
+                    $event = array_shift($args);
+
+                    $fireEvents = isAke($events, $event, []);
+
+                    $results = [];
+
+                    if (!empty($fireEvents)) {
+                        foreach ($fireEvents as $priority => $eventsLoaded) {
+                            $key = $event . '_' . $priority;
+
+                            $results[$key] = [];
+
+                            foreach ($eventsLoaded as $eventLoaded) {
+                                if ($eventLoaded && is_callable($eventLoaded)) {
+                                    $result = call_user_func_array($eventLoaded, $args);
+
+                                    if ($result instanceof Object && $result->getStopPropagation() == 1) {
+                                        return $results;
+                                    }
+
+                                    $results[$key][] = $result;
+                                }
+                            }
+                        }
+                    }
+
+                    return $results;
+                });
+
+                $eventer->forget(function ($event, $priority = 'octodummy') use ($eventer) {
+                    $events = Registry::get('eventer.events', []);
+
+                    if ('octodummy' == $priority) {
+                        unset($events[$event]);
+                    } else {
+                        unset($events[$event][$priority]);
+                    }
+
+                    Registry::set('eventer.events', $events);
+
+                    return $eventer;
                 });
 
                 return $eventer;
@@ -1917,6 +1965,18 @@
         }
 
         return single('eventer', $cb);
+    }
+
+    function stopPropagation()
+    {
+        $o = o();
+
+        return $o->setStopPropagation(1);
+    }
+
+    function emit()
+    {
+        return call_user_func_array([eventer(), 'listen'], func_get_args());
     }
 
     function setting()
@@ -2031,6 +2091,8 @@
 
     function middlewares($when = 'before')
     {
+        eventer()->listen('middlewares');
+
         $middlewares        = Registry::get('core.middlewares', []);
         $request            = make($_REQUEST, "request");
         $middlewaresFile    = path('app') . '/config/middlewares.php';
@@ -2071,8 +2133,45 @@
         return false;
     }
 
+    function loadEvents()
+    {
+        $events = path('app') . '/config/events.php';
+
+        if (File::exists($events)) {
+            require_once $events;
+        }
+
+        subscribers();
+    }
+
+    function subscriber($subscriberClass)
+    {
+        $subscriber = app($subscriberClass);
+
+        $events = $subscriber->getEvents();
+
+        foreach ($events as $event => $method) {
+            eventer()->on($event, $subscriberClass . '@' . $method);
+        }
+    }
+
+    function subscribers()
+    {
+        $subscribersFile = path('app') . '/config/subscribers.php';
+
+        if (File::exists($subscribersFile)) {
+            $ubscribers = include $subscribersFile;
+        }
+
+        foreach ($ubscribers as $subscriberClass) {
+            subscriber($subscriberClass);
+        }
+    }
+
     function services()
     {
+        eventer()->listen('services');
+
         $services = Registry::get('core.services', []);
 
         require_once __DIR__ . DS . 'serviceprovider.php';
@@ -3085,21 +3184,21 @@
         return $val ?: $d;
     }
 
-    function int($number)
+    function toInt($number)
     {
         settype($number, 'integer');
 
         return (int) $number;
     }
 
-    function float($number)
+    function toFloat($number)
     {
         settype($number, 'float');
 
         return (float) $number;
     }
 
-    function string($string)
+    function toString($string)
     {
         settype($string, 'string');
 
@@ -4885,4 +4984,16 @@
                 ]);
             }
         }
+    }
+
+    function resolverClass($class, $sep = '@')
+    {
+        return function() use ($class, $sep) {
+            $segments   = explode($sep, $class);
+            $method     = count($segments) == 2 ? end($segments) : 'supply';
+            $callable   = [app()->make(current($segments)), $method];
+            $data       = func_get_args();
+
+            return call_user_func_array($callable, $data);
+        };
     }

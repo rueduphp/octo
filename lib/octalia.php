@@ -310,6 +310,13 @@
             return $return ? $collection : $this;
         }
 
+        public function many(array $rows = [])
+        {
+            foreach ($rows as $row) {
+                $this->save($row);
+            }
+        }
+
         public function create(array $data = [])
         {
             return $this->model($data);
@@ -333,28 +340,40 @@
         public function save(array $data, $model = true)
         {
             $this->reset();
+            if ($this->fire('saving') === false) return false;
 
             $id = isAke($data, 'id', null);
 
             if ($id && is_int($id)) {
-                return $this->modify($data, $model);
+                $saved = $this->modify($data, $model);
+            } else {
+                $data['id']         = $this->makeId();
+                $data['created_at'] = $data['updated_at'] = time();
+
+                $saved = $this->insert($data, $model);
             }
 
-            $data['id']         = $this->makeId();
-            $data['created_at'] = $data['updated_at'] = time();
+            if ($saved) {
+                $this->fire('saved');
+            }
 
-            return $this->insert($data, $model);
+            return $saved;
         }
 
         private function insert(array $data, $model = true)
         {
+            if ($this->fire('creating') === false) return false;
+
             $this->add($data);
+            $this->fire('created');
 
             return $model ? $this->model($data) : $data;
         }
 
         private function modify(array $data, $model = true)
         {
+            if ($this->fire('updating') === false) return false;
+
             $data['updated_at'] = time();
 
             $old = $this->row($data['id']);
@@ -368,6 +387,7 @@
             $this->delete($data['id']);
 
             $this->add($data, true);
+            $this->fire('updated');
 
             return $model ? $this->model($data) : $data;
         }
@@ -387,6 +407,8 @@
                     $row['deleted_at'] = time();
                     $this->modify($row);
                 } else {
+                    if ($this->fire('deleting') === false) return false;
+
                     $this->driver->delete($id);
 
                     $rows = $this->driver->get('rows', []);
@@ -396,6 +418,7 @@
                     $this->driver->set('rows', $rows);
 
                     $this->age(microtime(true));
+                    $this->fire('deleted');
                 }
             }
 
@@ -1265,11 +1288,6 @@
             if (!$id) return null;
 
             return $this->find($id, $model);
-        }
-
-        public function collection()
-        {
-            return coll($this->data());
         }
 
         public function slice($offset, $length = null)
@@ -2184,6 +2202,17 @@
             return $this;
         }
 
+        public function firstByAttributes($attributes, $model = true)
+        {
+            $q = $this;
+
+            foreach ($conditions as $field => $value) {
+                $q->where($field, $value);
+            }
+
+            return $q->first($model);
+        }
+
         public function firstOrCreate($conditions)
         {
             $q = $this;
@@ -2422,7 +2451,7 @@
 
         public function attach($data)
         {
-            $sync = Registry::get('octalia.sync');;
+            $sync = Registry::get('octalia.sync');
 
             if ($sync) {
                 $tables = [$this->table, $sync->table()];
@@ -2459,7 +2488,7 @@
 
         public function detach($data)
         {
-            $sync = Registry::get('octalia.sync');;
+            $sync = Registry::get('octalia.sync');
 
             if ($sync) {
                 $tables = [$this->table, $sync->table()];
@@ -2495,7 +2524,7 @@
 
         public function sync($data)
         {
-            $sync = Registry::get('octalia.sync');;
+            $sync = Registry::get('octalia.sync');
 
             if ($sync) {
                 $tables = [$this->table, $sync->table()];
@@ -2534,7 +2563,7 @@
 
         public function toggle($data)
         {
-            $sync = Registry::get('octalia.sync');;
+            $sync = Registry::get('octalia.sync');
 
             if ($sync) {
                 $tables = [$this->table, $sync->table()];
@@ -2583,6 +2612,12 @@
         public function repository()
         {
             return $this->get()->repository();
+        }
+
+
+        public function collection()
+        {
+            return $this->get()->collection();
         }
 
         public function query()
@@ -2687,6 +2722,11 @@
                     case 3:
                         list($field, $op, $value) = $query;
                         $operand = 'and';
+                        break;
+                    case 2:
+                        list($field, $value) = $query;
+                        $operand = 'and';
+                        $op = '=';
                         break;
                 }
 
@@ -2846,5 +2886,23 @@
         public function __invoke(array $data = [])
         {
             return $this->model($data);
+        }
+
+        private function fire($event)
+        {
+            $key = 'octalia.' .
+            lcfirst(Strings::camelize($this->db . '_' . $this->table))
+            . '.' . $event;
+
+            return eventer()->listen($key, [$this]);
+        }
+
+        public function on($event, callable $cb)
+        {
+            $key = 'octalia.' .
+            lcfirst(Strings::camelize($this->db . '_' . $this->table))
+            . '.' . $event;
+
+            return eventer()->on($key, [$this]);
         }
     }
