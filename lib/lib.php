@@ -24,9 +24,9 @@
 
     spl_autoload_register(function ($class) {
         if (!class_exists($class)) {
-            $status = aliases($class);
+            // $status = aliases($class);
 
-            if (!$status) {
+            // if (!$status) {
                 $tab    = explode('\\', $class);
                 $ns     = array_shift($tab);
                 $lib    = array_shift($tab);
@@ -47,7 +47,9 @@
                     $humanized = Inflector::uncamelize($class);
                     list($dbTable, $dummy) = explode($humanized, '_model', 2);
                 }
-            }
+
+                aliases($class);
+            // }
         }
     });
 
@@ -1357,6 +1359,17 @@
         return $stringInstance;
     }
 
+    function reg()
+    {
+        static $registryInstance;
+
+        if (!$registryInstance) {
+            $registryInstance = new Now;
+        }
+
+        return $registryInstance;
+    }
+
     function factory()
     {
         $factory    = lib('OctaliaFactory')->construct(\Faker\Factory::create('fr_FR'));
@@ -1499,14 +1512,6 @@
 
         if (!class_exists('Octo\Registry')) {
            staticFacade('\\Octo\\Now', 'Registry');
-        }
-
-        if (!class_exists('Octo\Stubber')) {
-           staticFacade('\\Kahlan\\Plugin\\Stub', 'Stubber');
-        }
-
-        if (!class_exists('Octo\Refactor')) {
-           staticFacade('\\Kahlan\\Plugin\\Monkey', 'Refactor');
         }
 
         $dirs = Arrays::last(
@@ -2104,7 +2109,7 @@
 
         foreach ($middlewares as $middlewareClass) {
             $middleware = app($middlewareClass);
-            $methods    =
+            $methods    = get_class_methods($middleware);
             $method     = lcfirst(Strings::camelize('apply_' . $when));
 
             if (in_array($method, $methods)) {
@@ -2115,11 +2120,11 @@
 
     function aliases($className)
     {
-        $aliases = Registry::get('core.aliases', []);
+        static $aliases = [];
 
         $aliasesFile = path('app') . '/config/aliases.php';
 
-        if (File::exists($aliasesFile)) {
+        if (file_exists($aliasesFile)) {
             $aliasesFromConfig  = include $aliasesFile;
             $aliases            = array_merge($aliases, $aliasesFromConfig);
         }
@@ -2160,11 +2165,11 @@
         $subscribersFile = path('app') . '/config/subscribers.php';
 
         if (File::exists($subscribersFile)) {
-            $ubscribers = include $subscribersFile;
-        }
+            $subscribers = include $subscribersFile;
 
-        foreach ($ubscribers as $subscriberClass) {
-            subscriber($subscriberClass);
+            foreach ($subscribers as $subscriberClass) {
+                subscriber($subscriberClass);
+            }
         }
     }
 
@@ -4990,8 +4995,8 @@
     {
         return function() use ($class, $sep) {
             $segments   = explode($sep, $class);
-            $method     = count($segments) == 2 ? end($segments) : 'supply';
-            $callable   = [app()->make(current($segments)), $method];
+            $method     = count($segments) == 2 ? $segments[1] : 'supply';
+            $callable   = [app($segments[0]), $method];
             $data       = func_get_args();
 
             return call_user_func_array($callable, $data);

@@ -39,7 +39,7 @@
 
         public function __toString()
         {
-            return json_encode($this->rowing($collection));
+            return json_encode($this->rowing());
         }
 
         public function __get($k)
@@ -145,7 +145,16 @@
 
                             return $this;
                         } else {
-                            $this->$m = $closure;
+                            if (is_string($closure) && fnmatch('*@*', $closure)) {
+                                $resolver   = resolverClass($closure);
+                                $macros[$m] = $resolver;
+
+                                Registry::set($key, $macros);
+
+                                return $this;
+                            } else {
+                                $this->$m = $closure;
+                            }
 
                             return $this;
                         }

@@ -163,6 +163,11 @@
             }
         }
 
+        public static function path($baseRoute = '')
+        {
+            return static::uri($baseRoute);
+        }
+
         public static function uri($baseRoute = '')
         {
             $uri = substr($_SERVER['REQUEST_URI'], strlen($baseRoute));
