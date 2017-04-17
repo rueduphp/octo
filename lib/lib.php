@@ -3370,7 +3370,7 @@
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
-        if ($username !== NULL) {
+        if ($username !== null) {
             curl_setopt($ch, CURLOPT_USERPWD, $username . ':' . $password);
         }
 
