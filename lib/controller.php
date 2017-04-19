@@ -15,7 +15,7 @@
 
         public function __get($var)
         {
-            return $this->$var;
+            return isset($this->$var) ? $this->$var : null;
         }
 
         public function __call($method, $args)

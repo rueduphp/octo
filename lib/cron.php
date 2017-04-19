@@ -26,9 +26,9 @@
                 if ($nextDb < $timestamp) {
                     Cli::show("Execution $name", 'COMMENT');
 
-                    call_user_func_array($event, $args);
-
                     $dbCron->setNext($timestamp)->save();
+
+                    call_user_func_array($event, $args);
                 }
             } else {
                 $dbCron->setNext($timestamp)->save();

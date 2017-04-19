@@ -815,7 +815,7 @@
 
     function upload($field, $dest = null)
     {
-        if (Arrays::exists($field, $_FILES)) {
+        if (Arrays::exists($_FILES, $field)) {
             $fileupload         = $_FILES[$field]['tmp_name'];
             $fileuploadName     = $_FILES[$field]['name'];
 
@@ -828,7 +828,7 @@
 
                 if (empty($dest)) {
                     $tab    = explode(".", $fileuploadName);
-                    $bucket = new Bucket(SITE_NAME, URLSITE . 'bucket');
+                    $bucket = new Bucket(SITE_NAME, URLSITE . '/bucket');
                     $ext    = Strings::lower(Arrays::last($tab));
                     $res    = $bucket->data($data, $ext);
 
@@ -1638,6 +1638,37 @@
     function make(array $array = [], $instance = null)
     {
         return lib('ghost', [$array, $instance]);
+    }
+
+    function tern($a, $b)
+    {
+        return $a || $b;
+    }
+
+    function trans($segment, $args = [])
+    {
+        $translation = $segment;
+
+        $keys   = explode('.', $segment);
+        $key    = array_shift($keys);
+        $keys   = implode('.', $keys);
+
+        $path   = path('lang') || path('app') . '/lang/';
+
+        $file   = $path . lng() . '/' . Inflector::lower($key) . '.php';
+
+        if (File::exists($file)) {
+            $segments       = include($file);
+            $translation    = aget($segments, $keys);
+
+            if (!empty($args) && !empty($translation)) {
+                foreach ($args as $k => $v) {
+                    $translation = str_replace('%%' . $k . '%%', $v, $translation);
+                }
+            }
+        }
+
+        return $translation;
     }
 
     function rights()

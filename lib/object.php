@@ -476,14 +476,6 @@
                     $fk = $this->table() . '_id';
                     $fkParent = substr($k, 0, -1);
 
-                    if (!$model) {
-                        $model = false;
-                    } else {
-                        if (true !== $model) {
-                            $model = false;
-                        }
-                    }
-
                     $query = engine($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
 
                     return $query->count() > 0;

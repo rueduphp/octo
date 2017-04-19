@@ -884,6 +884,15 @@
                 $field = $object->table() . '_id';
 
                 return $object->getId() == isAke($row, $field, 0);
+            })->fn('savePost', function ($data = null) use ($model) {
+                $data = is_null($data) ? $_POST : $data;
+
+                foreach ($_POST as $k => $v) {
+                    $setter = setter($k);
+                    $model->$setter($v);
+                }
+
+                return $model->save();
             });
 
             $traits = class_uses($model);
@@ -2433,6 +2442,10 @@
 
         public function read($row)
         {
+            if (is_object($row)) {
+                return $row;
+            }
+
             $model = $this->model($row);
 
             $before = aget($model->hooks, 'before.read', null);
