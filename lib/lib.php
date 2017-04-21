@@ -24,14 +24,31 @@
 
     spl_autoload_register(function ($class) {
         if (!class_exists($class)) {
-            // $status = aliases($class);
+            $tab    = explode('\\', $class);
+            $ns     = array_shift($tab);
+            $lib    = array_shift($tab);
 
-            // if (!$status) {
-                $tab    = explode('\\', $class);
-                $ns     = array_shift($tab);
-                $lib    = array_shift($tab);
+            if ('Octo' == $ns) {
+                if (!empty($tab)) {
+                    $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
+                } else {
+                    $file = __DIR__ . DS . strtolower($lib) . '.php';
+                }
 
-                if ('Octo' == $ns) {
+                if (file_exists($file)) {
+                    require_once $file;
+
+                    return;
+                }
+            } elseif (fnmatch('*Model', $class) && strlen($class) > 5) {
+                $humanized = Inflector::uncamelize($class);
+                list($dbTable, $dummy) = explode($humanized, '_model', 2);
+            } else {
+                if ($ns == $class || empty($ns)) {
+                    if (class_exists('\\Octo\\' . $class)) {
+                        return class_alias('\\Octo\\' . $class, $class);
+                    }
+
                     if (!empty($tab)) {
                         $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
                     } else {
@@ -41,15 +58,12 @@
                     if (file_exists($file)) {
                         require_once $file;
 
-                        return;
+                        return class_alias('\\Octo\\' . $class, $class);
                     }
-                } elseif (fnmatch('*Model', $class) && strlen($class) > 5) {
-                    $humanized = Inflector::uncamelize($class);
-                    list($dbTable, $dummy) = explode($humanized, '_model', 2);
                 }
+            }
 
-                aliases($class);
-            // }
+            aliases($class);
         }
     });
 
@@ -790,7 +804,7 @@
 
     function i64($field)
     {
-        if (Arrays::exists($field, $_FILES)) {
+        if (Arrays::exists($_FILES, $field)) {
             $fileupload         = $_FILES[$field]['tmp_name'];
             $fileuploadName     = $_FILES[$field]['name'];
 
@@ -811,6 +825,14 @@
         }
 
         return null;
+    }
+
+    function src64($src)
+    {
+        $tab    = explode(".", $src);
+        $ext    = Strings::lower(Arrays::last($tab));
+
+        return 'data:image/' . $ext . ';base64,' . base64_encode(dwnCache($src));
     }
 
     function upload($field, $dest = null)
@@ -2323,6 +2345,80 @@
         }
 
         return App::getInstance()->make($make, $params);
+    }
+
+    function injector($make, $params = [])
+    {
+        return (new Now)->make($make, $params);
+    }
+
+    function maker($make, $args = [])
+    {
+        static $binds = [];
+
+        $callable = isAke($binds, $make, null);
+
+        if ($callable && is_callable($callable)) {
+            return call_user_func_array($callable, $args);
+        }
+
+        $ref = new \ReflectionClass($make);
+        $canMakeInstance = $ref->isInstantiable();
+
+        if ($canMakeInstance) {
+            $maker = $ref->getConstructor();
+
+            if ($maker) {
+                $params = $maker->getParameters();
+
+                $instanceParams = [];
+
+                foreach ($params as $param) {
+                    $classParam = $param->getClass();
+
+                    if ($classParam) {
+                        $p = maker($classParam->getName());
+                    } else {
+                        $p = $param->getDefaultValue();
+                    }
+
+                    $instanceParams[] = $p;
+                }
+
+                if (!empty($instanceParams)) {
+                    $i = $ref->newInstanceArgs($instanceParams);
+                } else {
+                    $i = $ref->newInstance();
+                }
+
+                $binds[$make] = resolver($i);
+
+                return $i;
+            } else {
+                $i = $ref->newInstance();
+
+                $binds[$make] = resolver($i);
+
+                return $i;
+            }
+        } else {
+            exception('Dic', "The class $make is not intantiable.");
+        }
+
+        exception('Dic', "The class $make is not set.");
+    }
+
+    function resolver($object)
+    {
+        if (is_callable($object)) {
+            $object = $object();
+        }
+
+        $class = get_class($object);
+
+        return function () use ($object) {
+            return $object;
+        };
     }
 
     function env($key, $default = null)
