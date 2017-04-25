@@ -1665,7 +1665,7 @@
 
     function tern($a, $b)
     {
-        return $a || $b;
+        return $a ? $a : $b;
     }
 
     function trans($segment, $args = [], $locale = null)
@@ -1676,9 +1676,9 @@
         $key    = array_shift($keys);
         $keys   = implode('.', $keys);
 
-        $path   = path('lang') || path('app') . '/lang/';
+        $path   = tern(path('lang'), path('app') . '/lang/');
 
-        $lng    = $locale || lng();
+        $lng    = tern($locale, lng());
 
         $file   = $path . $lng . '/' . Inflector::lower($key) . '.php';
 
@@ -2359,13 +2359,13 @@
         return (new Now)->make($make, $params);
     }
 
-    function maker($make, $args = [])
+    function maker($make, $args = [], $singleton = true)
     {
         static $binds = [];
 
         $callable = isAke($binds, $make, null);
 
-        if ($callable && is_callable($callable)) {
+        if ($callable && is_callable($callable) && $singleton) {
             return call_user_func_array($callable, $args);
         }
 
@@ -2376,26 +2376,30 @@
             $maker = $ref->getConstructor();
 
             if ($maker) {
-                $params = $maker->getParameters();
+                if (empty($args)) {
+                    $params = $maker->getParameters();
 
-                $instanceParams = [];
+                    $instanceParams = [];
 
-                foreach ($params as $param) {
-                    $classParam = $param->getClass();
+                    foreach ($params as $param) {
+                        $classParam = $param->getClass();
 
-                    if ($classParam) {
-                        $p = maker($classParam->getName());
-                    } else {
-                        $p = $param->getDefaultValue();
+                        if ($classParam) {
+                            $p = maker($classParam->getName());
+                        } else {
+                            $p = $param->getDefaultValue();
+                        }
+
+                        $instanceParams[] = $p;
                     }
 
-                    $instanceParams[] = $p;
-                }
-
-                if (!empty($instanceParams)) {
-                    $i = $ref->newInstanceArgs($instanceParams);
+                    if (!empty($instanceParams)) {
+                        $i = $ref->newInstanceArgs($instanceParams);
+                    } else {
+                        $i = $ref->newInstance();
+                    }
                 } else {
-                    $i = $ref->newInstance();
+                    $i = $ref->newInstanceArgs($args);
                 }
 
                 $binds[$make] = resolver($i);
@@ -3160,6 +3164,13 @@
         }
 
         return $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    }
+
+    function image($config = null)
+    {
+        $config = !is_array($config) ? ['driver' => 'imagick'] : $config;
+
+        return maker(\Intervention\Image\ImageManager::class, [$config]);
     }
 
     function imgResize($source_file, $dest_dir, $max_w, $max_h, $stamp_file = null)
