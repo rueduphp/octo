@@ -2918,4 +2918,9 @@
 
             return eventer()->on($key, [$this]);
         }
+
+        public function crud()
+        {
+            return lib('crud', [$this]);
+        }
     }

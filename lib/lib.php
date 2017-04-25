@@ -523,7 +523,7 @@
 
             if ($method == "table") return $table;
 
-            return call_user_func_array([engine($database, $table)($db, $table), $method], $args);
+            return call_user_func_array([engine($db, $table), $method], $args);
         }}';
 
             eval($code);
@@ -594,18 +594,19 @@
         $command = 'curl -X POST https://api.sparkpost.com/api/v1/transmissions -H "Authorization: ' . optGet("api.mail.key") . '" -H "Content-Type: application/json" -d \'{"content": {"from": "' . $from . '","subject": ' . json_encode($subject) . ',';
 
         if ($text && $html) {
-            $command .= '"text": ' . json_encode($text) . ', "html": ' . json_encode($html) . '';
+            $command .= '"text": ' . json_encode($text) . ', "html": ' . json_encode($html);
         } else {
             if ($text) {
-                $command .= '"text": ' . json_encode($text) . '';
+                $command .= '"text": ' . json_encode($text);
             }
 
             if ($html) {
-                $command .= '"html": ' . json_encode($html) . '';
+                $command .= '"html": ' . json_encode($html);
             }
         }
 
         $command .= '},"recipients": [{ "address": "' . $to . '" }]}\'';
+
         exec($command);
 
         return true;
@@ -1947,21 +1948,21 @@
                 $eventer->on(function () use ($eventer) {
                     $args       = func_get_args();
                     $event      = array_shift($args);
-                    $cb         = array_shift($args);
+                    $call       = array_shift($args);
                     $priority   = array_shift($args);
                     $priority   = $priority || 0;
 
                     $events = Registry::get('eventer.events', []);
 
-                    if (!$cb instanceof \Closure) {
-                        $cb = resolverClass($cb);
+                    if (!$call instanceof \Closure) {
+                        $call = resolverClass($call);
                     }
 
                     $priorities = isAke($events, $event, []);
 
                     $segment = isset($priorities[$priority]) ? $priorities[$priority] : [];
 
-                    $segment[] = $cb;
+                    $segment[] = $call;
 
                     $events[$event][$priority] = $segment;
 
@@ -2209,7 +2210,7 @@
         $events = $subscriber->getEvents();
 
         foreach ($events as $event => $method) {
-            eventer()->on($event, $subscriberClass . '@' . $method);
+            Fly::on($event, $subscriberClass . '@' . $method);
         }
     }
 
@@ -5128,4 +5129,20 @@
 
             return call_user_func_array($callable, $data);
         };
+    }
+
+    function strArray($strArray)
+    {
+        return !is_array($strArray)
+        ? strstr($strArray, ',')
+            ? explode(
+                ',',
+                str_replace(
+                    [' ,', ', '],
+                    '',
+                    $strArray
+                )
+            )
+            : [$strArray]
+        : $strArray;
     }
