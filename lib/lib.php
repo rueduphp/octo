@@ -1447,7 +1447,7 @@
 
     function path($k = null, $v = null, $d = null)
     {
-        $paths = (new Now)->get('octo.paths', []);
+        $paths = paths();
 
         if (is_null($k)) {
             return coll($paths);
@@ -1475,7 +1475,7 @@
         require_once __DIR__ . DS . 'cachei.php';
 
         define('OCTO_MAX', 9223372036854775808);
-        define('OCTO_MIN', -9223372036854775808);
+        define('OCTO_MIN', OCTO_MAX * -1);
 
         if (!class_exists('Octo\Route')) {
             Alias::facade('Route', 'Routes', 'Octo');
@@ -1668,7 +1668,7 @@
         return $a || $b;
     }
 
-    function trans($segment, $args = [])
+    function trans($segment, $args = [], $locale = null)
     {
         $translation = $segment;
 
@@ -1678,13 +1678,19 @@
 
         $path   = path('lang') || path('app') . '/lang/';
 
-        $file   = $path . lng() . '/' . Inflector::lower($key) . '.php';
+        $lng    = $locale || lng();
+
+        $file   = $path . $lng . '/' . Inflector::lower($key) . '.php';
 
         if (File::exists($file)) {
             $segments       = include($file);
             $translation    = aget($segments, $keys);
 
             if (!empty($args) && !empty($translation)) {
+                $args = coll($args)->sortBy(function($a) {
+                    return mb_strlen($a) * -1;
+                });
+
                 foreach ($args as $k => $v) {
                     $translation = str_replace('%%' . $k . '%%', $v, $translation);
                 }
