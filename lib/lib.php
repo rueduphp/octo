@@ -5163,3 +5163,18 @@
             : [$strArray]
         : $strArray;
     }
+
+    function kryptid($length = 15)
+    {
+        static $kryptid = null;
+
+        if (is_null($kryptid)) {
+            $kryptid = new Hashids(
+                hash('azertyuiop1234567890'),
+                (int) $length,
+                'abcdefghijkmnpqrstuvwxyz0123456789'
+            );
+        }
+
+        return $kryptid;
+    }
