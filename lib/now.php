@@ -476,11 +476,11 @@
             return $this->bind($class, $resolver);
         }
 
-        public function make($k, array $args = [])
+        public function make($k, array $args = [], $singleton = true)
         {
             $c = $this->get('binds.' . $k, null);
 
-            if (is_callable($c)) {
+            if ($c && is_callable($c) && $singleton) {
                 return call_user_func_array($c, $args);
             } else {
                 $ref = new \ReflectionClass($k);
@@ -490,26 +490,30 @@
                     $maker = $ref->getConstructor();
 
                     if ($maker) {
-                        $params = $maker->getParameters();
+                        if (empty($args)) {
+                            $params = $maker->getParameters();
 
-                        $instanceParams = [];
+                            $instanceParams = [];
 
-                        foreach ($params as $param) {
-                            $classParam = $param->getClass();
+                            foreach ($params as $param) {
+                                $classParam = $param->getClass();
 
-                            if ($classParam) {
-                                $p = $this->make($classParam->getName());
-                            } else {
-                                $p = $param->getDefaultValue();
+                                if ($classParam) {
+                                    $p = $this->make($classParam->getName());
+                                } else {
+                                    $p = $param->getDefaultValue();
+                                }
+
+                                $instanceParams[] = $p;
                             }
 
-                            $instanceParams[] = $p;
-                        }
-
-                        if (!empty($instanceParams)) {
-                            $this->instance($i = $ref->newInstanceArgs($instanceParams));
+                            if (!empty($instanceParams)) {
+                                $this->instance($i = $ref->newInstanceArgs($instanceParams));
+                            } else {
+                                $this->instance($i = $ref->newInstance());
+                            }
                         } else {
-                            $this->instance($i = $ref->newInstance());
+                            $this->instance($i = $ref->newInstanceArgs($args));
                         }
 
                         return $i;
