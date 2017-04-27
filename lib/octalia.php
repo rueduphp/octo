@@ -2952,7 +2952,7 @@
             lcfirst(Strings::camelize($this->db . '_' . $this->table))
             . '.' . $event;
 
-            return eventer()->listen($key, [$this]);
+            return Fly::listen($key, [$this]);
         }
 
         public function on($event, callable $cb)
@@ -2961,7 +2961,7 @@
             lcfirst(Strings::camelize($this->db . '_' . $this->table))
             . '.' . $event;
 
-            return eventer()->on($key, [$this]);
+            return Fly::on($key, [$this]);
         }
 
         public function crud()
