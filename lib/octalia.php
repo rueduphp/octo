@@ -175,8 +175,25 @@
             return $this->driver->get('lastid', 1);
         }
 
+        public function memory()
+        {
+            $entity = Inflector::camelize($this->db . '_' . $this->table);
+
+            $db = dbMemory($entity);
+
+            foreach ($this->get() as $row) {
+                $db->add($row);
+            }
+
+            return $db;
+        }
+
         public function instanciate($db = null, $table = null, $driver = null)
         {
+            $db     = is_null($db) ? $this->db : $db;
+            $table  = is_null($table) ? $this->table : $table;
+            $driver = is_null($driver) ? $this->driver : $driver;
+
             return new self($db, $table, $driver);
         }
 
@@ -227,7 +244,7 @@
         public function optimize()
         {
             $cb = function ($database, $table) {
-                $db = \Octo\engine($database, $table);
+                $db = $this->newQuery();
 
                 foreach ($db->fields() as $field) {
                     $db->select($field);
@@ -1971,7 +1988,7 @@
 
         public function all()
         {
-            return coll($this->get()->toArray());
+            return $this->newQuery()->get();
         }
 
         public function models()
@@ -1982,10 +1999,25 @@
         public function splice($offset, $length = null, $replacement = [])
         {
             if (func_num_args() == 1) {
-                return $this->new(array_values(array_splice((array) $this->getIterator(), $offset)));
+                return $this->new(
+                    array_values(
+                        array_splice(
+                            (array) $this->getIterator(),
+                            $offset
+                        )
+                    )
+                );
             }
 
-            return $this->new(array_values(array_splice((array) $this->getIterator(), $offset, $length, $replacement)));
+            return $this->new(
+                array_values(
+                    array_splice(
+                        (array) $this->getIterator(),
+                        $offset, $length,
+                        $replacement
+                    )
+                )
+            );
         }
 
         public function average($field)
@@ -2285,11 +2317,19 @@
 
                 list($newDb, $newTable) = explode('.', $to, 2);
 
-                $new = new self($newDb, $newTable);
+                $new = new self($newDb, $newTable, $this->driver);
 
                 $new->age(microtime(true));
 
                 return $new;
+            } elseif ($this->driver instanceof Now) {
+                list($newDb, $newTable) = explode('.', $to, 2);
+
+                $this->driver->changeNamespace("ndb.$newDb.$newTable");
+
+                $this->age(microtime(true));
+
+                return $this;
             }
         }
 
@@ -2313,7 +2353,7 @@
 
                 list($newDb, $newTable) = explode('.', $to, 2);
 
-                $new = new self($newDb, $newTable);
+                $new = new self($newDb, $newTable, $this->driver);
 
                 $new->age(microtime(true));
 
@@ -2371,6 +2411,11 @@
             }
 
             return count($datas);
+        }
+
+        public function newQuery()
+        {
+            return new self($this->db, $this->table, $this->driver);
         }
 
         public function json($json)
@@ -2479,7 +2524,7 @@
                 }
 
                 if (is_array($data) && !empty($data)) {
-                    $db = new self($sync->db(), $table);
+                    $db = new self($sync->db(), $table, $sync->driver());
 
                     foreach ($this->ids as $id) {
                         foreach ($data as $syncId) {
@@ -2516,7 +2561,7 @@
                 }
 
                 if (is_array($data) && !empty($data)) {
-                    $db = new self($sync->db(), $table);
+                    $db = new self($sync->db(), $table, $sync->driver());
 
                     foreach ($this->ids as $id) {
                         foreach ($data as $syncId) {
@@ -2552,7 +2597,7 @@
                 }
 
                 if (is_array($data)) {
-                    $db = new self($sync->db(), $table);
+                    $db = new self($sync->db(), $table, $sync->driver());
 
                     foreach ($this->ids as $id) {
                         $db->where([$this->table . '_id', '=', (int) $id])->delete();
@@ -2591,7 +2636,7 @@
                 }
 
                 if (is_array($data)) {
-                    $db = new self($sync->db(), $table);
+                    $db = new self($sync->db(), $table, $sync->driver());
 
                     foreach ($this->ids as $id) {
                         $db->where([$this->table . '_id', '=', (int) $id])->delete();

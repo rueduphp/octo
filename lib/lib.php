@@ -295,9 +295,36 @@
         return lib('Octalia', [$db, $table, $driver]);
     }
 
-    function ldb($db, $table, $driver = null)
+    function ldb($db, $table)
     {
         return lib('octalia', [$db, $table, lib('cachelite', ["$db.$table"])]);
+    }
+
+    function ndb($db, $table)
+    {
+        return lib('octalia', [$db, $table, lib('now', ["ndb.$db.$table"])]);
+    }
+
+    function dbMemory($model, $new = false)
+    {
+        $models = Registry::get('dbMemory.models', []);
+
+        $model = Strings::uncamelize($model);
+
+        if (!isset($models[$model]) || true === $new) {
+            if (fnmatch('*_*', $model)) {
+                list($database, $table) = explode('_', $model, 2);
+            } else {
+                $database   = Strings::uncamelize(Config::get('application.name', 'core'));
+                $table      = $model;
+            }
+
+            $models[$model] = ndb($database, $table);
+
+            Registry::set('dbMemory.models', $models);
+        }
+
+        return $models[$model];
     }
 
     function sdb($db, $table, $driver = null)
@@ -4730,7 +4757,6 @@
                 $table      = $model;
             }
 
-            // $models[$model] = engine($database, $table);
             $models[$model] = call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
 
             Registry::set('em.models', $models);

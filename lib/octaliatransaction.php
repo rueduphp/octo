@@ -15,7 +15,12 @@
         {
             $this->instance = $this->db->copy('transactions.' . str_replace('.', $this->db->path));
 
-            call_user_func_array($this->callback, [$this->instance, $this]);
+            call_user_func_array(
+                $this->callback, [
+                    $this->instance,
+                    $this
+                ]
+            );
         }
 
         public function commit()
@@ -24,14 +29,14 @@
             $this->instance->copy($this->db->db . '.' . $this->db->table);
             $this->instance->drop();
 
-            return $this;
+            return $this->db;
         }
 
         public function rollback()
         {
             $this->instance->drop();
 
-            return $this;
+            return $this->db;
         }
 
         public function success()

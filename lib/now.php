@@ -21,6 +21,35 @@
             }
         }
 
+        public function getDirectory()
+        {
+            return 'now.' . $this->ns;
+        }
+
+        public function copy($new, $drop = false)
+        {
+            if (!isset(self::$data[$this->ns])) {
+                $actualData = self::$data[$this->ns];
+
+                if ($drop) {
+                    unset(self::$data[$this->ns]);
+                }
+
+                $this->ns = $new;
+
+                self::$data[$this->ns] = $actualData;
+
+                return $this;
+            } else {
+                exception('now', "Yhe namespace $ns is already in use.");
+            }
+        }
+
+        public function rename($new)
+        {
+            return $this->copy($new, true);
+        }
+
         public function pattern($pattern = '*')
         {
             return Arrays::pattern(self::$data[$this->ns], $pattern);
@@ -542,5 +571,44 @@
             } else {
                 return $rows;
             }
+        }
+
+        public function until($k, callable $c, $maxAge = null, $args = [])
+        {
+            $keyAge = $k . '.maxage';
+            $v      = $this->get($k);
+
+            if ($v) {
+                if (is_null($maxAge)) {
+                    return $v;
+                }
+
+                $age = $this->get($keyAge);
+
+                if (!$age) {
+                    $age = $maxAge - 1;
+                }
+
+                if ($age >= $maxAge) {
+                    return $v;
+                } else {
+                    $this->delete($k);
+                    $this->delete($keyAge);
+                }
+            }
+
+            $data = call_user_func_array($c, $args);
+
+            $this->set($k, $data);
+
+            if (!is_null($maxAge)) {
+                if ($maxAge < 1000000000) {
+                    $maxAge = ($maxAge * 60) + microtime(true);
+                }
+
+                $this->set($keyAge, $maxAge);
+            }
+
+            return $data;
         }
     }
