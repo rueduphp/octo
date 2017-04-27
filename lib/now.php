@@ -156,13 +156,13 @@
 
         public function getOr($k, callable $c)
         {
-            if ($this->has($k)) {
-                return $this->get($k);
+            $res = $this->get($k, 'octodummy');
+
+            if ('octodummy' == $res) {
+                $this->set($k, $res = $c());
             }
 
-            $res = $c();
-
-            return $this->set($k, $res);
+            return $res;
         }
 
         public function listen($k, callable $c)
@@ -602,7 +602,7 @@
             $this->set($k, $data);
 
             if (!is_null($maxAge)) {
-                if ($maxAge < 1000000000) {
+                if ($maxAge < 1000000) {
                     $maxAge = ($maxAge * 60) + microtime(true);
                 }
 

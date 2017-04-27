@@ -200,14 +200,14 @@
         public function age($t = null)
         {
             if (empty($t)) {
-                return $this->driver->getOr('age', function () {
+                $t = $this->driver->getOr('age', function () {
                     return microtime(true);
                 });
             } else {
                 $this->driver->set('age', $t);
-
-                return $this;
             }
+
+            return $t;
         }
 
         public function fresh()
@@ -2151,22 +2151,22 @@
             return $this->where([$field, '>=', $value]);
         }
 
-        public function before($date, $exact = true)
+        public function before($date, $strict = true)
         {
             if (!is_int($date)) {
                 $date = (int) $date->timestamp;
             }
 
-            return $exact ? $this->lt('created_at', $date) : $this->lte('created_at', $date);
+            return $strict ? $this->lt('created_at', $date) : $this->lte('created_at', $date);
         }
 
-        public function after($date, $exact = true)
+        public function after($date, $strict = true)
         {
             if (!is_int($date)) {
                 $date = (int) $date->timestamp;
             }
 
-            return $exact ? $this->gt('created_at', $date) : $this->gte('created_at', $date);
+            return $strict ? $this->gt('created_at', $date) : $this->gte('created_at', $date);
         }
 
         public function when($field, $op, $date)
