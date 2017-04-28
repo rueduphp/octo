@@ -385,6 +385,20 @@
             return $affected;
         }
 
+        function memory()
+        {
+            $entity = Inflector::camelize($this->db . '_' . $this->table);
+
+            $db = dbMemory($entity);
+
+            foreach ($this->getIterator() as $id) {
+                $row = $this->db->read($this->db->row($id));
+                $db->add($row);
+            }
+
+            return $db->get();
+        }
+
         public function table()
         {
             return $this->table;

@@ -3,17 +3,18 @@
 
     class Octal
     {
-        private $entity;
-        private $entityFields = [];
+        protected $app;
+        protected $entity;
+        protected $entityFields = [];
+
+        public function __construct(App $app)
+        {
+            $this->app = $app;
+        }
 
         public function orm()
         {
             return em($this->entity);
-        }
-
-        public function getEntityFields()
-        {
-            return $this->entityFields;
         }
 
         public function setEntityField($field)
@@ -43,9 +44,9 @@
 
         public static function __callStatic($m, $a)
         {
-            $orm = em(self::$entity);
+            $instance = maker(get_called_class());
 
-            return call_user_func_array([$orm, $m], $a);
+            return call_user_func_array([$instance, $m], $a);
         }
 
         public function __call($m, $a)

@@ -513,7 +513,7 @@
 
         public function rowAndDelete($id)
         {
-            $row = $this->row($id, $model);
+            $row = $this->row($id);
 
             if ($row) {
                 $this->delete($id);
@@ -2501,7 +2501,7 @@
                 $after($row, $this);
             }
 
-            return $row;
+            return $this->fire('fetch', $row);
         }
 
         public function attach($data)
