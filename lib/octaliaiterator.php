@@ -252,6 +252,61 @@
             return $model ? $this->db->model($row) : $row;
         }
 
+        public function with($entity)
+        {
+            if (is_callable($this->closure)) {
+                $cb = $this->closure;
+
+                $this->closure = function ($row) use ($entity, $cb) {
+                    $model = Inflector::uncamelize($entity);
+
+                    if (fnmatch('*_*', $model)) {
+                        list($database, $table) = explode('_', $model, 2);
+                    } else {
+                        $database   = $this->database;
+                        $table      = $model;
+                    }
+
+                    $fkDb = em(Inflector::camelize($database . '_' . $table));
+
+                    $row = $cb($row);
+
+                    if (is_array($row)) {
+                        $row[$table] = $fkDb->row($row[$table . '_id']);
+                    } else {
+                        $setter = setter($table);
+                        $row->$setter($fkDb->find($row[$table . '_id']));
+                    }
+
+                    return $row;
+                };
+            } else {
+                $this->hook(function ($row) use ($entity) {
+                    $model = Inflector::uncamelize($entity);
+
+                    if (fnmatch('*_*', $model)) {
+                        list($database, $table) = explode('_', $model, 2);
+                    } else {
+                        $database   = $this->database;
+                        $table      = $model;
+                    }
+
+                    $fkDb = em(Inflector::camelize($database . '_' . $table));
+
+                    if (is_array($row)) {
+                        $row[$table] = $fkDb->row($row[$table . '_id']);
+                    } else {
+                        $setter = setter($table);
+                        $row->$setter($fkDb->find($row[$table . '_id']));
+                    }
+
+                    return $row;
+                });
+            }
+
+            return $this;
+        }
+
         public function model()
         {
             $this->hook(function ($row) {

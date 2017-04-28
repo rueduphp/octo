@@ -51,7 +51,7 @@
                             $result = call_user_func_array($eventLoaded, $args);
 
                             if ($result instanceof Object && $result->getStopPropagation() == 1) {
-                                return $results;
+                                return $result->getValue();
                             }
 
                             $results[$key][] = $result;
@@ -72,6 +72,16 @@
                     unset($events[$event][$priority]);
                 }
             }
+        }
+
+        public static function has($event)
+        {
+            return isset(self::$events[$event]);
+        }
+
+        public static function returnValue($value)
+        {
+            return o()->setStopPropagation(1)->setValue($value);
         }
 
         public static function __callStatic($m, $a)

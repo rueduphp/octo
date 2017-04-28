@@ -281,7 +281,7 @@
         {
             $this->reset();
 
-            return count($this->iterator());
+            return $this->fire('count', count($this->iterator()));
         }
 
         private function add($row)
@@ -357,7 +357,7 @@
         public function save(array $data, $model = true)
         {
             $this->reset();
-            if ($this->fire('saving') === false) return false;
+            if ($this->fire('saving', $data) === false) return false;
 
             $id = isAke($data, 'id', null);
 
@@ -371,7 +371,7 @@
             }
 
             if ($saved) {
-                $this->fire('saved');
+                $saved = $this->fire('saved', $saved);
             }
 
             return $saved;
@@ -379,17 +379,16 @@
 
         private function insert(array $data, $model = true)
         {
-            if ($this->fire('creating') === false) return false;
+            if ($this->fire('creating', $data) === false) return false;
 
             $this->add($data);
-            $this->fire('created');
 
-            return $model ? $this->model($data) : $data;
+            return $this->fire('created', $model ? $this->model($data) : $data);
         }
 
         private function modify(array $data, $model = true)
         {
-            if ($this->fire('updating') === false) return false;
+            if ($this->fire('updating', $data) === false) return false;
 
             $data['updated_at'] = time();
 
@@ -404,9 +403,8 @@
             $this->delete($data['id']);
 
             $this->add($data, true);
-            $this->fire('updated');
 
-            return $model ? $this->model($data) : $data;
+            return $this->fire('updated', $model ? $this->model($data) : $data);
         }
 
         public function delete($id = null, $soft = false)
@@ -420,12 +418,12 @@
             $exists = !is_null($row);
 
             if ($exists) {
+                if ($this->fire('deleting', $row) === false) return false;
+
                 if ($soft) {
                     $row['deleted_at'] = time();
                     $this->modify($row);
                 } else {
-                    if ($this->fire('deleting') === false) return false;
-
                     $this->driver->delete($id);
 
                     $rows = $this->driver->get('rows', []);
@@ -435,11 +433,10 @@
                     $this->driver->set('rows', $rows);
 
                     $this->age(microtime(true));
-                    $this->fire('deleted');
                 }
             }
 
-            return $exists;
+            return $this->fire('deleted', $exists);
         }
 
         public function drop()
@@ -928,7 +925,7 @@
                 }
             }
 
-            return $model;
+            return $this->fire('model', $model);
         }
 
         public function createFake()
@@ -1533,7 +1530,7 @@
 
             $keyCache = 'whqsql.' . sha1(serialize($this->query) . $this->ns);
 
-            $ids = $this->driver->until($keyCache, function () use ($key, $operator, $value) {
+            $ids = $this->driver->until($keyCache, function () use ($key, $operator, $value, $liteTable) {
                 $this->lite($key, $operator, $value);
 
                 $sql = "SELECT row_id as id FROM $liteTable WHERE $key ";
@@ -1983,7 +1980,7 @@
 
             $iterator = lib('OctaliaIterator', [$this]);
 
-            return $model ? $iterator->model() : $iterator;
+            return $this->fire('get', $model ? $iterator->model() : $iterator);
         }
 
         public function all()
@@ -2946,26 +2943,23 @@
             return $this->model($data);
         }
 
-        private function fire($event)
+        private function fire($event, $concern = null)
         {
             $key = 'octalia.' .
             lcfirst(Strings::camelize($this->db . '_' . $this->table))
             . '.' . $event;
 
-            return Fly::listen($key, [$this]);
+            return Fly::has($key) ? Fly::listen($key, $concern, $this) : $concern;
         }
 
-        public function on($event, callable $cb)
+        public function on($event, callable $cb, $back = null)
         {
             $key = 'octalia.' .
             lcfirst(Strings::camelize($this->db . '_' . $this->table))
             . '.' . $event;
 
-            return Fly::on($key, [$this]);
-        }
+           Fly::on($key, $cb);
 
-        public function crud()
-        {
-            return lib('crud', [$this]);
+           return is_null($back) ? $this : $back;
         }
     }
