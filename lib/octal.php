@@ -14,7 +14,7 @@
 
         public function orm()
         {
-            return em($this->entity);
+            return em($this->entity)->newQuery();
         }
 
         public function setEntityField($field)
@@ -44,7 +44,7 @@
 
         public static function __callStatic($m, $a)
         {
-            $instance = maker(get_called_class());
+            $instance = maker(get_called_class(), [], false);
 
             return call_user_func_array([$instance, $m], $a);
         }
