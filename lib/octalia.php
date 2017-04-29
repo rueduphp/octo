@@ -1314,6 +1314,16 @@
             return $this->find($id, $model);
         }
 
+        public function takeFisrt($limit = 1)
+        {
+            return $this->sortBy('id')->take($limit)->get();
+        }
+
+        public function takeLast($limit = 1)
+        {
+            return $this->sortByDesc('id')->take($limit)->get();
+        }
+
         public function slice($offset, $length = null)
         {
             $ids        = array_values(array_slice((array) $this->iterator(), $offset, $length, true));
