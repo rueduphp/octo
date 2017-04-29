@@ -257,10 +257,13 @@
 
         public function ids()
         {
-            $keyCache = sha1('ids.' . $this->ns);
+            $keyCache = sha1($this->ns . '.ids');
 
             return $this->driver->until($keyCache, function () {
-                return array_keys($this->data());
+                $ids = array_keys($this->data());
+                asort($ids);
+
+                return $ids;
             }, $this->age());
         }
 
@@ -459,20 +462,7 @@
             }
 
             if (is_array($id)) {
-                $coll = [];
-
-                foreach ($id as $key) {
-                    $row = $this->driver->get($key);
-
-                    if ($row) {
-                        $row = $this->read($row);
-                        $coll[] = $model ? $this->model($row) : $row;
-                    }
-                }
-
-                $this->reset();
-
-                return coll($coll);
+                return $this->newQuery()->whereIn('id', $id)->get(true);
             }
 
             $row = $this->driver->get($id);
