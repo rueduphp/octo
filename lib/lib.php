@@ -63,7 +63,9 @@
                 }
             }
 
-            aliases($class);
+            if (!defined('OCTO_STANDALONE')) {
+                aliases($class);
+            }
         }
     });
 
