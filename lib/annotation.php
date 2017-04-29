@@ -1,27 +1,49 @@
 <?php
     namespace Octo;
+
     use ReflectionClass;
+    use ReflectionFunction;
 
     class Annotation
     {
         const ANNOTATION_REGEX = '/@(\w+)(?:\s*(?:\(\s*)?(.*?)(?:\s*\))?)??\s*(?:\n|\*\/)/';
         const PARAMETER_REGEX = '/(\w+)\s*=\s*(\[[^\]]*\]|"[^"]*"|[^,)]*)\s*(?:,|$)/';
 
+        public static function property($class, $property)
+        {
+            $reflection = new ReflectionClass($class);
+            $property   = $reflection->getProperty($property);
+
+            return static::parse($reflection->getProperty($property));
+        }
+
         public static function method($class, $method)
         {
             $reflection = new ReflectionClass($class);
             $method     = $reflection->getMethod($method);
-            $docs       = $method->getDocComment();
 
-            return static::parse($docs);
+            return static::parse($method->getDocComment());
+        }
+
+        public static function func($function)
+        {
+            $reflection = new ReflectionFunction($function);
+
+            return static::parse($reflection->getDocComment());
+        }
+
+        public static function __callStatic($m, $a)
+        {
+            if ('function' == $m) {
+                return forward_static_call_array([__CLASS__, 'func'], $a);
+            }
         }
 
         public static function class($class)
         {
             $reflection = new ReflectionClass($class);
-            $docs       = $reflection->getDocComment();
 
-            return static::parse($docs);
+            return static::parse($reflection->getDocComment());
         }
 
         protected static function parse($docComment)
