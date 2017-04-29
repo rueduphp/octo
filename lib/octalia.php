@@ -2944,7 +2944,7 @@
             return $this->model($data);
         }
 
-        private function fire($event, $concern = null)
+        public function fire($event, $concern = null)
         {
             $key = 'octalia.' .
             lcfirst(Strings::camelize($this->db . '_' . $this->table))

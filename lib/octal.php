@@ -62,7 +62,7 @@
          * get
          * count
          */
-        public function setEntityEvent($event, callable $callable)
+        public function on($event, callable $callable)
         {
             return $this->orm()->on($event, $callable, $this);
         }
