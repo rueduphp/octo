@@ -907,6 +907,17 @@
                 }
 
                 return $model->save();
+            })->fn('storePost', function ($only = []) use ($model) {
+                foreach ($_POST as $k => $v) {
+                    if (!empty($only) && !in_array($k, $only)) {
+                        continue;
+                    }
+
+                    $setter = setter($k);
+                    $model->$setter($v);
+                }
+
+                return $model->save();
             });
 
             $traits = class_uses($model);
