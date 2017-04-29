@@ -20,14 +20,13 @@
 
                 if (!empty($traits)) {
                     foreach ($traits as $trait) {
-                        $tab = explode('\\', $trait);
-                        $traitName = Inflector::lower(end($tab));
-                        $method = lcfirst(Inflector::camelize('boot_' . $traitName . '_trait'));
-
-                        $methods = get_class_methods($traits);
+                        $tab        = explode('\\', $trait);
+                        $traitName  = Inflector::lower(end($tab));
+                        $method     = lcfirst(Inflector::camelize('boot_' . $traitName . '_trait'));
+                        $methods    = get_class_methods($this);
 
                         if (in_array($method, $methods)) {
-                            call_user_func_array([$model, $method], []);
+                            call_user_func_array([$this, $method], []);
                         }
                     }
                 }
