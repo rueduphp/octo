@@ -337,29 +337,38 @@
             }
         }
 
-        public function create(array $data = [])
+        public function create($data = [])
         {
+            $data = is_object($data) ? $data->toArray() : $data;
+
             return $this->model($data);
         }
 
-        public function store(array $data = [])
+        public function store($data = [])
         {
+            $data = is_object($data) ? $data->toArray() : $data;
+
             return $this->model($data)->save();
         }
 
-        public function persist(array $data = [])
+        public function persist($data = [])
         {
-            return $this->model($data)->save();
+            return $this->store($data);
         }
 
         public function createIfNotExists(array $data = [])
         {
+            $data = is_object($data) ? $data->toArray() : $data;
+
             return $this->firstOrCreate($data);
         }
 
-        public function save(array $data, $model = true)
+        public function save($data, $model = true)
         {
+            $data = is_object($data) ? $data->toArray() : $data;
+
             $this->reset();
+
             if ($this->fire('saving', $data) === false) return false;
 
             $id = isAke($data, 'id', null);
@@ -1613,7 +1622,7 @@
             } elseif ($nargs == 3) {
                 list($key, $operator, $value) = func_get_args();
             } else {
-                throw new Exception("This method requires at least one argument to proceed.");
+                exception('octalia', "This method requires at least one argument to proceed.");
             }
 
             $operator = Strings::lower($operator);
@@ -1940,7 +1949,13 @@
 
         public function paginate($page, $perPage)
         {
-            return $this->new(array_slice((array) $this->iterator(), ($page - 1) * $perPage, $perPage));
+            return $this->new(
+                array_slice(
+                    (array) $this->iterator(),
+                    ($page - 1) * $perPage,
+                    $perPage
+                )
+            );
         }
 
         public function deletes()
@@ -1963,6 +1978,8 @@
 
         public function update(array $criteria)
         {
+            $criteria = is_object($criteria) ? $criteria->toArray() : $criteria;
+
             $affected = 0;
 
             foreach ($this->get() as $item) {
@@ -1972,7 +1989,7 @@
                     if ($row) {
                         foreach ($criteria as $k => $v) {
                             $setter = setter($k);
-                            $v = value($v);
+                            $v      = value($v);
                             $row->$setter($v);
                         }
 
@@ -2021,7 +2038,8 @@
                 array_values(
                     array_splice(
                         (array) $this->getIterator(),
-                        $offset, $length,
+                        $offset,
+                        $length,
                         $replacement
                     )
                 )
@@ -2196,7 +2214,7 @@
             $row = $this->row($id);
 
             if (!$row) {
-                throw new Exception("The row $id does not exist.");
+                exception('octalia', "The row $id does not exist.");
             } else {
                 return $model ? $this->model($row) : $row;
             }
@@ -2218,7 +2236,7 @@
             $row = $this->last();
 
             if (!$row) {
-                throw new Exception("The row does not exist.");
+                exception('octalia', "The row does not exist.");
             } else {
                 return $model ? $this->model($row) : $row;
             }
@@ -2226,8 +2244,10 @@
 
         public function noTuple($conditions)
         {
+            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+
             foreach ($conditions as $k => $v) {
-                $this->where([$k, '=', $v]);
+                $this->where($k, $v);
             }
 
             if ($this->count() == 0) {
@@ -2244,6 +2264,8 @@
 
         function search($conditions)
         {
+            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+
             foreach ($conditions as $field => $value) {
                 $this->where($field, $value);
             }
@@ -2253,9 +2275,11 @@
 
         public function firstByAttributes($attributes, $model = true)
         {
+            $attributes = is_object($attributes) ? $attributes->toArray() : $attributes;
+
             $q = $this;
 
-            foreach ($conditions as $field => $value) {
+            foreach ($attributes as $field => $value) {
                 $q->where($field, $value);
             }
 
@@ -2264,6 +2288,8 @@
 
         public function firstOrCreate($conditions)
         {
+            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+
             $q = $this;
 
             foreach ($conditions as $field => $value) {
@@ -2281,6 +2307,8 @@
 
         public function firstOrNew($conditions)
         {
+            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+
             $q = $this;
 
             foreach ($conditions as $field => $value) {
@@ -2697,10 +2725,12 @@
             return $this;
         }
 
-        public function lookfor(array $criterias, $cursor = false)
+        public function lookfor($conditions, $cursor = false)
         {
-            foreach ($criterias as $field => $value) {
-                $this->where([$field, '=', $value]);
+            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+
+            foreach ($conditions as $field => $value) {
+                $this->where($field, $value);
             }
 
             return $cursor ? $this->get() : $this;
@@ -2741,7 +2771,7 @@
             return $this->model([]);
         }
 
-        public function updateOrCreate(array $attributes, array $values = [])
+        public function updateOrCreate($attributes, array $values = [])
         {
             return $this->firstOrCreate($attributes)->fill($values)->save();
         }
@@ -2768,12 +2798,12 @@
 
         public function findFirstBy($field, $value, $object = false)
         {
-            return $this->where([$field, '=', $value])->first($object);
+            return $this->where($field, $value)->first($object);
         }
 
         public function findLastBy($field, $value, $object = false)
         {
-            return $this->where([$field, '=', $value])->last($object);
+            return $this->where($field, $value)->last($object);
         }
 
         public function multiQuery(array $queries)
@@ -2821,11 +2851,13 @@
 
             $where = empty($where) ? [['id', '>', 0]] : $where;
 
-            $db1 = engine($database, $t1);
+            $db1 = new self($database, $t1, $this->driver);
 
             $fk = $this->table . '_id';
 
-            $rows = $this->multiQuery($where)->get();
+            $rows = $this
+            ->multiQuery($where)
+            ->get();
 
             $ids = [];
 
@@ -2833,7 +2865,9 @@
                 $ids[] = $row['id'];
             }
 
-            $sub = $db1->where([$fk, 'IN', implode(',', $ids)])->get();
+            $sub = $db1
+            ->where([$fk, 'IN', implode(',', $ids)])
+            ->get();
 
             $ids = [];
 
@@ -2849,12 +2883,15 @@
                 list($database, $t2) = explode('.', $t2, 2);
             }
 
-            return engine($database, $t2)->where([$fk2, 'IN', implode(',', $ids)])->get();
+            return (new self($database, $t2, $this->driver))
+            ->where([$fk2, 'IN', implode(',', $ids)])
+            ->get();
         }
 
         public function findAndModify($where, array $update)
         {
             unset($update['id']);
+
             $where = is_numeric($where) ? ['id', '=', $where] : $where;
 
             $rows = $this->where($where)->get();

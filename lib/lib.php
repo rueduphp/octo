@@ -782,12 +782,27 @@
         }
     }
 
+    function item($attributes = [])
+    {
+        return lib('fluent', [$attributes]);
+    }
+
     function request($k = null, $d = null)
     {
         if (empty($k)) {
             return lib('object', [oclean($_REQUEST)]);
         } else {
-            return isAke(oclean($_REQUEST), $k, $d);
+            if (is_array($k)) {
+                $return = [];
+
+                foreach ($k as $key) {
+                    $return[$key] = isAke($_REQUEST, $key, null);
+                }
+
+                return o($return);
+            } else {
+                return isAke(oclean($_REQUEST), $k, $d);
+            }
         }
     }
 
