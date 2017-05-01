@@ -341,4 +341,10 @@
                 }
             }
         }
+
+        public function action($action)
+        {
+            $this->action = $action;
+            $this->$action();
+        }
     }
