@@ -4426,11 +4426,17 @@
         return $validator;
     }
 
+    function laravel()
+    {
+        return call_user_func_array('app', func_get_args());
+    }
+
     function laravel5($app, $name = 'laravel_app', callable $config = null)
     {
         Timer::start();
 
         $basePath = \base_path();
+        $appPath = \app_path();
 
         systemBoot($basePath . '/public');
 
@@ -4454,7 +4460,11 @@
             Dir::mkdir($basePath . '/database/octalia/data');
         }
 
-        Config::set('laravel', $app);
+        if (!is_dir($appPath . '/Entities')) {
+            Dir::mkdir($appPath . '/Entities');
+        }
+
+        Registry::set('laravel', $app);
 
         Config::set('application.name',     $name);
         Config::set('application.dir',      realpath($basePath . '/app'));
@@ -4475,38 +4485,6 @@
         path('octalia',                     Config::get('octalia.dir', session_save_path()));
         path('cache',                       Config::get('dir.cache', session_save_path()));
 
-        lib('MigrationCommand');
-
-        $app['command.octo.migration'] = $app->share(
-            function ($app) {
-                return new MigrationCommand;
-            }
-        );
-
-        $commands[] = 'command.octo.migration';
-
-        $app['command.octo.seed'] = $app->share(
-            function ($app) {
-                return new SeedCommand;
-            }
-        );
-
-        $commands[] = 'command.octo.seed';
-
-        $app['command.octo.clean'] = $app->share(
-            function ($app) {
-                return new CleanFakeCommand;
-            }
-        );
-
-        $commands[] = 'command.octo.clean';
-
-        $events = $app['events'];
-
-        $events->listen(\Illuminate\Console\Events\ArtisanStarting::class, function ($event) use ($commands) {
-            $event->artisan->resolveCommands($commands);
-        });
-
         if (is_callable($config)) {
             $config($app);
         }
@@ -4514,7 +4492,7 @@
 
     function tinker()
     {
-        laravel5(\app());
+        laravel5(laravel());
     }
 
     function createModel(Octalia $model, array $fields = [])
