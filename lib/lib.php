@@ -1600,7 +1600,7 @@
 
             date_default_timezone_set(Config::get('timezone', 'Europe/Paris'));
 
-            if (!IS_CLI) {
+            if (!IS_CLI && isset($_SERVER["SERVER_PORT"])) {
                 $protocol = 'http';
 
                 if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') {

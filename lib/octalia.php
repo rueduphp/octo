@@ -2136,7 +2136,7 @@
 
         public function storePost()
         {
-            return $yhis->post(true);
+            return $this->post(true);
         }
 
         public function lt($field, $value)

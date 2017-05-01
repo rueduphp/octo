@@ -138,9 +138,10 @@
             return $collection;
         }
 
-        public static function tasks()
+        public static function tasks($dir = null)
         {
-            $tasks = glob(path('tasks') . DS . '*.php');
+            $dir = is_null($dir) ? path('tasks') : $dir;
+            $tasks = glob($dir . DS . '*.php');
             $collection = array();
 
             if (count($tasks)) {
