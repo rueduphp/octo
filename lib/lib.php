@@ -292,9 +292,9 @@
         return lib('eav', [$db, $table, 'sqlite']);
     }
 
-    function odb($db, $table, $driver = null)
+    function odb($db, $table)
     {
-        return lib('Octalia', [$db, $table, $driver]);
+        return lib('Octalia', [$db, $table]);
     }
 
     function ldb($db, $table)
@@ -4707,9 +4707,9 @@
         return fmr('keep')->del($key);
     }
 
-    function engine($database = 'core', $table = 'core', $driver = 'ldb')
+    function engine($database = 'core', $table = 'core', $driver = 'odb')
     {
-        $engine = Config::get('octalia.engine', 'ldb');
+        $engine = Config::get('octalia.engine', $driver);
 
         if (function_exists('\\Octo\\' . $engine)) {
             return call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
