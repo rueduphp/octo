@@ -784,6 +784,8 @@
 
     function item($attributes = [])
     {
+        $attributes = is_object($attributes) ? $attributes->toArray() : $attributes;
+
         return lib('fluent', [$attributes]);
     }
 

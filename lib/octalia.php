@@ -344,6 +344,16 @@
             return $this->model($data);
         }
 
+        public function item($data = [])
+        {
+            return item($data);
+        }
+
+        public function record($data = [])
+        {
+            return item($data);
+        }
+
         public function store($data = [])
         {
             $data = is_object($data) ? $data->toArray() : $data;

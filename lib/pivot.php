@@ -365,4 +365,172 @@
                 return $row;
             }
         }
+
+        public static function sync($model1, $model2)
+        {
+            if (!is_object($model1)) {
+                exception('pivot', 'the first argument must be a model.');
+            }
+
+            if (!is_object($model2)) {
+                exception('pivot', 'the second argument must be a model.');
+            }
+
+            if (!$model1->exists()) {
+                exception('pivot', "sync method requires a valid model 1.");
+            }
+
+            if (!$model2->exists()) {
+                exception('pivot', "sync method requires a valid model 2.");
+            }
+
+            if ($model1->db() != $model2->db()) {
+                exception('pivot', "sync method requires the 2 models have the same database.");
+            }
+
+            $m1Table = $model1->table();
+            $m2Table = $model2->table();
+
+            $names = [(string) $m1Table, (string) $m2Table];
+
+            asort($names);
+
+            $entity = Inflector::camelize($model1->db() . '_' . current($names) . end($names));
+
+            $db = em($entity);
+
+            $exists = $db
+            ->where($m1Table . '_id', $model1->id)
+            ->where($m2Table . '_id', $model2->id)
+            ->exists();
+
+            if (!$exists) {
+                $item = [
+                    $m1Table . '_id' => $model1->id,
+                    $m2Table . '_id' => $model2->id
+                ];
+
+                $db->store($item);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public static function get($model1, $model2)
+        {
+            if (!is_object($model1)) {
+                exception('pivot', 'the first argument must be a model.');
+            }
+
+            if (!is_object($model2)) {
+                exception('pivot', 'the second argument must be a model.');
+            }
+
+            if (!$model1->exists()) {
+                exception('pivot', "get method requires a valid model 1.");
+            }
+
+            if (!$model2->exists()) {
+                exception('pivot', "get method requires a valid model 2.");
+            }
+
+            if ($model1->db() != $model2->db()) {
+                exception('pivot', "get method requires the 2 models have the same database.");
+            }
+
+            $m1Table = $model1->table();
+            $m2Table = $model2->table();
+
+            $names = [(string) $m1Table, (string) $m2Table];
+
+            asort($names);
+
+            $entity = Inflector::camelize($model1->db() . '_' . current($names) . end($names));
+
+            $db = em($entity);
+
+            return $db
+            ->where($m1Table . '_id', $model1->id)
+            ->where($m2Table . '_id', $model2->id);
+        }
+
+        public static function bound($model1, $model2)
+        {
+            if (!is_object($model1)) {
+                exception('pivot', 'the first argument must be a model.');
+            }
+
+            if (!is_object($model2)) {
+                exception('pivot', 'the second argument must be a model.');
+            }
+
+            if (!$model1->exists()) {
+                exception('pivot', "bound method requires a valid model 1.");
+            }
+
+            if (!$model2->exists()) {
+                exception('pivot', "bound method requires a valid model 2.");
+            }
+
+            if ($model1->db() != $model2->db()) {
+                exception('pivot', "bound method requires the 2 models have the same database.");
+            }
+
+            $m1Table = $model1->table();
+            $m2Table = $model2->table();
+
+            $names = [(string) $m1Table, (string) $m2Table];
+
+            asort($names);
+
+            $entity = Inflector::camelize($model1->db() . '_' . current($names) . end($names));
+
+            $db = em($entity);
+
+            return $db
+            ->where($m1Table . '_id', $model1->id)
+            ->where($m2Table . '_id', $model2->id)
+            ->exists();
+        }
+
+        public static function remove($model1, $model2)
+        {
+            if (!is_object($model1)) {
+                exception('pivot', 'the first argument must be a model.');
+            }
+
+            if (!is_object($model2)) {
+                exception('pivot', 'the second argument must be a model.');
+            }
+
+            if (!$model1->exists()) {
+                exception('pivot', "remove method requires a valid model 1.");
+            }
+
+            if (!$model2->exists()) {
+                exception('pivot', "remove method requires a valid model 2.");
+            }
+
+            if ($model1->db() != $model2->db()) {
+                exception('pivot', "remove method requires the 2 models have the same database.");
+            }
+
+            $m1Table = $model1->table();
+            $m2Table = $model2->table();
+
+            $names = [(string) $m1Table, (string) $m2Table];
+
+            asort($names);
+
+            $entity = Inflector::camelize($model1->db() . '_' . current($names) . end($names));
+
+            $db = em($entity);
+
+            return $db
+            ->where($m1Table . '_id', $model1->id)
+            ->where($m2Table . '_id', $model2->id)
+            ->delete();
+        }
     }

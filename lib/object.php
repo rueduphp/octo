@@ -871,6 +871,34 @@
             return $this;
         }
 
+        public function synchronize(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::sync($this, $model);
+            }
+        }
+
+        public function unsynchronize(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::remove($this, $model);
+            }
+        }
+
+        public function synchronized(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::get($this, $model);
+            }
+        }
+
+        public function bound(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::bound($this, $model);
+            }
+        }
+
         public function isDirty()
         {
             return $this->initial != $this->data;
