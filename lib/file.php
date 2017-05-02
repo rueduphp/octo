@@ -555,4 +555,12 @@
         {
             return substr(sprintf('%o', fileperms($file)), -3);
         }
+
+        public static function iterator($directory)
+        {
+            return new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+        }
     }

@@ -171,7 +171,27 @@
             return $this;
         }
 
+        public function mset(array $values, $e = null)
+        {
+            foreach ($values as $k => $v) {
+                $this->set($k, $v, $e);
+            }
+
+            return $this;
+        }
+
         public function many(array $keys)
+        {
+            $return = [];
+
+            foreach ($keys as $key) {
+                $return[$key] = $this->get($key);
+            }
+
+            return $return;
+        }
+
+        public function mget(array $keys)
         {
             $return = [];
 

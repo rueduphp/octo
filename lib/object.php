@@ -899,6 +899,19 @@
             }
         }
 
+        public function add(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                if ($this->db() != $model->db()) {
+                    exception('db', "add method requires the 2 models have the same database.");
+                }
+
+                $table = $model->table();
+                $setter = setter($table . '_id');
+                $this->$setter($model->id);
+            }
+        }
+
         public function isDirty()
         {
             return $this->initial != $this->data;
