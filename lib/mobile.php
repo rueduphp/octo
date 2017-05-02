@@ -120,236 +120,110 @@
             'MegafonTablet'     => 'MegaFon V9|\bZTE V9\b|Android.*\bMT7A\b',
             // http://www.e-boda.ro/tablete-pc.html
             'EbodaTablet'       => 'E-Boda (Supreme|Impresspeed|Izzycomm|Essential)',
-            // http://www.allview.ro/produse/droseries/lista-tablete-pc/
             'AllViewTablet'           => 'Allview.*(Viva|Alldro|City|Speed|All TV|Frenzy|Quasar|Shine|TX1|AX1|AX2)',
-            // http://wiki.archosfans.com/index.php?title=Main_Page
             'ArchosTablet'      => '\b(101G9|80G9|A101IT)\b|Qilive 97R|Archos5|\bARCHOS (70|79|80|90|97|101|FAMILYPAD|)(b|)(G10| Cobalt| TITANIUM(HD|)| Xenon| Neon|XSK| 2| XS 2| PLATINUM| CARBON|GAMEPAD)\b',
-            // http://www.ainol.com/plugin.php?identifier=ainol&module=product
             'AinolTablet'       => 'NOVO7|NOVO8|NOVO10|Novo7Aurora|Novo7Basic|NOVO7PALADIN|novo9-Spark',
-            // @todo: inspect http://esupport.sony.com/US/p/select-system.pl?DIRECTOR=DRIVER
-            // Readers http://www.atsuhiro-me.net/ebook/sony-reader/sony-reader-web-browser
-            // http://www.sony.jp/support/tablet/
             'SonyTablet'        => 'Sony.*Tablet|Xperia Tablet|Sony Tablet S|SO-03E|SGPT12|SGPT13|SGPT114|SGPT121|SGPT122|SGPT123|SGPT111|SGPT112|SGPT113|SGPT131|SGPT132|SGPT133|SGPT211|SGPT212|SGPT213|SGP311|SGP312|SGP321|EBRD1101|EBRD1102|EBRD1201|SGP351|SGP341|SGP511|SGP512|SGP521|SGP541|SGP551|SGP621|SGP612|SOT31',
-            // http://www.support.philips.com/support/catalog/worldproducts.jsp?userLanguage=en&userCountry=cn&categoryid=3G_LTE_TABLET_SU_CN_CARE&title=3G%20tablets%20/%20LTE%20range&_dyncharset=UTF-8
             'PhilipsTablet'     => '\b(PI2010|PI3000|PI3100|PI3105|PI3110|PI3205|PI3210|PI3900|PI4010|PI7000|PI7100)\b',
-            // db + http://www.cube-tablet.com/buy-products.html
             'CubeTablet'        => 'Android.*(K8GT|U9GT|U10GT|U16GT|U17GT|U18GT|U19GT|U20GT|U23GT|U30GT)|CUBE U8GT',
-            // http://www.cobyusa.com/?p=pcat&pcat_id=3001
             'CobyTablet'        => 'MID1042|MID1045|MID1125|MID1126|MID7012|MID7014|MID7015|MID7034|MID7035|MID7036|MID7042|MID7048|MID7127|MID8042|MID8048|MID8127|MID9042|MID9740|MID9742|MID7022|MID7010',
-            // http://www.match.net.cn/products.asp
             'MIDTablet'         => 'M9701|M9000|M9100|M806|M1052|M806|T703|MID701|MID713|MID710|MID727|MID760|MID830|MID728|MID933|MID125|MID810|MID732|MID120|MID930|MID800|MID731|MID900|MID100|MID820|MID735|MID980|MID130|MID833|MID737|MID960|MID135|MID860|MID736|MID140|MID930|MID835|MID733',
-            // http://www.msi.com/support
-            // @todo Research the Windows Tablets.
             'MSITablet' => 'MSI \b(Primo 73K|Primo 73L|Primo 81L|Primo 77|Primo 93|Primo 75|Primo 76|Primo 73|Primo 81|Primo 91|Primo 90|Enjoy 71|Enjoy 7|Enjoy 10)\b',
-            // @todo http://www.kyoceramobile.com/support/drivers/
-        //    'KyoceraTablet' => null,
-            // @todo http://intexuae.com/index.php/category/mobile-devices/tablets-products/
-        //    'IntextTablet' => null,
-            // http://pdadb.net/index.php?m=pdalist&list=SMiT (NoName Chinese Tablets)
-            // http://www.imp3.net/14/show.php?itemid=20454
             'SMiTTablet'        => 'Android.*(\bMID\b|MID-560|MTV-T1200|MTV-PND531|MTV-P1101|MTV-PND530)',
-            // http://www.rock-chips.com/index.php?do=prod&pid=2
             'RockChipTablet'    => 'Android.*(RK2818|RK2808A|RK2918|RK3066)|RK2738|RK2808A',
-            // http://www.fly-phone.com/devices/tablets/ ; http://www.fly-phone.com/service/
             'FlyTablet'         => 'IQ310|Fly Vision',
-            // http://www.bqreaders.com/gb/tablets-prices-sale.html
             'bqTablet'          => 'Android.*(bq)?.*(Elcano|Curie|Edison|Maxwell|Kepler|Pascal|Tesla|Hypatia|Platon|Newton|Livingstone|Cervantes|Avant|Aquaris E10)|Maxwell.*Lite|Maxwell.*Plus',
-            // http://www.huaweidevice.com/worldwide/productFamily.do?method=index&directoryId=5011&treeId=3290
-            // http://www.huaweidevice.com/worldwide/downloadCenter.do?method=index&directoryId=3372&treeId=0&tb=1&type=software (including legacy tablets)
             'HuaweiTablet'      => 'MediaPad|MediaPad 7 Youth|IDEOS S7|S7-201c|S7-202u|S7-101|S7-103|S7-104|S7-105|S7-106|S7-201|S7-Slim',
-            // Nec or Medias Tab
             'NecTablet'         => '\bN-06D|\bN-08D',
-            // Pantech Tablets: http://www.pantechusa.com/phones/
             'PantechTablet'     => 'Pantech.*P4100',
-            // Broncho Tablets: http://www.broncho.cn/ (hard to find)
             'BronchoTablet'     => 'Broncho.*(N701|N708|N802|a710)',
-            // http://versusuk.com/support.html
             'VersusTablet'      => 'TOUCHPAD.*[78910]|\bTOUCHTAB\b',
-            // http://www.zync.in/index.php/our-products/tablet-phablets
             'ZyncTablet'        => 'z1000|Z99 2G|z99|z930|z999|z990|z909|Z919|z900',
-            // http://www.positivoinformatica.com.br/www/pessoal/tablet-ypy/
             'PositivoTablet'    => 'TB07STA|TB10STA|TB07FTA|TB10FTA',
-            // https://www.nabitablet.com/
             'NabiTablet'        => 'Android.*\bNabi',
             'KoboTablet'        => 'Kobo Touch|\bK080\b|\bVox\b Build|\bArc\b Build',
-            // French Danew Tablets http://www.danew.com/produits-tablette.php
             'DanewTablet'       => 'DSlide.*\b(700|701R|702|703R|704|802|970|971|972|973|974|1010|1012)\b',
-            // Texet Tablets and Readers http://www.texet.ru/tablet/
             'TexetTablet'       => 'NaviPad|TB-772A|TM-7045|TM-7055|TM-9750|TM-7016|TM-7024|TM-7026|TM-7041|TM-7043|TM-7047|TM-8041|TM-9741|TM-9747|TM-9748|TM-9751|TM-7022|TM-7021|TM-7020|TM-7011|TM-7010|TM-7023|TM-7025|TM-7037W|TM-7038W|TM-7027W|TM-9720|TM-9725|TM-9737W|TM-1020|TM-9738W|TM-9740|TM-9743W|TB-807A|TB-771A|TB-727A|TB-725A|TB-719A|TB-823A|TB-805A|TB-723A|TB-715A|TB-707A|TB-705A|TB-709A|TB-711A|TB-890HD|TB-880HD|TB-790HD|TB-780HD|TB-770HD|TB-721HD|TB-710HD|TB-434HD|TB-860HD|TB-840HD|TB-760HD|TB-750HD|TB-740HD|TB-730HD|TB-722HD|TB-720HD|TB-700HD|TB-500HD|TB-470HD|TB-431HD|TB-430HD|TB-506|TB-504|TB-446|TB-436|TB-416|TB-146SE|TB-126SE',
-            // Avoid detecting 'PLAYSTATION 3' as mobile.
             'PlaystationTablet' => 'Playstation.*(Portable|Vita)',
-            // http://www.trekstor.de/surftabs.html
             'TrekstorTablet'    => 'ST10416-1|VT10416-1|ST70408-1|ST702xx-1|ST702xx-2|ST80208|ST97216|ST70104-2|VT10416-2|ST10216-2A|SurfTab',
-            // http://www.pyleaudio.com/Products.aspx?%2fproducts%2fPersonal-Electronics%2fTablets
             'PyleAudioTablet'   => '\b(PTBL10CEU|PTBL10C|PTBL72BC|PTBL72BCEU|PTBL7CEU|PTBL7C|PTBL92BC|PTBL92BCEU|PTBL9CEU|PTBL9CUK|PTBL9C)\b',
-            // http://www.advandigital.com/index.php?link=content-product&jns=JP001
-            // because of the short codenames we have to include whitespaces to reduce the possible conflicts.
             'AdvanTablet'       => 'Android.* \b(E3A|T3X|T5C|T5B|T3E|T3C|T3B|T1J|T1F|T2A|T1H|T1i|E1C|T1-E|T5-A|T4|E1-B|T2Ci|T1-B|T1-D|O1-A|E1-A|T1-A|T3A|T4i)\b ',
-            // http://www.danytech.com/category/tablet-pc
             'DanyTechTablet' => 'Genius Tab G3|Genius Tab S2|Genius Tab Q3|Genius Tab G4|Genius Tab Q4|Genius Tab G-II|Genius TAB GII|Genius TAB GIII|Genius Tab S1',
-            // http://www.galapad.net/product.html
             'GalapadTablet'     => 'Android.*\bG1\b',
-            // http://www.micromaxinfo.com/tablet/funbook
             'MicromaxTablet'    => 'Funbook|Micromax.*\b(P250|P560|P360|P362|P600|P300|P350|P500|P275)\b',
-            // http://www.karbonnmobiles.com/products_tablet.php
             'KarbonnTablet'     => 'Android.*\b(A39|A37|A34|ST8|ST10|ST7|Smart Tab3|Smart Tab2)\b',
-            // http://www.myallfine.com/Products.asp
             'AllFineTablet'     => 'Fine7 Genius|Fine7 Shine|Fine7 Air|Fine8 Style|Fine9 More|Fine10 Joy|Fine11 Wide',
-            // http://www.proscanvideo.com/products-search.asp?itemClass=TABLET&itemnmbr=
             'PROSCANTablet'     => '\b(PEM63|PLT1023G|PLT1041|PLT1044|PLT1044G|PLT1091|PLT4311|PLT4311PL|PLT4315|PLT7030|PLT7033|PLT7033D|PLT7035|PLT7035D|PLT7044K|PLT7045K|PLT7045KB|PLT7071KG|PLT7072|PLT7223G|PLT7225G|PLT7777G|PLT7810K|PLT7849G|PLT7851G|PLT7852G|PLT8015|PLT8031|PLT8034|PLT8036|PLT8080K|PLT8082|PLT8088|PLT8223G|PLT8234G|PLT8235G|PLT8816K|PLT9011|PLT9045K|PLT9233G|PLT9735|PLT9760G|PLT9770G)\b',
-            // http://www.yonesnav.com/products/products.php
             'YONESTablet' => 'BQ1078|BC1003|BC1077|RK9702|BC9730|BC9001|IT9001|BC7008|BC7010|BC708|BC728|BC7012|BC7030|BC7027|BC7026',
-            // http://www.cjshowroom.com/eproducts.aspx?classcode=004001001
-            // China manufacturer makes tablets for different small brands (eg. http://www.zeepad.net/index.html)
             'ChangJiaTablet'    => 'TPC7102|TPC7103|TPC7105|TPC7106|TPC7107|TPC7201|TPC7203|TPC7205|TPC7210|TPC7708|TPC7709|TPC7712|TPC7110|TPC8101|TPC8103|TPC8105|TPC8106|TPC8203|TPC8205|TPC8503|TPC9106|TPC9701|TPC97101|TPC97103|TPC97105|TPC97106|TPC97111|TPC97113|TPC97203|TPC97603|TPC97809|TPC97205|TPC10101|TPC10103|TPC10106|TPC10111|TPC10203|TPC10205|TPC10503',
-            // http://www.gloryunion.cn/products.asp
-            // http://www.allwinnertech.com/en/apply/mobile.html
-            // http://www.ptcl.com.pk/pd_content.php?pd_id=284 (EVOTAB)
-            // @todo: Softwiner tablets?
-            // aka. Cute or Cool tablets. Not sure yet, must research to avoid collisions.
-            'GUTablet'          => 'TX-A1301|TX-M9002|Q702|kf026', // A12R|D75A|D77|D79|R83|A95|A106C|R15|A75|A76|D71|D72|R71|R73|R77|D82|R85|D92|A97|D92|R91|A10F|A77F|W71F|A78F|W78F|W81F|A97F|W91F|W97F|R16G|C72|C73E|K72|K73|R96G
-            // http://www.pointofview-online.com/showroom.php?shop_mode=product_listing&category_id=118
+            'GUTablet'          => 'TX-A1301|TX-M9002|Q702|kf026',
             'PointOfViewTablet' => 'TAB-P506|TAB-navi-7-3G-M|TAB-P517|TAB-P-527|TAB-P701|TAB-P703|TAB-P721|TAB-P731N|TAB-P741|TAB-P825|TAB-P905|TAB-P925|TAB-PR945|TAB-PL1015|TAB-P1025|TAB-PI1045|TAB-P1325|TAB-PROTAB[0-9]+|TAB-PROTAB25|TAB-PROTAB26|TAB-PROTAB27|TAB-PROTAB26XL|TAB-PROTAB2-IPS9|TAB-PROTAB30-IPS9|TAB-PROTAB25XXL|TAB-PROTAB26-IPS10|TAB-PROTAB30-IPS10',
-            // http://www.overmax.pl/pl/katalog-produktow,p8/tablety,c14/
-            // @todo: add more tests.
             'OvermaxTablet'     => 'OV-(SteelCore|NewBase|Basecore|Baseone|Exellen|Quattor|EduTab|Solution|ACTION|BasicTab|TeddyTab|MagicTab|Stream|TB-08|TB-09)',
-            // http://hclmetablet.com/India/index.php
             'HCLTablet'         => 'HCL.*Tablet|Connect-3G-2.0|Connect-2G-2.0|ME Tablet U1|ME Tablet U2|ME Tablet G1|ME Tablet X1|ME Tablet Y2|ME Tablet Sync',
-            // http://www.edigital.hu/Tablet_es_e-book_olvaso/Tablet-c18385.html
             'DPSTablet'         => 'DPS Dream 9|DPS Dual 7',
-            // http://www.visture.com/index.asp
             'VistureTablet'     => 'V97 HD|i75 3G|Visture V4( HD)?|Visture V5( HD)?|Visture V10',
-            // http://www.mijncresta.nl/tablet
             'CrestaTablet'     => 'CTP(-)?810|CTP(-)?818|CTP(-)?828|CTP(-)?838|CTP(-)?888|CTP(-)?978|CTP(-)?980|CTP(-)?987|CTP(-)?988|CTP(-)?989',
-            // MediaTek - http://www.mediatek.com/_en/01_products/02_proSys.php?cata_sn=1&cata1_sn=1&cata2_sn=309
             'MediatekTablet' => '\bMT8125|MT8389|MT8135|MT8377\b',
-            // Concorde tab
             'ConcordeTablet' => 'Concorde([ ]+)?Tab|ConCorde ReadMan',
-            // GoClever Tablets - http://www.goclever.com/uk/products,c1/tablet,c5/
             'GoCleverTablet' => 'GOCLEVER TAB|A7GOCLEVER|M1042|M7841|M742|R1042BK|R1041|TAB A975|TAB A7842|TAB A741|TAB A741L|TAB M723G|TAB M721|TAB A1021|TAB I921|TAB R721|TAB I720|TAB T76|TAB R70|TAB R76.2|TAB R106|TAB R83.2|TAB M813G|TAB I721|GCTA722|TAB I70|TAB I71|TAB S73|TAB R73|TAB R74|TAB R93|TAB R75|TAB R76.1|TAB A73|TAB A93|TAB A93.2|TAB T72|TAB R83|TAB R974|TAB R973|TAB A101|TAB A103|TAB A104|TAB A104.2|R105BK|M713G|A972BK|TAB A971|TAB R974.2|TAB R104|TAB R83.3|TAB A1042',
-            // Modecom Tablets - http://www.modecom.eu/tablets/portal/
             'ModecomTablet' => 'FreeTAB 9000|FreeTAB 7.4|FreeTAB 7004|FreeTAB 7800|FreeTAB 2096|FreeTAB 7.5|FreeTAB 1014|FreeTAB 1001 |FreeTAB 8001|FreeTAB 9706|FreeTAB 9702|FreeTAB 7003|FreeTAB 7002|FreeTAB 1002|FreeTAB 7801|FreeTAB 1331|FreeTAB 1004|FreeTAB 8002|FreeTAB 8014|FreeTAB 9704|FreeTAB 1003',
-            // Vonino Tablets - http://www.vonino.eu/tablets
             'VoninoTablet'  => '\b(Argus[ _]?S|Diamond[ _]?79HD|Emerald[ _]?78E|Luna[ _]?70C|Onyx[ _]?S|Onyx[ _]?Z|Orin[ _]?HD|Orin[ _]?S|Otis[ _]?S|SpeedStar[ _]?S|Magnet[ _]?M9|Primus[ _]?94[ _]?3G|Primus[ _]?94HD|Primus[ _]?QS|Android.*\bQ8\b|Sirius[ _]?EVO[ _]?QS|Sirius[ _]?QS|Spirit[ _]?S)\b',
-            // ECS Tablets - http://www.ecs.com.tw/ECSWebSite/Product/Product_Tablet_List.aspx?CategoryID=14&MenuID=107&childid=M_107&LanID=0
             'ECSTablet'     => 'V07OT2|TM105A|S10OT1|TR10CS1',
-            // Storex Tablets - http://storex.fr/espace_client/support.html
-            // @note: no need to add all the tablet codes since they are guided by the first regex.
             'StorexTablet'  => 'eZee[_\']?(Tab|Go)[0-9]+|TabLC7|Looney Tunes Tab',
-            // Generic Vodafone tablets.
             'VodafoneTablet' => 'SmartTab([ ]+)?[0-9]+|SmartTabII10|SmartTabII7',
-            // French tablets - Essentiel B http://www.boulanger.fr/tablette_tactile_e-book/tablette_tactile_essentiel_b/cl_68908.htm?multiChoiceToDelete=brand&mc_brand=essentielb
-            // Aka: http://www.essentielb.fr/
             'EssentielBTablet' => 'Smart[ \']?TAB[ ]+?[0-9]+|Family[ \']?TAB2',
-            // Ross & Moor - http://ross-moor.ru/
             'RossMoorTablet' => 'RM-790|RM-997|RMD-878G|RMD-974R|RMT-705A|RMT-701|RME-601|RMT-501|RMT-711',
-            // i-mobile http://product.i-mobilephone.com/Mobile_Device
             'iMobileTablet'        => 'i-mobile i-note',
-            // http://www.tolino.de/de/vergleichen/
             'TolinoTablet'  => 'tolino tab [0-9.]+|tolino shine',
-            // AudioSonic - a Kmart brand
-            // http://www.kmart.com.au/webapp/wcs/stores/servlet/Search?langId=-1&storeId=10701&catalogId=10001&categoryId=193001&pageSize=72&currentPage=1&searchCategory=193001%2b4294965664&sortBy=p_MaxPrice%7c1
             'AudioSonicTablet' => '\bC-22Q|T7-QC|T-17B|T-17P\b',
-            // AMPE Tablets - http://www.ampe.com.my/product-category/tablets/
-            // @todo: add them gradually to avoid conflicts.
             'AMPETablet' => 'Android.* A78 ',
-            // Skk Mobile - http://skkmobile.com.ph/product_tablets.php
             'SkkTablet' => 'Android.* (SKYPAD|PHOENIX|CYCLOPS)',
-            // Tecno Mobile (only tablet) - http://www.tecno-mobile.com/index.php/product?filterby=smart&list_order=all&page=1
             'TecnoTablet' => 'TECNO P9',
-            // JXD (consoles & tablets) - http://jxd.hk/products.asp?selectclassid=009008&clsid=3
             'JXDTablet' => 'Android.*\b(F3000|A3300|JXD5000|JXD3000|JXD2000|JXD300B|JXD300|S5800|S7800|S602b|S5110b|S7300|S5300|S602|S603|S5100|S5110|S601|S7100a|P3000F|P3000s|P101|P200s|P1000m|P200m|P9100|P1000s|S6600b|S908|P1000|P300|S18|S6600|S9100)\b',
-            // i-Joy tablets - http://www.i-joy.es/en/cat/products/tablets/
             'iJoyTablet' => 'Tablet (Spirit 7|Essentia|Galatea|Fusion|Onix 7|Landa|Titan|Scooby|Deox|Stella|Themis|Argon|Unique 7|Sygnus|Hexen|Finity 7|Cream|Cream X2|Jade|Neon 7|Neron 7|Kandy|Scape|Saphyr 7|Rebel|Biox|Rebel|Rebel 8GB|Myst|Draco 7|Myst|Tab7-004|Myst|Tadeo Jones|Tablet Boing|Arrow|Draco Dual Cam|Aurix|Mint|Amity|Revolution|Finity 9|Neon 9|T9w|Amity 4GB Dual Cam|Stone 4GB|Stone 8GB|Andromeda|Silken|X2|Andromeda II|Halley|Flame|Saphyr 9,7|Touch 8|Planet|Triton|Unique 10|Hexen 10|Memphis 4GB|Memphis 8GB|Onix 10)',
-            // http://www.intracon.eu/tablet
             'FX2Tablet' => 'FX2 PAD7|FX2 PAD10',
-            // http://www.xoro.de/produkte/
-            // @note: Might be the same brand with 'Simply tablets'
             'XoroTablet'        => 'KidsPAD 701|PAD[ ]?712|PAD[ ]?714|PAD[ ]?716|PAD[ ]?717|PAD[ ]?718|PAD[ ]?720|PAD[ ]?721|PAD[ ]?722|PAD[ ]?790|PAD[ ]?792|PAD[ ]?900|PAD[ ]?9715D|PAD[ ]?9716DR|PAD[ ]?9718DR|PAD[ ]?9719QR|PAD[ ]?9720QR|TelePAD1030|Telepad1032|TelePAD730|TelePAD731|TelePAD732|TelePAD735Q|TelePAD830|TelePAD9730|TelePAD795|MegaPAD 1331|MegaPAD 1851|MegaPAD 2151',
-            // http://www1.viewsonic.com/products/computing/tablets/
             'ViewsonicTablet'   => 'ViewPad 10pi|ViewPad 10e|ViewPad 10s|ViewPad E72|ViewPad7|ViewPad E100|ViewPad 7e|ViewSonic VB733|VB100a',
-            // http://www.odys.de/web/internet-tablet_en.html
             'OdysTablet'        => 'LOOX|XENO10|ODYS[ -](Space|EVO|Xpress|NOON)|\bXELIO\b|Xelio10Pro|XELIO7PHONETAB|XELIO10EXTREME|XELIOPT2|NEO_QUAD10',
-            // http://www.captiva-power.de/products.html#tablets-en
             'CaptivaTablet'     => 'CAPTIVA PAD',
-            // IconBIT - http://www.iconbit.com/products/tablets/
             'IconbitTablet' => 'NetTAB|NT-3702|NT-3702S|NT-3702S|NT-3603P|NT-3603P|NT-0704S|NT-0704S|NT-3805C|NT-3805C|NT-0806C|NT-0806C|NT-0909T|NT-0909T|NT-0907S|NT-0907S|NT-0902S|NT-0902S',
-            // http://www.teclast.com/topic.php?channelID=70&topicID=140&pid=63
             'TeclastTablet' => 'T98 4G|\bP80\b|\bX90HD\b|X98 Air|X98 Air 3G|\bX89\b|P80 3G|\bX80h\b|P98 Air|\bX89HD\b|P98 3G|\bP90HD\b|P89 3G|X98 3G|\bP70h\b|P79HD 3G|G18d 3G|\bP79HD\b|\bP89s\b|\bA88\b|\bP10HD\b|\bP19HD\b|G18 3G|\bP78HD\b|\bA78\b|\bP75\b|G17s 3G|G17h 3G|\bP85t\b|\bP90\b|\bP11\b|\bP98t\b|\bP98HD\b|\bG18d\b|\bP85s\b|\bP11HD\b|\bP88s\b|\bA80HD\b|\bA80se\b|\bA10h\b|\bP89\b|\bP78s\b|\bG18\b|\bP85\b|\bA70h\b|\bA70\b|\bG17\b|\bP18\b|\bA80s\b|\bA11s\b|\bP88HD\b|\bA80h\b|\bP76s\b|\bP76h\b|\bP98\b|\bA10HD\b|\bP78\b|\bP88\b|\bA11\b|\bA10t\b|\bP76a\b|\bP76t\b|\bP76e\b|\bP85HD\b|\bP85a\b|\bP86\b|\bP75HD\b|\bP76v\b|\bA12\b|\bP75a\b|\bA15\b|\bP76Ti\b|\bP81HD\b|\bA10\b|\bT760VE\b|\bT720HD\b|\bP76\b|\bP73\b|\bP71\b|\bP72\b|\bT720SE\b|\bC520Ti\b|\bT760\b|\bT720VE\b|T720-3GE|T720-WiFi',
-            // Onda - http://www.onda-tablet.com/buy-android-onda.html?dir=desc&limit=all&order=price
             'OndaTablet' => '\b(V975i|Vi30|VX530|V701|Vi60|V701s|Vi50|V801s|V719|Vx610w|VX610W|V819i|Vi10|VX580W|Vi10|V711s|V813|V811|V820w|V820|Vi20|V711|VI30W|V712|V891w|V972|V819w|V820w|Vi60|V820w|V711|V813s|V801|V819|V975s|V801|V819|V819|V818|V811|V712|V975m|V101w|V961w|V812|V818|V971|V971s|V919|V989|V116w|V102w|V973|Vi40)\b[\s]+',
             'JaytechTablet'     => 'TPC-PA762',
             'BlaupunktTablet'   => 'Endeavour 800NG|Endeavour 1010',
-            // http://www.digma.ru/support/download/
-            // @todo: Ebooks also (if requested)
             'DigmaTablet' => '\b(iDx10|iDx9|iDx8|iDx7|iDxD7|iDxD8|iDsQ8|iDsQ7|iDsQ8|iDsD10|iDnD7|3TS804H|iDsQ11|iDj7|iDs10)\b',
-            // http://www.evolioshop.com/ro/tablete-pc.html
-            // http://www.evolio.ro/support/downloads_static.html?cat=2
-            // @todo: Research some more
             'EvolioTablet' => 'ARIA_Mini_wifi|Aria[ _]Mini|Evolio X10|Evolio X7|Evolio X8|\bEvotab\b|\bNeura\b',
-            // @todo http://www.lavamobiles.com/tablets-data-cards
             'LavaTablet' => 'QPAD E704|\bIvoryS\b|E-TAB IVORY|\bE-TAB\b',
-            // https://www.celkonmobiles.com/?_a=categoryphones&sid=2
             'CelkonTablet' => 'CT695|CT888|CT[\s]?910|CT7 Tab|CT9 Tab|CT3 Tab|CT2 Tab|CT1 Tab|C820|C720|\bCT-1\b',
-            // http://www.wolderelectronics.com/productos/manuales-y-guias-rapidas/categoria-2-miTab
             'WolderTablet' => 'miTab \b(DIAMOND|SPACE|BROOKLYN|NEO|FLY|MANHATTAN|FUNK|EVOLUTION|SKY|GOCAR|IRON|GENIUS|POP|MINT|EPSILON|BROADWAY|JUMP|HOP|LEGEND|NEW AGE|LINE|ADVANCE|FEEL|FOLLOW|LIKE|LINK|LIVE|THINK|FREEDOM|CHICAGO|CLEVELAND|BALTIMORE-GH|IOWA|BOSTON|SEATTLE|PHOENIX|DALLAS|IN 101|MasterChef)\b',
-            // http://www.mi.com/en
             'MiTablet' => '\bMI PAD\b|\bHM NOTE 1W\b',
-            // http://www.nbru.cn/index.html
             'NibiruTablet' => 'Nibiru M1|Nibiru Jupiter One',
-            // http://navroad.com/products/produkty/tablety/
             'NexoTablet' => 'NEXO NOVA|NEXO 10|NEXO AVIO|NEXO FREE|NEXO GO|NEXO EVO|NEXO 3G|NEXO SMART|NEXO KIDDO|NEXO MOBI',
-            // http://leader-online.com/new_site/product-category/tablets/
-            // http://www.leader-online.net.au/List/Tablet
             'LeaderTablet' => 'TBLT10Q|TBLT10I|TBL-10WDKB|TBL-10WDKBO2013|TBL-W230V2|TBL-W450|TBL-W500|SV572|TBLT7I|TBA-AC7-8G|TBLT79|TBL-8W16|TBL-10W32|TBL-10WKB|TBL-W100',
-            // http://www.datawind.com/ubislate/
             'UbislateTablet' => 'UbiSlate[\s]?7C',
-            // http://www.pocketbook-int.com/ru/support
             'PocketBookTablet' => 'Pocketbook',
-            // http://www.tesco.com/direct/hudl/
             'Hudl'              => 'Hudl HT7S3',
-            // http://www.telstra.com.au/home-phone/thub-2/
             'TelstraTablet'     => 'T-Hub2',
             'GenericTablet'     => 'Android.*\b97D\b|Tablet(?!.*PC)|BNTV250A|MID-WCDMA|LogicPD Zoom2|\bA7EB\b|CatNova8|A1_07|CT704|CT1002|\bM721\b|rk30sdk|\bEVOTAB\b|M758A|ET904|ALUMIUM10|Smartfren Tab|Endeavour 1010|Tablet-PC-4|Tagi Tab|\bM6pro\b|CT1020W|arc 10HD|\bJolla\b|\bTP750\b'
         );
 
-        /**
-         * List of mobile Operating Systems.
-         *
-         * @var array
-         */
         protected static $operatingSystems = array(
             'AndroidOS'         => 'Android',
             'BlackBerryOS'      => 'blackberry|\bBB10\b|rim tablet os',
             'PalmOS'            => 'PalmOS|avantgo|blazer|elaine|hiptop|palm|plucker|xiino',
             'SymbianOS'         => 'Symbian|SymbOS|Series60|Series40|SYB-[0-9]+|\bS60\b',
-            // @reference: http://en.wikipedia.org/wiki/Windows_Mobile
             'WindowsMobileOS'   => 'Windows CE.*(PPC|Smartphone|Mobile|[0-9]{3}x[0-9]{3})|Window Mobile|Windows Phone [0-9.]+|WCE;',
-            // @reference: http://en.wikipedia.org/wiki/Windows_Phone
-            // http://wifeng.cn/?r=blog&a=view&id=106
-            // http://nicksnettravels.builttoroam.com/post/2011/01/10/Bogus-Windows-Phone-7-User-Agent-String.aspx
-            // http://msdn.microsoft.com/library/ms537503.aspx
             'WindowsPhoneOS'   => 'Windows Phone 8.1|Windows Phone 8.0|Windows Phone OS|XBLWP7|ZuneWP7|Windows NT 6.[23]; ARM;',
             'iOS'               => '\biPhone.*Mobile|\biPod|\biPad',
-            // http://en.wikipedia.org/wiki/MeeGo
-            // @todo: research MeeGo in UAs
             'MeeGoOS'           => 'MeeGo',
-            // http://en.wikipedia.org/wiki/Maemo
-            // @todo: research Maemo in UAs
             'MaemoOS'           => 'Maemo',
-            'JavaOS'            => 'J2ME/|\bMIDP\b|\bCLDC\b', // '|Java/' produces bug #135
+            'JavaOS'            => 'J2ME/|\bMIDP\b|\bCLDC\b',
             'webOS'             => 'webOS|hpwOS',
             'badaOS'            => '\bBada\b',
             'BREWOS'            => 'BREW',
         );
 
-        /**
-         * List of mobile User Agents.
-         *
-         * @var array
-         */
         protected static $browsers = array(
-            // @reference: https://developers.google.com/chrome/mobile/docs/user-agent
             'Chrome'          => '\bCrMo\b|CriOS|Android.*Chrome/[.0-9]* (Mobile)?',
             'Dolfin'          => '\bDolfin\b',
             'Opera'           => 'Opera.*Mini|Opera.*Mobi|Android.*Opera|Mobile.*OPR/[0-9.]+|Coast/[0-9.]+',
@@ -359,61 +233,32 @@
             'Bolt'            => 'bolt',
             'TeaShark'        => 'teashark',
             'Blazer'          => 'Blazer',
-            // @reference: http://developer.apple.com/library/safari/#documentation/AppleApplications/Reference/SafariWebContent/OptimizingforSafarioniPhone/OptimizingforSafarioniPhone.html#//apple_ref/doc/uid/TP40006517-SW3
             'Safari'          => 'Version.*Mobile.*Safari|Safari.*Mobile|MobileSafari',
-            // http://en.wikipedia.org/wiki/Midori_(web_browser)
-            //'Midori'          => 'midori',
             'Tizen'           => 'Tizen',
             'UCBrowser'       => 'UC.*Browser|UCWEB',
             'baiduboxapp'     => 'baiduboxapp',
             'baidubrowser'    => 'baidubrowser',
-            // https://github.com/serbanghita/Mobile-Detect/issues/7
             'DiigoBrowser'    => 'DiigoBrowser',
-            // http://www.puffinbrowser.com/index.php
             'Puffin'            => 'Puffin',
-            // http://mercury-browser.com/index.html
             'Mercury'          => '\bMercury\b',
-            // http://en.wikipedia.org/wiki/Obigo_Browser
             'ObigoBrowser' => 'Obigo',
-            // http://en.wikipedia.org/wiki/NetFront
             'NetFront' => 'NF-Browser',
-            // @reference: http://en.wikipedia.org/wiki/Minimo
-            // http://en.wikipedia.org/wiki/Vision_Mobile_Browser
             'GenericBrowser'  => 'NokiaBrowser|OviBrowser|OneBrowser|TwonkyBeamBrowser|SEMC.*Browser|FlyFlow|Minimo|NetFront|Novarra-Vision|MQQBrowser|MicroMessenger',
         );
 
-        /**
-         * Utilities.
-         *
-         * @var array
-         */
         protected static $utilities = array(
-            // Experimental. When a mobile device wants to switch to 'Desktop Mode'.
-            // http://scottcate.com/technology/windows-phone-8-ie10-desktop-or-mobile/
-            // https://github.com/serbanghita/Mobile-Detect/issues/57#issuecomment-15024011
-            // https://developers.facebook.com/docs/sharing/best-practices
             'Bot'         => 'Googlebot|facebookexternalhit|AdsBot-Google|Google Keyword Suggestion|Facebot|YandexBot|bingbot|ia_archiver|AhrefsBot|Ezooms|GSLFbot|WBSearchBot|Twitterbot|TweetmemeBot|Twikle|PaperLiBot|Wotbox|UnwindFetchor|Exabot|MJ12bot|YandexImages|TurnitinBot|Pingdom',
             'MobileBot'   => 'Googlebot-Mobile|AdsBot-Google-Mobile|YahooSeeker/M1A1-R2D2',
             'DesktopMode' => 'WPDesktop',
-            'TV'          => 'SonyDTV|HbbTV', // experimental
+            'TV'          => 'SonyDTV|HbbTV',
             'WebKit'      => '(webkit)[ /]([\w.]+)',
-            // @todo: Include JXD consoles.
             'Console'     => '\b(Nintendo|Nintendo WiiU|Nintendo 3DS|PLAYSTATION|Xbox)\b',
             'Watch'       => 'SM-V700',
         );
 
-        /**
-         * All possible HTTP headers that represent the
-         * User-Agent string.
-         *
-         * @var array
-         */
         protected static $uaHttpHeaders = array(
-            // The default User-Agent string.
             'HTTP_USER_AGENT',
-            // Header can occur on devices using Opera Mini.
             'HTTP_X_OPERAMINI_PHONE_UA',
-            // Vodafone specific header: http://www.seoprinciple.com/mobile-web-community-still-angry-at-vodafone/24/
             'HTTP_X_DEVICE_USER_AGENT',
             'HTTP_X_ORIGINAL_USER_AGENT',
             'HTTP_X_SKYFIRE_PHONE',
@@ -422,38 +267,23 @@
             'HTTP_X_UCBROWSER_DEVICE_UA'
         );
 
-        /**
-         * The individual segments that could exist in a User-Agent string. VER refers to the regular
-         * expression defined in the constant self::VER.
-         *
-         * @var array
-         */
         protected static $properties = array(
-
-            // Build
             'Mobile'        => 'Mobile/[VER]',
             'Build'         => 'Build/[VER]',
             'Version'       => 'Version/[VER]',
             'VendorID'      => 'VendorID/[VER]',
-
-            // Devices
             'iPad'          => 'iPad.*CPU[a-z ]+[VER]',
             'iPhone'        => 'iPhone.*CPU[a-z ]+[VER]',
             'iPod'          => 'iPod.*CPU[a-z ]+[VER]',
-            //'BlackBerry'    => array('BlackBerry[VER]', 'BlackBerry [VER];'),
             'Kindle'        => 'Kindle/[VER]',
 
             // Browser
             'Chrome'        => array('Chrome/[VER]', 'CriOS/[VER]', 'CrMo/[VER]'),
             'Coast'         => array('Coast/[VER]'),
             'Dolfin'        => 'Dolfin/[VER]',
-            // @reference: https://developer.mozilla.org/en-US/docs/User_Agent_Strings_Reference
             'Firefox'       => 'Firefox/[VER]',
             'Fennec'        => 'Fennec/[VER]',
-            // http://msdn.microsoft.com/en-us/library/ms537503(v=vs.85).aspx
-            // https://msdn.microsoft.com/en-us/library/ie/hh869301(v=vs.85).aspx
             'IE'      => array('IEMobile/[VER];', 'IEMobile [VER]', 'MSIE [VER];', 'Trident/[0-9.]+;.*rv:[VER]'),
-            // http://en.wikipedia.org/wiki/NetFront
             'NetFront'      => 'NetFront/[VER]',
             'NokiaBrowser'  => 'NokiaBrowser/[VER]',
             'Opera'         => array( ' OPR/[VER]', 'Opera Mini/[VER]', 'Version/[VER]' ),
@@ -465,8 +295,6 @@
             'baiduboxapp'   => 'baiduboxapp/[VER]',
             'baidubrowser'  => 'baidubrowser/[VER]',
             'Iron'          => 'Iron/[VER]',
-            // @note: Safari 7534.48.3 is actually Version 5.1.
-            // @note: On BlackBerry the Version is overwriten by the OS.
             'Safari'        => array( 'Version/[VER]', 'Safari/[VER]' ),
             'Skyfire'       => 'Skyfire/[VER]',
             'Tizen'         => 'Tizen/[VER]',
@@ -483,12 +311,9 @@
             'BlackBerry'       => array('BlackBerry[\w]+/[VER]', 'BlackBerry.*Version/[VER]', 'Version/[VER]'),
             'BREW'             => 'BREW [VER]',
             'Java'             => 'Java/[VER]',
-            // @reference: http://windowsteamblog.com/windows_phone/b/wpdev/archive/2011/08/29/introducing-the-ie9-on-windows-phone-mango-user-agent-string.aspx
-            // @reference: http://en.wikipedia.org/wiki/Windows_NT#Releases
             'Windows Phone OS' => array( 'Windows Phone OS [VER]', 'Windows Phone [VER]'),
             'Windows Phone'    => 'Windows Phone [VER]',
             'Windows CE'       => 'Windows CE/[VER]',
-            // http://social.msdn.microsoft.com/Forums/en-US/windowsdeveloperpreviewgeneral/thread/6be392da-4d2f-41b4-8354-8dcee20c85cd
             'Windows NT'       => 'Windows NT [VER]',
             'Symbian'          => array('SymbianOS/[VER]', 'Symbian/[VER]'),
             'webOS'            => array('webOS/[VER]', 'hpwOS/[VER];'),
