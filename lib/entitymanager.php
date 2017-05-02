@@ -3,6 +3,11 @@
 
     class EntityManager
     {
+        public static function getRepository($class)
+        {
+            return maker($class);
+        }
+
         public static function __callStatic($m, $a)
         {
             $class = array_shift($a);

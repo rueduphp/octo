@@ -2087,17 +2087,29 @@
 
         public function findBy($field, $value)
         {
-            return $this->where($field, '=', $value);
+            if (is_array($value)) {
+                return $this->in($field, $value);
+            }
+
+            return $this->where($field, $value);
         }
 
         public function firstBy($field, $value, $model = false)
         {
-            return $this->where($field, '=', $value)->first($model);
+            if (is_array($value)) {
+                return $this->in($field, $value)->first($model);
+            }
+
+            return $this->where($field, $value)->first($model);
         }
 
         public function lastBy($field, $value, $model = false)
         {
-            return $this->where($field, '=', $value)->last($model);
+            if (is_array($value)) {
+                return $this->in($field, $value)->last($model);
+            }
+
+            return $this->where($field, $value)->last($model);
         }
 
         public function in($field, array $values)

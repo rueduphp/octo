@@ -22,51 +22,10 @@
         error_reporting(-1);
     }
 
+    require_once __DIR__ . '/autoloader.php';
+
     spl_autoload_register(function ($class) {
-        if (!class_exists($class)) {
-            $tab    = explode('\\', $class);
-            $ns     = array_shift($tab);
-            $lib    = array_shift($tab);
-
-            if ('Octo' == $ns) {
-                if (!empty($tab)) {
-                    $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
-                } else {
-                    $file = __DIR__ . DS . strtolower($lib) . '.php';
-                }
-
-                if (file_exists($file)) {
-                    require_once $file;
-
-                    return;
-                }
-            } elseif (fnmatch('*Model', $class) && strlen($class) > 5) {
-                $humanized = Inflector::uncamelize($class);
-                list($dbTable, $dummy) = explode($humanized, '_model', 2);
-            } else {
-                if ($ns == $class || empty($ns)) {
-                    if (class_exists('\\Octo\\' . $class)) {
-                        return class_alias('\\Octo\\' . $class, $class);
-                    }
-
-                    if (!empty($tab)) {
-                        $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
-                    } else {
-                        $file = __DIR__ . DS . strtolower($lib) . '.php';
-                    }
-
-                    if (file_exists($file)) {
-                        require_once $file;
-
-                        return class_alias('\\Octo\\' . $class, $class);
-                    }
-                }
-            }
-
-            if (!defined('OCTO_STANDALONE')) {
-                aliases($class);
-            }
-        }
+        return (new Autoloader)->loader($class);
     });
 
     function view($html = null, $code = 200, $title = 'Octo')
@@ -3670,7 +3629,7 @@
 
         spl_autoload_register(function ($class) use ($from, $to) {
             if (!class_exists($class) && class_exists($to . '\\' . $class)) {
-                $ref = new \ReflectionClass($to. '\\' . $class);
+                $ref = new \ReflectionClass($to . '\\' . $class);
                 $fileName = $ref->getFileName();
 
                 $classCode = File::read($fileName);
