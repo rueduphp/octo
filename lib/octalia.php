@@ -2080,9 +2080,19 @@
             return $this->where($field, 'like', $value);
         }
 
+        public function orLike($field, $value)
+        {
+            return $this->or($field, 'like', $value);
+        }
+
         public function notLike($field, $value)
         {
             return $this->where($field, 'not like', $value);
+        }
+
+        public function orNotLike($field, $value)
+        {
+            return $this->or($field, 'not like', $value);
         }
 
         public function findBy($field, $value)
@@ -2117,9 +2127,19 @@
             return $this->where($field, 'in', $values);
         }
 
+        public function orIn($field, array $values)
+        {
+            return $this->or($field, 'in', $values);
+        }
+
         public function notIn($field, array $values)
         {
             return $this->where($field, 'not in', $values);
+        }
+
+        public function orNotIn($field, array $values)
+        {
+            return $this->or($field, 'not in', $values);
         }
 
         public function WhereIn($field, array $values)
@@ -2152,9 +2172,19 @@
             return $this->where($field, 'between', [$min, $max]);
         }
 
+        public function orBetween($field, $min, $max)
+        {
+            return $this->or($field, 'between', [$min, $max]);
+        }
+
         public function notBetween($field, $min, $max)
         {
             return $this->where($field, 'not between', [$min, $max]);
+        }
+
+        public function orNotBetween($field, $min, $max)
+        {
+            return $this->or($field, 'not between', [$min, $max]);
         }
 
         public function isNull($field)
@@ -2162,9 +2192,19 @@
             return $this->where($field, 'is', 'null');
         }
 
+        public function orIsNull($field)
+        {
+            return $this->or($field, 'is', 'null');
+        }
+
         public function isNotNull($field)
         {
             return $this->where($field, 'is not', 'null');
+        }
+
+        public function orIsNotNull($field)
+        {
+            return $this->or($field, 'is not', 'null');
         }
 
         public function post($create = false)
@@ -2181,22 +2221,42 @@
 
         public function lt($field, $value)
         {
-            return $this->where([$field, '<', $value]);
+            return $this->where($field, '<', $value);
+        }
+
+        public function orLt($field, $value)
+        {
+            return $this->or($field, '<', $value);
         }
 
         public function gt($field, $value)
         {
-            return $this->where([$field, '>', $value]);
+            return $this->where($field, '>', $value);
+        }
+
+        public function orGt($field, $value)
+        {
+            return $this->or($field, '>', $value);
         }
 
         public function lte($field, $value)
         {
-            return $this->where([$field, '<=', $value]);
+            return $this->where($field, '<=', $value);
+        }
+
+        public function orLte($field, $value)
+        {
+            return $this->or($field, '<=', $value);
         }
 
         public function gte($field, $value)
         {
-            return $this->where([$field, '>=', $value]);
+            return $this->where($field, '>=', $value);
+        }
+
+        public function orGte($field, $value)
+        {
+            return $this->or($field, '>=', $value);
         }
 
         public function before($date, $strict = true)
@@ -2208,6 +2268,15 @@
             return $strict ? $this->lt('created_at', $date) : $this->lte('created_at', $date);
         }
 
+        public function orBefore($date, $strict = true)
+        {
+            if (!is_int($date)) {
+                $date = (int) $date->timestamp;
+            }
+
+            return $strict ? $this->orLt('created_at', $date) : $this->orLte('created_at', $date);
+        }
+
         public function after($date, $strict = true)
         {
             if (!is_int($date)) {
@@ -2215,6 +2284,15 @@
             }
 
             return $strict ? $this->gt('created_at', $date) : $this->gte('created_at', $date);
+        }
+
+        public function orAfter($date, $strict = true)
+        {
+            if (!is_int($date)) {
+                $date = (int) $date->timestamp;
+            }
+
+            return $strict ? $this->orGt('created_at', $date) : $this->orGte('created_at', $date);
         }
 
         public function when($field, $op, $date)
@@ -2226,9 +2304,23 @@
             return $this->where([$field, $op, $date]);
         }
 
+        public function orWhen($field, $op, $date)
+        {
+            if (!is_int($date)) {
+                $date = (int) $date->timestamp;
+            }
+
+            return $this->or($field, $op, $date);
+        }
+
         public function deleted()
         {
             return $this->lte('deleted_at', microtime(true));
+        }
+
+        public function orDeleted()
+        {
+            return $this->orLte('deleted_at', microtime(true));
         }
 
         public function findOrFail($id, $model = true)

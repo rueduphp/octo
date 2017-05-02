@@ -38,6 +38,11 @@
             return Registry::get('octo.subdir', '') . $url;
         }
 
+        public function urlFor()
+        {
+            return call_user_func_array('\\Octo\urlFor', func_get_args());
+        }
+
         public function minify($asset)
         {
             return substr($this->url($asset), 1);
