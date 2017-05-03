@@ -352,4 +352,19 @@
             $this->action = $action;
             $this->$action();
         }
+
+        public function etag($time)
+        {
+            $etag = 'W/"' . md5($time) . '"';
+
+            header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $time) . " GMT");
+            header('Cache-Control: public, max-age=604800');
+            header("Etag: $etag");
+
+            if ((isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) === $time) || (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $etag === trim($_SERVER['HTTP_IF_NONE_MATCH']))) {
+                header('HTTP/1.1 304 Not Modified');
+
+                exit();
+            }
+        }
     }
