@@ -9,7 +9,8 @@
 
         public function __construct()
         {
-            $class = get_called_class();
+            $class      = get_called_class();
+            $methods    = get_class_methods($this);
 
             if (!isset(self::$booted[$class])) {
                 self::$booted[$class] = true;
@@ -21,7 +22,6 @@
                 $this->fire('booting');
 
                 $traits     = class_uses($class);
-                $methods    = get_class_methods($this);
 
                 if (!empty($traits)) {
                     foreach ($traits as $trait) {
