@@ -422,14 +422,14 @@
 
             $data = array_merge($old, $data);
 
-            $this->delete($data['id']);
+            $this->delete($data['id'], false, false);
 
             $this->add($data, true);
 
             return $this->fire('updated', $model ? $this->model($data) : $data);
         }
 
-        public function delete($id = null, $soft = false)
+        public function delete($id = null, $soft = false, $fire = true)
         {
             if (is_null($id)) {
                 return $this->deletes();
@@ -440,7 +440,7 @@
             $exists = !is_null($row);
 
             if ($exists) {
-                if ($this->fire('deleting', $row) === false) return false;
+                if ($fire && $this->fire('deleting', $row) === false) return false;
 
                 if ($soft) {
                     $row['deleted_at'] = time();
@@ -456,9 +456,11 @@
 
                     $this->age(microtime(true));
                 }
+
+                return $fire ? $this->fire('deleted', $row) : $exists;
             }
 
-            return $this->fire('deleted', $exists);
+            return false;
         }
 
         public function drop()

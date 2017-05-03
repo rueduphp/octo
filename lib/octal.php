@@ -14,16 +14,20 @@
             if (!isset(self::$booted[$class])) {
                 self::$booted[$class] = true;
 
+                if (in_array('events', $methods)) {
+                    static::events($this);
+                }
+
                 $this->fire('booting');
 
-                $traits = class_uses($class);
+                $traits     = class_uses($class);
+                $methods    = get_class_methods($this);
 
                 if (!empty($traits)) {
                     foreach ($traits as $trait) {
                         $tab        = explode('\\', $trait);
                         $traitName  = Inflector::lower(end($tab));
                         $method     = lcfirst(Inflector::camelize('boot_' . $traitName . '_trait'));
-                        $methods    = get_class_methods($this);
 
                         if (in_array($method, $methods)) {
                             call_user_func_array([$this, $method], []);
