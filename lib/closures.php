@@ -118,7 +118,7 @@
                 $code = str_replace('}' . $last, '}', $code);
             }
 
-            return em('SystemClosure')
+            return em('systemClosure')
             ->firstOrCreate(['name' => $name, 'key' => $id])
             ->setCode($code)
             ->save();
@@ -126,7 +126,7 @@
 
         public function fireStore($id, $args = [])
         {
-            $row = em('SystemClosure')->findOrFail((int) $id);
+            $row = em('systemClosure')->findOrFail((int) $id);
 
             $closure = eval('return ' . $row->code . ';');
 

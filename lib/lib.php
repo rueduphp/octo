@@ -5210,3 +5210,18 @@
 
         return $zip->close();
     }
+
+    function fetch($array, $key)
+    {
+        return lib('arrays')->fetch($array, $key);
+    }
+
+    function pluck($array, $key)
+    {
+        return array_map(
+            function($row) use ($key)  {
+                return is_object($row) ? $row->$key : $row[$key];
+            },
+            $array
+        );
+    }

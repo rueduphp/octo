@@ -6,7 +6,7 @@
         public static function set($name, $closure, $args = [], $when = 0)
         {
             $closure_id = lib('closures')->store($name, $closure)->id;
-            $db         = em('SystemLatertask');
+            $db         = em('systemLatertask');
 
             $db->optimized = false;
 
@@ -21,8 +21,8 @@
         {
             set_time_limit(false);
 
-            $dbTask     = em('SystemLatertask');
-            $dbInstance = em('SystemLaterinstance');
+            $dbTask     = em('systemLatertask');
+            $dbInstance = em('systemLaterinstance');
 
             $dbTask->optimized      = false;
             $dbInstance->optimized  = false;
@@ -65,7 +65,7 @@
 
                         $instance->delete();
 
-                        $dbHistory = em('SystemLaterhistory');
+                        $dbHistory = em('systemLaterhistory');
 
                         $dbHistory->optimized = false;
 
@@ -92,7 +92,7 @@
 
         public static function background()
         {
-            $file = realpath(__DIR__ . '/laterbin.php');
+            $file = path('public') . '/background.php';
 
             if (File::exists($file)) {
                 $cmd = 'php ' . $file;
