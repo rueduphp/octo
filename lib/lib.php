@@ -1605,12 +1605,11 @@
         }
 
         register_shutdown_function(function () {
-            on('shutdown', function () {
-                Queue::listen();
-                Later::shutdown();
-                middlewares('after');
-                eventer()->listen('shutdown');
-            });
+            Queue::listen();
+            Later::shutdown();
+            middlewares('after');
+            eventer()->listen('shutdown');
+            shutdown();
         });
 
         loadEvents();
@@ -1666,6 +1665,22 @@
     function make(array $array = [], $instance = null)
     {
         return lib('ghost', [$array, $instance]);
+    }
+
+    function shutdown(callable $callable = null)
+    {
+        $callables = Registry::get('core.shutdown', []);
+
+        if (is_callable($callable)) {
+            $callables[] = $callable;
+            Registry::set('core.shutdown', $callables);
+        } else {
+            foreach ($callables as $callable) {
+                if (is_callable($callable)) {
+                    $callable();
+                }
+            }
+        }
     }
 
     function tern($a, $b)
@@ -4343,6 +4358,18 @@
         return event($event, null, $args);
     }
 
+    function listening($event, $concern = null)
+    {
+        return Fly::has($event) ? Fly::listen($event, $concern) : $concern;
+    }
+
+    function subscribe($event, callable $callable, $back = null)
+    {
+       Fly::on($event, $callable);
+
+       return $back;
+    }
+
     function validator($name)
     {
         $validators = Registry::get('core.validators', []);
@@ -5186,7 +5213,6 @@
             foreach ($files as $file) {
                 $file = str_replace('\\', '/', $file);
 
-                // Ignore "." and ".." folders
                 if (in_array(substr($file, strrpos($file, '/') + 1), array('.', '..'))) continue;
 
                 $file = realpath($file);
@@ -5234,4 +5260,29 @@
     function is_true($bool)
     {
         return true === $bool;
+    }
+
+    class OctoLab
+    {
+        public static function __callStatic($m, $a)
+        {
+            if (function_exists('\\Octo\\' . $m)) {
+                return call_user_func_array('\\Octo\\' . $m, $a);
+            } elseif (function_exists('\\' . $m)) {
+                return call_user_func_array('\\' . $m, $a);
+            }
+
+            throw new \BadMethodCallException("Method {$m} does not exist.");
+        }
+
+        public function __call($m, $a)
+        {
+            if (function_exists('\\Octo\\' . $m)) {
+                return call_user_func_array('\\Octo\\' . $m, $a);
+            } elseif (function_exists('\\' . $m)) {
+                return call_user_func_array('\\' . $m, $a);
+            }
+
+            throw new \BadMethodCallException("Method {$m} does not exist.");
+        }
     }
