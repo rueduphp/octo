@@ -131,7 +131,21 @@
          */
         public function __call($method, $parameters)
         {
-            $this->attributes[$method] = !empty($parameters) ? current($parameters) : true;
+            if ($callable = isAke(self::$macros, $method)) {
+                return call_user_func_array($callable, $parameters);
+            }
+
+            if (!empty($parameters)) {
+                $callable = current($parameters);
+
+                if (is_callable($callable)) {vd($method);
+                    self::$macros[$method] = $callable;
+                }
+            } else {
+                $parameters[] = true;
+
+                $this->attributes[$method] = current($parameters);
+            }
 
             return $this;
         }

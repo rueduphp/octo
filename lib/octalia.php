@@ -533,8 +533,10 @@
             return $this->read($row);
         }
 
-        public function model(array $row = [])
+        public function model($row = [])
         {
+            $row = is_object($row) ? $row->toArray() : $row;
+
             $class = Strings::camelize($this->db . '_' . $this->table . '_model');
 
             $file = path('models') . '/' . $this->db . '/' . $this->table . '.php';
@@ -1331,14 +1333,14 @@
             return $this->find($id, $model);
         }
 
-        public function takeFisrt($limit = 1)
+        public function takeFisrt($limit = 1, $model = true)
         {
-            return $this->sortBy('id')->take($limit)->get();
+            return $this->sortBy('id')->take($limit)->get($model);
         }
 
-        public function takeLast($limit = 1)
+        public function takeLast($limit = 1, $model = true)
         {
-            return $this->sortByDesc('id')->take($limit)->get();
+            return $this->sortByDesc('id')->take($limit)->get($model);
         }
 
         public function slice($offset, $length = null)
@@ -2017,6 +2019,15 @@
             $iterator = lib('OctaliaIterator', [$this]);
 
             return $this->fire('get', $model ? $iterator->model() : $iterator);
+        }
+
+        public function items()
+        {
+            $this->reset();
+
+            $iterator = lib('OctaliaIterator', [$this]);
+
+            return $this->fire('get', $iterator->item());
         }
 
         public function all()

@@ -5225,3 +5225,13 @@
             $array
         );
     }
+
+    function is_false($bool)
+    {
+        return false === $bool;
+    }
+
+    function is_true($bool)
+    {
+        return true === $bool;
+    }

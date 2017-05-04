@@ -6,7 +6,7 @@
 
     class OctaliaIterator implements Countable, Iterator
     {
-        private $database, $table, $directory;
+        private $database, $table, $directory, $modeling = false;
 
         public function __construct($db, callable $closure = null)
         {
@@ -160,12 +160,12 @@
             return $this;
         }
 
-        public function one($model = true)
+        public function one()
         {
-            return $this->seek()->current($model);
+            return $this->seek()->current($this->modeling);
         }
 
-        public function current($model = true)
+        public function current()
         {
             $cursor = $this->getIterator();
 
@@ -181,7 +181,7 @@
 
                 $row = $this->db->read($row);
 
-                return $model ? $this->db->model($row) : $row;
+                return $this->modeling ? $this->db->model($row) : $row;
             }
 
             return false;
@@ -222,7 +222,7 @@
             return false;
         }
 
-        public function first($model = true)
+        public function first()
         {
             $id = current($this->getIterator());
 
@@ -234,10 +234,10 @@
                 $row = call_user_func_array($this->closure, [$row]);
             }
 
-            return $model ? $this->db->model($row) : $row;
+            return $this->modeling ? $this->db->model($row) : $row;
         }
 
-        public function last($model = true)
+        public function last()
         {
             $i  =  $this->getIterator();
             $id = end($i);
@@ -249,7 +249,7 @@
                 $row = call_user_func_array($this->closure, [$row]);
             }
 
-            return $model ? $this->db->model($row) : $row;
+            return $this->modeling ? $this->db->model($row) : $row;
         }
 
         public function with($entity)
@@ -311,6 +311,17 @@
         {
             $this->hook(function ($row) {
                 return $this->db->model($row);
+            });
+
+            $this->modeling = true;
+
+            return $this;
+        }
+
+        public function item()
+        {
+            $this->hook(function ($row) {
+                return $this->row($row);
             });
 
             return $this;
@@ -418,20 +429,24 @@
         {
             $item = item($row);
 
-            $item['slug'] = function ($field) use ($item) {
+            $item->slug(function ($field) use ($item) {
                 return Inflector::urlize($item[$field]);
-            };
+            });
 
             $fks = Arrays::pattern($row, '*_id');
 
-            foreach ($fks as $fk) {
+            foreach ($fks as $fk => $v) {
                 $field = str_replace('_id', '', $fk);
 
-                $item[$field] = function () use ($field, $row) {
+                $item->$field(function () use ($field, $row) {
                     return em(Inflector::camelize($this->database . '_' . $field))
                     ->find((int) $row[$field . '_id']);
-                };
+                });
             }
+
+            $item->toTime(function ($field) use ($row) {
+                return Time::createFromTimestamp(isAke($row, $field, time()));
+            });
 
             return $item;
         }
