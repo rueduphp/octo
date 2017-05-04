@@ -225,4 +225,9 @@
                 )
             );
         }
+
+        public static function upload($field)
+        {
+            return upload($field);
+        }
     }

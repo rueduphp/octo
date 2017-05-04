@@ -160,12 +160,12 @@
             return $this;
         }
 
-        public function one($model = false)
+        public function one($model = true)
         {
             return $this->seek()->current($model);
         }
 
-        public function current($model = false)
+        public function current($model = true)
         {
             $cursor = $this->getIterator();
 
@@ -222,7 +222,7 @@
             return false;
         }
 
-        public function first($model = false)
+        public function first($model = true)
         {
             $id = current($this->getIterator());
 
@@ -237,7 +237,7 @@
             return $model ? $this->db->model($row) : $row;
         }
 
-        public function last($model = false)
+        public function last($model = true)
         {
             $i  =  $this->getIterator();
             $id = end($i);
@@ -412,5 +412,27 @@
         public function directory()
         {
             return $this->directory;
+        }
+
+        public function row($row)
+        {
+            $item = item($row);
+
+            $item['slug'] = function ($field) use ($item) {
+                return Inflector::urlize($item[$field]);
+            };
+
+            $fks = Arrays::pattern($row, '*_id');
+
+            foreach ($fks as $fk) {
+                $field = str_replace('_id', '', $fk);
+
+                $item[$field] = function () use ($field, $row) {
+                    return em(Inflector::camelize($this->database . '_' . $field))
+                    ->find((int) $row[$field . '_id']);
+                };
+            }
+
+            return $item;
         }
     }

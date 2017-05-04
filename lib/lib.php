@@ -290,7 +290,7 @@
 
     function sdb($db, $table, $driver = null)
     {
-        return lib('octalia', [$db, $table, lib('Cachesql', ["$db.$table"])]);
+        return lib('octalia', [$db, $table, lib('cachesql', ["$db.$table"])]);
     }
 
     function mdb($db, $table, $driver = null)

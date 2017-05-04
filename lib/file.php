@@ -563,4 +563,9 @@
                 \RecursiveIteratorIterator::CHILD_FIRST
             );
         }
+
+        public static function upload($field)
+        {
+            return upload($field);
+        }
     }

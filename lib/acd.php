@@ -9,7 +9,7 @@
 
         public function __construct($ns = 'core')
         {
-            $this->dir = Config::get('acd.dir', '/home/multimedia/acd/fmr');
+            $this->dir = Config::get('acd.dir', '/home/acd/');
 
             if (!is_dir($this->dir)) {
                 File::mkdir($this->dir);

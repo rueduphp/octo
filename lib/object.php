@@ -261,8 +261,8 @@
                                     $fk = $this->table() . '_id';
                                     $fkParent = substr($fktable, 0, -1);
 
-                                    if (!$model) {
-                                        $model = false;
+                                    if (is_null($model)) {
+                                        $model = true;
                                     } else {
                                         if (true !== $model) {
                                             $model = false;
@@ -274,19 +274,22 @@
                                     $id = isAke($this->data, $fktable . '_id', 'octodummy');
 
                                     if (is_numeric($id)) {
-                                        return engine($this->db(), $fktable, $this->driver())->find((int) $id, $o);
+                                        return engine($this->db(), $fktable, $this->driver())
+                                        ->find((int) $id, $o);
                                     } else {
                                         $fk = $this->table() . '_id';
 
-                                        if (!$model) {
-                                            $model = false;
+                                        if (is_null($model)) {
+                                            $model = true;
                                         } else {
                                             if (true !== $model) {
                                                 $model = false;
                                             }
                                         }
 
-                                        return engine($this->db(), $fktable, $this->driver())->where([$fk, '=', (int) $this->get('id')])->first($model);
+                                        return engine($this->db(), $fktable, $this->driver())
+                                        ->where($fk, (int) $this->get('id'))
+                                        ->first($model);
                                     }
                                 }
                             }
@@ -307,10 +310,11 @@
         public function fresh()
         {
             if ($this->hasModel() && $this->exists()) {
-                return engine($this->db(), $this->table(), $this->driver())->find((int) $this->data['id']);
+                return engine($this->db(), $this->table(), $this->driver())
+                ->find((int) $this->data['id']);
             }
 
-            return $this;
+            return new self;
         }
 
         public function fn($m, callable $c)
@@ -513,14 +517,6 @@
                 if (fnmatch('*s', $k)) {
                     $fk = $this->table() . '_id';
                     $fkParent = substr($k, 0, -1);
-
-                    if (!$model) {
-                        $model = false;
-                    } else {
-                        if (true !== $model) {
-                            $model = false;
-                        }
-                    }
 
                     $rows = engine($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
 

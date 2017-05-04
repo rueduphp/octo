@@ -57,8 +57,8 @@
             $class = get_called_class();
 
             if (!Registry::exists('instances.' . $class)) {
-                $ref = new \Reflectionclass($class);
-                $args = func_get_args();
+                $ref    = new \Reflectionclass($class);
+                $args   = func_get_args();
                 Registry::set('instances.' . $class, $args ? $ref->newinstanceargs($args) : new $class);
             }
 
@@ -269,6 +269,14 @@
                 } else {
                     return call_user_func_array(static::$macros[$method], $parameters);
                 }
+            } else {
+                if (!empty($parameters)) {
+                    $callable = current($parameters);
+
+                    if (is_callable($callable)) {
+                        static::$macros[$method] = $callable;
+                    }
+                }
             }
 
             throw new \BadMethodCallException("Method {$method} does not exist.");
@@ -277,12 +285,20 @@
         public function __call($method, $parameters)
         {
             if (static::hasMacro($method)) {
-                if (static::$macros[$method] instanceof \Closure) {
+                if (self::$macros[$method] instanceof \Closure) {
                     $args = array_merge([$this], $parameters);
 
                     return call_user_func_array(static::$macros[$method], $args);
                 } else {
                     return call_user_func_array(static::$macros[$method], $parameters);
+                }
+            } else {
+                if (!empty($parameters)) {
+                    $callable = current($parameters);
+
+                    if (is_callable($callable)) {
+                        self::$macros[$method] = $callable;
+                    }
                 }
             }
 

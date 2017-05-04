@@ -5,6 +5,9 @@
 
     class Fluent implements AA
     {
+        use Macroable;
+        use Notifiable;
+
         /**
          * All of the attributes set on the container.
          *
@@ -36,7 +39,11 @@
          */
         public function get($key, $default = null)
         {
-            return isset($this->attributes[$key]) ? $this->attributes[$key] : value($default);
+            if (array_key_exists($key, $this->attributes)) {
+                return $this->attributes[$key];
+            }
+
+            return value($default);
         }
 
         /**
@@ -50,13 +57,24 @@
         }
 
         /**
-         * Get the attributes from the container.
+         * Convert instance to an array.
          *
          * @return array
          */
         public function toArray()
         {
             return $this->attributes;
+        }
+
+        /**
+         * Convert the Fluent instance to JSON.
+         *
+         * @param  int  $options
+         * @return string
+         */
+        public function toJson($options = 0)
+        {
+            return json_encode($this->toArray(), $options);
         }
 
         /**

@@ -1261,9 +1261,7 @@
 
                 $model = array_shift($a);
 
-                if (!$model) {
-                    $model = false;
-                } else {
+                if (is_null($model)) {
                     $model = true;
                 }
 
@@ -1276,9 +1274,7 @@
 
                 $model = array_shift($a);
 
-                if (!$model) {
-                    $model = false;
-                } else {
+                if (is_null($model)) {
                     $model = true;
                 }
 
@@ -1315,7 +1311,7 @@
             return call_user_func_array([coll($data), $m], $a);
         }
 
-        public function first($model = false)
+        public function first($model = true)
         {
             $i  = $this->iterator();
             $id = current($i);
@@ -1325,7 +1321,7 @@
             return $this->find($id, $model);
         }
 
-        public function last($model = false)
+        public function last($model = true)
         {
             $i  = $this->iterator();
             $id = end($i);
@@ -2014,7 +2010,7 @@
             return $affected;
         }
 
-        public function get($model = false)
+        public function get($model = true)
         {
             $this->reset();
 
@@ -2106,7 +2102,7 @@
             return $this->where($field, $value);
         }
 
-        public function firstBy($field, $value, $model = false)
+        public function firstBy($field, $value, $model = true)
         {
             if (is_array($value)) {
                 return $this->in($field, $value)->first($model);
@@ -2115,7 +2111,7 @@
             return $this->where($field, $value)->first($model);
         }
 
-        public function lastBy($field, $value, $model = false)
+        public function lastBy($field, $value, $model = true)
         {
             if (is_array($value)) {
                 return $this->in($field, $value)->last($model);
@@ -2336,7 +2332,7 @@
             }
         }
 
-        public function firstOrFail($model = false)
+        public function firstOrFail($model = true)
         {
             $row = $this->first();
 
@@ -2347,7 +2343,7 @@
             }
         }
 
-        public function lastOrFail($model = false)
+        public function lastOrFail($model = true)
         {
             $row = $this->last();
 
