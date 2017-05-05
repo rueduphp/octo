@@ -777,87 +777,23 @@
                     return $model;
                 }
 
-                if (is_string($event)) {
-                    $model = on($event, [$model]);
-                } elseif (is_callable($event)) {
-                    $model = $event($model);
-                }
+                $check = $this->fire('validate', $model->toArray());
 
-                $hook = isAke($model->hooks, 'validate', null);
-
-                if ($hook) {
-                    $check = call_user_func_array($hook, [$model]);
-
-                    if (true !== $check) {
-                        exception('model', $check);
-                    }
-                }
-
-                if ($model->exists()) {
-                    $before = aget($model->hooks, 'before.update', null);
-                } else {
-                    $before = aget($model->hooks, 'before.create', null);
-                }
-
-                if (is_callable($before)) {
-                    $model = $before($model);
-                }
-
-                if ($model->exists()) {
-                    $model = modelEvent($model, 'updating');
-                } else {
-                    $model = modelEvent($model, 'creating');
+                if ($check != $model->toArray()) {
+                    exception('model', $check);
                 }
 
                 if ($model) {
                     $row =  $this->save($model->toArray());
-
-                    if ($model->exists()) {
-                        $after = aget($model->hooks, 'after.update', null);
-                    } else {
-                        $after = aget($model->hooks, 'after.create', null);
-                    }
-
-                    if (is_callable($after)) {
-                        $row = $after($row);
-                    }
-
-                    if ($model->exists()) {
-                        $row = modelEvent($row, 'updated');
-                    } else {
-                        $row = modelEvent($row, 'created');
-                    }
 
                     return $row;
                 }
 
                 return $model;
             })->fn('delete', function ($event = null) use ($row, $model) {
-                if (is_string($event)) {
-                    $model = on($event, [$model]);
-                } elseif (is_callable($event)) {
-                    $model = $event($model);
-                }
-
                 if (isset($row['id'])) {
-                    $before = aget($model->hooks, 'before.delete', null);
-
-                    if (is_callable($before)) {
-                        $model = $before($model);
-                    }
-
-                    $model = modelEvent($model, 'deleting');
-
                     if ($model) {
                         $status = $this->delete($row['id']);
-
-                        $after = aget($model->hooks, 'after.delete', null);
-
-                        if (is_callable($after)) {
-                            $after($model->instance(), $status);
-                        }
-
-                        $model = modelEvent($model, 'deleted', [$status]);
 
                         return $status;
                     }
