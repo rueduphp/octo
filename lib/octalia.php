@@ -3073,13 +3073,21 @@
             return $this->model($data);
         }
 
-        public function fire($event, $concern = null)
+        public function fire($event, $concern = null, $return = false)
         {
             $key = 'octalia.' .
             lcfirst(Strings::camelize($this->db . '_' . $this->table))
             . '.' . $event;
 
-            return Fly::has($key) ? Fly::listen($key, $concern, $this) : $concern;
+            if (Fly::has($key)) {
+                $result = Fly::listen($key, $concern, $this);
+
+                if ($return) {
+                    return $result;
+                }
+            }
+
+            return $concern;
         }
 
         public function on($event, callable $cb, $back = null)
@@ -3097,22 +3105,32 @@
         {
             $this->on('added', function ($row) {
                 $this->logs('added', $row);
+
+                return $row;
             });
 
             $this->on('created', function ($row) {
                 $this->logs('created', $row);
+
+                return $row;
             });
 
             $this->on('updated', function ($row) {
                 $this->logs('updated', $row);
+
+                return $row;
             });
 
             $this->on('deleted', function ($row) {
                 $this->logs('deleted', $row);
+
+                return $row;
             });
 
             $this->on('query', function ($query) {
                 $this->logs('query', $query, true);
+
+                return $query;
             });
         }
 
