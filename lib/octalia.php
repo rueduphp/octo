@@ -30,6 +30,8 @@
 
             Registry::set('octalia.start', microtime(true));
             Registry::set('octalia.instance', $this);
+
+            $this->_events();
         }
 
         public function validator()
@@ -287,21 +289,27 @@
             return $this->fire('count', count($this->iterator()));
         }
 
-        private function add($row)
+        private function add($row, $fire = true)
         {
             $id = isAke($row, 'id', null);
 
-            $this->driver->set($id, $row);
+            if ($id) {
+                $this->driver->set($id, $row);
 
-            $rows = $this->data();
+                $rows = $this->data();
 
-            $rows[$id] = $row;
+                $rows[$id] = $row;
 
-            $this->data($rows);
+                $this->data($rows);
 
-            $this->driver->set('rows', $rows);
+                $this->driver->set('rows', $rows);
 
-            $this->age(microtime(true));
+                $this->age(microtime(true));
+
+                if ($fire) {
+                    $this->fire('added', $row);
+                }
+            }
 
             return $this;
         }
@@ -403,7 +411,7 @@
         {
             if ($this->fire('creating', $data) === false) return false;
 
-            $this->add($data);
+            $this->add($data, false);
 
             return $this->fire('created', $model ? $this->model($data) : $data);
         }
@@ -424,7 +432,7 @@
 
             $this->delete($data['id'], false, false);
 
-            $this->add($data, true);
+            $this->add($data, false);
 
             return $this->fire('updated', $model ? $this->model($data) : $data);
         }
@@ -469,11 +477,18 @@
 
             $this->age(microtime(true));
 
+            $this->all()->delete();
+
             if ($this->driver instanceof Cache) {
                 return File::rmdir($this->getDirectory());
             }
 
             return $this->driver->flush();
+        }
+
+        public function findAll($model = true)
+        {
+            return $this->newQuery()->get($model);
         }
 
         public function find($id = null, $model = true)
@@ -1744,6 +1759,12 @@
                 return $key($this);
             }
 
+            if ($key instanceof Object) {
+                $fkTable = $key->table();
+
+                return $this->where($fkTable . '_id', (int) $key->id);
+            }
+
             if ($key instanceof Octalia) {
                 $joins = $key->get();
 
@@ -1803,6 +1824,8 @@
             $liteTable = str_replace('.', '', $this->path);
 
             $this->query[] = [$key, $operator, $value];
+
+            $this->fire('query', $this->query);
 
             $keyCache = 'owhs.' . sha1(serialize($this->query) . $this->ns);
 
@@ -3132,5 +3155,57 @@
            Fly::on($key, $cb);
 
            return is_null($back) ? $this : $back;
+        }
+
+        protected function _events()
+        {
+            $this->on('added', function ($row) {
+                $this->logs('added', $row);
+            });
+
+            $this->on('created', function ($row) {
+                $this->logs('created', $row);
+            });
+
+            $this->on('updated', function ($row) {
+                $this->logs('updated', $row);
+            });
+
+            $this->on('deleted', function ($row) {
+                $this->logs('deleted', $row);
+            });
+
+            $this->on('query', function ($query) {
+                $this->logs('query', $query, true);
+            });
+        }
+
+        public function logs($key = null, $value = null, $replace = false)
+        {
+            $k = 'octalia.' .
+            lcfirst(Strings::camelize($this->db . '_' . $this->table))
+            . '.logs';
+
+            $logs = Registry::get($k, []);
+
+            if (is_null($key)) {
+                return $logs;
+            }
+
+            if (is_null($value)) {
+                return isAke($logs, $key, false === $replace ? [] : null);
+            }
+
+            if (false === $replace) {
+                if (!isset($logs[$key])) {
+                    $logs[$key] = [];
+                }
+
+                $logs[$key][] = $value;
+            } else {
+                $logs[$key] = $value;
+            }
+
+            Registry::set($k, $logs);
         }
     }
