@@ -850,7 +850,7 @@
                 $database   = $this->db;
                 $table      = $this->table;
 
-                return actuel("entity.$database.$table");
+                return actual("entity.$database.$table");
             })->fn('instance', function () {
                 return $this;
             })->fn('driver', function () {
