@@ -84,17 +84,54 @@
 
         public static function __callStatic($m, $a)
         {
+            $instance = maker(get_called_class(), [], false);
+
             if ('new' == $m) {
                 return static::store(current($a));
-            }
+            } elseif ('find' == $m) {
+                $orm = $instance->orm();
+                $row = $res = call_user_func_array([$orm, 'find'], $a);
 
-            $instance = maker(get_called_class(), [], false);
+                if (is_array($row)) {
+                    $row = $orm->model($row);
+                }
+
+                $database = $orm->db;
+                $table = $orm->table;
+
+                actual("row.$database.$table", $row);
+
+                return $res;
+            }
 
             return call_user_func_array([$instance, $m], $a);
         }
 
         public function __call($m, $a)
         {
+            if ('new' == $m) {
+                return $this->store(current($a));
+            }
+
             return call_user_func_array([$this->orm(), $m], $a);
+        }
+
+        public function __toString()
+        {
+            $orm = $this->orm();
+
+            $database = $orm->db;
+            $table = $orm->table;
+
+            if ($row = actual("row.$database.$table")) {
+                return $row->toJson();
+            }
+        }
+
+        public function __invoke($id)
+        {
+            if (is_numeric($id)) {
+                return $this->orm()->find($id);
+            }
         }
     }
