@@ -846,6 +846,11 @@
                 return $this->db;
             })->fn('em', function () {
                 return $this;
+            })->fn('entity', function () {
+                $database   = $this->db;
+                $table      = $this->table;
+
+                return actuel("entity.$database.$table");
             })->fn('instance', function () {
                 return $this;
             })->fn('driver', function () {
@@ -3103,6 +3108,8 @@
 
         protected function _events()
         {
+            actual('entity', $this);
+
             $this->on('added', function ($row) {
                 $this->logs('added', $row);
 

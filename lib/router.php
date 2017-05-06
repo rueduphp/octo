@@ -152,8 +152,8 @@
                     $controller->_name  = $controllerName;
                     $controller->action = $a;
 
-                    Registry::set('app.controller', $controller);
-                    Registry::set('app.controller.file', $controllerFile);
+                    actual('controller', $controller);
+                    actual('controller.file', $controllerFile);
 
                     if (in_array('bootstrap', $actions)) {
                         $controller->bootstrap();
@@ -228,7 +228,7 @@
             $tpl = path('app') . DS . 'views' . DS . $controller->_name . DS . $controller->action . '.phtml';
 
             if (File::exists($tpl)) {
-                Registry::set('app.view.file', $tpl);
+                actual('view.file', $tpl);
                 $content = File::read($tpl);
 
                 $layout = cut('<layout>', '</layout>', $content);

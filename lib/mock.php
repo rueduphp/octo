@@ -5,15 +5,18 @@
     {
         private $__native, $__events = [];
 
-        public function __construct($native, array $args = [])
+        public function __construct()
         {
+            $args   = func_get_args();
+            $native = array_shift($args);
+
             if (is_string($native)) {
-                $this->__native = app()->make($native, $args);
+                $this->__native = maker($native, $args);
             } else {
                 $this->__native = $native;
             }
 
-            Registry::set('last_mock', $this);
+            actual('mock', $this);
         }
 
         public function __on($m, callable $c)
@@ -86,7 +89,7 @@
 
         public static function __callStatic($m, $a)
         {
-            $instance = Registry::get('last_mock');
+            $instance = actual('mock');
 
             if ($instance instanceof self) {
                 $events = $instance->__events();

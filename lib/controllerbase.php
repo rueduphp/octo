@@ -21,6 +21,8 @@
             if (in_array('boot', $actions)) {
                 $this->boot();
             }
+
+            actual('controller', $this);
         }
 
         public function getCsrf()
@@ -366,5 +368,10 @@
 
                 exit();
             }
+        }
+
+        public function routing($route)
+        {
+            $this->go($this->urlFor($route));
         }
     }

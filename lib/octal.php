@@ -35,6 +35,12 @@
                     }
                 }
 
+                $em         = em($this->entity);
+                $database   = $em->db;
+                $table      = $em->table;
+
+                actuel("entity.$database.$table", $this);
+
                 $this->fire('booted');
             }
         }

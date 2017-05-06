@@ -1583,7 +1583,7 @@
                     $protocol .= 's';
                 }
 
-                if ($_SERVER["SERVER_PORT"] != "80") {
+                if ($_SERVER["SERVER_PORT"] != "80" && $_SERVER["SERVER_PORT"] != "443") {
                     $urlSite = "$protocol://" . $_SERVER["SERVER_NAME"] . ':' . $_SERVER["SERVER_PORT"] . WEBROOT;
                 } else {
                     $urlSite = "$protocol://" . $_SERVER["SERVER_NAME"] . WEBROOT;
@@ -1688,6 +1688,11 @@
         return $a ? $a : $b;
     }
 
+    function _($segment, $args = [], $locale = null)
+    {
+        echo trans($segment, $args, $locale);
+    }
+
     function trans($segment, $args = [], $locale = null)
     {
         $translation = $segment;
@@ -1723,6 +1728,7 @@
     function rights()
     {
         eventer()->listen('rights');
+
         $acl = path('app') . '/config/acl.php';
 
         $rights = make([], 'rights');
@@ -1890,7 +1896,7 @@
 
     function increment($k, $by = 1)
     {
-        return decr($k, $by);
+        return incr($k, $by);
     }
 
     function decr($k, $by = 1)
@@ -1908,12 +1914,12 @@
         return decr($k, $by);
     }
 
-    function getOr($k, callable $c, $e = null)
+    function getOr($k, callable $c)
     {
         $res = get($k, 'octodummy');
 
         if ('octodummy' == $res) {
-            set($k, $res = $c(), $e);
+            set($k, $res = $c());
         }
 
         return $res;
@@ -1945,7 +1951,7 @@
 
             if (!$callable) {
                 $callable = $provider[$service] = function () use ($service, $args) {
-                    return app()->make($service, $args);
+                    return maker($service, $args);
                 };
             }
 
@@ -2052,11 +2058,11 @@
         return single('eventer', $cb);
     }
 
-    function stopPropagation()
+    function stopPropagation($value = null)
     {
         $o = o();
 
-        return $o->setStopPropagation(1);
+        return $o->setStopPropagation(1)->setValue(value($value));
     }
 
     function emit()
@@ -2149,7 +2155,7 @@
             $single = isAke($singletons, $key, null);
 
             if (!$single) {
-                $single = app($class);
+                $single = maker($class, $args);
 
                 if ($single) {
                     $singletons[$key] = $single;
@@ -2269,7 +2275,7 @@
         }
 
         foreach ($services as $serviceClass) {
-            $service = app($serviceClass);
+            $service = maker($serviceClass);
 
             $service->register(provider());
         }
@@ -2297,11 +2303,22 @@
 
             $zones[$k]['zone']  = $zone;
             $zones[$k]['text']  = '(GMT' . date('P', $ts) . ') ' . $zones[$k]['zone'];
-            $zones[$k]['order'] = str_replace('-', '1', str_replace('+', '2', date('P', $ts))) . $zone;
+            $zones[$k]['order'] = str_replace(
+                '-',
+                '1',
+                str_replace(
+                    '+',
+                    '2',
+                    date('P', $ts)
+                )
+            ) . $zone;
         }
 
         usort($zones, function ($a, $b) {
-            return strcmp($a['order'], $b['order']);
+            return strcmp(
+                $a['order'],
+                $b['order']
+            );
         });
 
         date_default_timezone_set($actual);
@@ -2504,7 +2521,8 @@
 
         $key = 'gravatar.' . sha1(serialize(func_get_args()));
 
-        return session()->getOr($key, function () use ($email, $size, &$is_gravatar_loaded, &$gravatar) {
+        return session('web')
+        ->getOr($key, function () use ($email, $size, &$is_gravatar_loaded, &$gravatar) {
             $account = null;
 
             if (is_numeric($email)) {
@@ -2514,7 +2532,9 @@
                     $email = $account->getEmail();
                 }
             } else {
-                $account = em('systemAccount')->where(['email', '=', Strings::lower($email)])->first(true);
+                $account = em('systemAccount')
+                ->where('email', Strings::lower($email))
+                ->first(true);
             }
 
             $default = URLSITE . 'assets/img/nobody.svg';
@@ -2567,8 +2587,8 @@
 
             if ($account) {
                 $permission = em('systemPermission')
-                ->where(['action', '=', $action])
-                ->where(['account_id', '=', (int) $account_id])
+                ->where('action', $action)
+                ->where('account_id', (int) $account_id)
                 ->first();
 
                 if ($permission) {
@@ -2585,7 +2605,7 @@
         return !octo_can($action);
     }
 
-    function free_space($path = null)
+    function freeSpace($path = null)
     {
         $path = is_null($path) ? path('octalia') : $apth;
 
@@ -2617,14 +2637,20 @@
     function ohash($str, $salt = null)
     {
         $salt = empty($salt) ? osalt() : $salt;
-        $hash = hash($str . $salt);
+        $hash = hash(base64_encode($str . $salt));
 
         return strrev($hash);
     }
 
     function osalt()
     {
-        return strrev(hash(token()));
+        return strrev(
+            hash(
+                base64_encode(
+                    token()
+                )
+            )
+        );
     }
 
     require_once __DIR__ . DS . 'traits.php';
@@ -2694,7 +2720,7 @@
                 if ($target instanceof Collection) {
                     $target = $target->all();
                 } elseif (!is_array($target)) {
-                    return File::value($default);
+                    return value($default);
                 }
 
                 $result = Arrays::pluck($target, $key);
@@ -2707,7 +2733,7 @@
             } elseif (is_object($target) && isset($target->{$segment})) {
                 $target = $target->{$segment};
             } else {
-                return File::value($default);
+                return value($default);
             }
         }
 
@@ -2780,7 +2806,7 @@
             return Config::get($key);
         }
 
-        return Config::set($key, $value);
+        Config::set($key, $value);
     }
 
     function tpl($file, $args = [])
@@ -2846,11 +2872,6 @@
         Registry::get('translated.' . $lng, $translated);
 
         return $val;
-    }
-
-    function _($k, $a = [], $d = null)
-    {
-        echo lang($k, $a, $d);
     }
 
     function sqlite($db = null)
@@ -2943,7 +2964,7 @@
 
         $options->macro('get', function ($k, $d = null) {
             $option = em('systemOption')
-            ->where(['name', '=', $k])
+            ->where('name', $k)
             ->first(true);
 
             return $option ? $option->value : $d;
@@ -2951,7 +2972,7 @@
 
         $options->macro('has', function ($k) {
             $option = em('systemOption')
-            ->where(['name', '=', $k])
+            ->where('name', $k)
             ->first(true);
 
             return $option ? true : false;
@@ -2959,7 +2980,7 @@
 
         $options->macro('delete', function ($k) {
             $option = em('systemOption')
-            ->where(['name', '=', $k])
+            ->where('name', $k)
             ->first(true);
 
             return $option ? $option->delete() : false;
@@ -2987,7 +3008,7 @@
             $k = sha1(forever() . $k);
 
             $setting = em('systemSetting')
-            ->where(['name', '=', $k])
+            ->where('name', $k)
             ->first(true);
 
             return $setting ? $setting->value : $d;
@@ -3104,8 +3125,8 @@
 
     function staticEtag()
     {
-        $controller = Registry::get('app.controller.file');
-        $tpl        = Registry::get('app.view.file');
+        $controller = actual('controller.file');
+        $tpl        = actual('view.file');
 
         if ($controller && $tpl) {
             if (File::exists($controller) && File::exists($tpl)) {
@@ -3156,13 +3177,38 @@
         return File::value($value);
     }
 
-    function posted($k = null, $d = null)
+    function arrayed(array $array, $k = null, $d = null)
     {
         if (empty($k)) {
-            return !empty($_POST);
+            return !empty($array);
         }
 
-        return isAke($_POST, $k, $d);
+        if (is_array($k)) {
+            $collection = [];
+
+            foreach ($k as $key) {
+                $collection[$key] = isAke($array, $key, $d);
+            }
+
+            return $collection;
+        }
+
+        return isAke($array, $k, $d);
+    }
+
+    function posted($k = null, $d = null)
+    {
+        return arrayed($_POST, $k, $d);
+    }
+
+    function requested($k = null, $d = null)
+    {
+        return arrayed($_REQUEST, $k, $d);
+    }
+
+    function getted($k = null, $d = null)
+    {
+        return arrayed($_GET, $k, $d);
     }
 
     function checkReferer()
@@ -3388,7 +3434,7 @@
             }
         }
 
-        return (new App)->make($class, $args);
+        return maker($class, $args);
     }
 
     function appli($lib, $args = [], $dir = null)
@@ -3404,7 +3450,7 @@
             }
         }
 
-        return (new App)->make($class, $args);
+        return maker($class, $args);
     }
 
     function exception($type, $message, $extends = '\\Exception')
@@ -3955,19 +4001,19 @@
     {
         static $cleaned = [];
 
-        if (is_bool($value) or is_int($value) or is_float($value) or in_array($value, $cleaned, true)) {
+        if (is_bool($value) || is_int($value) || is_float($value) || in_array($value, $cleaned, true)) {
             return $value;
         }
 
         if (is_string($value)) {
             $value = htmlentities($value, $flags, $encoding, false);
-        } elseif (is_array($value) or ($value instanceof \Iterator && $value instanceof \ArrayAccess)) {
+        } elseif (is_array($value) || ($value instanceof \Iterator && $value instanceof \ArrayAccess)) {
             is_object($value) && $cleaned[] = $value;
 
             foreach ($value as $k => $v) {
                 $value[$k] = e($v, $flags, $encoding);
             }
-        } elseif ($value instanceof \Iterator or get_class($value) == 'stdClass') {
+        } elseif ($value instanceof \Iterator || get_class($value) == 'stdClass') {
             $cleaned[] = $value;
 
             foreach ($value as $k => $v) {
@@ -3999,6 +4045,10 @@
     function urlFor($name, array $args = [])
     {
         $url = Routes::url($name, $args);
+
+        if (!$url) {
+            $url = $name;
+        }
 
         return WEBROOT . '/' . trim($url, '/');
     }
@@ -4032,7 +4082,7 @@
             list($controllerName, $action) = explode(':', $what, 2);
         }
 
-        $actualController = Registry::get('app.controller', null);
+        $actualController = actual('controller');
 
         if (!empty($actualController)) {
             if (is_object($actualController)) {
@@ -4078,7 +4128,10 @@
                     return $return->go();
                 }
 
-                return Router::render($controller, Registry::get('cb.404'));
+                return Router::render(
+                    $controller,
+                    Registry::get('cb.404')
+                );
             }
         }
     }
@@ -4353,14 +4406,39 @@
         }
     }
 
+    function actual($key = null, $value = null)
+    {
+        $actuals = Registry::get('core.actuals', []);
+
+        if (is_null($key)) {
+            return $actuals;
+        }
+
+        if (is_null($value)) {
+            return isAke($actuals, $key, null);
+        }
+
+        $actuals[$key] = $value;
+
+        Registry::set('core.actuals', $actuals);
+    }
+
     function fire($event, array $args = [])
     {
         return event($event, null, $args);
     }
 
-    function listening($event, $concern = null)
+    function listening($event, $concern = null, $return = false)
     {
-        return Fly::has($event) ? Fly::listen($event, $concern) : $concern;
+        if (Fly::has($event)) {
+            $result = Fly::listen($event, $concern);
+
+            if ($return) {
+                return $result;
+            }
+        }
+
+        return $concern;
     }
 
     function subscribe($event, callable $callable, $back = null)
