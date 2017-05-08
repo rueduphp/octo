@@ -167,6 +167,10 @@
                         }
                     }
 
+                    if (in_array('guards', $actions)) {
+                        $controller->guards();
+                    }
+
                     if (in_array('before', $actions)) {
                         $controller->before();
                     }

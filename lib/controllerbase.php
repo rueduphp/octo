@@ -374,4 +374,17 @@
         {
             $this->go($this->urlFor($route));
         }
+
+        public function authorize()
+        {
+            $guard = guard();
+
+            $check = call_user_func_array([$guard, 'allows'], func_get_args());
+
+            if ($check) {
+                return true;
+            }
+
+            exception('guard', 'This user is not authorized to execute this action.');
+        }
     }

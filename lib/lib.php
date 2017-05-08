@@ -5416,6 +5416,48 @@
         return ltrim(ob_get_clean());
     }
 
+    function guard()
+    {
+        $class = o();
+
+        $class->macro('add', function ($policy, callable $callable) use ($class) {
+            $policies = Registry::get('guard.policies', []);
+            $policies[$policy] = $callable;
+
+            Registry::set('guard.policies', $policies);
+
+            return $class;
+        });
+
+        $class->macro('on', function () use ($class) {
+            return call_user_func_array([$class, 'add'], func_get_args());
+        });
+
+        $class->macro('allows', function () {
+            $user = session('web')->getUser();
+
+            if ($user) {
+                $user = em('user')->find((int) $user['id']);
+
+                $args = func_get_args();
+
+                $policy = array_shift($args);
+
+                $policies = Registry::get('guard.policies', []);
+
+                $policy = isAke($policies, $policy, null);
+
+                if (is_callable($policy)) {
+                    return call_user_func_array($policy, array_merge([$user], $args));
+                }
+            }
+
+            return false;
+        });
+
+        return $class;
+    }
+
     class OctoLab
     {
         public static function __callStatic($m, $a)
