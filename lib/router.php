@@ -161,6 +161,10 @@
                         if (in_array('init', $actions)) {
                             $controller->init();
                         }
+
+                        if (in_array('boot', $actions)) {
+                            $controller->boot();
+                        }
                     }
 
                     if (in_array('before', $actions)) {
@@ -182,7 +186,15 @@
                     }
 
                     if ($return instanceof Object) {
-                        return $return->go();
+                        if ($return->hasModel()) {
+                            Api::renderJson($return->toArray());
+                        } else if ($return->getIsVue()) {
+                            $return->render();
+                        } else {
+                            return $return->go();
+                        }
+                    } elseif (is_array($return)) {
+                        Api::renderJson($return);
                     }
                 } else {
                     $controller = new $class($action);

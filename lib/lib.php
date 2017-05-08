@@ -1450,6 +1450,43 @@
         abort($code, $message);
     }
 
+    function vue($file, $args = [], $status = 200)
+    {
+        $path = path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
+        $html = evaluate($path, $args);
+
+        $vue = o([
+            'withs'     => [],
+            'is_vue'    => true,
+            'status'    => (int) $status,
+            'html'      => $html
+        ]);
+
+        $vue->macro('render', function () use ($vue) {
+            $withs = $vue->withs;
+
+            if (!empty($withs)) {
+                foreach ($withs as $k => $v) {
+                    $setter = setter($k);
+                    session()->$setter($v);
+                }
+            }
+
+            response($vue->getHtml(), (int) $vue->getStatus());
+        });
+
+        $vue->macro('with', function ($k, $v) use ($vue) {
+            $withs = $vue->withs;
+            $withs[$k] = $v;
+
+            $vue->withs = $withs;
+
+            return $vue;
+        });
+
+        return $vue;
+    }
+
     function path($k = null, $v = null, $d = null)
     {
         $paths = paths();
@@ -5338,6 +5375,35 @@
     function is_true($bool)
     {
         return true === $bool;
+    }
+
+    function evaluate($path, $args = [])
+    {
+        $ob_get_level = ob_get_level();
+
+        ob_start();
+
+        extract($args);
+
+        $self = actual('controller');
+
+        try {
+            include $path;
+        } catch (\Exception $e) {
+            while (ob_get_level() > $ob_get_level) {
+                ob_end_clean();
+            }
+
+            view('<h1>An error occured !</h1><p>' . $e->getMessage() . '</p>', 500, 'An error occured');
+        } catch (\Throwable $e) {
+            while (ob_get_level() > $ob_get_level) {
+                ob_end_clean();
+            }
+
+            view('<h1>An error occured !</h1><p>' . $e->getMessage() . '</p>', 500, 'An error occured');
+        }
+
+        return ltrim(ob_get_clean());
     }
 
     class OctoLab
