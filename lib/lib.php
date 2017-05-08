@@ -6,6 +6,7 @@
     }
 
     require_once __DIR__ . '/base.php';
+    require_once __DIR__ . '/helpers.php';
 
     /* constantes */
     defined('APPLICATION_ENV')  || define('APPLICATION_ENV', 'production');
@@ -1450,6 +1451,11 @@
         abort($code, $message);
     }
 
+    function partial($file, $args = [])
+    {
+        vue('partials.' . $file, $args)->partial();
+    }
+
     function vue($file, $args = [], $status = 200)
     {
         $path = path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
@@ -1473,6 +1479,10 @@
             }
 
             response($vue->getHtml(), (int) $vue->getStatus());
+        });
+
+        $vue->macro('partial', function () use ($vue) {
+            echo $vue->getHtml();
         });
 
         $vue->macro('with', function ($k, $v) use ($vue) {

@@ -203,10 +203,12 @@
             }
         }
 
-        public function __invoke($id)
+        public function __invoke($id = null)
         {
             if (is_numeric($id)) {
                 return $this->orm()->find($id);
             }
+
+            return $this;
         }
     }

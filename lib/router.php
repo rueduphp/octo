@@ -193,6 +193,8 @@
                         } else {
                             return $return->go();
                         }
+                    } elseif (is_object($return) && in_array('toArray', get_class_methods($return))) {
+                        Api::renderJson($return->toArray());
                     } elseif (is_array($return)) {
                         Api::renderJson($return);
                     }
