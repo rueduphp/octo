@@ -387,4 +387,24 @@
 
             exception('guard', 'This user is not authorized to execute this action.');
         }
+
+        public function can()
+        {
+            $guard = guard();
+
+            $check = call_user_func_array([$guard, 'allows'], func_get_args());
+
+            if ($check) {
+                return true;
+            }
+
+            return false;
+        }
+
+        public function policy()
+        {
+            $guard = guard();
+
+            return call_user_func_array([$guard, 'add'], func_get_args());
+        }
     }
