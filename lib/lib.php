@@ -1459,13 +1459,13 @@
     function vue($file, $args = [], $status = 200)
     {
         $path = path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
-        $html = evaluate($path, $args);
 
         $vue = o([
             'withs'     => [],
             'is_vue'    => true,
             'status'    => (int) $status,
-            'html'      => $html
+            'args'      => $args,
+            'path'      => $path
         ]);
 
         $vue->macro('render', function () use ($vue) {
@@ -1478,11 +1478,17 @@
                 }
             }
 
-            response($vue->getHtml(), (int) $vue->getStatus());
+            $args = array_merge(['tpl' => $vue], $vue->getArgs());
+
+            $html = evaluate($vue->getPath(), $args);
+
+            response($html, (int) $vue->getStatus());
         });
 
         $vue->macro('partial', function () use ($vue) {
-            echo $vue->getHtml();
+            $args = array_merge(['tpl' => $vue], $vue->getArgs());
+
+            echo evaluate($vue->getPath(), $args);
         });
 
         $vue->macro('with', function ($k, $v) use ($vue) {
@@ -1492,6 +1498,30 @@
             $vue->withs = $withs;
 
             return $vue;
+        });
+
+        $vue->macro('can', function () {
+            $guard = guard();
+
+            $check = call_user_func_array([$guard, 'allows'], func_get_args());
+
+            if ($check) {
+                return true;
+            }
+
+            return false;
+        });
+
+        $vue->macro('cannot', function () {
+            $guard = guard();
+
+            $check = call_user_func_array([$guard, 'allows'], func_get_args());
+
+            if ($check) {
+                return false;
+            }
+
+            return true;
         });
 
         return $vue;
@@ -1567,9 +1597,9 @@
 
         if (!class_exists('Octo\Admin')) {
            entityFacade('admin');
-       }
+        }
 
-       if (!class_exists('Octo\Rest')) {
+        if (!class_exists('Octo\Rest')) {
             entityFacade('rest');
         }
 

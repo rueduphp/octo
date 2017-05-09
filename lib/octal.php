@@ -4,11 +4,22 @@
     class Octal
     {
         protected $entity;
+        protected $__instance;
         protected $entityFields = [];
         protected static $booted = [];
 
-        public function __construct()
+        public function __construct($newRow = null)
         {
+            $em         = em($this->entity);
+            $database   = $em->db;
+            $table      = $em->table;
+
+            $this->__instance = hash(uuid() . "entity.$database.$table");
+
+            if (is_array($newRow)) {
+                $this->row = $em->store($newRow);
+            }
+
             $class      = get_called_class();
             $methods    = get_class_methods($this);
 
@@ -19,13 +30,17 @@
                     static::events($this);
                 }
 
+                if (in_array('policies', $methods)) {
+                    static::policies($this);
+                }
+
                 if (in_array('boot', $methods)) {
                     static::boot($this);
                 }
 
                 $this->fire('booting');
 
-                $traits     = class_uses($class);
+                $traits = class_uses($class);
 
                 if (!empty($traits)) {
                     foreach ($traits as $trait) {
@@ -39,13 +54,49 @@
                     }
                 }
 
-                $em         = em($this->entity);
-                $database   = $em->db;
-                $table      = $em->table;
-
                 actual("entity.$database.$table", $this);
 
                 $this->fire('booted');
+            }
+        }
+
+        public function __set($key, $value)
+        {
+            if ('row' == $key) {
+                Registry::set('row.' . $this->__instance, $value);
+            } else {
+                $this->$key = $value;
+            }
+        }
+
+        public function __get($key)
+        {
+            if ('row' == $key) {
+                return Registry::get('row.' . $this->__instance);
+            } else {
+                if (isset($this->$key)) {
+                    return $this->$key;
+                }
+            }
+
+            return null;
+        }
+
+        public function __isset($key)
+        {
+            if ('row' == $key) {
+                return 'octodummy' != Registry::get('row.' . $this->__instance, 'octodummy');
+            }
+
+            return isset($this->$key);
+        }
+
+        public function __unset($key)
+        {
+            if ('row' == $key) {
+                Registry::delete('row.' . $this->__instance);
+            } else {
+                unset($this->$key);
             }
         }
 
@@ -163,20 +214,6 @@
 
             if ('new' == $m) {
                 return static::store(current($a));
-            } elseif ('find' == $m) {
-                $orm = $instance->orm();
-                $row = $res = call_user_func_array([$orm, 'find'], $a);
-
-                if (is_array($row)) {
-                    $row = $orm->model($row);
-                }
-
-                $database   = $orm->db;
-                $table      = $orm->table;
-
-                actual("row.$database.$table", $row);
-
-                return $res;
             }
 
             return call_user_func_array([$instance, $m], $a);
@@ -184,29 +221,38 @@
 
         public function __call($m, $a)
         {
-            if ('new' == $m) {
-                return $this->store(current($a));
-            }
+            if (isset($this->row)) {
+                return call_user_func_array([$this->row, $m], $a);
+            } else {
+                if ('new' == $m) {
+                    return $this->store(current($a));
+                }
 
-            return call_user_func_array([$this->orm(), $m], $a);
+                return call_user_func_array([$this->orm(), $m], $a);
+            }
         }
 
         public function __toString()
         {
-            $orm = $this->orm();
+            if (isset($this->row)) {
+                return $this->row->toJson();
+            } else {
+                $orm        = $this->orm();
+                $database   = $orm->db;
+                $table      = $orm->table;
 
-            $database = $orm->db;
-            $table = $orm->table;
-
-            if ($row = actual("row.$database.$table")) {
-                return $row->toJson();
+                return "$database.$table";
             }
         }
 
-        public function __invoke($id = null)
+        public function __invoke($concern = null)
         {
-            if (is_numeric($id)) {
-                return $this->orm()->find($id);
+            if (is_numeric($concern)) {
+                return $this->orm()->find((int) $concern);
+            }
+
+            if (is_array($concern)) {
+                return $this->orm()->store((array) $concern);
             }
 
             return $this;

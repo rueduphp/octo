@@ -6,6 +6,13 @@
         }
     }
 
+    if (!function_exists('guard')) {
+        function guard()
+        {
+            return call_user_func_array('\\Octo\\guard', func_get_args());
+        }
+    }
+
     if (!function_exists('vue')) {
         function vue()
         {
@@ -122,5 +129,90 @@
         function lng()
         {
             return call_user_func_array('\\Octo\\lng', func_get_args());
+        }
+    }
+
+    if (!function_exists('request')) {
+        function request()
+        {
+            $callable = ['\\Octo\\Input', 'request'];
+
+            return call_user_func_array($callable, func_get_args());
+        }
+    }
+
+    if (!function_exists('url')) {
+        function url($url = '/')
+        {
+            return Octo\Registry::get('octo.subdir', '') . $url;
+        }
+    }
+
+    if (!function_exists('redirect')) {
+        function redirect()
+        {
+            return call_user_func_array('\\Octo\\redirect', func_get_args());
+        }
+    }
+
+    if (!function_exists('auth')) {
+        function auth()
+        {
+            return call_user_func_array('\\Octo\\auth', func_get_args());
+        }
+    }
+
+    if (!function_exists('controller')) {
+        function controller()
+        {
+            return call_user_func_array('\\Octo\\controller', func_get_args());
+        }
+    }
+
+    if (!function_exists('current_url')) {
+        function current_url()
+        {
+            return call_user_func_array('\\Octo\\current_url', func_get_args());
+        }
+    }
+
+    if (!function_exists('action')) {
+        function action($action)
+        {
+            $controller = controller();
+
+            $controller->action = $action;
+            $controller->$action();
+        }
+    }
+
+    if (!function_exists('forward')) {
+        function forward($url, $method = 'GET')
+        {
+            $url = url('/' . $url);
+
+            $_SERVER['REQUEST_URI']     = $url;
+            $_SERVER['REQUEST_METHOD']  = $method;
+
+            lib('router')->run();
+
+            exit;
+        }
+    }
+
+    if (!function_exists('user')) {
+        function user($k = null)
+        {
+            $user = auth()->user();
+
+            if (!$user) {
+                $user = [];
+            }
+
+            if ($k) {
+                return isAke($user, $k, null);
+            }
+
+            return $user;
         }
     }

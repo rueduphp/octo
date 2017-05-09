@@ -846,6 +846,11 @@
                 return $this->db;
             })->fn('em', function () {
                 return $this;
+            })->fn('entityName', function () {
+                $database   = $this->db;
+                $table      = $this->table;
+
+                return Strings::camelize($database . "_" . $table);
             })->fn('entity', function () {
                 $database   = $this->db;
                 $table      = $this->table;
@@ -910,7 +915,9 @@
 
         public function createFake()
         {
-            return $this->fake(1, false)->create(true)->lastFake();
+            return $this->fake(1, false)
+            ->create(true)
+            ->lastFake();
         }
 
         public function fake($amount = 1, $create = true)
@@ -3168,5 +3175,36 @@
             }
 
             Registry::set($k, $logs);
+        }
+
+        public function policy($event, callable $callable)
+        {
+            $guard = guard();
+
+            $policy = $this->db . '.' . $this->table . '.' . $event;
+
+            call_user_func_array([$guard, 'add'], [$policy, $callable]);
+
+            return $this;
+        }
+
+        public function allows()
+        {
+            $args = func_get_args();
+
+            $event = array_shift($args);
+
+            $guard = guard();
+
+            $policy = $this->db . '.' . $this->table . '.' . $event;
+
+            $argsMethod = array_merge([$policy], $args);
+
+            return call_user_func_array([$guard, 'allows'], $argsMethod);
+        }
+
+        public function can()
+        {
+            return call_user_func_array([$this, 'allows'], func_get_args());
         }
     }
