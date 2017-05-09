@@ -405,6 +405,6 @@
         {
             $guard = guard();
 
-            return call_user_func_array([$guard, 'add'], func_get_args());
+            return call_user_func_array([$guard, 'policy'], func_get_args());
         }
     }

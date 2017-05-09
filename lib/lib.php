@@ -5450,7 +5450,7 @@
     {
         $class = o();
 
-        $class->macro('add', function ($policy, callable $callable) use ($class) {
+        $class->macro('policy', function ($policy, callable $callable) use ($class) {
             $policies = Registry::get('guard.policies', []);
             $policies[$policy] = $callable;
 
@@ -5460,7 +5460,7 @@
         });
 
         $class->macro('on', function () use ($class) {
-            return call_user_func_array([$class, 'add'], func_get_args());
+            return call_user_func_array([$class, 'policy'], func_get_args());
         });
 
         $class->macro('allows', function () {

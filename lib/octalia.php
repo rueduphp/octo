@@ -3183,7 +3183,7 @@
 
             $policy = $this->db . '.' . $this->table . '.' . $event;
 
-            call_user_func_array([$guard, 'add'], [$policy, $callable]);
+            call_user_func_array([$guard, 'policy'], [$policy, $callable]);
 
             return $this;
         }
