@@ -167,8 +167,8 @@
                         }
                     }
 
-                    if (in_array('guards', $actions)) {
-                        $controller->guards();
+                    if (in_array('policies', $actions)) {
+                        $controller->policies();
                     }
 
                     if (in_array('before', $actions)) {
