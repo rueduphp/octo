@@ -1073,7 +1073,7 @@
 
         return !strlen(
             preg_replace(
-                  ',[\x09\x0A\x0D\x20-\x7E]'
+                ',[\x09\x0A\x0D\x20-\x7E]'
                 . '|[\xC2-\xDF][\x80-\xBF]'
                 . '|\xE0[\xA0-\xBF][\x80-\xBF]'
                 . '|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}'
@@ -1102,7 +1102,7 @@
         );
     }
 
-    function cut($start, $end, $string)
+    function cut($start, $end, $string, $default = null)
     {
         if (strstr($string, $start) && strstr($string, $end) && isset($start) && isset($end)) {
             list($dummy, $string) = explode($start, $string, 2);
@@ -1114,7 +1114,7 @@
             }
         }
 
-        return null;
+        return $default;
     }
 
     function xCache($k, callable $c, $maxAge = null, $args = [])
@@ -1255,7 +1255,7 @@
             $language = isAke(
                 $_REQUEST,
                 $var,
-                \Locale::acceptFromHttp($_SERVER["HTTP_ACCEPT_LANGUAGE"])
+                \Locale::acceptFromHttp($fromBrowser)
             );
 
             session($context)->setLanguage($language);
@@ -1456,6 +1456,32 @@
         vue('partials.' . $file, $args)->partial();
     }
 
+    function layout($file, $page = null, $sections = null)
+    {
+        $page       = is_null($page) ? actual('vue') : $page;
+
+        $sections   = !is_array($sections)
+        ? ['content', 'js', 'css']
+        : array_merge(['content', 'js', 'css'], $sections);
+
+        vue('layouts.' . $file, $page->getArgs())->layout($page, $sections);
+    }
+
+    function codeEvaluation($code, array $args = [])
+    {
+        ob_start();
+
+        extract($args);
+
+        eval(' ?>' . $code . '<?php ');
+
+        $eval = ob_get_contents();
+
+        ob_end_clean();
+
+        return $eval;
+    }
+
     function vue($file, $args = [], $status = 200)
     {
         $path = path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
@@ -1485,6 +1511,30 @@
             response($html, (int) $vue->getStatus());
         });
 
+        $vue->macro('layout', function ($page, $sections) use ($vue) {
+            $args = array_merge([
+                'self'      => actual('controller'),
+                'layout'    => $vue,
+                'tpl'       => $page
+                ],
+                $vue->getArgs()
+            );
+
+            $layoutContent  = File::read($vue->getPath());
+            $pageContent    = File::read($page->getPath());
+
+            foreach ($sections as $section) {
+                $sectionContent = cut("@section $section", "@endsection", $pageContent);
+
+                $layoutContent = str_replace("{{ $section }}", $sectionContent, $layoutContent);
+            }
+
+            response(
+                codeEvaluation($layoutContent),
+                (int) $vue->getStatus()
+            );
+        });
+
         $vue->macro('partial', function () use ($vue) {
             $args = array_merge(['tpl' => $vue], $vue->getArgs());
 
@@ -1492,8 +1542,8 @@
         });
 
         $vue->macro('with', function ($k, $v) use ($vue) {
-            $withs = $vue->withs;
-            $withs[$k] = $v;
+            $withs      = $vue->withs;
+            $withs[$k]  = $v;
 
             $vue->withs = $withs;
 
@@ -1523,6 +1573,8 @@
 
             return true;
         });
+
+        actual('vue', $vue);
 
         return $vue;
     }
@@ -3735,7 +3787,7 @@
                 $classCode = File::read($fileName);
                 list($dummy, $classCode) = explode('namespace Octo;', $classCode, 2);
 
-                $code = "namespace { $classCode };";
+                $code = "namespace { $classCode }";
 
                 eval($code);
             }
@@ -4035,6 +4087,49 @@
         return $value;
     }
 
+    function cufa()
+    {
+        $args = func_get_args();
+
+        $callable = array_shift($args);
+
+        return call_user_func_array(
+            $callable,
+            $args
+        );
+    }
+
+    function closure()
+    {
+        $args       = func_get_args();
+        $callable   = array_shift($args);
+
+        $fn = o([
+            'callable' => $callable,
+            'args' => $args
+        ]);
+
+        $fn->macro('call', function () {
+            $nextArgs   = func_get_args();
+            $next       = array_shift($nextArgs);
+            $res        = call_user_func_array(
+                $fn->getCallable(),
+                $fn->getArgs()
+            );
+
+            if (is_callable($next)) {
+                $res = call_user_func_array(
+                    $next,
+                    array_merge([$res], $nextArgs)
+                );
+            }
+
+            return $res;
+        });
+
+        return $fn;
+    }
+
     function call($callback, array $args)
     {
         if (is_string($callback) && fnmatch('*::*', $callback)) {
@@ -4043,7 +4138,7 @@
 
         if (is_array($callback) && isset($callback[1]) && is_object($callback[0])) {
             if ($count = count($args)) {
-                $args = array_values($args);
+                $args   = array_values($args);
             }
 
             list($instance, $method) = $callback;
@@ -4054,8 +4149,8 @@
             $class = '\\' . ltrim($class, '\\');
 
             return $class::{$method}(...$args);
-        } elseif (is_string($callback) or $callback instanceOf \Closure) {
-            is_string($callback) and $callback = ltrim($callback, '\\');
+        } elseif (is_string($callback) || $callback instanceOf \Closure) {
+            is_string($callback) && $callback = ltrim($callback, '\\');
         }
 
         return $callback(...$args);
@@ -4064,7 +4159,7 @@
     function hash($str)
     {
         if (function_exists('hash_algos')) {
-            foreach (array('sha512', 'sha384', 'sha256', 'sha224', 'sha1', 'md5') as $hash) {
+            foreach (['sha512', 'sha384', 'sha256', 'sha224', 'sha1', 'md5'] as $hash) {
                 if (in_array($hash, hash_algos())) {
                     return \hash($hash, $str);
                 }
@@ -4410,11 +4505,13 @@
         return $res;
     }
 
-    function start_session()
+    function start_session($ns = 'web')
     {
         if (!session_id() && !headers_sent() && !isset($_SESSION)) {
             session_start();
         }
+
+        return session($ns);
     }
 
     function lower($str)
@@ -5467,7 +5564,7 @@
             $user = session('web')->getUser();
 
             if ($user) {
-                $user = em('user')->find((int) $user['id']);
+                $user = item($user);
 
                 $args = func_get_args();
 

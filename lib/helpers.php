@@ -104,10 +104,45 @@
         }
     }
 
+    if (!function_exists('dyn')) {
+        function dyn()
+        {
+            return call_user_func_array('\\Octo\\dyn', func_get_args());
+        }
+    }
+
+    if (!function_exists('lower')) {
+        function lower()
+        {
+            return call_user_func_array('\\Octo\\lower', func_get_args());
+        }
+    }
+
+    if (!function_exists('upper')) {
+        function upper()
+        {
+            return call_user_func_array('\\Octo\\upper', func_get_args());
+        }
+    }
+
     if (!function_exists('o')) {
         function o()
         {
             return call_user_func_array('\\Octo\\o', func_get_args());
+        }
+    }
+
+    if (!function_exists('start_session')) {
+        function start_session()
+        {
+            echo call_user_func_array('\\Octo\\start_session', func_get_args());
+        }
+    }
+
+    if (!function_exists('session')) {
+        function session()
+        {
+            echo call_user_func_array('\\Octo\\session', func_get_args());
         }
     }
 
@@ -176,13 +211,30 @@
         }
     }
 
-    if (!function_exists('action')) {
-        function action($action)
+    if (!function_exists('layout')) {
+        function layout()
         {
-            $controller = controller();
+            return call_user_func_array('\\Octo\\layout', func_get_args());
+        }
+    }
+
+    if (!function_exists('actual')) {
+        function actual()
+        {
+            return call_user_func_array('\\Octo\\actual', func_get_args());
+        }
+    }
+
+    if (!function_exists('action')) {
+        function action($action, $args = [])
+        {
+            $controller = actual('controller');
 
             $controller->action = $action;
-            $controller->$action();
+
+            $callable = [$controller, $action];
+
+            return call_user_func_array($callable, $args);
         }
     }
 
