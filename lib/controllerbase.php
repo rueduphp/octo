@@ -370,9 +370,9 @@
             }
         }
 
-        public function routing($route)
+        public function routing($route, $args = [])
         {
-            $this->go($this->urlFor($route));
+            $this->go($this->urlFor($route, $args));
         }
 
         public function authorize()
