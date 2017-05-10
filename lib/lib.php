@@ -1453,12 +1453,12 @@
 
     function partial($file, $args = [])
     {
-        vue('partials.' . $file, $args)->partial();
+        vue('partials.' . $file, $args)->partial(actual('vue'));
     }
 
     function layout($file, $page = null, $sections = null)
     {
-        $page       = is_null($page) ? actual('vue') : $page;
+        $page = is_null($page) ? actual('vue') : $page;
 
         $sections   = !is_array($sections)
         ? ['content', 'js', 'css']
@@ -1535,8 +1535,13 @@
             );
         });
 
-        $vue->macro('partial', function () use ($vue) {
-            $args = array_merge(['tpl' => $vue], $vue->getArgs());
+        $vue->macro('partial', function ($page) use ($vue) {
+            $args = array_merge([
+                'tpl' => $page, 'partial' => $vue
+                ],
+                $page->getArgs(),
+                $vue->getArgs()
+            );
 
             echo evaluate($vue->getPath(), $args);
         });
