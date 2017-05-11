@@ -1834,6 +1834,42 @@
         return lib('ghost', [$array, $instance]);
     }
 
+    function magic($class, array $array = [])
+    {
+        return lib('magic', [$array, $class]);
+    }
+
+    function context($context, array $array = [])
+    {
+        return lib('context', [$array, $context]);
+    }
+
+    function mockery($mock, array $args = [])
+    {
+        $class = maker($mock, $args);
+
+        $methods = get_class_methods($class);
+
+        $mock = lib(
+            'mockery',
+            [
+                [],
+                Inflector::camelize(
+                    'mock_' .
+                    Inflector::urlize(get_class($class), '_')
+                )
+            ]
+        );
+
+        foreach ($methods as $method) {
+            call_user_func_array([$mock, $method], [function () use ($class, $method) {
+                return call_user_func_array([$class, $method], func_get_args());
+            }]);
+        }
+
+        return $mock;
+    }
+
     function shutdown(callable $callable = null)
     {
         $callables = Registry::get('core.shutdown', []);

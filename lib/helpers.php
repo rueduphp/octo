@@ -275,3 +275,24 @@
             return $user;
         }
     }
+
+    if (!function_exists('magic')) {
+        function magic()
+        {
+            return call_user_func_array('\\Octo\\magic', func_get_args());
+        }
+    }
+
+    if (!function_exists('context')) {
+        function context()
+        {
+            return call_user_func_array('\\Octo\\context', func_get_args());
+        }
+    }
+
+    if (!function_exists('mockery')) {
+        function mockery()
+        {
+            return call_user_func_array('\\Octo\\mockery', func_get_args());
+        }
+    }
