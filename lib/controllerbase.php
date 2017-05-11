@@ -45,6 +45,11 @@
             return call_user_func_array('\\Octo\urlFor', func_get_args());
         }
 
+        public function isRoute()
+        {
+            return call_user_func_array('\\Octo\isRoute', func_get_args());
+        }
+
         public function minify($asset)
         {
             return substr($this->url($asset), 1);
@@ -375,6 +380,16 @@
             $this->go($this->urlFor($route, $args));
         }
 
+        public function route($route, $args = [])
+        {
+            $this->go($this->urlFor($route, $args));
+        }
+
+        public function routeFor($route, $args = [])
+        {
+            $this->go($this->urlFor($route, $args));
+        }
+
         public function authorize()
         {
             $guard = guard();
@@ -386,6 +401,13 @@
             }
 
             exception('guard', 'This user is not authorized to execute this action.');
+        }
+
+        public function cannot()
+        {
+            $check = call_user_func_array([$this, 'can'], func_get_args());
+
+            return !$check;
         }
 
         public function can()
@@ -406,5 +428,22 @@
             $guard = guard();
 
             return call_user_func_array([$guard, 'policy'], func_get_args());
+        }
+
+        public function pagination($query, $byPage = 10)
+        {
+            $page   = Input::request('page', 1);
+            $byPage = 10;
+
+            $this->total = $query->count();
+
+            $last = ceil($this->total / $byPage);
+
+            $this->results = $query->paginate($page, $byPage)->models();
+
+            if ($this->total > $byPage) {
+                $paginator          = new Paginator($this->results, $page, $this->total, $byPage, $last);
+                $this->pagination   = $paginator->links();
+            }
         }
     }

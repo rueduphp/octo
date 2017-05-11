@@ -83,6 +83,13 @@
         }
     }
 
+    if (!function_exists('isRoute')) {
+        function isRoute()
+        {
+            return call_user_func_array('\\Octo\\isRoute', func_get_args());
+        }
+    }
+
     if (!function_exists('path')) {
         function path()
         {
@@ -177,9 +184,9 @@
     }
 
     if (!function_exists('url')) {
-        function url($url = '/')
+        function url()
         {
-            return Octo\Registry::get('octo.subdir', '') . $url;
+            return call_user_func_array('\\Octo\\url', func_get_args());
         }
     }
 

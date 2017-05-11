@@ -373,6 +373,11 @@
             return null;
         }
 
+        public static function isRoute($name, $args = [])
+        {
+            return static::url($name, $args) == $_SERVER['REQUEST_URI'];
+        }
+
         public static function url($name, $args = [])
         {
             $url = null;

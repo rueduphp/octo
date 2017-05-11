@@ -4219,6 +4219,11 @@
         return new $class($data);
     }
 
+    function isRoute($name, array $args = [])
+    {
+        return Routes::isRoute($name, $args);
+    }
+
     function urlFor($name, array $args = [])
     {
         $url = Routes::url($name, $args);
