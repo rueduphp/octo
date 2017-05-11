@@ -296,3 +296,11 @@
             return call_user_func_array('\\Octo\\mockery', func_get_args());
         }
     }
+
+
+    if (!function_exists('mailto')) {
+        function mailto()
+        {
+            return call_user_func_array('\\Octo\\mailto', func_get_args());
+        }
+    }

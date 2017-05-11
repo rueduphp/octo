@@ -842,6 +842,11 @@
         return 'data:image/' . $ext . ';base64,' . base64_encode(dwnCache($src));
     }
 
+    function base64($data, $mime = 'image/jpg')
+    {
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
+    }
+
     function upload($field, $dest = null)
     {
         if (Arrays::exists($_FILES, $field)) {
@@ -5213,13 +5218,35 @@
     /*
         $mailer = mailer();
         $message = message()
-        ->setSubject('subjecy')
+        ->setSubject('subject')
         ->setTo(['client@site.com' => 'Client'])
         ->setFrom(['contact@site.com' => 'Contact'])
         ->setBody('This is a message!!', 'text/html');
 
         $status = $mailer->send($message);
     */
+
+    function mailto(array $config)
+    {
+        $mailer     = mailer();
+
+        $to         = isAke($config, 'to', null);
+        $toName     = isAke($config, 'to_name', $to);
+
+        $from       = isAke($config, 'from', null);
+        $fromName   = isAke($config, 'from_name', $from);
+
+        $subject    = isAke($config, 'subject', null);
+        $body       = isAke($config, 'body', null);
+
+        $message    = message()
+        ->setTo([$to => $toName])
+        ->setSubject($subject)
+        ->setFrom([$from => $fromName])
+        ->setBody($body, 'text/html');
+
+        return $mailer->send($message);
+    }
 
     function message()
     {
