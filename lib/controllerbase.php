@@ -446,4 +446,21 @@
                 $this->pagination   = $paginator->links();
             }
         }
+
+        public function app($k = null, $v = null)
+        {
+            $app = context('app');
+
+            if (is_null($k)) {
+                return $app;
+            }
+
+            if (is_null($v)) {
+                return $app[$k];
+            }
+
+            $app[$k] = $v;
+
+            return $app;
+        }
     }
