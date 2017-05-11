@@ -1909,7 +1909,6 @@
 
     function queue()
     {
-        $args = func_get_args();
         return call_user_func_array([lib('later'), 'set'], func_get_args());
     }
 
