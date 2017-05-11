@@ -1779,6 +1779,17 @@
             shutdown();
         });
 
+        $app = context('app');
+
+        $app->make(function () {
+            return call_user_func_array('\\Octo\\maker', func_get_args());
+        });
+
+        $app->register(function ($alias, $class, $args = []) use ($app) {
+            $instance       = maker($class, $args);
+            $app[$alias]    = $instance;
+        });
+
         loadEvents();
 
         eventer()->listen('bootstrap');
