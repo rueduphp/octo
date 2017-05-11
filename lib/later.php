@@ -17,7 +17,7 @@
             ]);
         }
 
-        public static function listen()
+        public static function listen($cli = true)
         {
             set_time_limit(false);
 
@@ -27,16 +27,20 @@
             $dbTask->optimized      = false;
             $dbInstance->optimized  = false;
 
-            $tasks = $dbTask->where(['when', '<', time()])->get();
+            $tasks = $dbTask->where('when', '<', time())->get();
 
             if ($tasks->count() > 0) {
                 foreach ($tasks as $task) {
-                    $check = $dbInstance->where(['task_id', '=', (int) $task['id']])->count();
+                    $check = $dbInstance->where('task_id', '=', (int) $task['id'])
+                    ->count();
 
                     $callback_id = isAke($task, 'callback_id', null);
 
                     if ($check == 0) {
-                        $instance = $dbInstance->create(['task_id' => (int) $task['id'], 'start' => time()])->save();
+                        $instance = $dbInstance->store([
+                            'task_id'   => (int) $task['id'],
+                            'start'     => time()
+                        ]);
 
                         $res = lib('closures')->fireStore(
                             (int) $task['closure_id'],
@@ -69,10 +73,10 @@
 
                         $dbHistory->optimized = false;
 
-                        $dbHistory->create([
+                        $dbHistory->store([
                             'task'              => (array) $task,
                             'execution_time'    => time()
-                        ])->save();
+                        ]);
                     }
                 }
             }
@@ -92,7 +96,7 @@
 
         public static function background()
         {
-            $file = path('public') . '/background.php';
+            $file = path('public') . '/queue.php';
 
             if (File::exists($file)) {
                 $cmd = 'php ' . $file;
