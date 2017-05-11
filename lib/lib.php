@@ -1453,7 +1453,11 @@
 
     function partial($file, $args = [])
     {
-        vue('partials.' . $file, $args)->partial(actual('vue'));
+        vue(
+            'partials.' . $file, $args
+        )->partial(
+            actual('vue')
+        );
     }
 
     function layout($file, $page = null, $sections = null)
@@ -1464,7 +1468,13 @@
         ? ['content', 'js', 'css']
         : array_merge(['content', 'js', 'css'], $sections);
 
-        vue('layouts.' . $file, $page->getArgs())->layout($page, $sections);
+        vue(
+            'layouts.' . $file,
+            $page->getArgs()
+        )->layout(
+            $page,
+            $sections
+        );
     }
 
     function codeEvaluation($code, array $args = [])
@@ -1506,9 +1516,15 @@
 
             $args = array_merge(['tpl' => $vue], $vue->getArgs());
 
-            $html = evaluate($vue->getPath(), $args);
+            $html = evaluate(
+                $vue->getPath(),
+                $args
+            );
 
-            response($html, (int) $vue->getStatus());
+            response(
+                $html,
+                (int) $vue->getStatus()
+            );
         });
 
         $vue->macro('layout', function ($page, $sections) use ($vue) {
@@ -1524,13 +1540,24 @@
             $pageContent    = File::read($page->getPath());
 
             foreach ($sections as $section) {
-                $sectionContent = cut("@section $section", "@endsection", $pageContent);
+                $sectionContent = cut(
+                    "@section $section",
+                    "@endsection",
+                    $pageContent
+                );
 
-                $layoutContent = str_replace("{{ $section }}", $sectionContent, $layoutContent);
+                $layoutContent = str_replace(
+                    "{{ $section }}",
+                    $sectionContent,
+                    $layoutContent
+                );
             }
 
             response(
-                codeEvaluation($layoutContent),
+                codeEvaluation(
+                    $layoutContent,
+                    $args
+                ),
                 (int) $vue->getStatus()
             );
         });
@@ -1543,7 +1570,10 @@
                 $vue->getArgs()
             );
 
-            echo evaluate($vue->getPath(), $args);
+            echo evaluate(
+                $vue->getPath(),
+                $args
+            );
         });
 
         $vue->macro('with', function ($k, $v) use ($vue) {
@@ -1579,7 +1609,10 @@
             return true;
         });
 
-        actual('vue', $vue);
+        actual(
+            'vue',
+            $vue
+        );
 
         return $vue;
     }
