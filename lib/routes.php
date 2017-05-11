@@ -422,4 +422,100 @@
                 static::$middlewares[$route->getName()] = $middleware;
             }
         }
+
+        public static function crud($entity)
+        {
+            static::get('admin/' . $entity . '/list', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'listCrud'];
+            })->as('list' . $entity);
+
+            static::get('admin/' . $entity . '/list-(.*)', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'listCrud'];
+            })->as('list' . $entity . 'p');
+
+            static::get('admin/' . $entity . '/create', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'createCrud'];
+            })->as('create' . $entity);
+
+            static::get('admin/' . $entity . '/delete/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'deleteCrud'];
+            })->as('delete' . $entity);
+
+            static::get('admin/' . $entity . '/edit/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'editCrud'];
+            })->as('edit' . $entity);
+
+            static::post('admin/' . $entity . '/update/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'updateCrud'];
+            })->as('update' . $entity);
+
+            static::post('admin/' . $entity . '/add', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'addCrud'];
+            })->as('add' . $entity);
+        }
+
+        public static function cruding($entity)
+        {
+            static::get('admin/' . $entity . '/list', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'list' . $entity];
+            })->as('list' . $entity);
+
+            static::get('admin/' . $entity . '/list-(.*)', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'list' . $entity];
+            })->as('list' . $entity . 'p');
+
+            static::get('admin/' . $entity . '/create', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'create' . $entity];
+            })->as('create' . $entity);
+
+            static::get('admin/' . $entity . '/delete/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'delete' . $entity];
+            })->as('delete' . $entity);
+
+            static::get('admin/' . $entity . '/edit/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'edit' . $entity];
+            })->as('edit' . $entity);
+
+            static::post('admin/' . $entity . '/update/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'update' . $entity];
+            })->as('update' . $entity);
+
+            static::post('admin/' . $entity . '/add', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'add' . $entity];
+            })->as('add' . $entity);
+        }
     }
