@@ -297,10 +297,30 @@
         }
     }
 
-
     if (!function_exists('mailto')) {
         function mailto()
         {
             return call_user_func_array('\\Octo\\mailto', func_get_args());
+        }
+    }
+
+    if (!function_exists('queue')) {
+        function queue()
+        {
+            return call_user_func_array('\\Octo\\queue', func_get_args());
+        }
+    }
+
+    if (!function_exists('listenQueue')) {
+        function listenQueue()
+        {
+            return call_user_func_array('\\Octo\\listenQueue', func_get_args());
+        }
+    }
+
+    if (!function_exists('bgQueue')) {
+        function bgQueue()
+        {
+            return call_user_func_array('\\Octo\\bgQueue', func_get_args());
         }
     }

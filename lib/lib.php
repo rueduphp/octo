@@ -1907,6 +1907,22 @@
         return $a ? $a : $b;
     }
 
+    function queue()
+    {
+        $args = func_get_args();
+        return call_user_func_array([lib('later'), 'set'], func_get_args());
+    }
+
+    function listenQueue()
+    {
+        return call_user_func_array([lib('later'), 'listen'], func_get_args());
+    }
+
+    function bgQueue()
+    {
+        return call_user_func_array([lib('later'), 'background'], func_get_args());
+    }
+
     function _($segment, $args = [], $locale = null)
     {
         echo trans($segment, $args, $locale);

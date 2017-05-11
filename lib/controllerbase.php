@@ -463,4 +463,14 @@
 
             return $app;
         }
+
+        public function queue()
+        {
+            return call_user_func_array('\\Octo\\queue', func_get_args());
+        }
+
+        public function bgQueue()
+        {
+            return call_user_func_array('\\Octo\\bgQueue', func_get_args());
+        }
     }
