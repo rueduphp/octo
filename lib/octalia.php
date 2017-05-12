@@ -3207,4 +3207,14 @@
         {
             return call_user_func_array([$this, 'allows'], func_get_args());
         }
+
+        public function toArray()
+        {
+            return $this->get()->toArray();
+        }
+
+        public function toJson()
+        {
+            return $this->get()->toJson();
+        }
     }
