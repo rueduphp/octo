@@ -332,7 +332,15 @@
             $collection = [];
 
             foreach ($this->getIterator() as $id) {
-                $collection[] = $this->db->read($this->db->row($id));
+                $row = $this->db->read($this->db->row($id));
+
+                foreach ($row as $key => $value) {
+                    if (fnmatch('*_id', $key)) {
+                        $row[str_replace('_id', '', $key)] = em(Inflector::camelize($this->database . '_' . str_replace('_id', '', $key)))->find((int) $value, false);
+                    }
+                }
+
+                $collection[] = $row;
             }
 
             return $collection;
