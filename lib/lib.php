@@ -5704,6 +5704,12 @@
             }
         });
 
+        $class->macro('logByUser', function ($user, $route = 'home') {
+            session('web')->setUser($user);
+            $this->routing('home');
+            go(urlFor($route));
+        });
+
         $class->macro('allows', function () {
             $user = session('web')->getUser();
 
