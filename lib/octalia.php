@@ -2011,6 +2011,11 @@
             return $this->get(true);
         }
 
+        public function foreign()
+        {
+            return $this->get(false)->foreign();
+        }
+
         public function splice($offset, $length = null, $replacement = [])
         {
             if (func_num_args() == 1) {

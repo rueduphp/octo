@@ -5692,6 +5692,18 @@
             return call_user_func_array([$class, 'policy'], func_get_args());
         });
 
+        $class->macro('logWithId', function ($id, $route = 'home') {
+            $user = em('user')->find((int) $id);
+
+            if ($user) {
+                session('web')->setUser($user);
+                $this->routing('home');
+                go(urlFor($route));
+            } else {
+                exception('guard', "Unknown id.");
+            }
+        });
+
         $class->macro('allows', function () {
             $user = session('web')->getUser();
 

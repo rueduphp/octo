@@ -346,6 +346,21 @@
             return $collection;
         }
 
+        public function foreign()
+        {
+            $this->hook(function ($row) {
+                foreach ($row as $key => $value) {
+                    if (fnmatch('*_id', $key)) {
+                        $row[str_replace('_id', '', $key)] = em(Inflector::camelize($this->database . '_' . str_replace('_id', '', $key)))->find((int) $value, false);
+                    }
+                }
+
+                return $row;
+            });
+
+            return $this;
+        }
+
         public function repository()
         {
             return coll($this->toArray());
