@@ -5697,7 +5697,6 @@
 
             if ($user) {
                 session('web')->setUser($user);
-                $this->routing('home');
                 go(urlFor($route));
             } else {
                 exception('guard', "Unknown id.");
@@ -5706,7 +5705,6 @@
 
         $class->macro('logByUser', function ($user, $route = 'home') {
             session('web')->setUser($user);
-            $this->routing('home');
             go(urlFor($route));
         });
 
