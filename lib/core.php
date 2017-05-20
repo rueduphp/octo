@@ -72,7 +72,7 @@
             if ('octodummy' != $value) {
                 return $value;
             } else {
-                throw new Exception("Method $m does not exist!");
+                exception('core', "Method $m does not exist !");
             }
         }
     }

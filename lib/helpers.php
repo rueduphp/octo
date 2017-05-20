@@ -13,6 +13,13 @@
         }
     }
 
+    if (!function_exists('auth')) {
+        function auth()
+        {
+            return call_user_func_array('\\Octo\\guard', func_get_args());
+        }
+    }
+
     if (!function_exists('vue')) {
         function vue()
         {
@@ -322,5 +329,111 @@
         function bgQueue()
         {
             return call_user_func_array('\\Octo\\bgQueue', func_get_args());
+        }
+    }
+
+    if (!class_exists('Core')) {
+        class Core
+        {
+            public static function instance()
+            {
+                return context('app');
+            }
+
+            public static function get()
+            {
+                return context('app');
+            }
+
+            public static function __callStatic($m, $a)
+            {
+                return call_user_func_array([context('app'), $m], $a);
+            }
+        }
+    }
+
+    if (!class_exists('Octo')) {
+        class Octo
+        {
+            public static function instance()
+            {
+                return context('app');
+            }
+
+            public static function get()
+            {
+                return context('app');
+            }
+
+            public static function __callStatic($m, $a)
+            {
+                return call_user_func_array([context('app'), $m], $a);
+            }
+        }
+    }
+
+    if (!class_exists('Registry')) {
+        class Registry
+        {
+            public static function __callStatic($m, $a)
+            {
+                return call_user_func_array([lib('now'), $m], $a);
+            }
+        }
+    }
+
+    if (!class_exists('Strings')) {
+        class Strings
+        {
+            public static function __callStatic($m, $a)
+            {
+                return call_user_func_array([lib('inflector'), $m], $a);
+            }
+        }
+    }
+
+    if (!class_exists('Dir')) {
+        class Dir
+        {
+            public static function __callStatic($m, $a)
+            {
+                return call_user_func_array([lib('file'), $m], $a);
+            }
+        }
+    }
+
+    if (!class_exists('Utils')) {
+        class Utils
+        {
+            public static function __callStatic($m, $a)
+            {
+                if (function_exists('\\Octo\\' . $m)) {
+                    return call_user_func_array('\\Octo\\' . $m, $a);
+                }
+
+                if (function_exists($m)) {
+                    return call_user_func_array($m, $a);
+                }
+
+                throw new Exception("The method $m does not exist!");
+            }
+        }
+    }
+
+    if (!class_exists('Helpers')) {
+        class Helpers
+        {
+            public static function __callStatic($m, $a)
+            {
+                if (function_exists('\\Octo\\' . $m)) {
+                    return call_user_func_array('\\Octo\\' . $m, $a);
+                }
+
+                if (function_exists($m)) {
+                    return call_user_func_array($m, $a);
+                }
+
+                throw new Exception("The method $m does not exist!");
+            }
         }
     }

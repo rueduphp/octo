@@ -644,10 +644,10 @@
 
         $db = em('systemLog');
 
-        $db->create([
+        $db->store([
             'message'   => $message,
             'type'      => $type
-        ])->save();
+        ]);
     }
 
     function logs($type = 'INFO')
@@ -656,7 +656,10 @@
 
         $db = em('systemLog');
 
-        return $db->where(['type', '=', $type])->sortByDesc('id')->get();
+        return $db
+        ->where('type', $type)
+        ->sortByDesc('id')
+        ->get();
     }
 
     function trackView($page, array $data = [])
@@ -728,18 +731,18 @@
     {
         if (empty($k)) {
             return lib('object', [oclean($_SERVER)]);
-        } else {
-            return isAke(oclean($_SERVER), $k, $d);
         }
+
+        return isAke(oclean($_SERVER), $k, $d);
     }
 
     function post($k = null, $d = null)
     {
         if (empty($k)) {
             return Post::notEmpty();
-        } else {
-            return Post::get($k, $d);
         }
+
+        return Post::get($k, $d);
     }
 
     function item($attributes = [])
@@ -1369,17 +1372,21 @@
 
     function lib($lib, $args = [])
     {
-        $class = '\\Octo\\' . Strings::camelize($lib);
+        try {
+            $class = '\\Octo\\' . Strings::camelize($lib);
 
-        if (!class_exists($class)) {
-            $file = __DIR__ . DS . Strings::lower($lib) . '.php';
+            if (!class_exists($class)) {
+                $file = __DIR__ . DS . Strings::lower($lib) . '.php';
 
-            if (file_exists($file)) {
-                require_once $file;
+                if (file_exists($file)) {
+                    require_once $file;
+                }
             }
-        }
 
-        return (new App)->make($class, $args);
+            return maker($class, $args);
+        } catch (\Exception $e) {
+            return maker($lib, $args);
+        }
     }
 
     function str()
@@ -1418,11 +1425,6 @@
         } else {
             return $factory->of($db);
         }
-    }
-
-    function auth($ns = 'web')
-    {
-        return lib('guard', [$ns]);
     }
 
     function status($code = 200)
@@ -1780,7 +1782,7 @@
             Queue::listen();
             Later::shutdown();
             middlewares('after');
-            eventer()->listen('shutdown');
+            listening('system.shutdown');
             shutdown();
         });
 
@@ -1797,7 +1799,7 @@
 
         loadEvents();
 
-        eventer()->listen('bootstrap');
+        listening('system.bootstrap');
 
         services();
 
@@ -1961,7 +1963,7 @@
 
     function rights()
     {
-        eventer()->listen('rights');
+        listening('rights.booting');
 
         $acl = path('app') . '/config/acl.php';
 
@@ -2416,7 +2418,7 @@
 
     function middlewares($when = 'before')
     {
-        eventer()->listen('middlewares');
+        listening('middlewares.booting');
 
         $middlewares        = Registry::get('core.middlewares', []);
         $request            = make($_REQUEST, "request");
@@ -2495,7 +2497,7 @@
 
     function services()
     {
-        eventer()->listen('services');
+        listening('services.booting');
 
         $services = Registry::get('core.services', []);
 
@@ -4636,14 +4638,24 @@
 
     function polymorph(Object $object)
     {
-        return engine($object->db(), $object->polymorph_type)->find((int) $object->polymorph_id);
+        return em(
+            $object->db(),
+            $object->polymorph_type
+        )->find((int) $object->polymorph_id);
     }
 
     function polymorphs(Object $object, $parent)
     {
-        return engine($object->db(), $parent)
-        ->where('polymorph_type', $object->table())
-        ->where('polymorph_id', (int) $object->id);
+        return engine(
+            $object->db(),
+            $parent
+        )->where(
+            'polymorph_type',
+            $object->table()
+        )->where(
+            'polymorph_id',
+            (int) $object->id
+        );
     }
 
     function tsToTime($timestamp, $tz = null)
@@ -4793,7 +4805,7 @@
 
     function laravel()
     {
-        return call_user_func_array('app', func_get_args());
+        return call_user_func_array('\\app', func_get_args());
     }
 
     function laravel5($app, $name = 'laravel_app', callable $config = null)
@@ -5675,7 +5687,12 @@
         return ltrim(ob_get_clean());
     }
 
-    function guard()
+    function auth($em = 'user')
+    {
+        return guard($em);
+    }
+
+    function guard($em = 'user')
     {
         $class = o();
 
@@ -5692,8 +5709,18 @@
             return call_user_func_array([$class, 'policy'], func_get_args());
         });
 
-        $class->macro('logWithId', function ($id, $route = 'home') {
-            $user = em('user')->find((int) $id);
+        $class->macro('user', function ($model = true) use ($em) {
+            $user = session('web')->getUser();
+
+            if ($user && $model) {
+                return em($em)->find((int) $user['id']);
+            }
+
+            return $user;
+        });
+
+        $class->macro('logWithId', function ($id, $route = 'home') use ($em)  {
+            $user = em($em)->find((int) $id);
 
             if ($user) {
                 session('web')->setUser($user);

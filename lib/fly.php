@@ -87,7 +87,16 @@
         public static function __callStatic($m, $a)
         {
             if (in_array($m, ['on', 'register'])) {
-                return forward_static_call_array(['\\Octo\\Fly', 'push'], $a);
+                forward_static_call_array(['\\Octo\\Fly', 'push'], $a);
+            } else {
+                $event  = Strings::uncamelize($m);
+                $args   = array_merge([$event], $a);
+
+                if (static::has($event)) {
+                    return forward_static_call_array(['\\Octo\\Fly', 'listen'], $args);
+                } else {
+                    forward_static_call_array(['\\Octo\\Fly', 'push'], $a);
+                }
             }
         }
     }
