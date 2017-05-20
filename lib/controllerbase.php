@@ -120,19 +120,11 @@
             exit;
         }
 
-        public function user($k = null)
+        public function user()
         {
-            $user = auth()->user();
+            $callable = '\\Octo\\user';
 
-            if (!$user) {
-                $user = [];
-            }
-
-            if ($k) {
-                return isAke($user, $k, null);
-            }
-
-            return $user;
+            return call_user_func_array($callable, func_get_args());
         }
 
         public function lng()

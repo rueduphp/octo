@@ -1370,7 +1370,7 @@
         return new $instanciate($class, $data);
     }
 
-    function lib($lib, $args = [])
+    function lib($lib, $args = [], $singleton = false)
     {
         try {
             $class = '\\Octo\\' . Strings::camelize($lib);
@@ -1383,9 +1383,9 @@
                 }
             }
 
-            return maker($class, $args);
+            return maker($class, $args, $singleton);
         } catch (\Exception $e) {
-            return maker($lib, $args);
+            return maker($lib, $args, $singleton);
         }
     }
 
@@ -1967,7 +1967,7 @@
 
         $acl = path('app') . '/config/acl.php';
 
-        $rights = make([], 'rights');
+        $rights = lib('ghost', [[], 'rights']);
 
         $rights->add(function ($type, $data) use ($rights) {
             $rights[$type] = obj('acl_' . $type, $data);
@@ -2696,6 +2696,10 @@
     {
         if (is_callable($object)) {
             $object = $object();
+        }
+
+        if (is_string($object)) {
+            $object = maker($object);
         }
 
         $class = get_class($object);
