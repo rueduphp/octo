@@ -3,7 +3,7 @@
 
     use ElephantIO\Client, ElephantIO\Engine\SocketIO\Version1X;
 
-    class Ip
+    class Io
     {
         private $client;
 
