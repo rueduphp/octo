@@ -115,7 +115,10 @@
             $_SERVER['REQUEST_URI']     = $url;
             $_SERVER['REQUEST_METHOD']  = $method;
 
-            lib('router')->run();
+            lib('router')->run(
+                (new \ReflectionClass(get_called_class()))
+                ->getNamespaceName()
+            );
 
             exit;
         }
@@ -305,14 +308,7 @@
             $model = Strings::uncamelize($model);
 
             if (!isset($this->models[$model]) || true === $force) {
-                if (fnmatch('*_*', $model)) {
-                    list($database, $table) = explode('_', $model, 2);
-                } else {
-                    $database   = Strings::uncamelize(Config::get('application.name', 'core'));
-                    $table      = $model;
-                }
-
-                $this->models[$model] = engine($database, $table);
+                $this->models[$model] = em($model);
             }
 
             return $this->models[$model];
