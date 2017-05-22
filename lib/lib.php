@@ -2473,7 +2473,7 @@
 
     function subscriber($subscriberClass)
     {
-        $subscriber = app($subscriberClass);
+        $subscriber = maker($subscriberClass);
 
         $events = $subscriber->getEvents();
 
@@ -2513,7 +2513,20 @@
         foreach ($services as $serviceClass) {
             $service = maker($serviceClass);
 
-            $service->register(provider());
+            $service->register(context('app'));
+        }
+    }
+
+    function ioc($class)
+    {
+        $app            = context('app');
+        $service        = maker($class);
+
+        callMethod($service, 'register', $app);
+        $provides = callMethod($service, 'provides');
+
+        foreach ($provides as $alias) {
+            $app[$alias] = $service;
         }
     }
 
@@ -2692,15 +2705,17 @@
         exception('Dic', "The class $make is not set.");
     }
 
-    function callMethod($object, $method, $args = [])
+    function callMethod()
     {
-        $fnParams = $args;
+        $args       = func_get_args();
+        $object     = array_shift($args);
+        $method     = array_shift($args);
+        $fnParams   = $args;
         $reflection = new \ReflectionClass(get_class($object));
-        $ref = $reflection->getMethod($method);
+        $ref        = $reflection->getMethod($method);
+        $params     = $ref->getParameters();
 
-        if (empty($args)) {
-            $params = $ref->getParameters();
-
+        if (empty($args) || count($args) != count($params)) {
             foreach ($params as $param) {
                 $classParam = $param->getClass();
 
@@ -2717,6 +2732,15 @@
         $closure = $ref->getClosure($object);
 
         return call_user_func_array($closure, $fnParams);
+    }
+
+    function loadFiles($pattern)
+    {
+        $files = glob($pattern);
+
+        foreach ($files as $file) {
+            require_once $file;
+        }
     }
 
     function resolver($object)
