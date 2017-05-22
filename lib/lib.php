@@ -2692,6 +2692,33 @@
         exception('Dic', "The class $make is not set.");
     }
 
+    function callMethod($object, $method, $args = [])
+    {
+        $fnParams = $args;
+        $reflection = new \ReflectionClass(get_class($object));
+        $ref = $reflection->getMethod($method);
+
+        if (empty($args)) {
+            $params = $ref->getParameters();
+
+            foreach ($params as $param) {
+                $classParam = $param->getClass();
+
+                if ($classParam) {
+                    $p = maker($classParam->getName());
+                } else {
+                    $p = $param->getDefaultValue();
+                }
+
+                $fnParams[] = $p;
+            }
+        }
+
+        $closure = $ref->getClosure($object);
+
+        return call_user_func_array($closure, $fnParams);
+    }
+
     function resolver($object)
     {
         if (is_callable($object)) {

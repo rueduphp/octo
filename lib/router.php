@@ -148,46 +148,22 @@
                         )
                     );
 
-                    $controller         = new $class;
+                    $controller         = maker($class, [], false);
                     $controller->_name  = $controllerName;
                     $controller->action = $a;
 
                     actual('controller', $controller);
                     actual('controller.file', $controllerFile);
 
-                    if (in_array('bootstrap', $actions)) {
-                        $controller->bootstrap();
-                    } else {
-                        if (in_array('init', $actions)) {
-                            $controller->init();
-                        }
-
-                        if (in_array('boot', $actions)) {
-                            $controller->boot();
-                        }
-                    }
-
-                    if (in_array('policies', $actions)) {
-                        $controller->policies();
-                    }
-
-                    if (in_array('before', $actions)) {
-                        $controller->before();
-                    }
+                    $this->controllerBoot($controller);
 
                     if (in_array($action, $actions)) {
-                        $return = $controller->$action();
+                        $return = callMethod($controller, $action);
                     } else {
                         return $this->is404($cb404);
                     }
 
-                    if (in_array('after', $actions)) {
-                        $controller->after();
-                    }
-
-                    if (in_array('unboot', $actions)) {
-                        $controller->unboot();
-                    }
+                    $this->controllerunboot($controller);
 
                     if ($return instanceof Object) {
                         if ($return->hasModel()) {
@@ -364,6 +340,117 @@
             }
         }
 
+        private function params($route, $params)
+        {
+            $ref = new \ReflectionFunction($route['callback']);
+            $cbParams = $ref->getParameters();
+
+            if (!empty($cbParams)) {
+                return null;
+            }
+
+            list($controllerName, $action, $render) = $route['callback']();
+
+            $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
+
+            if (!is_file($controllerFile)) {
+                return $this->is404();
+            }
+
+            $method = $this->getMethod();
+
+            $action = lcfirst(Str::camelize(Str::lower($method) . '_' . $action));
+
+            $code = File::read($controllerFile);
+            $ns = cut('namespace ', ';', $code);
+
+            require_once $controllerFile;
+
+            $class = '\\' . $ns . '\\App' . ucfirst(Str::lower($controllerName)) . 'Controller';
+
+            $actions = get_class_methods($class);
+
+            if (!in_array($action, $actions)) {
+                return $this->is404();
+            }
+
+            $controller = maker($class, [], false);
+
+            $callable = [$controller, $action];
+
+            $ref = new \ReflectionMethod($controller, $action);
+
+            $parameters = $ref->getParameters();
+
+            if (!empty($parameters)) {
+                $this->controllerBoot($controller);
+
+                $return = call_user_func_array($callable, $params);
+
+                $this->controllerunboot($controller);
+
+                if ($return instanceof Object) {
+                    if ($return->hasModel()) {
+                        Api::renderJson($return->toArray());
+                    } else if ($return->getIsVue()) {
+                        $return->render();
+                    } else {
+                        return $return->go();
+                    }
+                } elseif (is_object($return) && in_array('toArray', get_class_methods($return))) {
+                    Api::renderJson($return->toArray());
+                } elseif (is_array($return)) {
+                    Api::renderJson($return);
+                }
+
+                if (true === $render) {
+                    self::render(
+                        $controller,
+                        Registry::get(
+                            'cb.404',
+                            null
+                        )
+                    );
+                }
+            } else {
+                return null;
+            }
+        }
+
+        private function controllerunboot($controller)
+        {
+            $actions = get_class_methods($controller);
+
+            if (in_array('after', $actions)) {
+                callMethod($controller, 'after');
+            }
+
+            if (in_array('unboot', $actions)) {
+                callMethod($controller, 'unboot');
+            }
+        }
+
+        private function controllerBoot($controller)
+        {
+            $actions = get_class_methods($controller);
+
+            if (in_array('bootstrap', $actions)) {
+                callMethod($controller, 'bootstrap');
+            } else {
+                if (in_array('init', $actions)) {
+                    callMethod($controller, 'init');
+                }
+            }
+
+            if (in_array('policies', $actions)) {
+                callMethod($controller, 'policies');
+            }
+
+            if (in_array('before', $actions)) {
+                callMethod($controller, 'before');
+            }
+        }
+
         public function handling($routes, $quit = true)
         {
             $found = 0;
@@ -399,6 +486,10 @@
                                 call($middleware, [$this->uri]);
                             }
                         }
+                    }
+
+                    if (!empty($params)) {
+                        $this->params($route, $params);
                     }
 
                     if ($quit) {

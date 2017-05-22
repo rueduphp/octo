@@ -19,7 +19,7 @@
             $actions = get_class_methods($this);
 
             if (in_array('boot', $actions)) {
-                $this->boot();
+                callMethod($this, 'boot');
             }
 
             actual('controller', $this);
