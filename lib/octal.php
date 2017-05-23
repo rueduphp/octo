@@ -10,6 +10,23 @@
 
         public function __construct($newRow = null)
         {
+            $class = get_called_class();
+
+            if (!isset($this->entity)) {
+                $this->entity = Strings::uncamelize(
+                    str_replace(
+                        'Entity',
+                        '',
+                        Arrays::last(
+                            explode(
+                                '\\',
+                                $class
+                            )
+                        )
+                    )
+                );
+            }
+
             $em         = em($this->entity);
             $database   = $em->db;
             $table      = $em->table;
@@ -20,8 +37,7 @@
                 $this->row = $em->store($newRow);
             }
 
-            $class      = get_called_class();
-            $methods    = get_class_methods($this);
+            $methods = get_class_methods($this);
 
             if (!isset(self::$booted[$class])) {
                 self::$booted[$class] = true;
@@ -45,8 +61,8 @@
                 if (!empty($traits)) {
                     foreach ($traits as $trait) {
                         $tab        = explode('\\', $trait);
-                        $traitName  = Inflector::lower(end($tab));
-                        $method     = lcfirst(Inflector::camelize('boot_' . $traitName . '_trait'));
+                        $traitName  = Strings::lower(end($tab));
+                        $method     = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
 
                         if (in_array($method, $methods)) {
                             call_user_func_array([$this, $method], []);
