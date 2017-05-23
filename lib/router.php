@@ -458,7 +458,7 @@
             $uri = $this->getUri();
 
             foreach ($routes as $route) {
-                if (preg_match_all('#^' . trim($route['uri']) . '$#', $uri, $matches, PREG_OFFSET_CAPTURE)) {
+                if (@preg_match_all('#^' . trim($route['uri']) . '$#', $uri, $matches, PREG_OFFSET_CAPTURE)) {
                     $matches = array_slice($matches, 1);
 
                     $params = array_map(function ($match, $index) use ($matches) {
