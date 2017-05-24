@@ -2705,6 +2705,35 @@
         exception('Dic', "The class $make is not set.");
     }
 
+    function callMethod()
+    {
+        $args       = func_get_args();
+        $object     = array_shift($args);
+        $method     = array_shift($args);
+        $fnParams   = $args;
+        $reflection = new \ReflectionClass(get_class($object));
+        $ref        = $reflection->getMethod($method);
+        $params     = $ref->getParameters();
+
+        if (empty($args) || count($args) != count($params)) {
+            foreach ($params as $param) {
+                $classParam = $param->getClass();
+
+                if ($classParam) {
+                    $p = maker($classParam->getName());
+                } else {
+                    $p = $param->getDefaultValue();
+                }
+
+                $fnParams[] = $p;
+            }
+        }
+
+        $closure = $ref->getClosure($object);
+
+        return call_user_func_array($closure, $fnParams);
+    }
+
     function loadFiles($pattern)
     {
         $files = glob($pattern);
@@ -4263,83 +4292,6 @@
         return $fn;
     }
 
-    function callMethod()
-    {
-        $args       = func_get_args();
-        $object     = array_shift($args);
-
-        if (is_string($object) && fnmatch('*::*', $object)) {
-            list($class, $method) = explode('::', $object, 2);
-
-            $object = maker($class, [], false);
-        } else {
-            $method = array_shift($args);
-        }
-
-        $fnParams   = $args;
-        $reflection = new \ReflectionClass(get_class($object));
-        $ref        = $reflection->getMethod($method);
-        $params     = $ref->getParameters();
-
-        if (empty($args) || count($args) != count($params)) {
-            foreach ($params as $param) {
-                $classParam = $param->getClass();
-
-                if ($classParam) {
-                    $p = maker($classParam->getName());
-                } else {
-                    $p = $param->getDefaultValue();
-                }
-
-                $fnParams[] = $p;
-            }
-        }
-
-        $closure = $ref->getClosure($object);
-
-        return call_user_func_array($closure, $fnParams);
-    }
-
-    function caller($concern)
-    {
-        if (!is_callable($concern) && !$concern instanceOf \Closure) {
-            $concern = function () use ($concern) {
-                return $concern;
-            };
-        }
-
-        $caller = make(['callable' => $concern]);
-
-        $caller->call(function () {
-            $callerArgs = func_get_args();
-            $caller     = array_pop($callerArgs);
-
-            return call_user_func_array($caller->callable, $callerArgs);
-        });
-
-        return $caller;
-    }
-
-    function staticall($concern, $args = [], $singleton = false)
-    {
-        if (is_string($concern) && fnmatch('*::*', $concern)) {
-            $callback = explode('::', $concern, 2);
-
-            list($instance, $method) = $callback;
-
-            return caller([
-                maker(
-                    $instance,
-                    $args,
-                    $singleton
-                ),
-                $method
-            ]);
-        }
-
-        return null;
-    }
-
     function call($callback, array $args)
     {
         if (is_string($callback) && fnmatch('*::*', $callback)) {
@@ -5793,6 +5745,156 @@
     function auth($em = 'user')
     {
         return guard($em);
+    }
+
+    function mcache($host = 'localhost', $port = 11211, $ns = 'octo.core')
+    {
+        $mc = mc($host, $port, $ns);
+
+        $cache = dyn($mc);
+
+        $cache->macro('watch', function ($k, callable $exists = null, callable $notExists = null) use ($mc) {
+            if ($exists instanceof Dyn) {
+                $exists = null;
+            }
+
+            if ($notExists instanceof Dyn) {
+                $notExists = null;
+            }
+
+            if ($mc->has($k)) {
+                if (is_callable($exists)) {
+                    return $exists($mc->get($k));
+                }
+            } else {
+                if (is_callable($notExists)) {
+                    return $notExists();
+                }
+            }
+
+            return false;
+        });
+
+        $cache->macro('aged', function ($k, callable $c, $maxAge = null, $args = []) use ($mc) {
+            if ($maxAge instanceof Dyn) {
+                $maxAge = null;
+            }
+
+            if ($args instanceof Dyn) {
+                $args = [];
+            }
+
+            $keyAge = $k . '.maxage';
+            $v      = $mc->get($k);
+
+            if ($v) {
+                if (is_null($maxAge)) {
+                    return $v;
+                }
+
+                $age = $mc->get($keyAge);
+
+                if (!$age) {
+                    $age = $maxAge - 1;
+                }
+
+                if ($age >= $maxAge) {
+                    return $v;
+                } else {
+                    $mc->delete($k);
+                    $mc->delete($keyAge);
+                }
+            }
+
+            $data = call_user_func_array($c, $args);
+
+            $mc->set($k, $data);
+
+            if (!is_null($maxAge)) {
+                if ($maxAge < 3600 * 24 * 30) {
+                    $maxAge = ($maxAge * 60) + microtime(true);
+                }
+
+                $mc->set($keyAge, $maxAge);
+            }
+
+            return $data;
+        });
+
+        $cache->macro('incr', function ($k, $by = 1) use ($mc) {
+            if ($by instanceof Dyn) {
+                $by = 1;
+            }
+
+            if (!$mc->has($k)) {
+                $old = 0;
+            } else {
+                $old = $mc->get($k);
+            }
+
+            $new = $old + $by;
+
+            $mc->set($k, $new);
+
+            return $new;
+        });
+
+        $cache->macro('decr', function ($k, $by = 1) use ($mc) {
+            if ($by instanceof Dyn) {
+                $by = 1;
+            }
+
+            if (!$mc->has($k)) {
+                $old = 0;
+            } else {
+                $old = $mc->get($k);
+            }
+
+            $new = $old - $by;
+
+            $mc->set($k, $new);
+
+            return $new;
+        });
+
+        $cache->macro('has', function ($k) use ($mc) {
+            $val = $mc->get($k);
+
+            return $mc->getResultCode() != \Memcached::RES_NOTFOUND;
+        });
+
+        $cache->macro('getOr', function ($k, callable $c, $e = 0) use ($mc) {
+            if ($e instanceof Dyn) {
+                $e = 0;
+            }
+
+            $val = $mc->get($k);
+
+            if ($mc->getResultCode() == \Memcached::RES_NOTFOUND) {
+                $res = $c();
+
+                $mc->set($k, $res, (int) $e);
+
+                return $res;
+            } else {
+                return $val;
+            }
+        });
+
+        return $cache;
+    }
+
+    function mc($host = 'localhost', $port = 11211, $ns = 'octo.core')
+    {
+        $i = maker('Memcached', [$ns]);
+
+        $i->setOption(\Memcached::OPT_LIBKETAMA_COMPATIBLE, true);
+
+        if (empty($i->getServerList())) {
+            $i->addServer($host, $port);
+        }
+
+        return $i;
     }
 
     function guard($em = 'user')

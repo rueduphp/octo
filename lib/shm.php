@@ -46,6 +46,7 @@
 
                 if ($diff > Config::get('shm.persistence', 900)) {
                     $this->write();
+                    $this->driver->set('age', time());
                 }
 
                 $this->driver->set('size', shmop_size($this->db));
@@ -95,7 +96,7 @@
         {
             $data = $this->data();
 
-            $data[$key]         = File::value($value);
+            $data[$key]         = value($value);
             $data[$key . '.e']  = $expire;
 
             $this->write($data);
