@@ -2705,35 +2705,6 @@
         exception('Dic', "The class $make is not set.");
     }
 
-    function callMethod()
-    {
-        $args       = func_get_args();
-        $object     = array_shift($args);
-        $method     = array_shift($args);
-        $fnParams   = $args;
-        $reflection = new \ReflectionClass(get_class($object));
-        $ref        = $reflection->getMethod($method);
-        $params     = $ref->getParameters();
-
-        if (empty($args) || count($args) != count($params)) {
-            foreach ($params as $param) {
-                $classParam = $param->getClass();
-
-                if ($classParam) {
-                    $p = maker($classParam->getName());
-                } else {
-                    $p = $param->getDefaultValue();
-                }
-
-                $fnParams[] = $p;
-            }
-        }
-
-        $closure = $ref->getClosure($object);
-
-        return call_user_func_array($closure, $fnParams);
-    }
-
     function loadFiles($pattern)
     {
         $files = glob($pattern);
@@ -4290,6 +4261,83 @@
         });
 
         return $fn;
+    }
+
+    function callMethod()
+    {
+        $args       = func_get_args();
+        $object     = array_shift($args);
+
+        if (is_string($object) && fnmatch('*::*', $object)) {
+            list($class, $method) = explode('::', $object, 2);
+
+            $object = maker($class, [], false);
+        } else {
+            $method = array_shift($args);
+        }
+
+        $fnParams   = $args;
+        $reflection = new \ReflectionClass(get_class($object));
+        $ref        = $reflection->getMethod($method);
+        $params     = $ref->getParameters();
+
+        if (empty($args) || count($args) != count($params)) {
+            foreach ($params as $param) {
+                $classParam = $param->getClass();
+
+                if ($classParam) {
+                    $p = maker($classParam->getName());
+                } else {
+                    $p = $param->getDefaultValue();
+                }
+
+                $fnParams[] = $p;
+            }
+        }
+
+        $closure = $ref->getClosure($object);
+
+        return call_user_func_array($closure, $fnParams);
+    }
+
+    function caller($concern)
+    {
+        if (!is_callable($concern) && !$concern instanceOf \Closure) {
+            $concern = function () use ($concern) {
+                return $concern;
+            };
+        }
+
+        $caller = make(['callable' => $concern]);
+
+        $caller->call(function () {
+            $callerArgs = func_get_args();
+            $caller     = array_pop($callerArgs);
+
+            return call_user_func_array($caller->callable, $callerArgs);
+        });
+
+        return $caller;
+    }
+
+    function staticall($concern, $args = [], $singleton = false)
+    {
+        if (is_string($concern) && fnmatch('*::*', $concern)) {
+            $callback = explode('::', $concern, 2);
+
+            list($instance, $method) = $callback;
+
+            return caller([
+                maker(
+                    $instance,
+                    $args,
+                    $singleton
+                ),
+                $method
+            ]);
+        }
+
+        return null;
     }
 
     function call($callback, array $args)

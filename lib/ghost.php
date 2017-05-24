@@ -120,7 +120,9 @@
                         return $this;
                     } else {
                         if (is_callable($this->$m)) {
-                            return call_user_func_array($this->$m, $a);
+                            $callArgs = array_merge($a, [$this]);
+
+                            return call_user_func_array($this->$m, $callArgs);
                         } else {
                             return $this->$m;
                         }
@@ -133,7 +135,9 @@
 
                     if ($macro) {
                         if (is_callable($macro)) {
-                            return call_user_func_array($macro, $a);
+                            $callArgs = array_merge($a, [$this]);
+
+                            return call_user_func_array($macro, $callArgs);
                         }
                     } else {
                         $closure = current($a);
