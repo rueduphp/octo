@@ -65,7 +65,7 @@
 
         private function find($class)
         {
-            return isAke(self::$mapped, $class, null);
+            return isset(self::$mapped[$class]) ? self::$mapped[$class] : null;
         }
 
         public static function entity($class)
