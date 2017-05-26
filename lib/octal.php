@@ -273,4 +273,14 @@
 
             return $this;
         }
+
+        public function newest()
+        {
+            return $this->sortByDesc('id');
+        }
+
+        public function oldest()
+        {
+            return $this->sortBy('id');
+        }
     }
