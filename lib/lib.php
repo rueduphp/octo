@@ -452,6 +452,17 @@
         }
     }
 
+    function make_entity($entity)
+    {
+        $class = $entity . 'Entity';
+
+        if (!class_exists('Octo\\' . $class)) {
+            $code = 'namespace Octo; class ' . $class . ' extends Octal {}';
+
+            eval($code);
+        }
+    }
+
     function entityFacade($db)
     {
         $db = Strings::camelize($db);
@@ -5745,6 +5756,11 @@
     function auth($em = 'user')
     {
         return guard($em);
+    }
+
+    function load_entity($class)
+    {
+        Autoloader::entity($class);
     }
 
     function mcache($host = 'localhost', $port = 11211, $ns = 'octo.core')

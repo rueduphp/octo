@@ -4,6 +4,7 @@
     class Autoloader
     {
         protected static $aliases = [];
+        protected static $mapped = [];
 
         public function loader($class)
         {
@@ -12,6 +13,12 @@
                     if ($alias == $class) {
                         return class_alias($className, $alias);
                     }
+                }
+
+                if ($file = $this->find($class)) {
+                    require_once $file;
+
+                    return;
                 }
 
                 $tab    = explode('\\', $class);
@@ -53,6 +60,36 @@
                 if (!defined('OCTO_STANDALONE')) {
                     aliases($class);
                 }
+            }
+        }
+
+        private function find($class)
+        {
+            return isAke(self::$mapped, $class, null);
+        }
+
+        public static function entity($class)
+        {
+            $tab = explode(
+                '\\',
+                $class
+            );
+
+            $entity = str_replace(
+                'Entity',
+                '',
+                end($tab)
+            );
+
+            $file = path('app') . '/entities/' . $entity . '.php';
+
+            static::map($class, $file);
+        }
+
+        public static function map($class, $file)
+        {
+            if (file_exists($file)) {
+                static::$mapped[$class] = $file;
             }
         }
 
