@@ -230,6 +230,10 @@
 
             if ('new' == $m) {
                 return static::store(current($a));
+            } elseif ('oldest' == $m) {
+                    return static::sortBy('id');
+            } elseif ('newest' == $m) {
+                return static::sortByDesc('id');
             }
 
             return call_user_func_array([$instance, $m], $a);
@@ -240,7 +244,11 @@
             if (isset($this->row)) {
                 return call_user_func_array([$this->row, $m], $a);
             } else {
-                if ('new' == $m) {
+                if ('newest' == $m) {
+                    return $this->sortByDesc('id');
+                } elseif ('oldest' == $m) {
+                    return $this->sortBy('id');
+                } elseif ('new' == $m) {
                     return $this->store(current($a));
                 }
 
@@ -272,15 +280,5 @@
             }
 
             return $this;
-        }
-
-        public function newest()
-        {
-            return $this->sortByDesc('id');
-        }
-
-        public function oldest()
-        {
-            return $this->sortBy('id');
         }
     }
