@@ -3222,4 +3222,17 @@
         {
             return $this->get()->toJson();
         }
+
+        public function reduce(callable $callable)
+        {
+            $ids = [];
+
+            foreach ($this->get(false) as $row) {
+                if ($check = call_user_func_array($callable, [$row])) {
+                    $ids[] = $row['id'];
+                }
+            }
+
+            return $this->where('id', 'IN', $ids);
+        }
     }

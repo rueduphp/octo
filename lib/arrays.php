@@ -780,6 +780,7 @@
                 list($innerKey, $innerValue) = call_user_func($callback, $key, $value);
                 $results[$innerKey] = $innerValue;
             }
+
             return $results;
         }
 
@@ -813,7 +814,7 @@
                 }
             }
 
-            return File::value($default);
+            return value($default);
         }
 
         public static function lastOne($array, callable $callback, $default = null)
@@ -836,18 +837,18 @@
                     $target = $target[$segment];
                 } elseif ($target instanceof \ArrayAccess) {
                     if (!isset($target[$segment])) {
-                        return File::value($default);
+                        return value($default);
                     }
 
                     $target = $target[$segment];
                 } elseif (is_object($target)) {
                     if (!isset($target->{$segment})) {
-                        return File::value($default);
+                        return value($default);
                     }
 
                     $target = $target->{$segment};
                 } else {
-                    return File::value($default);
+                    return value($default);
                 }
             }
 
@@ -944,5 +945,31 @@
             }
 
             return $array;
+        }
+
+        public static function findBy($array, $key, $value)
+        {
+            $collection = [];
+
+            foreach ($array as $row) {
+                if (isset($row[$key]) && $row[$key] == $value) {
+                    $collection[] = $row;
+                }
+            }
+
+            return $collection;
+        }
+
+        public static function reduce($array, callable $callable)
+        {
+            $collection = [];
+
+            foreach ($array as $row) {
+                if ($check = call_user_func_array($callable, [$row])) {
+                    $collection[] = $row;
+                }
+            }
+
+            return $collection;
         }
     }
