@@ -16,6 +16,8 @@
         "fzaninotto/faker": "@stable",
         "aws/aws-sdk-php": "@stable",
         "illuminate/database": "@stable",
+        "symfony/console": "~2.3|~3.0",
+        "symfony/process": "~2.3|~3.0",
         "psy/psysh": "@stable",
         "wisembly/elephant.io": "~3.0",
         "nitmedia/wkhtml2pdf": "*",
