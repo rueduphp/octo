@@ -972,4 +972,21 @@
 
             return $collection;
         }
+
+        public static function chunk_fixed(\SplFixedArray $arr, $size)
+        {
+            $chunks = new \SplFixedArray(ceil(count($arr) / $size));
+
+            foreach ($arr as $idx => $value) {
+                if ($idx % $size === 0) {
+                    $chunks[$idx / $size] = $chunk = new \SplFixedArray($size);
+                }
+
+                $chunk[$idx % $size] = $value;
+            }
+
+            $chunk->setSize(count($arr) % $size);
+
+            return $chunks;
+        }
     }

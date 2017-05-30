@@ -448,6 +448,48 @@
             return $this->directory;
         }
 
+        public function only($fields)
+        {
+            if (is_string($fields)) {
+                $fields = func_get_args();
+            }
+
+            $this->hook(function ($row) use ($fields) {
+                $item = [];
+
+                foreach ($fields as $field) {
+                    if (isset($row[$field])) {
+                        $item[$field] = $row[$field];
+                    }
+                }
+
+                return $this->row($item);
+            });
+
+            return $this;
+        }
+
+        public function except($fields)
+        {
+            if (is_string($fields)) {
+                $fields = func_get_args();
+            }
+
+            $this->hook(function ($row) use ($fields) {
+                $item = [];
+
+                foreach ($row as $k => $v) {
+                    if (!in_array($k, $fields)) {
+                        $item[$field] = $row[$field];
+                    }
+                }
+
+                return $this->row($item);
+            });
+
+            return $this;
+        }
+
         public function row($row)
         {
             $item = item($row);

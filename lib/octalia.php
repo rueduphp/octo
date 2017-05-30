@@ -145,7 +145,7 @@
                     }
 
                     if ($tuples) {
-                        $this->create($row)->save();
+                        $this->store($row);
                     } else {
                         $this->firstOrCreate($row);
                     }
@@ -192,9 +192,9 @@
 
         public function instanciate($db = null, $table = null, $driver = null)
         {
-            $db     = is_null($db) ? $this->db : $db;
-            $table  = is_null($table) ? $this->table : $table;
-            $driver = is_null($driver) ? $this->driver : $driver;
+            $db     = is_null($db)      ? $this->db     : $db;
+            $table  = is_null($table)   ? $this->table  : $table;
+            $driver = is_null($driver)  ? $this->driver : $driver;
 
             return new self($db, $table, $driver);
         }
@@ -1022,11 +1022,10 @@
         public function __call($m, $a)
         {
             if ($m == 'is' && count($a) == 2) {
-                return $this->where([
+                return $this->where(
                     current($a),
-                    '=',
                     end($a)
-                ]);
+                );
             }
 
             if ($m == 'or') {
@@ -1199,7 +1198,7 @@
                 $field = callField($m, 'by');
                 $value = array_shift($a);
 
-                return $this->where([$field, '=', $value]);
+                return $this->where($field, $value);
             }
 
             if (fnmatch('sortWith*', $m)) {
@@ -1252,7 +1251,7 @@
                 if ($o instanceof Object) {
                     $fk = Strings::uncamelize($m) . '_id';
 
-                    return $this->where([$fk, '=', (int) $o->id]);
+                    return $this->where($fk, (int) $o->id);
                 }
             }
 
@@ -1906,7 +1905,7 @@
 
             $results    = coll($data)->each($callback);
 
-            $this->ids = array_values($results->fetch('id')->toArray());
+            $this->iterator(array_values($results->fetch('id')->toArray()));
 
             return $this;
         }
@@ -1999,6 +1998,40 @@
             $iterator = lib('OctaliaIterator', [$this]);
 
             return $this->fire('get', $iterator->item());
+        }
+
+        public function only()
+        {
+            $this->reset();
+
+            $iterator = lib('OctaliaIterator', [$this]);
+
+            $callable = [$iterator, 'only'];
+
+            return $this->fire(
+                'get',
+                call_user_func_array(
+                    $callable,
+                    func_get_args()
+                )
+            );
+        }
+
+        public function except()
+        {
+            $this->reset();
+
+            $iterator = lib('OctaliaIterator', [$this]);
+
+            $callable = [$iterator, 'except'];
+
+            return $this->fire(
+                'get',
+                call_user_func_array(
+                    $callable,
+                    func_get_args()
+                )
+            );
         }
 
         public function all()
@@ -3234,5 +3267,31 @@
             }
 
             return $this->where('id', 'IN', $ids);
+        }
+
+        public function split($numberOfGroups)
+        {
+            if ($this->isEmpty()) {
+                return $this;
+            }
+
+            $groupSize = ceil($this->count() / $numberOfGroups);
+
+            return $this->chunk($groupSize);
+        }
+
+        public function chunk($size)
+        {
+            if ($size <= 0) {
+                return $this;
+            }
+
+            $chunks = [];
+
+            foreach (array_chunk((array) $this->iterator(), $size, true) as $chunk) {
+                $chunks[] = $this->newQuery()->where('id', 'IN', $chunk);
+            }
+
+            return $chunks;
         }
     }

@@ -621,7 +621,7 @@
             };
         }
 
-        public function zip($items)
+        public function zip()
         {
             $arrayableItems = array_map(function ($items) {
                 return $this->getArrays($items);
