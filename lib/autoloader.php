@@ -97,4 +97,18 @@
         {
             static::$aliases[$alias] = $class;
         }
+
+        public static function mapping(array $maps)
+        {
+            foreach ($maps as $class => $file) {
+                static::map($class, $file);
+            }
+        }
+
+        public static function aliasing(array $aliases)
+        {
+            foreach ($aliases as $alias => $class) {
+                static::alias($alias, $class);
+            }
+        }
     }

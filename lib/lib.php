@@ -1808,6 +1808,59 @@
             $app[$alias]    = $instance;
         });
 
+        $app->run(function ($namespace = 'App', $cli = false) {
+            File::load(path('app') . '/lib/*.php');
+
+            lib('timer')->start();
+
+            File::load(path('app') . '/config/*config*.php');
+            File::load(path('app') . '/config/*routes*.php');
+
+            if (!$cli) {
+                try {
+                    lib('router')->run($namespace);
+                } catch (\Exception $e) {
+                    dd($e);
+                }
+            }
+        });
+
+        $bootstrap = path('app') . '/config/bootstrap.php';
+
+        if (File::exists($bootstrap)) {
+            require_once $bootstrap;
+        }
+
+        $PDOoptions = [
+            \PDO::ATTR_CASE                 => \PDO::CASE_NATURAL,
+            \PDO::ATTR_ERRMODE              => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_ORACLE_NULLS         => \PDO::NULL_NATURAL,
+            \PDO::ATTR_STRINGIFY_FETCHES    => false,
+            \PDO::ATTR_EMULATE_PREPARES     => false,
+        ];
+
+        $dns = [
+            'mysql' => 'mysql:host=##host##;port=##port##;dbname=##database##',
+            'sqlite' => 'sqlite:##path##'
+        ];
+
+        $database = path('app') . '/config/database.php';
+
+        if (File::exists($database)) {
+            $confDb = include $database;
+        }
+
+        $autoload = path('app') . '/config/autoload.php';
+
+        if (File::exists($autoload)) {
+            $all        = include $autoload;
+            $aliases    = isAke($all, 'aliases', []);
+            $mapped     = isAke($all, 'mapped', []);
+
+            Autoloader::aliasing($aliases);
+            Autoloader::mapping($mapped);
+        }
+
         loadEvents();
 
         listening('system.bootstrap');
@@ -2769,6 +2822,19 @@
         return function () use ($object) {
             return $object;
         };
+    }
+
+    function appenv($key, $default = null)
+    {
+        $env = app('base') . '/.env';
+
+        if (File::exists($env)) {
+            $ini = parse_ini_file($env);
+
+            return isAke($ini, $key, $default);
+        }
+
+        return $default;
     }
 
     function env($key, $default = null)

@@ -105,6 +105,13 @@
         public function __construct()
         {
             $this->tasks = Cli::tasks(path('app') . '/tasks');
+
+            $config = path('app') . '/config/tasks.php';
+
+            if (File::exists($config)) {
+                $aliases = include $config;
+                $this->tasks += array_values($aliases);
+            }
         }
 
         private function starting($class, $methods)
