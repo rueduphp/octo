@@ -1804,11 +1804,19 @@
         });
 
         $app->register(function ($alias, $class, $args = []) use ($app) {
+            if (is_object($args)) {
+                $args = [];
+            }
+
             $instance       = maker($class, $args);
             $app[$alias]    = $instance;
         });
 
         $app->run(function ($namespace = 'App', $cli = false) {
+            if (is_object($namespace)) {
+                $namespace = 'App';
+            }
+
             File::load(path('app') . '/lib/*.php');
 
             lib('timer')->start();
@@ -1825,6 +1833,10 @@
             }
         });
 
+        $app->cli(function($app) {
+            $app->run('App', true);
+        });
+
         $bootstrap = path('app') . '/config/bootstrap.php';
 
         if (File::exists($bootstrap)) {
@@ -1836,10 +1848,10 @@
             \PDO::ATTR_ERRMODE              => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_ORACLE_NULLS         => \PDO::NULL_NATURAL,
             \PDO::ATTR_STRINGIFY_FETCHES    => false,
-            \PDO::ATTR_EMULATE_PREPARES     => false,
+            \PDO::ATTR_EMULATE_PREPARES     => false
         ];
 
-        $dns = [
+        $dsns = [
             'mysql' => 'mysql:host=##host##;port=##port##;dbname=##database##',
             'sqlite' => 'sqlite:##path##'
         ];
@@ -1848,6 +1860,43 @@
 
         if (File::exists($database)) {
             $confDb = include $database;
+
+            $driver = isAke($confDb, 'driver', 'mysql');
+
+            $dsn = isAke($dsns, $driver, null);
+
+            if ($dsn) {
+                switch ($driver) {
+                    case 'mysql':
+                        $host   = isAke($confDb, 'host', 'localhost');
+                        $port   = isAke($confDb, 'port', 3306);
+                        $db     = isAke($confDb, 'database', 'Octo');
+                        $user   = isAke($confDb, 'user', 'root');
+                        $pwd    = isAke($confDb, 'password', 'root');
+
+                        $dsn = str_replace(
+                            ['##host##', '##port##', '##database##'],
+                            [$host, $port, $db],
+                            $dsn
+                        );
+
+                        $app['pdo'] = new \PDO($dsn, $user, $pwd, $PDOoptions);
+
+                        break;
+                    case 'sqlite':
+                        $path   = isAke($confDb, 'path', path('app') . '/database/app.db');
+
+                        $dsn = str_replace(
+                            '##path##',
+                            $path,
+                            $dsn
+                        );
+
+                        $app['pdo'] = new \PDO($dsn, null, null, $PDOoptions);
+
+                        break;
+                }
+            }
         }
 
         $autoload = path('app') . '/config/autoload.php';
