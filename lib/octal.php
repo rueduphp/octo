@@ -12,7 +12,7 @@
         {
             $class = get_called_class();
 
-            if (!isset($this->entity)) {
+            if (!isset($this->entity) && fnmatch('*Entity', $class)) {
                 $this->entity = Strings::uncamelize(
                     str_replace(
                         'Entity',
@@ -39,8 +39,8 @@
 
             $methods = get_class_methods($this);
 
-            if (!isset(self::$booted[$class])) {
-                self::$booted[$class] = true;
+            if (!isset(static::$booted[$class])) {
+                static::$booted[$class] = true;
 
                 if (in_array('events', $methods)) {
                     static::events($this);

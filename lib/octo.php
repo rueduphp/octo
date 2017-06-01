@@ -8,9 +8,11 @@
             return context('app');
         }
 
-        public static function get()
+        public static function get($concern = null)
         {
-            return context('app');
+            $app = context('app');
+
+            return $concern ? $app[$concern] : $app;
         }
 
         public static function __callStatic($m, $a)

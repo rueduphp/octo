@@ -332,6 +332,13 @@
         }
     }
 
+    if (!function_exists('appenv')) {
+        function appenv()
+        {
+            return call_user_func_array('\\Octo\\appenv', func_get_args());
+        }
+    }
+
     if (!class_exists('Core')) {
         class Core
         {

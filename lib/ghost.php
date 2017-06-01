@@ -157,7 +157,11 @@
 
                                 return $this;
                             } else {
-                                $this->$m = $closure;
+                                if (!empty($closure)) {
+                                    $this->$m = $closure;
+                                } else {
+                                    throw new \InvalidArgumentException("Method not provided.");
+                                }
                             }
 
                             return $this;

@@ -1859,11 +1859,12 @@
         $database = path('app') . '/config/database.php';
 
         if (File::exists($database)) {
-            $confDb = include $database;
+            $confDbs = include $database;
 
-            $driver = isAke($confDb, 'driver', 'mysql');
+            $driver = appenv('DATABASE_DRIVER', 'mysql');
+            $confDb = isAke($confDbs, $driver, []);
 
-            $dsn = isAke($dsns, $driver, null);
+            $dsn    = isAke($dsns, $driver, null);
 
             if ($dsn) {
                 switch ($driver) {
@@ -1880,7 +1881,7 @@
                             $dsn
                         );
 
-                        $app['pdo'] = new \PDO($dsn, $user, $pwd, $PDOoptions);
+                        $pdo = new \PDO($dsn, $user, $pwd, $PDOoptions);
 
                         break;
                     case 'sqlite':
@@ -1892,10 +1893,15 @@
                             $dsn
                         );
 
-                        $app['pdo'] = new \PDO($dsn, null, null, $PDOoptions);
+                        $pdo = new \PDO($dsn, null, null, $PDOoptions);
 
                         break;
                 }
+
+                $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+                $pdo->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+
+                $app['pdo'] = $pdo;
             }
         }
 
@@ -2066,7 +2072,7 @@
                 });
 
                 foreach ($args as $k => $v) {
-                    $translation = str_replace('%%' . $k . '%%', $v, $translation);
+                    $translation = str_replace('{{ ' . $k . ' }}', $v, $translation);
                 }
             }
         }
