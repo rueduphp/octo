@@ -1804,6 +1804,10 @@
         });
 
         $app->register(function ($alias, $class, $args = []) use ($app) {
+            if (is_object($args)) {
+                $args = [];
+            }
+
             $instance       = maker($class, $args);
             $app[$alias]    = $instance;
         });
@@ -1833,29 +1837,14 @@
             }
         });
 
+        $app->cli(function($app) {
+            $app->run('App', true);
+        });
+
         $bootstrap = path('app') . '/config/bootstrap.php';
 
         if (File::exists($bootstrap)) {
             require_once $bootstrap;
-        }
-
-        $PDOoptions = [
-            \PDO::ATTR_CASE                 => \PDO::CASE_NATURAL,
-            \PDO::ATTR_ERRMODE              => \PDO::ERRMODE_EXCEPTION,
-            \PDO::ATTR_ORACLE_NULLS         => \PDO::NULL_NATURAL,
-            \PDO::ATTR_STRINGIFY_FETCHES    => false,
-            \PDO::ATTR_EMULATE_PREPARES     => false,
-        ];
-
-        $dns = [
-            'mysql' => 'mysql:host=##host##;port=##port##;dbname=##database##',
-            'sqlite' => 'sqlite:##path##'
-        ];
-
-        $database = path('app') . '/config/database.php';
-
-        if (File::exists($database)) {
-            $confDb = include $database;
         }
 
         $autoload = path('app') . '/config/autoload.php';
@@ -1867,6 +1856,67 @@
 
             Autoloader::aliasing($aliases);
             Autoloader::mapping($mapped);
+        }
+
+        $PDOoptions = [
+            \PDO::ATTR_CASE                 => \PDO::CASE_NATURAL,
+            \PDO::ATTR_ERRMODE              => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_ORACLE_NULLS         => \PDO::NULL_NATURAL,
+            \PDO::ATTR_STRINGIFY_FETCHES    => false,
+            \PDO::ATTR_EMULATE_PREPARES     => false
+        ];
+
+        $dsns = [
+            'mysql' => 'mysql:host=##host##;port=##port##;dbname=##database##',
+            'sqlite' => 'sqlite:##path##'
+        ];
+
+        $database = path('app') . '/config/database.php';
+
+        if (File::exists($database)) {
+            $confDbs = include $database;
+
+            $driver = appenv('DATABASE_DRIVER', 'mysql');
+            $confDb = isAke($confDbs, $driver, []);
+            $dsn    = isAke($dsns, $driver, null);
+
+            if ($dsn) {
+                switch ($driver) {
+                    case 'mysql':
+                        $host   = isAke($confDb, 'host', 'localhost');
+                        $port   = isAke($confDb, 'port', 3306);
+                        $db     = isAke($confDb, 'database', 'Octo');
+                        $user   = isAke($confDb, 'user', 'root');
+                        $pwd    = isAke($confDb, 'password', 'root');
+
+                        $dsn = str_replace(
+                            ['##host##', '##port##', '##database##'],
+                            [$host, $port, $db],
+                            $dsn
+                        );
+
+                        $pdo = new \PDO($dsn, $user, $pwd, $PDOoptions);
+
+                    break;
+
+                    case 'sqlite':
+                        $path   = isAke($confDb, 'path', path('app') . '/database/app.db');
+                        $dsn = str_replace(
+                            '##path##',
+                            $path,
+                            $dsn
+                        );
+
+                        $pdo = new \PDO($dsn, null, null, $PDOoptions);
+
+                    break;
+                }
+
+                $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+                $pdo->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+
+                $app['pdo'] = $pdo;
+            }
         }
 
         loadEvents();
@@ -2025,7 +2075,7 @@
                 });
 
                 foreach ($args as $k => $v) {
-                    $translation = str_replace('%%' . $k . '%%', $v, $translation);
+                    $translation = str_replace('{{ ' . $k . ' }}', $v, $translation);
                 }
             }
         }
