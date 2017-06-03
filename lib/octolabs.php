@@ -24,7 +24,6 @@
                 } else {
                     $args[] = $arg;
                 }
-                $args[str_replace('--', '', $k)] = $v;
             }
 
             if (in_array($action, $actions)) {
@@ -44,6 +43,26 @@
                     Cli::show("Invalid method $method", 'ERROR');
                 }
             }
+        }
+    }
+
+    class QueueCommand
+    {
+        public function starting()
+        {
+            Timer::start();
+        }
+
+        public function stopping($task)
+        {
+            Timer::stop();
+
+            Cli::show("Execution time of task '$task' ==> " . Timer::get() . " s.");
+        }
+
+        public function listen()
+        {
+            Async::listen();
         }
     }
 
