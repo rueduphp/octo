@@ -31,20 +31,27 @@
             ->where('time', '<', time())
             ->get();
 
+            Cli::show($jobs->count() . ' jobs', 'SUCCESS');
+
             foreach ($jobs as $job) {
                 try {
                     $instance = maker($job['class'], $job['args'], false);
 
                     $instance->handle();
 
+                    Cli::show($job->status, 'SUCCESS');
+
                     $job->status = 2;
                     $job->save();
 
                     Cli::show($job['class'] . " has been successfully played.", 'SUCCESS');
                 } catch (\Exception $e) {
+                    Cli::show($job->status, 'ERROR');
+
                     $job->status = 3;
                     $job->save();
 
+                    Cli::show($e->getMessage(), 'ERROR');
                     Cli::show($job['class'] . " has failed.", 'ERROR');
                 }
             }

@@ -29,7 +29,7 @@
             if ($k == 'ids') {
                 $key = 'ids.' . $this->database . '.' . $this->db->table . '.' . sha1($this->directory);
 
-                if (!isset($this->ids)) {
+                if (!Registry::get($key, false)) {
                     $ids = $this->db->iterator();
                     Registry::set($key, $ids);
                 } else {
