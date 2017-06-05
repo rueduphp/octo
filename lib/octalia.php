@@ -3294,4 +3294,17 @@
 
             return $chunks;
         }
+
+        public function export()
+        {
+            $rows = $this->get();
+
+            $array = [];
+
+            foreach ($rows as $row) {
+                $array[] = item($row->toArray());
+            }
+
+            return $array;
+        }
     }
