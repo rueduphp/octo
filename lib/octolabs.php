@@ -46,6 +46,40 @@
         }
     }
 
+    class DbCommand
+    {
+        public function starting()
+        {
+            Timer::start();
+        }
+
+        public function stopping($task)
+        {
+            Timer::stop();
+
+            Cli::show("Execution time of task '$task' ==> " . Timer::get() . " s.");
+        }
+
+        public function seeds()
+        {
+            $seeders = path('app') . '/config/seeders.php';
+
+            if (File::exists($seeders)) {
+                $seeders = include $seeders;
+
+                foreach ($seeders as $entityClass => $seederClass) {
+                    $entityManager  = maker($entityClass);
+                    $seeder         = maker($seederClass);
+                    $count          = $seeder->run($entityManager, faker());
+
+                    Cli::show("$entityClass $count seeds OK", 'SUCCESS');
+                }
+            } else {
+                Cli::show("$seeders does not exist", 'ERROR');
+            }
+        }
+    }
+
     class QueueCommand
     {
         public function starting()

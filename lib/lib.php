@@ -4784,9 +4784,14 @@
         return $result;
     }
 
-    function faker()
+    function faker($lng = 'fr_FR')
     {
-        return \Faker\Factory::create(Config::get('faker.provider', 'fr_FR'));
+        return \Faker\Factory::create(
+            Config::get(
+                'faker.provider',
+                $lng
+            )
+        );
     }
 
     function providers($alias, callable $resolver = null)
