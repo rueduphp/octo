@@ -765,21 +765,7 @@
 
     function request($k = null, $d = null)
     {
-        if (empty($k)) {
-            return lib('object', [oclean($_REQUEST)]);
-        } else {
-            if (is_array($k)) {
-                $return = [];
-
-                foreach ($k as $key) {
-                    $return[$key] = isAke($_REQUEST, $key, null);
-                }
-
-                return o($return);
-            } else {
-                return isAke(oclean($_REQUEST), $k, $d);
-            }
-        }
+        return Input::method($k, $d);
     }
 
     function customRequest($name, $cb = null)
@@ -1422,19 +1408,31 @@
         return $registryInstance;
     }
 
-    function factory()
+    function factory($em, $count = 1, $lng = 'fr_FR')
     {
-        $factory    = lib('OctaliaFactory')->construct(\Faker\Factory::create('fr_FR'));
-        $arguments  = func_get_args();
+        if (is_string($em)) {
+            $em = maker($em);
+        }
 
-        $db = $arguments[0];
-
-        if (isset($arguments[1]) && is_string($arguments[1])) {
-            return $factory->of($db, $arguments[1])->times(isset($arguments[2]) ? $arguments[2] : 1);
-        } elseif (isset($arguments[1])) {
-            return $factory->of($db)->times($arguments[1]);
+        if ($em instanceof Octalia) {
+            $db     = $em->db;
+            $table  = $em->table;
         } else {
-            return $factory->of($db);
+            $db     = $em->orm()->db;
+            $table  = $em->orm()->table;
+        }
+
+        $db     = Strings::lower($db);
+        $table  = Strings::lower($table);
+
+        $file   = path('models') . '/factories/' . $db . '/' . $table . '.php';
+
+        if (File::exists($file)) {
+            $resolver = include $file;
+
+            for ($i = 0; $i < $count; $i++) {
+                $resolver(faker());
+            }
         }
     }
 
