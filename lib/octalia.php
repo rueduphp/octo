@@ -1031,6 +1031,20 @@
 
         public function __call($m, $a)
         {
+            $database   = $this->db;
+            $table      = $this->table;
+
+            $entity = actual("entity.$database.$table");
+
+            if (is_object($entity)) {
+                $methods = get_class_methods($entity);
+                $method = 'scope' . ucfirst(Strings::camelize($m));
+
+                if (in_array($method, $methods)) {
+                    return call_user_func_array([$entity, $method], $a);
+                }
+            }
+
             if ($m == 'is' && count($a) == 2) {
                 return $this->where(
                     current($a),
@@ -3340,5 +3354,50 @@
             }
 
             return $this->where('id', 'IN', $ids)->exists();
+        }
+
+        public function hasOne($em)
+        {
+            if (is_string($em)) {
+                $em = maker($em);
+            }
+
+            $table = $em->table();
+            $fk = $table . '_id';
+
+            return $this->newQuery()->where($fk, '>', 0)->count() == 1;
+        }
+
+        public function hasMany($em)
+        {
+            if (is_string($em)) {
+                $em = maker($em);
+            }
+
+            $table = $em->table();
+            $fk = $table . '_id';
+
+            return $this->newQuery()->where($fk, '>', 0)->count() > 1;
+        }
+
+        public function foreigns($em)
+        {
+            if (is_string($em)) {
+                $em = maker($em);
+            }
+
+            $table = $em->table();
+            $fk = $table . '_id';
+
+            return $this->newQuery()->where($fk, '>', 0);
+        }
+
+        public function from($em)
+        {
+            if (is_string($em)) {
+                $em = maker($em);
+            }
+
+            return $em->newQuery()->where($this->table . '_id', '>', 0);
         }
     }

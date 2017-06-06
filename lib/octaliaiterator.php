@@ -307,6 +307,23 @@
             return $this;
         }
 
+        public function pluck($field)
+        {
+            if (is_string($field)) {
+                $this->hook(function ($row) use ($field) {
+                    return isAke($row, $field, null);
+                });
+            }
+
+            if (is_callable($field)) {
+                $this->hook(function ($row) use ($field) {
+                    return $field($row);
+                });
+            }
+
+            return $this;
+        }
+
         public function model()
         {
             $this->hook(function ($row) {
