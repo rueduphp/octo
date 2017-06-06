@@ -5892,6 +5892,24 @@
         Autoloader::entity($class);
     }
 
+    function remember($key, $callback, $minutes = null)
+    {
+        $minutes = !is_null($minutes) ? $minutes * 60 : null;
+
+        if (!is_callable($callback)) {
+            $callback = voidToCallback($callback);
+        }
+
+        return fmr()->getOr($key, $callback, $minutes);
+    }
+
+    function voidToCallback($concern)
+    {
+        return function () use ($concern) {
+            return $concern;
+        };
+    }
+
     function mcache($host = 'localhost', $port = 11211, $ns = 'octo.core')
     {
         $mc = mc($host, $port, $ns);
@@ -6042,7 +6060,7 @@
         return $i;
     }
 
-    function guard($em = 'user')
+    function guard($ns = 'web', $em = 'user')
     {
         $class = o();
 
@@ -6055,12 +6073,40 @@
             return $class;
         });
 
+        $class->macro('login', function ($user) use ($ns) {
+            session($ns)->setUser($user);
+        });
+
+        $class->macro('logout', function () use ($ns) {
+            session($ns)->erase('user');
+        });
+
+        $class->macro('id', function () use ($ns) {
+            $user = session($ns)->getUser();
+
+            if ($user) {
+                return $user['id'];
+            }
+
+            return null;
+        });
+
+        $class->macro('email', function () use ($ns) {
+            $user = session($ns)->getUser();
+
+            if ($user) {
+                return isAke($user, 'email', null);
+            }
+
+            return null;
+        });
+
         $class->macro('on', function () use ($class) {
             return call_user_func_array([$class, 'policy'], func_get_args());
         });
 
-        $class->macro('user', function ($model = true) use ($em) {
-            $user = session('web')->getUser();
+        $class->macro('user', function ($model = true) use ($ns, $em) {
+            $user = session($ns)->getUser();
 
             if ($user && $model) {
                 return em($em)->find((int) $user['id']);
@@ -6069,24 +6115,24 @@
             return $user;
         });
 
-        $class->macro('logWithId', function ($id, $route = 'home') use ($em)  {
+        $class->macro('logWithId', function ($id, $route = 'home') use ($ns, $em)  {
             $user = em($em)->find((int) $id);
 
             if ($user) {
-                session('web')->setUser($user);
+                session($ns)->setUser($user);
                 go(urlFor($route));
             } else {
-                exception('guard', "Unknown id.");
+                ptption('guard', "Unknown id.");
             }
         });
 
-        $class->macro('logByUser', function ($user, $route = 'home') {
-            session('web')->setUser($user);
+        $class->macro('logByUser', function ($user, $route = 'home') use ($ns) {
+            session($ns)->setUser($user);
             go(urlFor($route));
         });
 
-        $class->macro('allows', function () {
-            $user = session('web')->getUser();
+        $class->macro('allows', function () use ($ns) {
+            $user = session($ns)->getUser();
 
             if ($user) {
                 $user = item($user);

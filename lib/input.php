@@ -145,14 +145,47 @@
             return upload($field);
         }
 
-        protected static function only(array $array, array $keys)
+        protected static function only(array $array, $keys)
         {
-            $inputs = [];
+            $keys = !is_array($keys) ? [$keys] : $keys;
 
-            foreach ($keys as $key) {
-                $inputs[$key] = isAke($array, $key, null);
+            return array_intersect_key($array, array_flip((array) $keys));
+        }
+
+        protected static function except($array, $keys)
+        {
+            $keys = !is_array($keys) ? [$keys] : $keys;
+
+            return array_diff_key($array, array_flip((array) $keys));
+        }
+
+        public static function method($k = null, $d = null)
+        {
+            $method = Request::method();
+
+            if ('GET' == $method) {
+                $all = self::clean($_GET);
+            } else {
+                $all = self::clean($_POST);
             }
 
-            return $inputs;
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function __callStatic($m, $a)
+        {
+            $method = Request::method();
+
+            if ('GET' == $method) {
+                $all = self::clean($_GET);
+            } else {
+                $all = self::clean($_POST);
+            }
+
+            return isAke($all, $m, current($a));
         }
     }

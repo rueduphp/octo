@@ -494,7 +494,31 @@
 
                     if ($quit) {
                         if (is_callable($route['callback'])) {
-                            $this->route = call_user_func_array($route['callback'], $params);
+                            $return = $this->route = call_user_func_array($route['callback'], $params);
+
+                            if ($return instanceof \Closure) {
+                                $return = $return();
+
+                                if (is_array($return)) {
+                                    Api::renderJson($return);
+                                }
+                            }
+
+                            if ($return instanceof Object) {
+                                if ($return->hasModel()) {
+                                    Api::renderJson($return->toArray());
+                                } else if ($return->getIsVue()) {
+                                    $return->render();
+                                } else {
+                                    $return->go();
+                                }
+
+                                exit;
+                            } elseif (is_object($return) && in_array('toArray', get_class_methods($return))) {
+                                Api::renderJson($return->toArray());
+
+                                exit;
+                            }
                         } else {
                             if (fnmatch('*@*', $route['callback'])) {
                                 $this->route = explode('@', $route['callback']);

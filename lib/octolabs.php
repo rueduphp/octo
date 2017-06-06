@@ -114,6 +114,28 @@
             Cli::show("Execution time of task '$task' ==> " . Timer::get() . " s.");
         }
 
+        public function request($request)
+        {
+            $name           = current($request);
+            $namespace      = isAke($request, 'namespace', 'App\\requests');
+
+            $newRequest  = path('app') . '/requests/' . ucfirst(Strings::lower($name)) . '.php';
+
+            if (File::exists($newRequest)) {
+                Cli::show("$newRequest ever exists", 'ERROR');
+            } else {
+                $code = "<?php\n\tnamespace $namespace;\n\n\tuse CustomRequest;\n\n\tclass $name extends CustomRequest\n\t{\n\t\tpublic function boot()\n\t\t{\n\t\t}\n\n\t\tpublic function authorize()\n\t\t{\n\t\t}\n\t}";
+
+                if (!is_dir(path('app') . '/requests')) {
+                    Dir::mkdir(path('app') . '/requests');
+                }
+
+                File::put($newRequest, $code);
+
+                Cli::show("$name request has been successfully created", 'SUCCESS');
+            }
+        }
+
         public function controller($request)
         {
             $name           = current($request);

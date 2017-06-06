@@ -156,6 +156,10 @@
 
         public static function __callStatic($m, $a)
         {
+            if ('array' == $m) {
+                return voidToCallback($a);
+            }
+
             $uri        = array_shift($a);
             $callback   = array_shift($a);
 

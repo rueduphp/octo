@@ -225,7 +225,6 @@
             $user       = session('front')->getUser();
             $isLogged   = !is_null($user);
             $key        = $isLogged ? sha1(lng() . '.1.' . $k) :  sha1(lng() . '.0.' . $k);
-            // $key = sha1(lng() . $k);
 
             return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
         }

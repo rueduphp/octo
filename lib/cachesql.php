@@ -27,21 +27,25 @@
 
         public function __construct($ns = 'core')
         {
-            $this->dir = $ns;
-            $this->table = Strings::urlize($ns, '');
+            $this->dir      = $ns;
+            $this->table    = Strings::urlize($ns, '');
 
-            $this->db = new \PDO(
-                'mysql:host=' .
-                Config::get('mysql.host', 'localhost') . ';dbname=' .
-                Config::get('mysql.db', def('SITE_NAME', 'project')),
-                Config::get('mysql.user', 'root'),
-                Config::get('mysql.password', 'root')
-            );
+            $app = context('app');
 
-            $this->db->setAttribute(
-                \PDO::ATTR_ERRMODE,
-                \PDO::ERRMODE_WARNING
-            );
+            if (!$this->db = $app['pdo']) {
+                $this->db = new \PDO(
+                    'mysql:host=' .
+                    Config::get('mysql.host', 'localhost') . ';dbname=' .
+                    Config::get('mysql.db', def('SITE_NAME', 'project')),
+                    Config::get('mysql.user', 'root'),
+                    Config::get('mysql.password', 'root')
+                );
+
+                $this->db->setAttribute(
+                    \PDO::ATTR_ERRMODE,
+                    \PDO::ERRMODE_WARNING
+                );
+            }
 
             $sql = "CREATE TABLE IF NOT EXISTS `" . $this->table . "` (
   `k` varchar(255) NOT NULL,
@@ -54,14 +58,14 @@
             $this->id = sha1('sql' . $ns);
         }
 
-        public static function instance($ns = 'core', $dir = null)
+        public static function instance($ns = 'core')
         {
             $key = sha1(serialize(func_get_args()));
 
             $instance = isAke(static::$instances, $key, null);
 
             if (!$instance) {
-                $instance = new static($ns, $dir);
+                $instance = new static($ns);
 
                 static::$instances[$key] = $instance;
             }
