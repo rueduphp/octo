@@ -1431,7 +1431,7 @@
             $resolver = include $file;
 
             for ($i = 0; $i < $count; $i++) {
-                $resolver(faker());
+                $resolver(faker($lng));
             }
         }
     }
