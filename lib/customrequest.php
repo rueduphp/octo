@@ -11,21 +11,39 @@
                 $this->$key = $value;
             }
 
-            $class = get_called_class();
-
-            $methods = get_class_methods($class);
+            $methods = get_class_methods($this);
 
             if (in_array('boot', $methods)) {
-                $class->boot();
+                $this->boot();
             }
 
             if (in_array('authorize', $methods)) {
-                $check = $class->authorize();
+                $check = $this->authorize();
 
                 if (!$check) {
                     exception('Request', 'Access forbidden');
                 }
             }
+        }
+
+        public function language()
+        {
+            return Request::language();
+        }
+
+        public function method()
+        {
+            return Request::method();
+        }
+
+        public function ip()
+        {
+            return Request::ip();
+        }
+
+        public function user($admin = false)
+        {
+            return !$admin ? Auth::user() : Admin::user();
         }
 
         public function __set($k, $v)
@@ -85,14 +103,14 @@
 
         public function only($keys)
         {
-            $keys = !is_array($keys) ? [$keys] : $keys;
+            $keys = is_array($keys) ? $keys : func_get_args();
 
             return array_intersect_key($this->toArray(), array_flip((array) $keys));
         }
 
         public function except($keys)
         {
-            $keys = !is_array($keys) ? [$keys] : $keys;
+            $keys = is_array($keys) ? $keys : func_get_args();
 
             return array_diff_key($this->toArray(), array_flip((array) $keys));
         }

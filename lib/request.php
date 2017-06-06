@@ -219,7 +219,7 @@
                         'app.language',
                         def(
                             'app.language',
-                            'en'
+                            appenv('DEFAULT_LANGUAGE', 'en')
                         )
                     )
                 )

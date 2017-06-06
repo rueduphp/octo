@@ -147,14 +147,14 @@
 
         protected static function only(array $array, $keys)
         {
-            $keys = !is_array($keys) ? [$keys] : $keys;
+            $keys = is_array($keys) ? $keys : func_get_args();
 
             return array_intersect_key($array, array_flip((array) $keys));
         }
 
         protected static function except($array, $keys)
         {
-            $keys = !is_array($keys) ? [$keys] : $keys;
+            $keys = is_array($keys) ? $keys : func_get_args();
 
             return array_diff_key($array, array_flip((array) $keys));
         }
