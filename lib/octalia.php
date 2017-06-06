@@ -894,6 +894,16 @@
                 return $model->save();
             });
 
+            $octal = actual("entity.{$this->db}.{$this->table}");
+
+            if (is_object($octal)) {
+                $methods = get_class_methods($octal);
+
+                if (in_array('octalModel', $methods)) {
+                    $model = $octal->octalModel($model);
+                }
+            }
+
             $traits = class_uses($model);
 
             if (!empty($traits)) {
@@ -910,7 +920,7 @@
                 }
             }
 
-            return $this->fire('model', $model);
+            return $this->fire('make_model', $model, true);
         }
 
         public function createFake()
@@ -1867,6 +1877,11 @@
             $this->ids = SplFixedArray::fromArray($ids);
 
             return $this;
+        }
+
+        public function emptyQuery()
+        {
+            $this->ids = SplFixedArray::fromArray([]);
         }
 
         public function exists()
@@ -3016,7 +3031,8 @@
             }
 
             return (new self($database, $t2, $this->driver))
-            ->where([$fk2, 'IN', implode(',', $ids)])
+            ->newQuery()
+            ->where($fk2, 'IN', implode(',', $ids))
             ->get();
         }
 
@@ -3024,12 +3040,13 @@
         {
             unset($update['id']);
 
-            $where = is_numeric($where) ? ['id', '=', $where] : $where;
+            $where = is_numeric($where) ? ['id', (int) $where] : $where;
 
             $rows = $this->where($where)->get();
 
             if (!empty($rows)) {
                 foreach ($rows as $row) {
+                    $row = is_object($row) ? $row->toArray() : $row;
                     $id = isAke($row, 'id', 0);
 
                     if ($id > 0) {
@@ -3056,6 +3073,8 @@
             $collection = [];
 
             foreach ($tab1 as $row) {
+                $row = is_object($row) ? $row->toArray() : $row;
+
                 $id = isAke($row, 'id', null);
 
                 if (strlen($id)) {
@@ -3064,6 +3083,8 @@
             }
 
             foreach ($tab2 as $row) {
+                $row = is_object($row) ? $row->toArray() : $row;
+
                 $id = isAke($row, 'id', null);
 
                 if (strlen($id)) {
@@ -3091,7 +3112,7 @@
             $fk = $this->table . '_id';
 
             foreach ($rows as $row) {
-                $relations = $model->where($fk, (int) $row['id'])->get();
+                $relations = $model->newQuery()->where($fk, (int) $row['id'])->get();
 
                 if ($relations->count()) {
                     $ids[] = $row['id'];
@@ -3099,10 +3120,10 @@
             }
 
             if (empty($ids)) {
-                return $this->where(['id', '<', 0]);
+                return $this->emptyQuery();
             }
 
-            return $this->where(['id', 'IN', $ids]);
+            return $this->where('id', 'IN', $ids);
         }
 
         public static function getFields(Octalia $model)
@@ -3306,5 +3327,18 @@
             }
 
             return $array;
+        }
+
+        public function contains()
+        {
+            $models = func_get_args();
+
+            $ids = [];
+
+            foreach ($models as $model) {
+                $ids[] = $model['id'];
+            }
+
+            return $this->where('id', 'IN', $ids)->exists();
         }
     }

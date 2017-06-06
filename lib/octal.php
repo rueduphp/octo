@@ -143,6 +143,7 @@
          * deleted
          * get
          * count
+         * make_model
          */
         public function on($event, callable $callable)
         {
@@ -152,6 +153,13 @@
         public function hook(callable $callable)
         {
             return call_user_func_array($callable, [$this->orm()]);
+        }
+
+        public static function makeModel(callable $callable)
+        {
+            $instance = maker(get_called_class(), [], false);
+
+            return $instance->orm()->on('make_model', $callable, $instance);
         }
 
         public static function booting(callable $callable)

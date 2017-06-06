@@ -654,7 +654,7 @@
 
         public function created()
         {
-            return Time::createFromTimestamp(isAke($this->data, 'updated_at', time()));
+            return Time::createFromTimestamp(isAke($this->data, 'created_at', time()));
         }
 
         public function now()
@@ -722,7 +722,11 @@
         {
             if ($this->hasModel() && $this->exists()) {
                 if (is_null($polymorph)) {
-                    return engine($this->db(), $this->polymorph_type, $this->driver())->find((int) $this->polymorph_id);
+                    return engine(
+                        $this->db(),
+                        $this->polymorph_type,
+                        $this->driver()
+                    )->find((int) $this->polymorph_id);
                 }
 
                 $this->data['polymorph_type'] = $polymorph->table();
@@ -750,9 +754,17 @@
                 $idFk = $fk . '_id';
 
                 if (isset($this->data[$idFk]) && is_numeric($this->data[$idFk])) {
-                    return engine($this->db(), $fk, $this->driver())->find((int) $this->data[$idFk]);
+                    return engine(
+                        $this->db(),
+                        $fk,
+                        $this->driver()
+                    )->find((int) $this->data[$idFk]);
                 } else {
-                    $query = engine($this->db(), $fk, $this->driver())->where($this->table() . '_id', (int) $this->get('id'));
+                    $query = engine(
+                        $this->db(),
+                        $fk,
+                        $this->driver()
+                    )->where($this->table() . '_id', (int) $this->get('id'));
 
                     return $many ? $query : $query->first(true);
                 }
@@ -795,7 +807,7 @@
             return $this;
         }
 
-        public function pivots(Octalia $model)
+        public function pivoted(Octalia $model)
         {
             if ($this->hasModel() && $this->exists()) {
                 $relations = $this->manyToMany($model);
@@ -808,11 +820,17 @@
                 }
 
                 if (empty($ids)) {
-                    return engine($this->db(), $model->table, $this->driver())
-                    ->where(['id', '<', 0]);
+                    return engine(
+                        $this->db(),
+                        $model->table,
+                        $this->driver()
+                    )->where(['id', '<', 0]);
                 } else {
-                    return engine($this->db(), $model->table, $this->driver())
-                    ->where(['id', 'IN', $ids]);
+                    return engine(
+                        $this->db(),
+                        $model->table,
+                        $this->driver()
+                    )->where(['id', 'IN', $ids]);
                 }
             }
 
@@ -827,15 +845,23 @@
                 $pivot = implode('', $tables);
 
                 if ($sync) {
-                    $relation = engine($this->db(), $pivot, $this->driver())->firstOrCreate([
+                    $relation = engine(
+                        $this->db(),
+                        $pivot,
+                        $this->driver()
+                    )->firstOrCreate([
                         $this->table() . '_id' => (int) $this->get('id'),
                         $model->table() . '_id' => (int) $model->id
                     ]);
                 } else {
-                    $relation = engine($this->db(), $pivot, $this->driver())->create([
+                    $relation = engine(
+                        $this->db(),
+                        $pivot,
+                        $this->driver()
+                    )->store([
                         $this->table() . '_id' => (int) $this->get('id'),
                         $model->table() . '_id' => (int) $model->id
-                    ])->save();
+                    ]);
                 }
 
                 if (!empty($data)) {
@@ -858,7 +884,11 @@
                 sort($tables);
                 $pivot = implode('', $tables);
 
-                return engine($this->db(), $pivot, $this->driver())
+                return engine(
+                    $this->db(),
+                    $pivot,
+                    $this->driver()
+                )
                 ->where($this->table() . '_id', (int) $this->get('id'))
                 ->where($model->table() . '_id', (int) $model->id)
                 ->delete();
@@ -888,6 +918,13 @@
             }
         }
 
+        public function pivots($em)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::pivoted($this, $em);
+            }
+        }
+
         public function bound(Object $model)
         {
             if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
@@ -911,5 +948,20 @@
         public function isDirty()
         {
             return $this->initial != $this->data;
+        }
+
+        public function dirty()
+        {
+            $dirty = [];
+
+            if  ($this->initial != $this->data) {
+                foreach ($this->data as $k => $v) {
+                    if ($this->initial[$l] != $v) {
+                        $dirty[$k] = $v;
+                    }
+                }
+            }
+
+            return $dirty;
         }
     }

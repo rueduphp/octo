@@ -418,8 +418,50 @@
             return false;
         }
 
+        public static function pivoted($model1, $em)
+        {
+            if (is_string($em)) {
+                $em = maker($em, [], false);
+            }
+
+            $model2 = $em->first();
+
+            $m1Table = $model1->table();
+            $m2Table = $model2->table();
+
+            $names = [(string) $m1Table, (string) $m2Table];
+
+            asort($names);
+
+            $entity = Inflector::camelize($model1->db() . '_' . current($names) . end($names));
+
+            $db = em($entity);
+
+            $pivots = $db
+            ->where($m1Table . '_id', $model1->id)
+            ->get();
+
+            $fk = $m2Table . '_id';
+
+            $ids = [];
+
+            foreach ($pivots as $pivot) {
+                $id = $pivot[$fk];
+
+                if (!in_array($id, $ids)) {
+                    $ids[] = $id;
+                }
+            }
+
+            return $em->newQuery()->where('id', 'IN', $ids);
+        }
+
         public static function get($model1, $model2)
         {
+            if (!$model2 instanceof Object) {
+                return self::pivoted($model1, $model2);
+            }
+
             if (!is_object($model1)) {
                 exception('pivot', 'the first argument must be a model.');
             }
@@ -453,7 +495,8 @@
 
             return $db
             ->where($m1Table . '_id', $model1->id)
-            ->where($m2Table . '_id', $model2->id);
+            ->where($m2Table . '_id', $model2->id)
+            ->first();
         }
 
         public static function bound($model1, $model2)
