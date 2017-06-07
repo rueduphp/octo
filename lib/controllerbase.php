@@ -314,32 +314,18 @@
             return $this->models[$model];
         }
 
-        public function em()
+        public function em($model, $engine = 'engine', $force = false)
         {
-            return call_user_func_array('\\Octo\\em', func_get_args());
+            return em($model, $engine, $force);
         }
 
-        public function middleware()
+        public function middleware($class)
         {
-            $coreMiddlewares = Registry::get('core.middlewares', []);
-
-            $args = func_get_args();
-
-            $middlewares = array_shift($args);
-
-            if (!is_array($middlewares)) {
-                $middlewares = [$middlewares];
+            if (is_string($class)) {
+                $class = maker($class, [], false);
             }
 
-            $a = array_merge([$this], $args);
-
-            foreach ($middlewares as $middlewareKey) {
-                $middleware = isAke($coreMiddlewares, $middlewareKey, null);
-
-                if (is_callable($middleware)) {
-                    call_user_func_array($middleware, $a);
-                }
-            }
+            return $class->handle();
         }
 
         public function action($action)

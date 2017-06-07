@@ -1,36 +1,36 @@
 <?php
     if (!function_exists('partial')) {
-        function partial()
+        function partial($file, $args = [])
         {
-            return call_user_func_array('\\Octo\\partial', func_get_args());
+            return Octo\partial($file, $args);
         }
     }
 
     if (!function_exists('guard')) {
-        function guard()
+        function guard($em = 'user')
         {
-            return call_user_func_array('\\Octo\\guard', func_get_args());
+            return Octo\guard($em);
         }
     }
 
     if (!function_exists('auth')) {
-        function auth()
+        function auth($em = 'user')
         {
-            return call_user_func_array('\\Octo\\guard', func_get_args());
+            return Octo\guard($em);
         }
     }
 
     if (!function_exists('vue')) {
-        function vue()
+        function vue($file, $args = [], $status = 200)
         {
-            return call_user_func_array('\\Octo\\vue', func_get_args());
+            return Octo\vue($file, $args, $status);
         }
     }
 
     if (!function_exists('em')) {
-        function em()
+        function em($model, $engine = 'engine', $force = false)
         {
-            return call_user_func_array('\\Octo\\em', func_get_args());
+            return Octo\em($model, $engine, $force);
         }
     }
 
@@ -49,65 +49,65 @@
     }
 
     if (!function_exists('isAke')) {
-        function isAke()
+        function isAke($array, $k, $d = [])
         {
-            return call_user_func_array('\\Octo\\isAke', func_get_args());
+            return Octo\isAke($array, $k, $d);
         }
     }
 
     if (!function_exists('lib')) {
-        function lib()
+        function lib($lib, $args = [], $singleton = false)
         {
-            return call_user_func_array('\\Octo\\lib', func_get_args());
+            return Octo\lib($lib, $args, $singleton);
         }
     }
 
     if (!function_exists('maker')) {
-        function maker()
+        function maker($make, $args = [], $singleton = true)
         {
-            return call_user_func_array('\\Octo\\maker', func_get_args());
+            return Octo\maker($make, $args, $singleton);
         }
     }
 
     if (!function_exists('image')) {
-        function image()
+        function image($config = null)
         {
-            return call_user_func_array('\\Octo\\image', func_get_args());
+            return Octo\image($config);
         }
     }
 
     if (!function_exists('forever')) {
-        function forever()
+        function forever($ns = 'user')
         {
-            return call_user_func_array('\\Octo\\forever', func_get_args());
+            return Octo\forever($ns);
         }
     }
 
     if (!function_exists('item')) {
-        function item()
+        function item($attributes = [])
         {
-            return call_user_func_array('\\Octo\\item', func_get_args());
+            return Octo\item($attributes);
         }
     }
 
     if (!function_exists('isRoute')) {
-        function isRoute()
+        function isRoute($name, array $args = [])
         {
-            return call_user_func_array('\\Octo\\isRoute', func_get_args());
+            return Octo\isRoute($name, $args);
         }
     }
 
     if (!function_exists('path')) {
-        function path()
+        function path($k = null, $v = null, $d = null)
         {
-            return call_user_func_array('\\Octo\\path', func_get_args());
+            return Octo\path($k, $v, $d);
         }
     }
 
     if (!function_exists('coll')) {
-        function coll()
+        function coll(array $data = [])
         {
-            return call_user_func_array('\\Octo\\coll', func_get_args());
+            return Octo\coll($data);
         }
     }
 
@@ -119,9 +119,9 @@
     }
 
     if (!function_exists('dyn')) {
-        function dyn()
+        function dyn($class = null)
         {
-            return call_user_func_array('\\Octo\\dyn', func_get_args());
+            return Octo\dyn($class);
         }
     }
 
@@ -140,60 +140,58 @@
     }
 
     if (!function_exists('o')) {
-        function o()
+        function o(array $o = [])
         {
-            return call_user_func_array('\\Octo\\o', func_get_args());
+            return Octo\o($o);
         }
     }
 
     if (!function_exists('start_session')) {
-        function start_session()
+        function start_session($ns = 'web')
         {
-            echo call_user_func_array('\\Octo\\start_session', func_get_args());
+            return Octo\start_session($ns);
         }
     }
 
     if (!function_exists('session')) {
-        function session()
+        function session($context = 'web')
         {
-            echo call_user_func_array('\\Octo\\session', func_get_args());
+            echo Octo\session($context);
         }
     }
 
     if (!function_exists('_')) {
-        function _()
+        function _($segment, $args = [], $locale = null)
         {
-            echo call_user_func_array('\\Octo\\trans', func_get_args());
+            echo Octo\trans($segment, $args, $locale);
         }
     }
 
     if (!function_exists('trans')) {
-        function trans()
+        function trans($segment, $args = [], $locale = null)
         {
-            return call_user_func_array('\\Octo\\trans', func_get_args());
+            return Octo\trans($segment, $args, $locale);
         }
     }
 
     if (!function_exists('lng')) {
-        function lng()
+        function lng($context = 'web')
         {
-            return call_user_func_array('\\Octo\\lng', func_get_args());
+            return Octo\lng($context);
         }
     }
 
     if (!function_exists('request')) {
-        function request()
+        function request($k = null, $d = null)
         {
-            $callable = ['\\Octo\\Input', 'request'];
-
-            return call_user_func_array($callable, func_get_args());
+            return Octo\Input::method($k, $d);
         }
     }
 
     if (!function_exists('url')) {
-        function url()
+        function url($name, array $args = [])
         {
-            return call_user_func_array('\\Octo\\url', func_get_args());
+            return Octo\url($name, $args);
         }
     }
 
@@ -205,9 +203,9 @@
     }
 
     if (!function_exists('auth')) {
-        function auth()
+        function auth($em = 'user')
         {
-            return call_user_func_array('\\Octo\\auth', func_get_args());
+            return Octo\auth($em);
         }
     }
 
@@ -226,16 +224,23 @@
     }
 
     if (!function_exists('layout')) {
-        function layout()
+        function layout($file, $page = null, $sections = null)
         {
-            return call_user_func_array('\\Octo\\layout', func_get_args());
+            return Octo\layout($file, $page, $sections);
         }
     }
 
     if (!function_exists('actual')) {
-        function actual()
+        function actual($key = null, $value = null)
         {
-            return call_user_func_array('\\Octo\\actual', func_get_args());
+            return Octo\actual($key, $value);
+        }
+    }
+
+    if (!function_exists('back')) {
+        function back($url = null)
+        {
+            return Octo\back($url);
         }
     }
 
@@ -284,23 +289,37 @@
     }
 
     if (!function_exists('magic')) {
-        function magic()
+        function magic($class, array $array = [])
         {
-            return call_user_func_array('\\Octo\\magic', func_get_args());
+            return Octo\magic($class, $array);
         }
     }
 
     if (!function_exists('context')) {
-        function context()
+        function context($context, array $array = [])
         {
-            return call_user_func_array('\\Octo\\context', func_get_args());
+            return Octo\context($context, $array);
         }
     }
 
     if (!function_exists('mockery')) {
-        function mockery()
+        function mockery($mock, array $args = [])
         {
-            return call_user_func_array('\\Octo\\mockery', func_get_args());
+            return Octo\mockery($mock, $args);
+        }
+    }
+
+    if (!function_exists('message')) {
+        function message()
+        {
+            return call_user_func_array('\\Octo\\message', func_get_args());
+        }
+    }
+
+    if (!function_exists('mailer')) {
+        function mailer()
+        {
+            return call_user_func_array('\\Octo\\mailer', func_get_args());
         }
     }
 
@@ -333,9 +352,16 @@
     }
 
     if (!function_exists('appenv')) {
-        function appenv()
+        function appenv($key, $default = null)
         {
-            return call_user_func_array('\\Octo\\appenv', func_get_args());
+            return Octo\appenv($key, $default);
+        }
+    }
+
+    if (!function_exists('appenv')) {
+        function be($user, $ns = 'web')
+        {
+            return Octo\be($user, $ns);
         }
     }
 

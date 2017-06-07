@@ -2550,12 +2550,12 @@
         }
 
         foreach ($middlewares as $middlewareClass) {
-            $middleware = app($middlewareClass);
+            $middleware = maker($middlewareClass, [], false);
             $methods    = get_class_methods($middleware);
             $method     = lcfirst(Strings::camelize('apply_' . $when));
 
             if (in_array($method, $methods)) {
-                call_user_func_array([$middleware, $method], [$request, app()]);
+                call_user_func_array([$middleware, $method], [$request, context("app")]);
             }
         }
     }
@@ -2768,6 +2768,8 @@
     function maker($make, $args = [], $singleton = true)
     {
         static $binds = [];
+
+        $args = !is_array($args) ? $args->toArray() : $args;
 
         $callable = isAke($binds, $make, null);
 
@@ -6072,6 +6074,8 @@
         });
 
         $class->macro('login', function ($user) use ($ns) {
+            $user = !is_array($user) ? $user->toArray() : $user;
+
             session($ns)->setUser($user);
         });
 
@@ -6117,7 +6121,7 @@
             $user = em($em)->find((int) $id);
 
             if ($user) {
-                session($ns)->setUser($user);
+                session($ns)->setUser($user->toArray());
                 go(urlFor($route));
             } else {
                 ptption('guard', "Unknown id.");
@@ -6125,6 +6129,7 @@
         });
 
         $class->macro('logByUser', function ($user, $route = 'home') use ($ns) {
+            $user = !is_array($user) ? $user->toArray() : $user;
             session($ns)->setUser($user);
             go(urlFor($route));
         });
@@ -6152,6 +6157,13 @@
         });
 
         return $class;
+    }
+
+    function be($user, $ns = 'web')
+    {
+        $user = !is_array($user) ? $user->toArray() : $user;
+
+        session($ns)->setUser($user);
     }
 
     class OctoLab

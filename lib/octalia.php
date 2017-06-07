@@ -1041,7 +1041,7 @@
                 $method = 'scope' . ucfirst(Strings::camelize($m));
 
                 if (in_array($method, $methods)) {
-                    return call_user_func_array([$entity, $method], $a);
+                    return call_user_func_array([$entity, $method], array_merge([$this], $a));
                 }
             }
 
@@ -1185,7 +1185,7 @@
                     $value  = array_shift($a);
                 }
 
-                return $this->where([$field, $op, $value]);
+                return $this->where($field, $op, $value);
             }
 
             if (fnmatch('getBy*', $m) && strlen($m) > 5) {
@@ -1200,7 +1200,7 @@
                     $value  = array_shift($a);
                 }
 
-                return $this->where([$field, $op, $value]);
+                return $this->where($field, $op, $value);
             }
 
             if (fnmatch('where*', $m) && strlen($m) > 5) {
@@ -1215,7 +1215,7 @@
                     $value  = array_shift($a);
                 }
 
-                return $this->where([$field, $op, $value]);
+                return $this->where($field, $op, $value);
             }
 
             if (fnmatch('by*', $m) && strlen($m) > 2) {
