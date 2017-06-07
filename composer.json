@@ -27,8 +27,7 @@
     },
     "autoload": {
         "files": [
-            "lib/lib.php",
-            "lib/testcase.php"
+            "lib/lib.php"
         ]
     },
     "config": {
