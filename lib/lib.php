@@ -1587,6 +1587,12 @@
                 );
             }
 
+            $layoutContent = str_replace(
+                ['$this'],
+                ['$self'],
+                $layoutContent
+            );
+
             response(
                 codeEvaluation(
                     $layoutContent,

@@ -481,7 +481,7 @@
                     if ($this->uri) {
                         route($route);
 
-                        if ($middleware = $route->getMiddleware()) {
+                        if ($middleware = $this->uri->getMiddleware()) {
                             if (!is_array($middleware)) {
                                 $middleware = [$middleware];
                             }
