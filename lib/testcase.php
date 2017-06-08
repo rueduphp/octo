@@ -72,6 +72,10 @@
                     $rows[] = $em->persist($row);
                 }
 
+                if (count($rows) == 1) {
+                    return $em->model(current($rows));
+                }
+
                 return $rows;
             });
 
