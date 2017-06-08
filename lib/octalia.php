@@ -1089,6 +1089,8 @@
 
                 $this->age(microtime(true));
 
+                $this->driver->set('ids', 0);
+
                 return $this->resetted();
             }
 
