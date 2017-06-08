@@ -38,15 +38,37 @@
                 'entity' => $entity
             ]);
 
-            $factories->macro('raw', function () use ($factories) {
-                return $factories->getRows();
+            $factories->macro('raw', function ($subst = []) use ($factories) {
+                $rows = $factories->getRows();
+
+                if (!empty($subst)) {
+                    $res = [];
+
+                    foreach ($rows as $row) {
+                        foreach ($subst as $k => $v) {
+                            $row[$k] = $v;
+                        }
+
+                        $res[] = $row;
+                    }
+
+                    return $res;
+                } else {
+                    return $rows;
+                }
             });
 
-            $factories->macro('store', function () use ($factories) {
+            $factories->macro('store', function ($subst = []) use ($factories) {
                 $em = $factories->getEntity();
                 $rows = [];
 
                 foreach ($factories->getRows() as $row) {
+                    if (!empty($subst)) {
+                        foreach ($subst as $k => $v) {
+                            $row[$k] = $v;
+                        }
+                    }
+
                     $rows[] = $em->persist($row);
                 }
 
