@@ -1408,6 +1408,74 @@
         return $registryInstance;
     }
 
+    function memoryFactory($class, $count = 1, $lng = 'fr_FR')
+    {
+        $model = maker($class, [], false);
+        $faker = faker($lng);
+
+        $entity = dbMemory(
+            lcfirst(
+                Strings::camelize(
+                    $model->orm()->db . '_' . $model->orm()->table
+                )
+            )
+        );
+
+        $rows = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $rows[] = $model->factory($faker);
+        }
+
+        $factories = o([
+            'rows' => $rows,
+            'entity' => $entity
+        ]);
+
+        $factories->macro('raw', function ($subst = []) use ($factories) {
+            $rows = $factories->getRows();
+
+            if (!empty($subst)) {
+                $res = [];
+
+                foreach ($rows as $row) {
+                    foreach ($subst as $k => $v) {
+                        $row[$k] = $v;
+                    }
+
+                    $res[] = $row;
+                }
+
+                return $res;
+            } else {
+                return $rows;
+            }
+        });
+
+        $factories->macro('store', function ($subst = []) use ($factories) {
+            $em = $factories->getEntity();
+            $rows = [];
+
+            foreach ($factories->getRows() as $row) {
+                if (!empty($subst)) {
+                    foreach ($subst as $k => $v) {
+                        $row[$k] = $v;
+                    }
+                }
+
+                $rows[] = $em->persist($row);
+            }
+
+            if (count($rows) == 1) {
+                return $em->model(current($rows));
+            }
+
+            return $rows;
+        });
+
+        return $factories;
+    }
+
     function factory($em, $count = 1, $lng = 'fr_FR')
     {
         $model = maker($class);
