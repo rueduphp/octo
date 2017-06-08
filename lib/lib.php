@@ -1476,7 +1476,7 @@
         return $factories;
     }
 
-    function factory($em, $count = 1, $lng = 'fr_FR')
+    function factory($class, $count = 1, $lng = 'fr_FR')
     {
         $model = maker($class);
         $faker = faker($lng);
