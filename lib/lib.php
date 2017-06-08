@@ -1410,30 +1410,38 @@
 
     function factory($em, $count = 1, $lng = 'fr_FR')
     {
-        if (is_string($em)) {
-            $em = maker($em);
+        $model = maker($class);
+        $faker = faker($lng);
+
+        $entity = $model->orm();
+
+        $rows = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $rows[] = $model->factory($faker);
         }
 
-        if ($em instanceof Octalia) {
-            $db     = $em->db;
-            $table  = $em->table;
-        } else {
-            $db     = $em->orm()->db;
-            $table  = $em->orm()->table;
-        }
+        $factories = o([
+            'rows' => $rows,
+            'entity' => $entity
+        ]);
 
-        $db     = Strings::lower($db);
-        $table  = Strings::lower($table);
+        $factories->macro('raw', function () use ($factories) {
+            return $factories->getRows();
+        });
 
-        $file   = path('models') . '/factories/' . $db . '/' . $table . '.php';
+        $factories->macro('store', function () use ($factories) {
+            $em = $factories->getEntity();
+            $rows = [];
 
-        if (File::exists($file)) {
-            $resolver = include $file;
-
-            for ($i = 0; $i < $count; $i++) {
-                $resolver(faker($lng));
+            foreach ($factories->getRows() as $row) {
+                $rows[] = $em->persist($row);
             }
-        }
+
+            return $rows;
+        });
+
+        return $factories;
     }
 
     function status($code = 200)

@@ -369,9 +369,9 @@
             return $this->model($data)->save();
         }
 
-        public function persist($data = [])
+        public function persist($data)
         {
-            return $this->store($data);
+            return $this->speedStore($data);
         }
 
         public function createIfNotExists(array $data = [])
@@ -379,6 +379,30 @@
             $data = is_object($data) ? $data->toArray() : $data;
 
             return $this->firstOrCreate($data);
+        }
+
+        public function multiStore(array $rows)
+        {
+            foreach ($rows as $data) {
+                $data = is_object($data) ? $data->toArray() : $data;
+
+                $data['id']         = $this->makeId();
+                $data['created_at'] = $data['updated_at'] = time();
+
+                $this->insert($data, false);
+            }
+
+            return $this;
+        }
+
+        public function speedStore($data)
+        {
+            $data = is_object($data) ? $data->toArray() : $data;
+
+            $data['id']         = $this->makeId();
+            $data['created_at'] = $data['updated_at'] = time();
+
+            return $this->insert($data, false);
         }
 
         public function save($data, $model = true)
