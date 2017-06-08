@@ -481,9 +481,14 @@
                     if ($this->uri) {
                         route($route);
 
-                        if ($middleware = Route::getMiddleware($this->uri->getName())) {
-                            if (is_callable($middleware)) {
-                                call($middleware, [$this->uri]);
+                        if ($middleware = $route->getMiddleware()) {
+                            if (!is_array($middleware)) {
+                                $middleware = [$middleware];
+                            }
+
+                            foreach ($middleware as $handler) {
+                                $handler = maker($handler);
+                                $handler->handle();
                             }
                         }
                     }

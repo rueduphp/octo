@@ -1,10 +1,9 @@
 <?php
     namespace Octo;
 
-    use Mockery;
-    use PHPUnit_Framework_TestCase;
+    use PHPUnit\Framework\TestCase as PTC;
 
-    abstract class TestCase extends PHPUnit_Framework_TestCase
+    abstract class TestCase extends PTC
     {
         protected $app;
 
@@ -37,10 +36,6 @@
 
             if (property_exists($this, 'serverVariables')) {
                 $this->serverVariables = [];
-            }
-
-            if (class_exists('Mockery')) {
-                Mockery::close();
             }
         }
     }

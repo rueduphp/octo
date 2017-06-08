@@ -1470,7 +1470,7 @@
     function partial($file, $args = [])
     {
         vue(
-            'partials.' . $file, $args
+            $file, $args
         )->partial(
             actual('vue')
         );
@@ -1485,7 +1485,7 @@
         : array_merge(['content', 'js', 'css'], $sections);
 
         vue(
-            'layouts.' . $file,
+            $file,
             $page->getArgs()
         )->layout(
             $page,
@@ -1555,9 +1555,27 @@
             $layoutContent  = File::read($vue->getPath());
             $pageContent    = File::read($page->getPath());
 
-            foreach ($sections as $section) {
+            $includes = explode("@include(", $pageContent);
+            array_shift($includes);
+
+            foreach ($includes as $include) {
+                $inc = cut("'", "'", $include);
+                $pathFile = path('app') . '/views/' . str_replace('.', '/', $inc) . '.phtml';
+
+                if (File::exists($pathFile)) {
+                    $incContent = File::read($pathFile);
+                    $pageContent = str_replace("@include('$inc')", $incContent, $pageContent);
+                }
+            }
+
+            $sections = explode("@section(", $pageContent);
+            array_shift($sections);
+
+            foreach ($sections as $sub) {
+                $section = cut("'", "'", $sub);
+
                 $sectionContent = cut(
-                    "@section $section",
+                    "@section('$section')",
                     "@endsection",
                     $pageContent
                 );
@@ -5897,10 +5915,15 @@
         $minutes = !is_null($minutes) ? $minutes * 60 : null;
 
         if (!is_callable($callback)) {
-            $callback = voidToCallback($callback);
+            $callback = toClosure($callback);
         }
 
         return fmr()->getOr($key, $callback, $minutes);
+    }
+
+    function toClosure($concern)
+    {
+        return voidToCallback($concern);
     }
 
     function voidToCallback($concern)

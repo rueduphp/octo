@@ -154,10 +154,15 @@
             }
         }
 
+        public static function json(array $array)
+        {
+            return toClosure($array);
+        }
+
         public static function __callStatic($m, $a)
         {
             if ('array' == $m) {
-                return voidToCallback($a);
+                return toClosure($a);
             }
 
             $uri        = array_shift($a);
@@ -291,8 +296,8 @@
                 return $route->setName($name);
             });
 
-            $route->macro('middleware', function (callable $cb) use ($route) {
-                return $route->setMiddleware($cb);
+            $route->macro('middleware', function ($middleware) use ($route) {
+                return $route->setMiddleware($middleware);
             });
 
             $route->macro('uses', function ($string) use ($route) {
