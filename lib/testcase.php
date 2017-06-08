@@ -9,14 +9,14 @@
 
         abstract public function makeApplication();
 
-        public function em($entity, $new = false)
+        public function em($entity, $new = true)
         {
             return dbMemory($entity, $new);
         }
 
         public function factory($class, $count = 1, $lng = 'fr_FR')
         {
-            $model = maker($class);
+            $model = maker($class, [], false);
             $faker = faker($lng);
 
             $entity = $this->em(

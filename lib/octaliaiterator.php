@@ -351,6 +351,10 @@
             foreach ($this->getIterator() as $id) {
                 $row = $this->db->read($this->db->row($id));
 
+                if (!$row) {
+                    continue;
+                }
+
                 foreach ($row as $key => $value) {
                     if (fnmatch('*_id', $key)) {
                         $row[str_replace('_id', '', $key)] = em(Inflector::camelize($this->database . '_' . str_replace('_id', '', $key)))->find((int) $value, false);

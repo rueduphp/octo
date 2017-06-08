@@ -464,7 +464,7 @@
         public function delete($id = null, $soft = false, $fire = true)
         {
             if (is_null($id)) {
-                return $this->deletes();
+                return 0 < $this->count() ? $this->deletes() : $this;
             }
 
             $row = $this->row($id);
@@ -574,6 +574,10 @@
 
         public function model($row = [])
         {
+            if (is_null($row)) {
+                $row = [];
+            }
+
             $row = is_object($row) ? $row->toArray() : $row;
 
             $class = Strings::camelize($this->db . '_' . $this->table . '_model');
@@ -1074,6 +1078,18 @@
                     current($a),
                     end($a)
                 );
+            }
+
+            if ($m == 'resetted') {
+                return new self($this->db, $this->table, $this->driver);
+            }
+
+            if ($m == 'empty') {
+                $this->driver->set('rows', []);
+
+                $this->age(microtime(true));
+
+                return $this->resetted();
             }
 
             if ($m == 'or') {
@@ -1995,12 +2011,21 @@
         {
             $deleted = 0;
 
-            foreach ($this->get() as $item) {
-                if (isset($item['id'])) {
-                    $row = $this->find((int) $item['id']);
+            foreach ($this->get(false) as $item) {var_dump($item);
+                if ($item) {
+                    $id = $item['id'];
 
-                    if ($row) {
-                        $row->delete();
+                    if (is_numeric($id)) {
+                        $this->driver->delete($id);
+
+                        $rows = $this->driver->get('rows', []);
+
+                        unset($rows[$id]);
+
+                        $this->driver->set('rows', $rows);
+
+                        $this->age(microtime(true));
+
                         $deleted++;
                     }
                 }
@@ -2276,6 +2301,26 @@
         public function orIsNotNull($field)
         {
             return $this->or($field, 'is not', 'null');
+        }
+
+        public function startsWith($field, $value)
+        {
+            return $this->where($field, 'Like', $value . '%');
+        }
+
+        public function orStartsWith($field, $value)
+        {
+            return $this->or($field, 'Like', $value . '%');
+        }
+
+        public function endsWith($field, $value)
+        {
+            return $this->where($field, 'Like', '%' . $value);
+        }
+
+        public function orEndsWith($field, $value)
+        {
+            return $this->or($field, 'Like', '%' . $value);
         }
 
         public function post($create = false)
@@ -3184,6 +3229,28 @@
 
         public function fire($event, $concern = null, $return = false)
         {
+            $entity = actual("entity.{$this->db}.{$this->table}");
+
+            $continue = true;
+
+            if (is_object($entity)) {
+                $methods = get_class_methods($entity);
+                $method = 'event' . Strings::camelize($event);
+
+                if (in_array($method, $methods)) {
+                    $continue = false;
+                    $result = $entity->$method($concern, $this);
+
+                    if ($return) {
+                        return $result;
+                    }
+                }
+            }
+
+            if (!$continue) {
+                return $concern;
+            }
+
             $key = 'octalia.' .
             lcfirst(Strings::camelize($this->db . '_' . $this->table))
             . '.' . $event;
