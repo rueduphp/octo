@@ -106,4 +106,44 @@
                 $this->serverVariables = [];
             }
         }
+
+        public function get($url, $options = [])
+        {
+            return $this->request('GET', $url, $options);
+        }
+
+        public function post($url, $options = [])
+        {
+            return $this->request('POST', $url, $options);
+        }
+
+        public function put($url, $options = [])
+        {
+            return $this->request('PUT', $url, $options);
+        }
+
+        public function delete($url, $options = [])
+        {
+            return $this->request('DELETE', $url, $options);
+        }
+
+        public function head($url, $options = [])
+        {
+            return $this->request('HEAD', $url, $options);
+        }
+
+        public function options($url, $options = [])
+        {
+            return $this->request('OPTIONS', $url, $options);
+        }
+
+        public function patch($url, $options = [])
+        {
+            return $this->request('PATCH', $url, $options);
+        }
+
+        public function request($type, $url, $options = [])
+        {
+            return client()->request(Strings::upper($type), $url, $options);
+        }
     }

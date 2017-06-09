@@ -6319,6 +6319,11 @@
         session($ns)->setUser($user);
     }
 
+    function client()
+    {
+        return maker(\GuzzleHttp\Client::class, [], false);
+    }
+
     class OctoLab
     {
         public static function __callStatic($m, $a)
