@@ -18,6 +18,20 @@
         }
     }
 
+    if (!function_exists('call')) {
+        function call()
+        {
+            $args = func_get_args();
+
+            $callable = array_shift($args);
+
+            return Octo\call(
+                $callable,
+                $args
+            );
+        }
+    }
+
     if (!function_exists('toClosure')) {
         function toClosure($concern)
         {

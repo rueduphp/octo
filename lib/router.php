@@ -383,6 +383,27 @@
             $parameters = $ref->getParameters();
 
             if (!empty($parameters)) {
+                $p = 0;
+
+                foreach ($parameters as $parameter) {
+                    $classParam = $parameter->getClass();
+
+                    if ($classParam) {
+                        $cn = $classParam->getName();
+
+                        if (fnmatch('*Entity', $cn)) {
+                            $cp = maker($cn);
+                            $id = $params[$p];
+                            $params[$p] = $cp->orm()->find((int) $id);
+                        } else {
+                            $val = $params[$p];
+                            $params[$p] = maker($cn, [$val]);
+                        }
+                    }
+
+                    $p++;
+                }
+
                 $this->controllerBoot($controller);
 
                 $return = call_user_func_array($callable, $params);

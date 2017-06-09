@@ -4538,7 +4538,7 @@
 
         $callable = array_shift($args);
 
-        return call_user_func_array(
+        return call(
             $callable,
             $args
         );
@@ -5603,7 +5603,7 @@
         $to         = isAke($config, 'to', null);
         $toName     = isAke($config, 'to_name', $to);
 
-        $from       = isAke($config, 'from', null);
+        $from       = isAke($config, 'from', appenv('MAILER_FROM', 'admin@localhost'));
         $fromName   = isAke($config, 'from_name', $from);
 
         $subject    = isAke($config, 'subject', null);
@@ -5629,22 +5629,22 @@
     {
         require_once __DIR__ . '/swift/swift_required.php';
 
-        $mailer = Config::get('app.mailer', 'php'); /* smtp, sendmail, php */
+        $mailer = appenv('MAILER_DRIVER', 'php'); /* smtp, sendmail, php */
 
         switch ($mailer) {
             case 'smtp':
                 $transport = \Swift_SmtpTransport::newInstance(
-                    Config::get('smtp.host', 'localhost'),
-                    Config::get('smtp.port', 443),
+                    appenv('SMTP_HOST', 'localhost'),
+                    appenv('SMTP_PORT', 443),
                     'ssl'
                 )
-                ->setUsername(Config::get('smtp.user'))
-                ->setPassword(Config::get('smtp.password'));
+                ->setUsername(appenv('SMTP_USER', 'root'))
+                ->setPassword(appenv('SMTP_PASSWORD', 'root'));
 
                 break;
             case 'sendmail':
                 $transport = \Swift_SendmailTransport::newInstance(
-                    Config::get('sendmail', '/usr/lib/sendmail')
+                    appenv('SENDMAIL_PATH', '/usr/lib/sendmail')
                 );
 
                 break;

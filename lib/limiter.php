@@ -1,5 +1,4 @@
 <?php
-
     namespace Octo;
 
     class Limiter
@@ -32,7 +31,7 @@
 
         public function hit($key, $decayMinutes = 1)
         {
-            $this->cache->set($key, 1, $decayMinutes);
+            $this->cache->set($key, 1, $decayMinutes * 60);
 
             return (int) $this->cache->increment($key);
         }
