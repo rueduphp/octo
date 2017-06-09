@@ -5636,7 +5636,7 @@
                 $transport = \Swift_SmtpTransport::newInstance(
                     appenv('SMTP_HOST', 'localhost'),
                     appenv('SMTP_PORT', 443),
-                    'ssl'
+                    appenv('SMTP_SECURITY', 'ssl')
                 )
                 ->setUsername(appenv('SMTP_USER', 'root'))
                 ->setPassword(appenv('SMTP_PASSWORD', 'root'));

@@ -144,6 +144,30 @@
 
         public function request($type, $url, $options = [])
         {
-            return client()->request(Strings::upper($type), $url, $options);
+            if (!fnmatch('*://*', $url)) {
+                if (isset($_ENV['APPLICATION_URL'])) {
+                    $url = $_ENV['APPLICATION_URL'] . $url;
+                }
+            }
+
+            $response = client()->request(Strings::upper($type), $url, $options);
+
+            $customResponse = dyn($response);
+
+            $customResponse->macro('content', function ($response) {
+                return $response->getBody()->getContents();
+            });
+
+            $customResponse->macro('header', function ($key, $response) {
+                if ($response->hasHeader($key)) {
+                    $header = $response->getHeader($key);
+
+                    return is_array($header) && count($header) == 1 ? current($header) : $header;
+                }
+
+                return null;
+            });
+
+            return $customResponse;
         }
     }
