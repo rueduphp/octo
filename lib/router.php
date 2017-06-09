@@ -394,10 +394,18 @@
                         if (fnmatch('*Entity', $cn)) {
                             $cp = maker($cn);
                             $id = $params[$p];
-                            $params[$p] = $cp->orm()->find((int) $id);
+                            $params[$p] = $cp->find((int) $id);
                         } else {
                             $val = $params[$p];
                             $params[$p] = maker($cn, [$val]);
+                        }
+                    } else {
+                        $dv = $parameter->getDefaultValue();
+
+                        if (fnmatch('*Entity', $dv)) {
+                            $cp = maker($dv);
+                            $id = $params[$p];
+                            $params[$p] = $cp->find((int) $id);
                         }
                     }
 
@@ -406,7 +414,7 @@
 
                 $this->controllerBoot($controller);
 
-                $return = call_user_func_array($callable, $params);
+                $return = call($callable, $params);
 
                 $this->controllerunboot($controller);
 
