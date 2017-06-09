@@ -3008,12 +3008,34 @@
         };
     }
 
+    function makeOnce(\Closure $callable)
+    {
+        $key        = lib('closures')->makeId($callable);
+        $records    = Registry::get('make.once', []);
+        $dummy      = sha1('octodummy' . date('dmY'));
+
+        $result     = isAke($records, $key, $dummy);
+
+        if ($result == $dummy) {
+            $result         = $callable();
+            $records[$key]  = $result;
+
+            Registry::set('make.once', $records);
+        }
+
+        return $result;
+    }
+
     function appenv($key, $default = null)
     {
         $env = path('base') . '/.env';
 
         if (File::exists($env)) {
-            $ini = parse_ini_file($env);
+            $ini = makeOnce(
+                function () use ($env) {
+                    return parse_ini_file($env);
+                }
+            );
 
             return isAke($ini, $key, $default);
         }
@@ -5091,7 +5113,7 @@
             return $validator;
         });
 
-        $validator->macro('check', function (array $data = []) {
+        $validator->macro('check', function (array $data = []) use ($name) {
             $errors = [];
 
             $data = empty($data) ? $_POST : $data;

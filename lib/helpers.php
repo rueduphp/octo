@@ -1,4 +1,46 @@
 <?php
+    if (!function_exists('app')) {
+        function app($k = null, $v = 'octodummy')
+        {
+            $app = Octo\context('app');
+
+            if (!$k) {
+                return $app;
+            }
+
+            if ('octodummy' == $v) {
+                return $app[$k];
+            }
+
+            $app[$k] = $v;
+
+            return $app;
+        }
+    }
+
+    if (!function_exists('toClosure')) {
+        function toClosure($concern)
+        {
+            return function () use ($concern) {
+                return $concern;
+            };
+        }
+    }
+
+    if (!function_exists('factory')) {
+        function factory($class, $count = 1, $lng = 'fr_FR')
+        {
+            return Octo\factory($class, $count, $lng);
+        }
+    }
+
+    if (!function_exists('memoryFactory')) {
+        function memoryFactory($class, $count = 1, $lng = 'fr_FR')
+        {
+            return Octo\memoryFactory($class, $count, $lng);
+        }
+    }
+
     if (!function_exists('partial')) {
         function partial($file, $args = [])
         {
@@ -10,6 +52,13 @@
         function guard($em = 'user')
         {
             return Octo\guard($em);
+        }
+    }
+
+    if (!function_exists('value')) {
+        function value($value)
+        {
+            return Octo\File::value($value);
         }
     }
 
@@ -31,6 +80,13 @@
         function em($model, $engine = 'engine', $force = false)
         {
             return Octo\em($model, $engine, $force);
+        }
+    }
+
+    if (!function_exists('makeOnce')) {
+        function makeOnce()
+        {
+            return call_user_func_array('\\Octo\\makeOnce', func_get_args());
         }
     }
 
