@@ -5226,7 +5226,7 @@
                 }
             }
 
-            $model->create($row)->save();
+            $model->store($row);
             $model->forget();
 
             return true;

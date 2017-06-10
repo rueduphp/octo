@@ -37,12 +37,12 @@
 
         public static function is($ns = 'web')
         {
-            'octodummy' !== static::get('octodummy', $ns);
+            return 'octodummy' !== static::get('octodummy', $ns);
         }
 
         public static function guest($ns = 'web')
         {
-            'octodummy' === static::get('octodummy', $ns);
+            return 'octodummy' === static::get('octodummy', $ns);
         }
 
         public static function login($user, $ns = 'web')
@@ -78,7 +78,7 @@
 
         public static function email($ns = 'web')
         {
-            $user = static::get(null, $ns);;
+            $user = static::get(null, $ns);
 
             if ($user) {
                 return isAke($user, 'email', null);
@@ -89,7 +89,7 @@
 
         public static function user($model = true, $ns = 'web', $em = 'user')
         {
-            $user = static::get(null, $ns);;
+            $user = static::get(null, $ns);
 
             if ($user && $model) {
                 return em($em)->find((int) $user['id']);

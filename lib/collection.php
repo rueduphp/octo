@@ -157,7 +157,7 @@
 
         public function filter(callable $callback)
         {
-            return $this->new(array_filter($this->items, $callback));
+            return new static(array_filter($this->items, $callback));
         }
 
         public function whereLoose($key, $value)
