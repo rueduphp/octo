@@ -14,6 +14,32 @@
             return dbMemory($entity, $new);
         }
 
+        public function signIn($user = null)
+        {
+            $user = $user ? : $this->create(App\entities\UserEntity::class);
+            Auth::login($user);
+        }
+
+        public function make($class, $count = 1, $args = [], $lng = 'fr_FR')
+        {
+            if (is_array($count)) {
+                $args = $count;
+                $count = 1;
+            }
+
+            return $this->factory($class, $count, $lng)->raw($args);
+        }
+
+        public function create($class, $count = 1, $args = [], $lng = 'fr_FR')
+        {
+            if (is_array($count)) {
+                $args = $count;
+                $count = 1;
+            }
+
+            return $this->factory($class, $count, $lng)->store($args);
+        }
+
         public function factory($class, $count = 1, $lng = 'fr_FR')
         {
             $model = maker($class, [], false);
