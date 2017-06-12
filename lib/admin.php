@@ -1,10 +1,7 @@
 <?php
     namespace Octo;
 
-    class Admin
+    class Admin extends Authentication
     {
-        public static function __callStatic($m, $a)
-        {
-            return call_user_func_array([auth('admin', 'adminUser'), $m], $a);
-        }
+        protected $ns = 'admin', $actual = 'admin.user', $entity = 'adminUser';
     }
