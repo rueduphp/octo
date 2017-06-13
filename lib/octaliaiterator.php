@@ -544,10 +544,10 @@
             return $item;
         }
 
-        public function export($type = 'csv')
+        public function export($type = 'xls')
         {
             $rows   = $this->raw();
-            $fileds = array_keys(current($rows));
+            $fields = array_keys(current($rows));
 
             if ($type == 'csv') {
                 $csv = [];
@@ -608,6 +608,17 @@
                 echo "\xEF\xBB\xBF";
 
                 die($xls);
+            } elseif ($type == 'php') {
+                $content = var_export($rows, true);
+
+                header ("Content-type: application/php");
+                header ('Content-disposition: attachement; filename="Export.php"');
+                header("Content-Transfer-Encoding: binary");
+                header("Expires: 0");
+                header("Cache-Control: no-cache, must-revalidate");
+                header("Pragma: no-cache");
+
+                die('<?php' . "\nreturn " . $content . ';');
             }
         }
     }

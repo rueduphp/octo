@@ -1837,8 +1837,8 @@
            staticFacade('\\Octo\\Now', 'Registry');
         }
 
-        Autoloader::alias('\\Octo\\Str', '\\Octo\\Inflector');
-        Autoloader::alias('\\Octo\\Dater', '\\Carbon\\Carbon');
+        Autoloader::alias('Str', '\\Octo\\Inflector');
+        Autoloader::alias('Dater', '\\Carbon\\Carbon');
 
         $dirs = Arrays::last(
             explode(
