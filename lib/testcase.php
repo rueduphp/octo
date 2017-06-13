@@ -42,6 +42,10 @@
 
         public function factory($class, $count = 1, $lng = 'fr_FR')
         {
+            if (!is_numeric($count) || $count < 1) {
+                exception('Factory', 'You must create at least one row.');
+            }
+
             $model = maker($class, [], false);
             $faker = faker($lng);
 
@@ -78,9 +82,9 @@
                         $res[] = $row;
                     }
 
-                    return $res;
+                    return count($res) == 1 ? current($res) : coll($res);
                 } else {
-                    return $rows;
+                    return count($rows) == 1 ? current($rows) : coll($rows);
                 }
             });
 
@@ -102,7 +106,12 @@
                     return $em->model(current($rows));
                 }
 
-                return $rows;
+                return $em
+                ->resetted()
+                ->in(
+                    'id',
+                    coll($rows)->pluck('id')
+                )->get();
             });
 
             return $factories;

@@ -267,11 +267,11 @@
                         $table      = $model;
                     }
 
-                    $fkDb = em(Inflector::camelize($database . '_' . $table));
+                    $fkDb = engine($database, $table, $this->db->driver);
 
                     $row = $cb($row);
 
-                    if (is_array($row)) {
+                    if (!is_object($row)) {
                         $row[$table] = $fkDb->row($row[$table . '_id']);
                     } else {
                         $setter = setter($table);
@@ -291,9 +291,9 @@
                         $table      = $model;
                     }
 
-                    $fkDb = em(Inflector::camelize($database . '_' . $table));
+                    $fkDb = engine($database, $table, $this->db->driver);
 
-                    if (is_array($row)) {
+                    if (!is_object($row)) {
                         $row[$table] = $fkDb->row($row[$table . '_id']);
                     } else {
                         $setter = setter($table);
@@ -307,21 +307,9 @@
             return $this;
         }
 
-        public function pluck($field)
+        public function pluck($field, $key = null)
         {
-            if (is_string($field)) {
-                $this->hook(function ($row) use ($field) {
-                    return isAke($row, $field, null);
-                });
-            }
-
-            if (is_callable($field)) {
-                $this->hook(function ($row) use ($field) {
-                    return $field($row);
-                });
-            }
-
-            return $this;
+            return $this->collection()->pluck($field, $key);
         }
 
         public function model()
@@ -344,7 +332,12 @@
             return $this;
         }
 
-        public function toArray()
+        public function raw($foreign = false)
+        {
+            return $this->toArray($foreign);
+        }
+
+        public function toArray($foreign = true)
         {
             $collection = [];
 
@@ -355,9 +348,17 @@
                     continue;
                 }
 
-                foreach ($row as $key => $value) {
-                    if (fnmatch('*_id', $key)) {
-                        $row[str_replace('_id', '', $key)] = em(Inflector::camelize($this->database . '_' . str_replace('_id', '', $key)))->find((int) $value, false);
+                if ($foreign) {
+                    foreach ($row as $key => $value) {
+                        if (fnmatch('*_id', $key)) {
+                            $field = str_replace('_id', '', $key);
+
+                            $row[$field] = engine(
+                                $this->database,
+                                $field,
+                                $this->db->driver
+                            )->find((int) $value, false);
+                        }
                     }
                 }
 
@@ -372,7 +373,13 @@
             $this->hook(function ($row) {
                 foreach ($row as $key => $value) {
                     if (fnmatch('*_id', $key)) {
-                        $row[str_replace('_id', '', $key)] = em(Inflector::camelize($this->database . '_' . str_replace('_id', '', $key)))->find((int) $value, false);
+                        $field = str_replace('_id', '', $key);
+
+                        $row[$field] = engine(
+                            $this->database,
+                            $field,
+                            $this->db->driver
+                        )->find((int) $value, false);
                     }
                 }
 
@@ -525,7 +532,7 @@
                 $field = str_replace('_id', '', $fk);
 
                 $item->$field(function () use ($field, $row) {
-                    return em(Inflector::camelize($this->database . '_' . $field))
+                    return engine($this->database, $field, $this->db->driver)
                     ->find((int) $row[$field . '_id']);
                 });
             }
@@ -535,5 +542,72 @@
             });
 
             return $item;
+        }
+
+        public function export($type = 'csv')
+        {
+            $rows   = $this->raw();
+            $fileds = array_keys(current($rows));
+
+            if ($type == 'csv') {
+                $csv = [];
+
+                $csv[] = implode(';', $fields);
+
+                foreach ($rows as $row) {
+                    $item = [];
+
+                    foreach ($fields as $field) {
+                        $item[] = isAke($row, $field, null);
+                    }
+
+                    $csv[] = implode(';', $item);
+                }
+
+                $data = implode("\n", $csv);
+
+                header('Content-Encoding: UTF-8');
+                header('Content-type: text/csv; charset=UTF-8');
+                header('Content-Disposition: attachment; filename="Export.csv"');
+
+                echo "\xEF\xBB\xBF";
+
+                die($data);
+            } elseif ($type == 'xls') {
+                $xls = '<html><table witdh="100%" cellpadding="0" cellspacing="0"><thead>##head##</thead><tbody>##body##</tbody></table></html>';
+
+                $head = '<tr>';
+
+                foreach ($fields as $field) {
+                    $head .= '<th>' . $field . '</th>';
+                }
+
+                $head .= '</tr>';
+
+                $body = '';
+
+                foreach ($rows as $row) {
+                    $body .= '<tr>';
+
+                    foreach ($fields as $field) {
+                        $body .= '<td>' . isAke($row, $field, null) . '</td>';
+                    }
+
+                    $body .= '</tr>';
+                }
+
+                $xls = str_replace(['##head##', '##body##'], [$head, $body], $xls);
+
+                header ("Content-type: application/excel");
+                header ('Content-disposition: attachement; filename="Export.xls"');
+                header("Content-Transfer-Encoding: binary");
+                header("Expires: 0");
+                header("Cache-Control: no-cache, must-revalidate");
+                header("Pragma: no-cache");
+
+                echo "\xEF\xBB\xBF";
+
+                die($xls);
+            }
         }
     }

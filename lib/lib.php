@@ -1410,6 +1410,10 @@
 
     function memoryFactory($class, $count = 1, $lng = 'fr_FR')
     {
+        if (!is_numeric($count) || $count < 1) {
+            exception('Factory', 'You must create at least one row.');
+        }
+
         $model = maker($class, [], false);
         $faker = faker($lng);
 
@@ -1428,8 +1432,8 @@
         }
 
         $factories = o([
-            'rows' => $rows,
-            'entity' => $entity
+            'rows'      => $rows,
+            'entity'    => $entity
         ]);
 
         $factories->macro('raw', function ($subst = []) use ($factories) {
@@ -1446,15 +1450,15 @@
                     $res[] = $row;
                 }
 
-                return $res;
+                return count($res) == 1 ? current($res) : coll($res);
             } else {
-                return $rows;
+                return count($rows) == 1 ? current($rows) : coll($rows);
             }
         });
 
         $factories->macro('store', function ($subst = []) use ($factories) {
-            $em = $factories->getEntity();
-            $rows = [];
+            $em     = $factories->getEntity();
+            $rows   = [];
 
             foreach ($factories->getRows() as $row) {
                 if (!empty($subst)) {
@@ -1470,7 +1474,12 @@
                 return $em->model(current($rows));
             }
 
-            return $rows;
+            return $em
+            ->resetted()
+            ->in(
+                'id',
+                coll($rows)->pluck('id')
+            )->get();
         });
 
         return $factories;
@@ -1478,6 +1487,10 @@
 
     function factory($class, $count = 1, $lng = 'fr_FR')
     {
+        if (!is_numeric($count) || $count < 1) {
+            exception('Factory', 'You must create at least one row.');
+        }
+
         $model = maker($class);
         $faker = faker($lng);
 
@@ -1490,8 +1503,8 @@
         }
 
         $factories = o([
-            'rows' => $rows,
-            'entity' => $entity
+            'rows'      => $rows,
+            'entity'    => $entity
         ]);
 
         $factories->macro('raw', function ($subst = []) use ($factories) {
@@ -1508,9 +1521,9 @@
                     $res[] = $row;
                 }
 
-                return $res;
+                return count($res) == 1 ? current($res) : coll($res);
             } else {
-                return $rows;
+                return count($rows) == 1 ? current($rows) : coll($rows);
             }
         });
 
@@ -1532,7 +1545,12 @@
                 return $em->model(current($rows));
             }
 
-            return $rows;
+            return $em
+            ->resetted()
+            ->in(
+                'id',
+                coll($rows)->pluck('id')
+            )->get();
         });
 
         return $factories;
@@ -1803,38 +1821,6 @@
             Alias::facade('Dir', 'File', 'Octo');
         }
 
-        if (!class_exists('Octo\Date')) {
-            Alias::facade('Date', 'Time', 'Octo');
-        }
-
-        if (!class_exists('Octo\Db')) {
-            Alias::facade('Db', 'Entitytable', 'Octo');
-        }
-
-        if (!class_exists('Octo\Octal')) {
-            Alias::facade('Octal', 'Entitykv', 'Octo');
-        }
-
-        if (!class_exists('Octo\Octus')) {
-            Alias::facade('Octus', 'Manager', 'Illuminate\Database\Capsule');
-        }
-
-        if (!class_exists('Octo\Testing')) {
-            entityFacade('testing');
-        }
-
-        if (!class_exists('Octo\System')) {
-            entityFacade('system');
-        }
-
-        if (!class_exists('Octo\Admin')) {
-           entityFacade('admin');
-        }
-
-        if (!class_exists('Octo\Rest')) {
-            entityFacade('rest');
-        }
-
         if (!class_exists('Octo\Kh')) {
            staticFacade('\\Octo\\Cache', 'Kh');
         }
@@ -1850,6 +1836,9 @@
         if (!class_exists('Octo\Registry')) {
            staticFacade('\\Octo\\Now', 'Registry');
         }
+
+        Autoloader::alias('\\Octo\\Str', '\\Octo\\Inflector');
+        Autoloader::alias('\\Octo\\Dater', '\\Carbon\\Carbon');
 
         $dirs = Arrays::last(
             explode(
@@ -1908,19 +1897,6 @@
 
         path('public', realpath($dir));
 
-        if (!empty($_POST)) {
-            bag('Post');
-            Post::fill(oclean($_POST));
-        }
-
-        register_shutdown_function(function () {
-            Queue::listen();
-            Later::shutdown();
-            middlewares('after');
-            listening('system.shutdown');
-            shutdown();
-        });
-
         $app = context('app');
 
         $app->make(function () {
@@ -1963,6 +1939,19 @@
 
         $app->cli(function($app) {
             $app->run('App', true);
+        });
+
+        if (!empty($_POST)) {
+            bag('Post');
+            Post::fill(oclean($_POST));
+        }
+
+        register_shutdown_function(function () {
+            Queue::listen();
+            Later::shutdown();
+            middlewares('after');
+            listening('system.shutdown');
+            shutdown();
         });
 
         $bootstrap = path('app') . '/config/bootstrap.php';

@@ -2245,9 +2245,19 @@
             return $this->where($field, 'in', $values);
         }
 
+        public function orWhereIn($field, array $values)
+        {
+            return $this->or($field, 'in', $values);
+        }
+
         public function whereNotIn($field, array $values)
         {
             return $this->where($field, 'not in', $values);
+        }
+
+        public function orWhereNotIn($field, array $values)
+        {
+            return $this->or($field, 'not in', $values);
         }
 
         public function rand($default = null)
@@ -3188,7 +3198,7 @@
             return $collection;
         }
 
-        public function has(Octalia $model)
+        public function has(Octalia $query)
         {
             $ids = [];
 
@@ -3197,7 +3207,7 @@
             $fk = $this->table . '_id';
 
             foreach ($rows as $row) {
-                $relations = $model->newQuery()->where($fk, (int) $row['id'])->get();
+                $relations = $query->newQuery()->where($fk, (int) $row['id'])->get();
 
                 if ($relations->count()) {
                     $ids[] = $row['id'];
@@ -3417,7 +3427,7 @@
             $chunks = [];
 
             foreach (array_chunk((array) $this->iterator(), $size, true) as $chunk) {
-                $chunks[] = $this->newQuery()->where('id', 'IN', $chunk);
+                $chunks[] = $this->newQuery()->in('id', $chunk);
             }
 
             return $chunks;
