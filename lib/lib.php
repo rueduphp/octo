@@ -2141,7 +2141,7 @@
 
     function tern($a, $b)
     {
-        return $a ? $a : $b;
+        return $a ?: $b;
     }
 
     function queue()
@@ -5477,17 +5477,17 @@
         return array_keys($a)[count($a) - 1];
     }
 
-    function guest()
+    function guest($ns = 'web')
     {
-        $u = session('web')->getUser();
+        $u = session($ns)->getUser();
 
         return is_null($u);
     }
 
-    function role()
+    function role($ns = 'web')
     {
-        if (!guest()) {
-            $user = session('web')->getUser();
+        if (!guest($ns)) {
+            $user = session($ns)->getUser();
             $role = em('systemRole')->find((int) $user['role_id']);
 
             if ($role) {
@@ -5495,7 +5495,7 @@
             }
         }
 
-        return o()->setLabel('guest');
+        return o(['label' => 'guest']);
     }
 
     function dom()
@@ -5554,14 +5554,14 @@
                 return Registry::set($key, $cb);
             });
 
-            $gate->macro('allows', function ($k) {
+            $gate->macro('allows', function ($k, $ns = 'web') {
                 $key = 'gate.' . Strings::urlize($k, '.');
 
-                if (!guest()) {
+                if (!guest($ns)) {
                     $cb = Registry::get($key);
 
                     if ($cb) {
-                        return $cb(session('web')->getUser());
+                        return $cb(session($ns)->getUser());
                     }
                 }
 
@@ -5720,7 +5720,7 @@
     /* Alias of myarrayToCollection */
     function ma2c($name)
     {
-        return coll(myarray($name));
+        return myarrayToCollection($name);
     }
 
     function globalized($name, $default = null)
@@ -5883,6 +5883,41 @@
 
             return call_user_func_array($callable, $data);
         };
+    }
+
+    function octo($k = null, $v = 'octodummy')
+    {
+        $app = context('app');
+
+        if ($k) {
+            if ('octodummy' == $v) {
+                return $app[$k];
+            }
+
+            $app[$k] = $v;
+        }
+
+        return $app;
+    }
+
+    function aliasToApp($alias, $class, $action = 'construct')
+    {
+        octo($alias, resolverAction($class, $action));
+    }
+
+    function resolverAction($class, $action = 'construct')
+    {
+        $resolver = function () use ($class, $action) {
+            $instance = maker($class);
+
+            if ($action != 'construct') {
+                return call_user_func_array([$instance, $action], func_get_args());
+            }
+
+            return $instance;
+        };
+
+        return $resolver;
     }
 
     function strArray($strArray)
@@ -6311,6 +6346,23 @@
     function client()
     {
         return maker(\GuzzleHttp\Client::class, [], false);
+    }
+
+    function itOr($a, $b)
+    {
+        return $a ?: $b;
+    }
+
+    function infoClass($classname)
+    {
+        $parts     = explode('\\', $classname);
+        $classname = array_pop($parts);
+        $namespace = implode('\\', $parts);
+
+        return o([
+            'namespace' => $namespace,
+            'classname' => $classname,
+        ]);
     }
 
     class OctoLab

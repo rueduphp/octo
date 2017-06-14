@@ -138,7 +138,7 @@
             if (!empty($parameters)) {
                 $callable = current($parameters);
 
-                if (is_callable($callable)) {vd($method);
+                if (is_callable($callable)) {
                     self::$macros[$method] = $callable;
                 }
             } else {

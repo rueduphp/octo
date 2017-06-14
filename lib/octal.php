@@ -118,7 +118,7 @@
 
         public function orm()
         {
-            return em($this->entity)->newQuery();
+            return em($this->entity)->octal($this);
         }
 
         public function setEntityField($field)

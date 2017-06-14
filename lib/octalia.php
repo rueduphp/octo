@@ -286,7 +286,7 @@
         {
             $this->reset();
 
-            return $this->fire('count', count($this->iterator()));
+            return $this->fire('count', count($this->iterator()), true);
         }
 
         private function add($row, $fire = true)
@@ -411,7 +411,7 @@
 
             $this->reset();
 
-            if ($this->fire('saving', $data) === false) return false;
+            if ($data = $this->fire('saving', $data, true) === false) return false;
 
             $id = isAke($data, 'id', null);
 
@@ -425,7 +425,7 @@
             }
 
             if ($saved) {
-                $saved = $this->fire('saved', $saved);
+                $saved = $this->fire('saved', $saved, true);
             }
 
             return $saved;
@@ -433,16 +433,16 @@
 
         private function insert(array $data, $model = true)
         {
-            if ($this->fire('creating', $data) === false) return false;
+            if ($data = $this->fire('creating', $data, true) === false) return false;
 
             $this->add($data, false);
 
-            return $this->fire('created', $model ? $this->model($data) : $data);
+            return $this->fire('created', $model ? $this->model($data) : $data, true);
         }
 
         private function modify(array $data, $model = true)
         {
-            if ($this->fire('updating', $data) === false) return false;
+            if ($data = $this->fire('updating', $data, true) === false) return false;
 
             $data['updated_at'] = time();
 
@@ -458,7 +458,7 @@
 
             $this->add($data, false);
 
-            return $this->fire('updated', $model ? $this->model($data) : $data);
+            return $this->fire('updated', $model ? $this->model($data) : $data, true);
         }
 
         public function delete($id = null, $soft = false, $fire = true)
@@ -472,7 +472,7 @@
             $exists = !is_null($row);
 
             if ($exists) {
-                if ($fire && $this->fire('deleting', $row) === false) return false;
+                if ($fire && $this->fire('deleting', $row, true) === false) return false;
 
                 if ($soft) {
                     $row['deleted_at'] = time();
@@ -489,7 +489,7 @@
                     $this->age(microtime(true));
                 }
 
-                return $fire ? $this->fire('deleted', $row) : $exists;
+                return $fire ? $this->fire('deleted', $row, true) : $exists;
             }
 
             return false;
@@ -518,11 +518,11 @@
         public function find($id = null, $model = true)
         {
             if (is_null($id)) {
-                return $this->get(true);
+                return $this->get($model);
             }
 
             if (is_array($id)) {
-                return $this->newQuery()->whereIn('id', $id)->get(true);
+                return $this->newQuery()->whereIn('id', $id)->get($model);
             }
 
             $row = $this->driver->get($id);
@@ -805,7 +805,7 @@
                     return $model;
                 }
 
-                $check = $this->fire('validate', $model->toArray());
+                $check = $this->fire('validate', $model->toArray(), true);
 
                 if ($check != $model->toArray()) {
                     exception('model', $check);
@@ -849,7 +849,6 @@
                                     $v = (int) $v;
                                 } elseif (is_object($v)) {
                                     $model->set($k, $v->id);
-                                    $model->set(str_replace('_id', '', $k), $v->toArray());
                                     $continue = false;
                                 }
                             }
@@ -1838,7 +1837,7 @@
 
             $this->query[] = [$key, $operator, $value];
 
-            $this->fire('query', $this->query);
+            $this->query = $this->fire('query', $this->query, true);
 
             $keyCache = 'owhs.' . sha1(serialize($this->query) . $this->ns);
 
@@ -2068,7 +2067,7 @@
 
             $iterator = lib('OctaliaIterator', [$this]);
 
-            return $this->fire('get', $model ? $iterator->model() : $iterator);
+            return $this->fire('get', $model ? $iterator->model() : $iterator, true);
         }
 
         public function items()
@@ -2077,7 +2076,7 @@
 
             $iterator = lib('OctaliaIterator', [$this]);
 
-            return $this->fire('get', $iterator->item());
+            return $this->fire('get', $iterator->item(), true);
         }
 
         public function only()
@@ -2093,7 +2092,8 @@
                 call_user_func_array(
                     $callable,
                     func_get_args()
-                )
+                ),
+                true
             );
         }
 
@@ -2110,7 +2110,8 @@
                 call_user_func_array(
                     $callable,
                     func_get_args()
-                )
+                ),
+                true
             );
         }
 
@@ -2696,6 +2697,24 @@
             return new self($this->db, $this->table, $this->driver);
         }
 
+        public function octal($octal)
+        {
+            actual("entity.{$this->db}.{$this->table}", $octal);
+
+            return $this->newQuery();
+        }
+
+        public function factory($count = 1, $lng = 'fr_FR')
+        {
+            $octal = actual("entity.{$this->db}.{$this->table}");
+
+            if ($octal && is_object($octal)) {
+                return factory(get_class($octal), $count, $lng);
+            } else {
+                exception('Octalia', 'No entity setted.');
+            }
+        }
+
         public function json($json)
         {
             $datas = json_decode($json, true);
@@ -2782,7 +2801,7 @@
                 $after($row, $this);
             }
 
-            return $this->fire('fetch', $row);
+            return $this->fire('fetch', $row, true);
         }
 
         public function attach($data)
