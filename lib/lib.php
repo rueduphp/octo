@@ -6365,6 +6365,11 @@
         ]);
     }
 
+    function addressToCoords($address)
+    {
+        return lib('geo')->getCoordsMap($address);
+    }
+
     class OctoLab
     {
         public static function __callStatic($m, $a)
