@@ -5034,21 +5034,21 @@
         }
     }
 
-    function actual($key = null, $value = null)
+    function actual($key = null, $value = 'octodummy')
     {
         $actuals = Registry::get('core.actuals', []);
 
-        if (is_null($key)) {
-            return $actuals;
+        if (!is_null($key)) {
+            if ('octodummy' == $value) {
+                return isAke($actuals, $key, null);
+            }
+
+            $actuals[$key] = $value;
+
+            Registry::set('core.actuals', $actuals);
         }
 
-        if (is_null($value)) {
-            return isAke($actuals, $key, null);
-        }
-
-        $actuals[$key] = $value;
-
-        Registry::set('core.actuals', $actuals);
+        return $actuals;
     }
 
     function fire($event, array $args = [])
