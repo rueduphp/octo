@@ -366,7 +366,9 @@
         {
             $data = is_object($data) ? $data->toArray() : $data;
 
-            return $this->model($data)->save();
+            $row = $this->model($data)->save();
+
+            return $row;
         }
 
         public function persist($data)
@@ -411,7 +413,9 @@
 
             $this->reset();
 
-            if ($data = $this->fire('saving', $data, true) === false) return false;
+            $data = $this->fire('saving', $data, true);
+
+            if ($data === false) return false;
 
             $id = isAke($data, 'id', null);
 
@@ -433,7 +437,9 @@
 
         private function insert(array $data, $model = true)
         {
-            if ($data = $this->fire('creating', $data, true) === false) return false;
+            $data = $this->fire('creating', $data, true);
+
+            if ($data === false) return false;
 
             $this->add($data, false);
 
@@ -442,7 +448,9 @@
 
         private function modify(array $data, $model = true)
         {
-            if ($data = $this->fire('updating', $data, true) === false) return false;
+            $data = $this->fire('updating', $data, true);
+
+            if ($data === false) return false;
 
             $data['updated_at'] = time();
 
@@ -797,6 +805,7 @@
             }
 
             $class  = '\\Octo\\' . $class;
+
             $model  = new $class($row);
             $self   = $this;
 
@@ -3262,35 +3271,16 @@
         {
             $entity = actual("entity.{$this->db}.{$this->table}");
 
-            $continue = true;
-
             if (is_object($entity)) {
                 $methods = get_class_methods($entity);
                 $method = 'event' . Strings::camelize($event);
 
                 if (in_array($method, $methods)) {
-                    $continue = false;
                     $result = $entity->$method($concern, $this);
 
                     if ($return) {
                         return $result;
                     }
-                }
-            }
-
-            if (!$continue) {
-                return $concern;
-            }
-
-            $key = 'octalia.' .
-            lcfirst(Strings::camelize($this->db . '_' . $this->table))
-            . '.' . $event;
-
-            if (Fly::has($key)) {
-                $result = Fly::listen($key, $concern, $this);
-
-                if ($return) {
-                    return $result;
                 }
             }
 

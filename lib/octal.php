@@ -143,94 +143,10 @@
          * deleted
          * get
          * count
+         * query
+         * fetch
          * make_model
          */
-        public function on($event, callable $callable)
-        {
-            return $this->orm()->on($event, $callable, $this);
-        }
-
-        public function hook(callable $callable)
-        {
-            return call_user_func_array($callable, [$this->orm()]);
-        }
-
-        public static function makeModel(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('make_model', $callable, $instance);
-        }
-
-        public static function booting(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('booting', $callable, $instance);
-        }
-
-        public static function booted(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('booted', $callable, $instance);
-        }
-
-        public static function saving(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('saving', $callable, $instance);
-        }
-
-        public static function saved(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('saved', $callable, $instance);
-        }
-
-        public static function creating(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('creating', $callable, $instance);
-        }
-
-        public static function created(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('created', $callable, $instance);
-        }
-
-        public static function updating(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('updating', $callable, $instance);
-        }
-
-        public static function updated(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('updated', $callable, $instance);
-        }
-
-        public static function deleting(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('deleting', $callable, $instance);
-        }
-
-        public static function deleted(callable $callable)
-        {
-            $instance = maker(get_called_class(), [], false);
-
-            return $instance->orm()->on('deleted', $callable, $instance);
-        }
 
         public static function __callStatic($m, $a)
         {
