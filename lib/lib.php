@@ -5054,6 +5054,8 @@
         $actuals[$key] = $value;
 
         Registry::set('core.actuals', $actuals);
+
+        return $value;
     }
 
     function fire($event, array $args = [])
@@ -6246,89 +6248,77 @@
     {
         $class = o();
 
-        $class->macro('policy', function ($policy, callable $callable) use ($class) {
-            $policies = Registry::get('guard.policies', []);
-            $policies[$policy] = $callable;
-
-            Registry::set('guard.policies', $policies);
-
-            return $class;
-        });
-
-        $class->macro('login', function ($user) use ($ns) {
+        $class->macro('login', function ($user) use ($class) {
             $user = !is_array($user) ? $user->toArray() : $user;
 
-            session($ns)->setUser($user);
+            return $class->reveal()->login($user);
         });
 
-        $class->macro('logout', function () use ($ns) {
-            session($ns)->erase('user');
+        $class->macro('logout', function () use ($class) {
+            return $class->reveal()->logout();
         });
 
-        $class->macro('id', function () use ($ns) {
-            $user = session($ns)->getUser();
-
-            if ($user) {
-                return $user['id'];
-            }
-
-            return null;
+        $class->macro('id', function () use ($class) {
+            return $class->reveal()->id();
         });
 
-        $class->macro('email', function () use ($ns) {
-            $user = session($ns)->getUser();
-
-            if ($user) {
-                return isAke($user, 'email', null);
-            }
-
-            return null;
+        $class->macro('email', function () use ($class) {
+            return $class->reveal()->email();
         });
 
         $class->macro('on', function () use ($class) {
             return call_user_func_array([$class, 'policy'], func_get_args());
         });
 
-        $class->macro('user', function ($model = true) use ($ns, $em) {
-            $user = session($ns)->getUser();
-
-            if ($user && $model) {
-                return em($em)->find((int) $user['id']);
-            }
-
-            return $user;
+        $class->macro('user', function ($model = true) use ($class) {
+            return $class->reveal()->user($model);
         });
 
-        $class->macro('logWithId', function ($id, $route = 'home') use ($ns, $em)  {
-            $user = em($em)->find((int) $id);
+        $class->macro('logWithId', function ($id, $route = 'home') use ($class)  {
+            $auth = $class->reveal();
+            $user = em($auth->entity)->find((int) $id);
 
             if ($user) {
-                session($ns)->setUser($user->toArray());
+                $auth->login($user);
                 go(urlFor($route));
             } else {
-                ptption('guard', "Unknown id.");
+                exception('guard', "Unknown id.");
             }
         });
 
-        $class->macro('logByUser', function ($user, $route = 'home') use ($ns) {
+        $class->macro('logByUser', function ($user, $route = 'home') use ($class) {
             $user = !is_array($user) ? $user->toArray() : $user;
-            session($ns)->setUser($user);
+
+            $class->reveal()->login($user);
+
             go(urlFor($route));
         });
 
-        $class->macro('allows', function () use ($ns) {
-            $user = session($ns)->getUser();
+        $class->macro('reveal', function () {
+            $auth = actual('auth.class');
+
+            return is_object($auth) ? $auth : new Auth;
+        });
+
+        $class->macro('policy', function ($policy, callable $callable) use ($class) {
+            $policies           = Registry::get('guard.policies', []);
+            $policies[$policy]  = $callable;
+
+            Registry::set('guard.policies', $policies);
+
+            return $class;
+        });
+
+        $class->macro('allows', function () use ($class) {
+            $auth = $class->reveal();
+            $user = $auth->user();
 
             if ($user) {
-                $user = item($user);
-
-                $args = func_get_args();
-
-                $policy = array_shift($args);
-
-                $policies = Registry::get('guard.policies', []);
-
-                $policy = isAke($policies, $policy, null);
+                $user       = item($user);
+                $args       = func_get_args();
+                $policy     = array_shift($args);
+                $policies   = Registry::get('guard.policies', []);
+                $policy     = isAke($policies, $policy, null);
 
                 if (is_callable($policy)) {
                     return call_user_func_array($policy, array_merge([$user], $args));

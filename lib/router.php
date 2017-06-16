@@ -400,13 +400,17 @@
                             $params[$p] = maker($cn, [$val]);
                         }
                     } else {
-                        $dv = $parameter->getDefaultValue();
+                        try {
+                            $dv = $parameter->getDefaultValue();
 
-                        if (fnmatch('*Entity', $dv)) {
-                            $cp = maker($dv);
-                            $id = $params[$p];
-                            $params[$p] = $cp->find((int) $id);
-                        }
+                            if (fnmatch('*Entity', $dv)) {
+                                $cp = maker($dv);
+                                $id = $params[$p];
+                                $params[$p] = $cp->find((int) $id);
+                            } else {
+                                $params[$p] = $dv;
+                            }
+                        } catch (\Exception $e) {}
                     }
 
                     $p++;

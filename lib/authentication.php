@@ -7,12 +7,12 @@
 
         protected static function called()
         {
-            return maker(get_called_class());
+            return actual('auth.class', maker(get_called_class()));
         }
 
-        public static function get($default = null)
+        public static function get($default = null, $class = null)
         {
-            $class = static::called();
+            $class = $class ?: static::called();
 
             if (session_id()) {
                 $user = session($class->ns)
@@ -37,7 +37,7 @@
         {
             $class = static::called();
 
-            $user = $user ?: static::get($user, $class->ns);
+            $user = $user ?: static::get($user, $class);
 
             if ($user) {
                 $user = !is_array($user) ? $user->toArray() : $user;
@@ -53,14 +53,14 @@
         {
             $class = static::called();
 
-            return 'octodummy' !== static::get('octodummy', $class->ns);
+            return 'octodummy' !== static::get('octodummy', $class);
         }
 
         public static function guest()
         {
             $class = static::called();
 
-            return 'octodummy' === static::get('octodummy', $class->ns);
+            return 'octodummy' === static::get('octodummy', $class);
         }
 
         public static function login($user)
@@ -91,7 +91,7 @@
         {
             $class = static::called();
 
-            $user = static::get(null, $class->ns);
+            $user = static::get(null, $class);
 
             if ($user) {
                 return $user['id'];
@@ -104,7 +104,7 @@
         {
             $class = static::called();
 
-            $user = static::get(null, $class->ns);
+            $user = static::get(null, $class);
 
             if ($user) {
                 return isAke($user, 'email', null);
@@ -117,7 +117,7 @@
         {
             $class = static::called();
 
-            $user = static::get(null, $class->ns);
+            $user = static::get(null, $class);
 
             if ($user && $model) {
                 return em($class->entity)->find((int) $user['id']);
@@ -130,6 +130,6 @@
         {
             $class = static::called();
 
-            return call_user_func_array([auth($class->ns, $class->entity), $m], $a);
+            return call_user_func_array([guard($class->ns, $class->entity), $m], $a);
         }
     }

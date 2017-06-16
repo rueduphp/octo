@@ -224,6 +224,11 @@
             return false;
         }
 
+        public function at($k, $v, $timestamp)
+        {
+            return $this->setExpireAt($k, $v, $timestamp);
+        }
+
         public function setExpireAt($k, $v, $timestamp)
         {
             $file = $this->getPath($k);
@@ -258,7 +263,7 @@
         {
             $v = $this->get($k);
 
-            return $this->set($k, $v, $timestamp);
+            return $this->setExpireAt($k, $v, $timestamp);
         }
 
         public function get($k, $d = null)
@@ -269,7 +274,7 @@
                 $age = filemtime($file);
 
                 if ($age >= time()) {
-                    return File::value(unserialize(File::read($file)));
+                    return value(unserialize(File::read($file)));
                 } else {
                     File::delete($file);
                 }
