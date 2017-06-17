@@ -1892,6 +1892,8 @@
             if (isset($mapped[$index])) {
                 $class = $mapped[$index];
 
+                actual("driver.{$this->db}.{$this->table}", $this->driver);
+
                 return actual("entity.{$this->db}.{$this->table}", maker($class));
             }
 
@@ -2537,6 +2539,12 @@
         public function octal($octal)
         {
             actual("entity.{$this->db}.{$this->table}", $octal);
+
+            $driver = actual("driver.{$this->db}.{$this->table}");
+
+            if (is_object($driver)) {
+                $this->driver = $driver;
+            }
 
             return $this->newQuery();
         }
