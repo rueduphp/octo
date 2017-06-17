@@ -205,4 +205,13 @@
 
             return $customResponse;
         }
+
+        public function __call($m, $a)
+        {
+            $method = '\\Octo\\' . $m;
+
+            if (function_exists($method)) {
+                return call_user_func_array($method, $a);
+            }
+        }
     }

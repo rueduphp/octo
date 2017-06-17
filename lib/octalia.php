@@ -31,6 +31,7 @@
             Registry::set('octalia.start', microtime(true));
             Registry::set('octalia.instance', $this);
 
+            $this->entity();
             $this->_events();
         }
 
@@ -588,225 +589,7 @@
 
             $row = is_object($row) ? $row->toArray() : $row;
 
-            $class = Strings::camelize($this->db . '_' . $this->table . '_model');
-
-            $file = path('models') . '/' . $this->db . '/' . $this->table . '.php';
-
-            $row = treatCast($row);
-
-            if (file_exists($file)) {
-                $cbs = require_once $file;
-
-                $fns    = isAke($cbs, 'scopes', []);
-                $hooks  = isAke($cbs, 'hooks', []);
-
-                foreach ($fns as $cbname => $cb) {
-                    if (is_callable($cb)) {
-                        $model->fn($cbname, $cb);
-                    }
-                }
-
-                foreach ($hooks as $when => $cb) {
-                    if (is_callable($cb)) {
-                        Arrays::set($model->hooks, $when, $cb);
-                    } else {
-                        if (is_array($cb)) {
-                            foreach ($cb as $action => $c) {
-                                Arrays::set($model->hooks, $when . '.' . $action, $c);
-                            }
-                        }
-                    }
-                }
-            } else {
-                if (!is_dir(path('models'))) {
-                    File::mkdir(path('models'));
-                }
-
-                if (!is_dir(path('models') . '/' . $this->db)) {
-                    File::mkdir(path('models') . '/' . $this->db);
-                }
-
-                $fks = array_keys(Arrays::pattern($row, '*_id'));
-
-                $indices = '["id", ';
-
-                foreach ($fks as $fk) {
-                    $indices .= '"' . $fk . '", ';
-                }
-
-                $indices = substr($indices, 0, -2) . ']';
-
-                $fields = ['id', 'created_at', 'updated_at'];
-
-                $rowFields = array_keys($row);
-
-                foreach ($rowFields as $f) {
-                    if (!in_array($f, $fields)) {
-                        $fields[] = $f;
-                    }
-                }
-
-                $fs = '[' . "\n\t\t\t";
-
-                foreach ($fields as $field) {
-                    if ($field == 'year' || $field == 'age' || $field == 'number' || $field == 'quantity' || $field == 'id' || $field == 'created_at' || $field == 'updated_at' || $field == 'deleted_at' || $field == 'created_by' || $field == 'updated_by' || $field == 'deleted_by' || fnmatch('*_id', $field)) {
-                        $type = 'integer';
-                    } elseif (in_array(
-                        $field, [
-                            'duration',
-                            'price',
-                            'size',
-                            'length',
-                            'width',
-                            'height',
-                            'depth'
-                        ]
-                    )) {
-                        $type = 'float';
-                    } else {
-                        $type = gettype($row[$field]);
-                    }
-
-                    $fs .= '"' . $field . '" => ["type" => "' . $type . '"], ';
-                }
-
-                $fs = substr($fs, 0, -2);
-
-                $tab = explode(', ', $fs);
-
-                $fs = implode(",\n\t\t\t", $tab);
-
-                $fs .= "\n\t\t" . ']';
-
-                $modeler = $this->modeler;
-
-                File::put($file, '<?' . 'php' . "\n\t" . 'namespace Octo;' . "\n\n\t" . 'if (!class_exists("Octo\\' . $class . '")):' . "\n\n\t" . 'class ' . $class . " extends $modeler\n\t" .  '{' . "\n\t\t" .  'public function __construct(array $model)' . "\n\t\t" .  '{' . "\n\t\t\t" .  'parent::__construct($model);' . "\n\t\t" .  '}' . "\n\t" .  '}' . "\n\n\t" . 'endif;' . "\n\n\t" . 'return [' . "\n\t\t" . '"fields" => ' . $fs . ',' . "\n\t\t" . '"scopes" => [],' . "\n\t\t" . '"hooks" => [' . "\n\t\t\t" . '"validate" => null,' . "\n\t\t\t" . '"before" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . '],' . "\n\t\t\t" . '"after" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . ']' . "\n\t\t" . '],' . "\n\t\t" . '"indices" => ' . $indices . "\n\t" . '];');
-
-                require $file;
-            }
-
-            $dir = path('factories');
-
-            if (!is_dir($dir)) {
-                File::mkdir($dir);
-            }
-
-            $dir .= DS . $this->db;
-
-            if (!is_dir($dir)) {
-                File::mkdir($dir);
-            }
-
-            $file = $dir . DS . $this->table . '.php';
-
-            if (!file_exists($file)) {
-                $fieldsOmitted = ['id', 'created_at', 'updated_at'];
-
-                $rowFields = array_keys($row);
-
-                $fields = [];
-
-                foreach ($rowFields as $f) {
-                    if (!in_array($f, $fieldsOmitted)) {
-                        $fields[] = $f;
-                    }
-                }
-
-                $code = '<?' . 'php' . "\n\tnamespace Octo;\n\n\t";
-                $code .= 'return function (\Faker\Generator $faker){' . "\n\t\t" . 'return [' . "\n\t\t\t";
-
-                $n = 0;
-
-                foreach ($fields as $field) {
-                    $val = 'Strings::random(10)';
-
-                    if ($field == 'password') {
-                        $val = '$faker->password';
-                    } elseif ($field == 'email') {
-                        $val = '$faker->safeEmail';
-                    } elseif ($field == 'username' || $field == 'login') {
-                        $val = '$faker->username';
-                    } elseif ($field == 'name' || $field == 'lastname') {
-                        $val = '$faker->lastName';
-                    } elseif ($field == 'firstname') {
-                        $val = '$faker->firstName';
-                    } elseif ($field == 'phone' || $field == 'tel' || $field == 'mobile' || $field == 'cellular' || $field == 'fax') {
-                        $val = '$faker->phoneNumber';
-                    } elseif ($field == 'latitude' || $field == 'lat') {
-                        $val = '$faker->latitude';
-                    } elseif ($field == 'longitude' || $field == 'lng') {
-                        $val = '$faker->longitude';
-                    } elseif ($field == 'city') {
-                        $val = '$faker->city';
-                    } elseif ($field == 'country') {
-                        $val = '$faker->country';
-                    } elseif ($field == 'address') {
-                        $val = '$faker->streetAddress';
-                    } elseif ($field == 'zip' || $field == 'postcode') {
-                        $val = '$faker->postcode';
-                    } elseif ($field == 'color') {
-                        $val = '$faker->colorName';
-                    } elseif ($field == 'company') {
-                        $val = '$faker->company';
-                    } elseif ($field == 'ip') {
-                        $val = '$faker->ipv4';
-                    } elseif ($field == 'url' || $field == 'website') {
-                        $val = '$faker->url';
-                    } elseif ($field == 'slug') {
-                        $val = '$faker->slug';
-                    } elseif ($field == 'barcode' || $field == 'ean13') {
-                        $val = '$faker->ean13';
-                    } elseif ($field == 'date' || $field == 'birthdate' || $field == 'deathdate') {
-                        $val = '$faker->date';
-                    } elseif ($field == 'time') {
-                        $val = '$faker->time';
-                    } elseif ($field == 'uuid') {
-                        $val = 'uuid()';
-                    } elseif ($field == 'token') {
-                        $val = 'token()';
-                    } elseif (in_array(
-                        $field, [
-                            'created_by',
-                            'updated_by',
-                            'deleted_by',
-                            'year',
-                            'age',
-                            'price',
-                            'distance',
-                            'weight',
-                            'size',
-                            'width',
-                            'height',
-                            'length',
-                            'depth',
-                            'quantity',
-                            'number'
-                        ]
-                    )) {
-                        $val = '$faker->numberBetween(15, 85)';
-                    } elseif (fnmatch('*_id', $field)) {
-                        $em = Strings::camelize($this->db . '_' . str_replace('_id', '', $field));
-                        $val = 'em("' . $em . '")->createFake()->id';
-                    }
-
-                    if ($n < count($fields) - 1) {
-                        $code .= '"' . $field . '" => ' . $val . ',' . "\n\t\t\t";
-                    } else {
-                        $code .= '"' . $field . '" => ' . $val . '' . "\n\t\t";
-                    }
-
-                    $n++;
-                }
-
-                $code .= '];' . "\n\t";
-                $code .= '};';
-
-                File::put($file, $code);
-            }
-
-            $class  = '\\Octo\\' . $class;
-
-            $model  = new $class($row);
+            $model  = lib('activerecord', [$row]);
             $self   = $this;
 
             $model->fn('save', function ($event = null) use ($model) {
@@ -930,13 +713,13 @@
                 return $model->save();
             });
 
-            $octal = actual("entity.{$this->db}.{$this->table}");
+            $octal = $this->entity();
 
-            if (is_object($octal)) {
+            if (is_object($octal) && $octal instanceof Octal) {
                 $methods = get_class_methods($octal);
 
-                if (in_array('octalModel', $methods)) {
-                    $model = $octal->octalModel($model);
+                if (in_array('activeRecord', $methods)) {
+                    $model = $octal->activeRecord($model);
                 }
             }
 
@@ -2068,6 +1851,51 @@
             }
 
             return $affected;
+        }
+
+        public function entity()
+        {
+            static $mapped = [];
+
+            $actual = actual("entity.{$this->db}.{$this->table}");
+
+            if (is_object($actual) && $actual instanceof Octal) {
+                return $actual;
+            }
+
+            if (empty($mapped)) {
+                $entities = glob(path('app') . '/entities/*.php');
+
+                foreach ($entities as $entity) {
+                    $code           = File::read($entity);
+                    $entityName     = cut('class ', ' extends', $code);
+                    $namespace      = cut('namespace ', ';', $code);
+                    $uncamelized    = Strings::uncamelize($entityName);
+
+                    if (fnmatch('*_entity', $uncamelized)) {
+                        $cleaned = str_replace('_entity', '', $uncamelized);
+
+                        if (fnmatch('*_*', $cleaned)) {
+                            list($db, $table) = explode('_', $cleaned, 2);
+                        } else {
+                            $table = $cleaned;
+                            $db = Strings::uncamelize(Config::get('application.name', 'core'));
+                        }
+                    }
+
+                    $mapped["$db.$table"] = '\\' . $namespace . '\\' . $entityName;
+                }
+            }
+
+            $index = $this->db . '.' . $this->table;
+
+            if (isset($mapped[$index])) {
+                $class = $mapped[$index];
+
+                return actual("entity.{$this->db}.{$this->table}", maker($class));
+            }
+
+            return null;
         }
 
         public function get($model = true)
@@ -3269,9 +3097,9 @@
 
         public function fire($event, $concern = null, $return = false)
         {
-            $entity = actual("entity.{$this->db}.{$this->table}");
+            $entity = $this->entity();
 
-            if (is_object($entity)) {
+            if (is_object($entity) && $entity instanceof Octal) {
                 $methods = get_class_methods($entity);
                 $method = 'event' . Strings::camelize($event);
 

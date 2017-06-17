@@ -27,15 +27,18 @@
                 );
             }
 
-            $em         = em($this->entity);
-            $database   = $em->db;
-            $table      = $em->table;
+            $uncamelized = Strings::uncamelize($this->entity);
+
+            if (fnmatch('*_*', $uncamelized)) {
+                list($database, $table) = explode('_', $uncamelized, 2);
+            } else {
+                $table = $uncamelized;
+                $database = Strings::uncamelize(Config::get('application.name', 'core'));
+            }
+
+            actual("entity.{$database}.{$table}", $this);
 
             $this->__instance = hash(uuid() . "entity.$database.$table");
-
-            if (is_array($newRow)) {
-                $this->row = $em->store($newRow);
-            }
 
             $methods = get_class_methods($this);
 
@@ -69,8 +72,6 @@
                         }
                     }
                 }
-
-                actual("entity.$database.$table", $this);
 
                 $this->fire('booted');
             }
