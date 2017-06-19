@@ -1899,6 +1899,78 @@
 
         $app = context('app');
 
+        $app->on(function ($event, callable $callable, $priority = 0) use ($app) {
+            $events = Registry::get('context.app.events', []);
+
+            if (!isset($events[$event])) {
+                $events[$event] = [];
+            }
+
+            $ev = $events[$event][] = new Listener($callable, $priority);
+
+            Registry::set('context.app.events', $events);
+
+            return $ev;
+        });
+
+        $app->emit(function () {
+            $args   = func_get_args();
+            $event  = array_shift($args);
+
+            $events = Registry::get('context.app.events', []);
+
+            $eventsToCall = isAke($events, $event, []);
+
+            if (!empty($eventsToCall)) {
+                $collection = [];
+
+                foreach ($eventsToCall as $eventToCall) {
+                    $collection[] = [
+                        'event'     => $eventToCall,
+                        'priority'  => $eventToCall->priority
+                    ];
+                }
+
+                $listeners = array_values(coll($collection)->sortByDesc('priority')->toArray());
+
+                $results = [];
+
+                foreach ($listeners as $listenerCalled) {
+                    $listener = $listenerCalled['event'];
+
+                    $continue = true;
+
+                    if ($listener->called) {
+                        if ($listener->once === true) {
+                            $continue = false;
+                        }
+                    }
+
+                    if (!$continue) {
+                        break;
+                    } else {
+                        $listener->called = true;
+                        $result = call_user_func_array($listener->callable, $args);
+
+                        if ($listener->halt) {
+                            return $result;
+                        } else {
+                            $results[] = $result;
+                        }
+                    }
+                }
+
+                return $results;
+            }
+        });
+
+        $app->class(function () {
+            $args   = func_get_args();
+            $lib    = array_shift($args);
+
+            return lib($lib, $args);
+        });
+
         $app->make(function () {
             return call_user_func_array('\\Octo\\maker', func_get_args());
         });

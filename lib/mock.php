@@ -60,7 +60,7 @@
         {
             if ($m == 'function') {
                 $meth   = current($a);
-                $c      = end($a);
+                $c      = count($a) == 2 ? end($a) : null;
 
                 if (is_callable($c)) {
                     $meth = Strings::uncamelize($meth);
@@ -69,7 +69,7 @@
                 } else {
                     $counter = o([]);
 
-                    $counter->macro('count', function () use ($meth) {
+                    $counter->macro('counter', function () use ($meth) {
                         if (!isset($this->__counter[$meth])) {
                             return 0;
                         }

@@ -81,12 +81,22 @@
 
         public static function returnValue($value)
         {
-            return o()->setStopPropagation(1)->setValue($value);
+            return o([
+                'stop_propagation'  => 1,
+                'value'             => $value
+            ]);
+        }
+
+        public static function halt($value)
+        {
+            return static::returnValue($value);
         }
 
         public static function __callStatic($m, $a)
         {
-            if (in_array($m, ['on', 'register'])) {
+            if (in_array($m, ['emit'])) {
+                forward_static_call_array(['\\Octo\\Fly', 'listen'], $a);
+            } elseif (in_array($m, ['on', 'register'])) {
                 forward_static_call_array(['\\Octo\\Fly', 'push'], $a);
             } else {
                 $event  = Strings::uncamelize($m);
