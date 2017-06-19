@@ -3,7 +3,7 @@
 
     class Mock
     {
-        private $__native, $__events = [];
+        private $__native, $__events = [], $__counter = [];
 
         public function __construct()
         {
@@ -58,16 +58,68 @@
 
         public function __call($m, $a)
         {
+            if ($m == 'function') {
+                $meth   = current($a);
+                $c      = end($a);
+
+                if (is_callable($c)) {
+                    $meth = Strings::uncamelize($meth);
+
+                    return $this->__on($meth, $c);
+                } else {
+                    $counter = o([]);
+
+                    $counter->macro('count', function () use ($meth) {
+                        if (!isset($this->__counter[$meth])) {
+                            return 0;
+                        }
+
+                        return (int) $this->__counter[$meth];
+                    });
+
+                    return $counter;
+                }
+            }
+
+            if ($m == 'mocked' || $m == 'default') {
+                if (empty($a)) {
+                    return $this->__native;
+                } else {
+                    $this->__native = maker(
+                        get_class(
+                            $this->__native
+                        ), $a
+                    );
+
+                    return $this;
+                }
+            }
+
+            if ($m == 'new') {
+                $this->__native = maker(
+                    get_class($this->__native),
+                    $a
+                );
+
+                return new self($this->__native);
+            }
+
             $c = isAke($this->__events, $m, null);
+
+            if (!isset($this->__counter[$m])) {
+                $this->__counter[$m] = 0;
+            }
 
             if ($c) {
                 if (is_callable($c)) {
+                    $this->__counter[$m]++;
                     $args = array_merge($a, [$this]);
 
                     return call_user_func_array($c, $args);
                 }
             } else {
                 if (!is_null($this->__native)) {
+                    $this->__counter[$m]++;
                     $args = array_merge($a, [$this]);
 
                     return call_user_func_array([$this->__native, $m], $args);

@@ -206,7 +206,25 @@
             return $customResponse;
         }
 
+        public function mock()
+        {
+            $args       = func_get_args();
+            $native     = array_shift($args);
+            $instance   = maker($native, $args);
+
+            return maker(Mock::class, [$instance]);
+        }
+
         public function __call($m, $a)
+        {
+            $method = '\\Octo\\' . $m;
+
+            if (function_exists($method)) {
+                return call_user_func_array($method, $a);
+            }
+        }
+
+        public static function __callStatic($m, $a)
         {
             $method = '\\Octo\\' . $m;
 

@@ -498,7 +498,7 @@
                     $this->age(microtime(true));
                 }
 
-                return $fire ? $this->fire('deleted', $row, true) : $exists;
+                return $fire ? $this->fire('deleted', $exists, true) : $exists;
             }
 
             return false;
@@ -1804,7 +1804,7 @@
         {
             $deleted = 0;
 
-            foreach ($this->get(false) as $item) {var_dump($item);
+            foreach ($this->get(false) as $item) {
                 if ($item) {
                     $id = $item['id'];
 
@@ -2793,7 +2793,7 @@
                                 if ($exists) {
                                     $exists->delete();
                                 } else {
-                                    $db->store([
+                                    $db->persist([
                                         $sync->table() . '_id' => $syncId,
                                         $this->table . '_id' => $id
                                     ]);
@@ -2833,7 +2833,7 @@
 
         public function lookfor($conditions, $cursor = false)
         {
-            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+            $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
 
             foreach ($conditions as $field => $value) {
                 $this->where($field, $value);
@@ -3005,7 +3005,7 @@
 
             if (!empty($rows)) {
                 foreach ($rows as $row) {
-                    $row = is_object($row) ? $row->toArray() : $row;
+                    $row = arrayable($row) ? $row->toArray() : $row;
                     $id = isAke($row, 'id', 0);
 
                     if ($id > 0) {
@@ -3032,7 +3032,7 @@
             $collection = [];
 
             foreach ($tab1 as $row) {
-                $row = is_object($row) ? $row->toArray() : $row;
+                $row = arrayable($row) ? $row->toArray() : $row;
 
                 $id = isAke($row, 'id', null);
 
@@ -3082,7 +3082,7 @@
                 return $this->emptyQuery();
             }
 
-            return $this->where('id', 'IN', $ids);
+            return $this->in('id', $ids);
         }
 
         public static function getFields(Octalia $model)
@@ -3249,7 +3249,7 @@
                 }
             }
 
-            return $this->where('id', 'IN', $ids);
+            return $this->newQuery()->in('id', $ids);
         }
 
         public function split($numberOfGroups)
@@ -3260,7 +3260,7 @@
 
             $groupSize = ceil($this->count() / $numberOfGroups);
 
-            return $this->chunk($groupSize);
+            return $this->newQuery()->chunk($groupSize);
         }
 
         public function chunk($size)
@@ -3294,6 +3294,10 @@
         public function contains()
         {
             $models = func_get_args();
+            $first  = current($models);
+
+            $table  = $first->table();
+            $fk     = $table . '_id';
 
             $ids = [];
 
@@ -3301,7 +3305,11 @@
                 $ids[] = $model['id'];
             }
 
-            return $this->where('id', 'IN', $ids)->exists();
+            if (empty($ids)) {
+                return $this->emptyQuery();
+            }
+
+            return $this->in($fk, $ids)->exists();
         }
 
         public function hasOne($em)
@@ -3347,5 +3355,39 @@
             }
 
             return $em->newQuery()->where($this->table . '_id', '>', 0);
+        }
+
+        public function destroyer()
+        {
+            $results = [];
+
+            $rows = func_get_args();
+
+            foreach ($rows as $row) {
+                $results[] = $this->destroy($row);
+            }
+
+            return $results;
+        }
+
+        public function destroy($concern = null)
+        {
+            if (is_null($concern)) {
+                return $this->delete();
+            } else {
+                if (is_numeric($concern)) {
+                    return $this->delete($concern);
+                } else {
+                    if (is_object($concern) && arrayable($concern)) {
+                        $concern = $concern->toArray();
+                    }
+
+                    if (is_array($concern) && isset($concern['id'])) {
+                        return $this->delete((int) $concern['id']);
+                    }
+                }
+            }
+
+            return false;
         }
     }

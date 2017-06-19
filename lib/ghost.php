@@ -160,6 +160,10 @@
                                 if (!empty($closure)) {
                                     $this->$m = $closure;
                                 } else {
+                                    if ('toArray' == $m) {
+                                        return $this->rowing();
+                                    }
+
                                     throw new \InvalidArgumentException("Method not provided.");
                                 }
                             }

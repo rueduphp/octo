@@ -1806,8 +1806,8 @@
         require_once __DIR__ . DS . 'di.php';
         require_once __DIR__ . DS . 'cachei.php';
 
-        define('OCTO_MAX', 9223372036854775808);
-        define('OCTO_MIN', OCTO_MAX * -1);
+        if (!defined("OCTO_MAX")) define('OCTO_MAX', 9223372036854775808);
+        if (!defined("OCTO_MIN")) define('OCTO_MIN', OCTO_MAX * -1);
 
         if (!class_exists('Octo\Route')) {
             Alias::facade('Route', 'Routes', 'Octo');
@@ -1893,7 +1893,7 @@
             ini_set('error_log', path('storage') . DS . 'logs' . DS . 'error.log');
         }
 
-        define('OCTO_DAY_KEY', sha1((OCTO_MAX / 7) + strtotime('today') . forever()));
+        if (!defined('OCTO_DAY_KEY')) define('OCTO_DAY_KEY', sha1((OCTO_MAX / 7) + strtotime('today') . forever()));
 
         path('public', realpath($dir));
 
@@ -2878,6 +2878,48 @@
     function injector($make, $params = [])
     {
         return (new Now)->make($make, $params);
+    }
+
+    function next()
+    {
+        static $nextables = [];
+
+        $args   = func_get_args();
+
+        $name  = array_shift($args);
+        $next  = array_shift($args);
+
+        if (!isset($nextables[$name])) {
+            $nextables[$name] = [];
+        }
+
+        $nextables[$name][] = call_user_func_array($next, $args);
+
+        $return = o();
+
+        $return->fn('next', function () {
+            return call_user_func_array('\\Octo\\next', func_get_args());
+        });
+
+        return $return;
+    }
+
+    function foundry()
+    {
+        $args   = func_get_args();
+
+        $class  = array_shift($args);
+
+        return maker($class, $args, false);
+    }
+
+    function singler()
+    {
+        $args   = func_get_args();
+
+        $class  = array_shift($args);
+
+        return maker($class, $args, true);
     }
 
     function maker($make, $args = [], $singleton = true)
@@ -6363,6 +6405,11 @@
     function addressToCoords($address)
     {
         return lib('geo')->getCoordsMap($address);
+    }
+
+    function arrayable($concern)
+    {
+        return is_object($concern) && in_array('toArray', get_class_methods($concern));
     }
 
     class OctoLab
