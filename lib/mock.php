@@ -69,7 +69,7 @@
                 } else {
                     $counter = o([]);
 
-                    $counter->macro('counter', function () use ($meth) {
+                    $counter->macro('called', function () use ($meth) {
                         if (!isset($this->__counter[$meth])) {
                             return 0;
                         }

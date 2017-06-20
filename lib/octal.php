@@ -156,7 +156,7 @@
             if ('new' == $m) {
                 return static::store(current($a));
             } elseif ('oldest' == $m) {
-                    return static::sortBy('id');
+                return static::sortBy('id');
             } elseif ('newest' == $m) {
                 return static::sortByDesc('id');
             }

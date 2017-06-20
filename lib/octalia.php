@@ -402,10 +402,36 @@
         {
             $data = is_object($data) ? $data->toArray() : $data;
 
-            $data['id']         = $this->makeId();
-            $data['created_at'] = $data['updated_at'] = time();
+            if (!isset($data['id'])) {
+                $data['id']         = $this->makeId();
+                $data['created_at'] = $data['updated_at'] = time();
 
-            return $this->insert($data, false);
+                return $this->insert($data, false);
+            } else {
+                $this->modify($data, false);
+            }
+        }
+
+        private function guarded($dataToCheck, $fieldsGuarded)
+        {
+            $keys = array_keys($dataToCheck);
+
+            foreach ($keys as $key) {
+                if (in_array($key, $fieldsGuarded)) {
+                    exception('Octalia', "The field $key is guarded.");
+                }
+            }
+        }
+
+        private function fillable($dataToCheck, $fieldsAllowed)
+        {
+            $keys = array_keys($dataToCheck);
+
+            foreach ($keys as $key) {
+                if (!in_array($key, $fieldsAllowed)) {
+                    exception('Octalia', "The field $key is not fillable.");
+                }
+            }
         }
 
         public function save($data, $model = true)
@@ -415,6 +441,18 @@
             $this->reset();
 
             $data = $this->fire('saving', $data, true);
+
+            $octal = $this->entity();
+
+            if (is_object($octal) && $octal instanceof Octal) {
+                $methods = get_class_methods($octal);
+
+                if (in_array('guard', $methods)) {
+                    $this->guarded($data, $octal->guard());
+                } elseif (in_array('fill', $methods)) {
+                    $this->fillable($data, $octal->fill());
+                }
+            }
 
             if ($data === false) return false;
 
@@ -2291,6 +2329,30 @@
             return $this->orLte('deleted_at', microtime(true));
         }
 
+        public function hasId($id)
+        {
+            $row = $this->row($id);
+
+            return $row ? true : false;
+        }
+
+        public function findOr($id, $default = false)
+        {
+            $row = $this->row($id);
+
+            return $row ? $this->model($row) : $default;
+        }
+
+        public function findOrFalse($id)
+        {
+            return $this->findOr($id, false);
+        }
+
+        public function findOrNull($id)
+        {
+            return $this->findOr($id, null);
+        }
+
         public function findOrFail($id, $model = true)
         {
             $row = $this->row($id);
@@ -2300,6 +2362,40 @@
             } else {
                 return $model ? $this->model($row) : $row;
             }
+        }
+
+        public function firstOr($default = false)
+        {
+            $row = $this->first();
+
+            return $row ? $this->model($row) : $default;
+        }
+
+        public function firstOrFalse()
+        {
+            return $this->firstOr(false);
+        }
+
+        public function firstOrNull()
+        {
+            return $this->firstOr(null);
+        }
+
+        public function lastOr($default = false)
+        {
+            $row = $this->last();
+
+            return $row ? $this->model($row) : $default;
+        }
+
+        public function lastOrFalse()
+        {
+            return $this->lastOr(false);
+        }
+
+        public function lastOrNull()
+        {
+            return $this->lastOr(null);
         }
 
         public function firstOrFail($model = true)

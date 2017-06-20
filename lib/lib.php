@@ -2897,9 +2897,9 @@
         return session('csrf')->getToken();
     }
 
-    function csrf_field($echo = true)
+    function csrf_field($name = 'octo_token', $echo = true)
     {
-        $tokenName = Config::get('token_name', 'octo_token');
+        $tokenName = Config::get('token_name', $name);
         $token = csrf_make();
         $field = '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
 
@@ -2914,14 +2914,18 @@
     {
         $token = token();
 
-        session('csrf')->setOldToken(session('csrf')->getToken())->setToken($token);
+        session('csrf')
+        ->setOldToken(
+            session('csrf')
+            ->getToken()
+        )->setToken($token);
 
         return $token;
     }
 
-    function csrf_match()
+    function csrf_match($name = 'octo_token')
     {
-        $tokenName = Config::get('token_name', 'octo_token');
+        $tokenName = Config::get('token_name', $name);
 
         return posted($tokenName) == session('csrf')->getToken();
     }
