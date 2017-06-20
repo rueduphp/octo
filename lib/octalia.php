@@ -408,7 +408,7 @@
 
                 return $this->insert($data, false);
             } else {
-                $this->modify($data, false);
+                return $this->modify($data, false);
             }
         }
 
