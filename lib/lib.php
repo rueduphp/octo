@@ -1899,12 +1899,14 @@
 
         $app = context('app');
 
-        $app->on(function ($event, callable $callable, $priority = 0) use ($app) {
+        $app->on(function ($event, callable $callable, $priority = 0) {
             $events = Registry::get('context.app.events', []);
 
             if (!isset($events[$event])) {
                 $events[$event] = [];
             }
+
+            $priority = !is_int($priority) ? 0 : $priority;
 
             $ev = $events[$event][] = new Listener($callable, $priority);
 
@@ -1953,6 +1955,8 @@
                         $result = call_user_func_array($listener->callable, $args);
 
                         if ($listener->halt) {
+                            Registry::set('context.app.events', []);
+
                             return $result;
                         } else {
                             $results[] = $result;
