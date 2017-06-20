@@ -10,6 +10,16 @@
             $this->ns = $ns;
         }
 
+        public function ns()
+        {
+            return $this->ns;
+        }
+
+        protected static function called()
+        {
+            return actual('fire.class', maker(get_called_class(), [get_called_class()]));
+        }
+
         public function on($event, callable $callable, $priority = 0)
         {
             $events = Registry::get('fire.events.' . $this->ns, []);
@@ -81,5 +91,33 @@
             }
 
             return null;
+        }
+
+        public static function __callStatic($m, $a)
+        {
+            $instance = static::called();
+
+            if ($m == 'listen') {
+                $m = 'on';
+            }
+
+            if ($m == 'fire') {
+                $m = 'emit';
+            }
+
+            return call_user_func_array([$instance, $m], $a);
+        }
+
+        public function __call($m, $a)
+        {
+            if ($m == 'listen') {
+                $m = 'on';
+            }
+
+            if ($m == 'fire') {
+                $m = 'emit';
+            }
+
+            return call_user_func_array([$this, $m], $a);
         }
     }
