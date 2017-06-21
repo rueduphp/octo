@@ -20,7 +20,7 @@
             return actual('fire.class', maker(get_called_class(), [get_called_class()]));
         }
 
-        public function on($event, callable $callable, $priority = 0)
+        public function on($event, $callable, $priority = 0)
         {
             $events = Registry::get('fire.events.' . $this->ns, []);
 
@@ -29,6 +29,10 @@
             }
 
             $priority = !is_int($priority) ? 0 : $priority;
+
+            if (!is_callable($callable)) {
+                $callable = resolverClass($callable);
+            }
 
             $ev = $events[$event][] = new Listener($callable, $priority);
 
@@ -93,16 +97,31 @@
             return null;
         }
 
+        public function subscriber($class)
+        {
+            $instance = maker($class);
+
+            $events = $instance->getEvents();
+
+            foreach ($events as $event => $method) {
+                if (is_string($method)) {
+                    $this->on($event, [$instance, $method]);
+                } else {
+                    $this->on($event, [$instance, $method->getMethod()], $method->getPriority(0));
+                }
+            }
+        }
+
         public static function __callStatic($m, $a)
         {
             $instance = static::called();
 
             if ($m == 'listen') {
                 $m = 'on';
-            }
-
-            if ($m == 'fire') {
+            } elseif ($m == 'fire') {
                 $m = 'emit';
+            } elseif ($m == 'subscribe') {
+                $m = 'subscriber';
             }
 
             return call_user_func_array([$instance, $m], $a);
@@ -112,10 +131,10 @@
         {
             if ($m == 'listen') {
                 $m = 'on';
-            }
-
-            if ($m == 'fire') {
+            } elseif ($m == 'fire') {
                 $m = 'emit';
+            } elseif ($m == 'subscribe') {
+                $m = 'subscriber';
             }
 
             return call_user_func_array([$this, $m], $a);

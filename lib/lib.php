@@ -6006,8 +6006,8 @@
     {
         return function() use ($class, $sep) {
             $segments   = explode($sep, $class);
-            $method     = count($segments) == 2 ? $segments[1] : 'supply';
-            $callable   = [app($segments[0]), $method];
+            $method     = count($segments) == 2 ? $segments[1] : 'handle';
+            $callable   = [maker($segments[0]), $method];
             $data       = func_get_args();
 
             return call_user_func_array($callable, $data);
