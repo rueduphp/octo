@@ -1,7 +1,29 @@
 <?php
     use Octo\Registry;
+    use function Octo\context;
 
     class MyEvent extends Octo\Fire {}
+
+    class Subscriber
+    {
+        public function getEvents()
+        {
+            return [
+                'test_1' => 'first',
+                'test_2' => 'second'
+            ];
+        }
+
+        public function first()
+        {
+            context('app')->event_test_value += 1;
+        }
+
+        public function second()
+        {
+            context('app')->event_test_value += 2;
+        }
+    }
 
     class SimpleTest extends TestCase
     {
@@ -48,5 +70,14 @@
             MyEvent::fire('test');
 
             $this->assertEquals(4, $this->app['event_test_value']);
+
+            MyEvent::subscribe(Subscriber::class);
+
+            $this->app['event_test_value'] = 0;
+
+            MyEvent::fire('test_1');
+            MyEvent::fire('test_2');
+
+            $this->assertEquals(3, $this->app['event_test_value']);
         }
     }

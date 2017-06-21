@@ -3,10 +3,10 @@
 
     class Listener
     {
-        public $priority = 0;
-        public $halt = false;
-        public $once = false;
-        public $called = false;
+        public $priority    = 0;
+        public $halt        = false;
+        public $once        = false;
+        public $called      = false;
         public $callable;
 
         public function __construct(callable $callable, $priority = 0, $halt = false, $once = false)
@@ -27,6 +27,13 @@
         public function halt()
         {
             $this->halt = !$this->halt;
+
+            return $this;
+        }
+
+        public function called()
+        {
+            $this->called = !$this->called;
 
             return $this;
         }

@@ -107,7 +107,15 @@
                 if (is_string($method)) {
                     $this->on($event, [$instance, $method]);
                 } else {
-                    $this->on($event, [$instance, $method->getMethod()], $method->getPriority(0));
+                    $ev = $this->on($event, [$instance, $method->getMethod()], $method->getPriority(0));
+
+                    if ($method->getHalt()) {
+                        $ev->halt();
+                    }
+
+                    if ($method->getOnce()) {
+                        $ev->once();
+                    }
                 }
             }
         }
