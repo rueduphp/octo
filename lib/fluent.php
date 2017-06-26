@@ -23,7 +23,7 @@
          */
         public function __construct($attributes = [])
         {
-            $attributes = is_object($attributes) ? $attributes->toArray() : $attributes;
+            $attributes = arrayable($attributes) ? $attributes->toArray() : $attributes;
 
             foreach ($attributes as $key => $value) {
                 $this->attributes[$key] = $value;

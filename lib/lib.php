@@ -363,6 +363,53 @@
         return $acd;
     }
 
+    function viewCacheObject($object, callable $callable, $driver = null)
+    {
+        $maxAge = $object->updated_at->timestamp;
+        $key    = 'vco:' . $object->db() . ':' . $object->table() . ':' . $object->id;
+
+        viewCache($key, $maxAge, $callable, $driver);
+    }
+
+    function viewCache($key, $maxAge, callable $callable, $driver = null)
+    {
+        $continue   = true;
+
+        $driver     = is_null($driver) ? fmr('view') : $driver;
+
+        $keyAge     = $key . ':maxage';
+        $v          = $driver->get($k);
+
+        if ($v) {
+            $age = $driver->get($keyAge);
+
+            if (!$age) {
+                $age = $maxAge - 1;
+            }
+
+            if ($age >= $maxAge) {
+                $continue = false;
+                echo $v;
+            } else {
+                $driver->delete($key);
+                $driver->delete($keyAge);
+            }
+        }
+
+        if (true === $continue) {
+            ob_start();
+
+            $callable();
+
+            $content = ob_get_clean();
+
+            $driver->set($key, $content);
+            $driver->set($keyAge, $maxAge);
+
+            echo $content;
+        }
+    }
+
     function o(array $o = [])
     {
         return lib('object', [$o]);
@@ -758,7 +805,7 @@
 
     function item($attributes = [])
     {
-        $attributes = is_object($attributes) ? $attributes->toArray() : $attributes;
+        $attributes = arrayable($attributes) ? $attributes->toArray() : $attributes;
 
         return lib('fluent', [$attributes]);
     }
@@ -1349,7 +1396,7 @@
             // $this->_hooks[\'afterRead\'] = ;
             // $this->_hooks[\'afterUpdate\'] = ;
             // $this->_hooks[\'afterDelete\'] = ;
-            // $this->_hooks[\'validate\'] = function () use ($data) {
+            // $this->_hooks[\'validate\'] = function () use ($obj) {
             //     return true;
             // };
         }
@@ -1365,6 +1412,11 @@
         }
 
         return new $instanciate($class, $data);
+    }
+
+    function libonce($lib, $args = [])
+    {
+        return lib($lib, $args, true);
     }
 
     function lib($lib, $args = [], $singleton = false)
@@ -3006,7 +3058,7 @@
     {
         static $binds = [];
 
-        $args = !is_array($args) ? $args->toArray() : $args;
+        $args = arrayable($args) ? $args->toArray() : $args;
 
         $callable = isAke($binds, $make, null);
 
@@ -6371,7 +6423,7 @@
         $class = o();
 
         $class->macro('login', function ($user) use ($class) {
-            $user = !is_array($user) ? $user->toArray() : $user;
+            $user = arrayable($user) ? $user->toArray() : $user;
 
             return $class->reveal()->login($user);
         });
@@ -6409,7 +6461,7 @@
         });
 
         $class->macro('logByUser', function ($user, $route = 'home') use ($class) {
-            $user = !is_array($user) ? $user->toArray() : $user;
+            $user = arrayable($user) ? $user->toArray() : $user;
 
             $class->reveal()->login($user);
 
@@ -6455,7 +6507,7 @@
 
     function be($user, $ns = 'web')
     {
-        $user = !is_array($user) ? $user->toArray() : $user;
+        $user = arrayable($user) ? $user->toArray() : $user;
 
         session($ns)->setUser($user);
     }
@@ -6490,6 +6542,11 @@
     function arrayable($concern)
     {
         return is_object($concern) && in_array('toArray', get_class_methods($concern));
+    }
+
+    function cacher($key, $minutes, $ifNot)
+    {
+        return fmr()->remember($key, $ifNot, 60 * $minutes);
     }
 
     class OctoLab

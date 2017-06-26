@@ -131,6 +131,17 @@
             return $this;
         }
 
+        public function lastUpdated($timestamp = false)
+        {
+            $row = $this->sortByDesc('updated_at')->first();
+
+            if ($row) {
+                return $timestamp ? $row->updated_at->timestamp : $row;
+            }
+
+            return $timestamp ? time() : null;
+        }
+
         /**
          * booting
          * booted
