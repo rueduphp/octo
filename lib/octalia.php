@@ -648,6 +648,17 @@
                 }
 
                 return $model;
+            })->fn('cacheKey', function () use ($model) {
+                if ($model->exists()) {
+                    return sprintf(
+                        "%s:%s:%s",
+                        $model->db() . '_' . $model->table(),
+                        $model->id,
+                        $model->updated_at->timestamp
+                    );
+                }
+
+                return sha1(serialize($model->toArray()));
             })->fn('delete', function ($event = null) use ($row, $model) {
                 if (isset($row['id'])) {
                     if ($model) {
@@ -753,7 +764,7 @@
 
             $octal = $this->entity();
 
-            if (is_object($octal) && $octal instanceof Octal) {
+            if (is_object($octal) && $octal instanceof Octal && $model->exists()) {
                 $methods = get_class_methods($octal);
 
                 if (in_array('activeRecord', $methods)) {
@@ -891,11 +902,17 @@
             $database   = $this->db;
             $table      = $this->table;
 
-            $entity = actual("entity.$database.$table");
+            $entity = $this->entity();
 
-            if (is_object($entity)) {
-                $methods = get_class_methods($entity);
-                $method = 'scope' . ucfirst(Strings::camelize($m));
+            if (is_object($entity) && $entity instanceof Octal) {
+                $methods    = get_class_methods($entity);
+                $method     = 'scope' . ucfirst(Strings::camelize($m));
+
+                if (in_array($method, $methods)) {
+                    return call_user_func_array([$entity, $method], array_merge([$this], $a));
+                }
+
+                $method = 'query' . ucfirst(Strings::camelize($m));
 
                 if (in_array($method, $methods)) {
                     return call_user_func_array([$entity, $method], array_merge([$this], $a));
