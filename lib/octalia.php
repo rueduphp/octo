@@ -402,14 +402,18 @@
         {
             $data = is_object($data) ? $data->toArray() : $data;
 
+            $data = $this->fire('saving', $data, true);
+
             if (!isset($data['id'])) {
                 $data['id']         = $this->makeId();
                 $data['created_at'] = $data['updated_at'] = time();
 
-                return $this->insert($data, false);
+                $row = $this->insert($data, false);
             } else {
-                return $this->modify($data, false);
+                $row = $this->modify($data, false);
             }
+
+            return $this->fire('saved', $row, true);
         }
 
         private function guarded($dataToCheck, $fieldsGuarded)
@@ -418,7 +422,7 @@
 
             foreach ($keys as $key) {
                 if (in_array($key, $fieldsGuarded)) {
-                    exception('Octalia', "The field $key is guarded.");
+                    exception('Octalia', "The field $key is not fillable.");
                 }
             }
         }
@@ -468,7 +472,7 @@
             }
 
             if ($saved) {
-                $saved = $this->fire('saved', $saved, true);
+                return $this->fire('saved', $saved, true);
             }
 
             return $saved;
@@ -3221,7 +3225,17 @@
             $entity = $this->entity();
 
             if (is_object($entity) && $entity instanceof Octal) {
-                $methods = get_class_methods($entity);
+                $methods    = get_class_methods($entity);
+                $method     = 'on' . Strings::camelize($event);
+
+                if (in_array($method, $methods)) {
+                    $result = $entity->$method($concern, $this);
+
+                    if ($return) {
+                        return $result;
+                    }
+                }
+
                 $method = 'event' . Strings::camelize($event);
 
                 if (in_array($method, $methods)) {
