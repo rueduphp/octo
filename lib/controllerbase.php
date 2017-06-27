@@ -220,6 +220,17 @@
             return call_user_func_array(['\\Octo\\OctaliaHelpers', $m], $a);
         }
 
+        public function cache()
+        {
+            $args = func_get_args();
+
+            if (is_string($args[0])) {
+                viewCache(array_shift($args), array_shift($args), array_shift($args), array_shift($args));
+            } else {
+                viewCacheObject(array_shift($args), array_shift($args), array_shift($args));
+            }
+        }
+
         public function cacheassets($fields, $type = 'css')
         {
             if (is_string($fields)) {
