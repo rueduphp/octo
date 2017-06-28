@@ -286,6 +286,19 @@
         }
     }
 
+    if (!function_exists('injector')) {
+        function injector()
+        {
+            static $injector = null;
+
+            if (!$injector) {
+                $injector = maker(Octo\Injector::class);
+            }
+
+            return $injector;
+        }
+    }
+
     if (!function_exists('current_url')) {
         function current_url()
         {

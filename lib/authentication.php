@@ -10,6 +10,53 @@
             return actual('auth.class', maker(get_called_class()));
         }
 
+        public static function policy($policy, callable $callable)
+        {
+            $class              = static::called();
+            $policies           = Registry::get('guard.policies.' . $class->actual, []);
+            $policies[$policy]  = $callable;
+
+            Registry::set('guard.policies', $policies);
+
+            return $class;
+        }
+
+        public static function cannot()
+        {
+            $check = call_user_func_array([static::called(), 'can'], func_get_args());
+
+            return !$check;
+        }
+
+        public static function can()
+        {
+            $check = call_user_func_array([static::called(), 'allows'], func_get_args());
+
+            if ($check) {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static function allows()
+        {
+            if ($user = static::user()) {
+                $class      = static::called();
+                $user       = item($user);
+                $args       = func_get_args();
+                $policy     = array_shift($args);
+                $policies   = Registry::get('guard.policies.' . $class->actual, []);
+                $policy     = isAke($policies, $policy, null);
+
+                if (is_callable($policy)) {
+                    return call_user_func_array($policy, array_merge([$user], $args));
+                }
+            }
+
+            return false;
+        }
+
         public static function get($default = null, $class = null)
         {
             $class = $class ?: static::called();
@@ -128,6 +175,10 @@
 
         public static function __callStatic($m, $a)
         {
+            if ($m == "self") {
+                return static::called();
+            }
+
             $class = static::called();
 
             return call_user_func_array([guard($class->ns, $class->entity), $m], $a);
