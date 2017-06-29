@@ -1856,6 +1856,7 @@
         forever();
 
         require_once __DIR__ . DS . 'di.php';
+        require_once __DIR__ . DS . 'debug.php';
         require_once __DIR__ . DS . 'cachei.php';
 
         if (!defined("OCTO_MAX")) define('OCTO_MAX', 9223372036854775808);
