@@ -1,5 +1,6 @@
 <?php
     namespace Octo;
+
     /**
      * Shortcut to ref, HTML mode
      *
@@ -8,46 +9,41 @@
      */
     function dbg()
     {
-      // arguments passed to this function
-      $args = func_get_args();
+        // arguments passed to this function
+        $args = func_get_args();
 
-      // options (operators) gathered by the expression parser;
-      // this variable gets passed as reference to getInputExpressions(), which will store the operators in it
-      $options = array();
+        // options (operators) gathered by the expression parser;
+        // this variable gets passed as reference to getInputExpressions(), which will store the operators in it
+        $options = [];
 
-      // names of the arguments that were passed to this function
-      $expressions = ref::getInputExpressions($options);
-      $capture = in_array('@', $options, true);
+        // names of the arguments that were passed to this function
+        $expressions = ref::getInputExpressions($options);
+        $capture = in_array('@', $options, true);
 
-      // something went wrong while trying to parse the source expressions?
-      // if so, silently ignore this part and leave out the expression info
-      if(func_num_args() !== count($expressions))
-        $expressions = null;
+        // something went wrong while trying to parse the source expressions?
+        // if so, silently ignore this part and leave out the expression info
+        if (func_num_args() !== count($expressions)) $expressions = null;
 
-      // use HTML formatter only if we're not in CLI mode, or if return was requested
-      $format = (php_sapi_name() !== 'cli') || $capture ? 'html' : 'cliText';
+        // use HTML formatter only if we're not in CLI mode, or if return was requested
+        $format = (php_sapi_name() !== 'cli') || $capture ? 'html' : 'cliText';
 
-      // IE goes funky if there's no doctype
-      if(!$capture && ($format === 'html') && !headers_sent() && (!ob_get_level() || ini_get('output_buffering')))
-        print '<!DOCTYPE HTML><html><head><title>REF</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /></head><body>';
+        // IE goes funky if there's no doctype
+        if (!$capture && ($format === 'html') && !headers_sent() && (!ob_get_level() || ini_get('output_buffering'))) print '<!DOCTYPE HTML><html><head><title>REF</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /></head><body>';
 
-      $ref = new ref($format);
+        $ref = new ref($format);
 
-      if($capture)
-        ob_start();
+        if($capture) ob_start();
 
-      foreach($args as $index => $arg)
-        $ref->query($arg, $expressions ? $expressions[$index] : null);
+        foreach($args as $index => $arg) $ref->query($arg, $expressions ? $expressions[$index] : null);
 
-      // return the results if this function was called with the error suppression operator
-      if($capture)
-        return ob_get_clean();
+        // return the results if this function was called with the error suppression operator
+        if ($capture) return ob_get_clean();
 
-      // stop the script if this function was called with the bitwise not operator
-      if(in_array('~', $options, true) && ($format === 'html')){
-        print '</body></html>';
-        exit(0);
-      }
+        // stop the script if this function was called with the bitwise not operator
+        if (in_array('~', $options, true) && ($format === 'html')){
+            print '</body></html>';
+            exit(0);
+        }
     }
 
     /**
@@ -58,30 +54,24 @@
      */
     function dbgt()
     {
-      $args        = func_get_args();
-      $options     = [];
-      $output      = '';
-      $expressions = ref::getInputExpressions($options);
-      $capture     = in_array('@', $options, true);
-      $ref         = new ref((php_sapi_name() !== 'cli') || $capture ? 'text' : 'cliText');
+        $args        = func_get_args();
+        $options     = [];
+        $output      = '';
+        $expressions = ref::getInputExpressions($options);
+        $capture     = in_array('@', $options, true);
+        $ref         = new ref((php_sapi_name() !== 'cli') || $capture ? 'text' : 'cliText');
 
-      if(func_num_args() !== count($expressions))
-        $expressions = null;
+        if (func_num_args() !== count($expressions)) $expressions = null;
 
-      if(!headers_sent())
-        header('Content-Type: text/plain; charset=utf-8');
+        if (!headers_sent()) header('Content-Type: text/plain; charset=utf-8');
 
-      if($capture)
-        ob_start();
+        if ($capture) ob_start();
 
-      foreach($args as $index => $arg)
-        $ref->query($arg, $expressions ? $expressions[$index] : null);
+        foreach ($args as $index => $arg) $ref->query($arg, $expressions ? $expressions[$index] : null);
 
-      if($capture)
-        return ob_get_clean();
+        if ($capture) return ob_get_clean();
 
-      if(in_array('~', $options, true))
-        exit(0);
+        if (in_array('~', $options, true)) exit(0);
     }
 
     /**
@@ -93,26 +83,8 @@
     class ref
     {
 
-      const
-
-        MARKER_KEY = '_phpRefArrayMarker_';
-
-
-
-      protected static
-
-        /**
-         * CPU time used for processing
-         *
-         * @var  array
-         */
-        $time = 0,
-
-        /**
-         * Configuration (+ default values)
-         *
-         * @var  array
-         */
+        const MARKER_KEY = '_phpRefArrayMarker_';
+        protected static $time = 0,
         $config = [
                     // initially expanded levels (for HTML mode only)
                     'expLvl'               => 1,
@@ -189,65 +161,38 @@
         ];
 
 
-      protected
-
-        /**
-         * Output formatter of this instance
-         *
-         * @var  RFormatter
-         */
-        $fmt = null,
-
-        /**
-         * Start time of the current instance
-         *
-         * @var  float
-         */
+        protected $fmt = null,
         $startTime = 0,
-
-        /**
-         * Internally created objects
-         *
-         * @var  SplObjectStorage
-         */
         $intObjects = null;
 
+        public function __construct($format = 'html')
+        {
+            static $didIni = false;
 
+            if (!$didIni) {
+                $didIni = true;
 
-      /**
-       * Constructor
-       *
-       * @param   string|RFormatter $format      Output format ID, or formatter instance defaults to 'html'
-       */
-      public function __construct($format = 'html'){
+                foreach (array_keys(static::$config) as $key){
+                    $iniVal = get_cfg_var('ref.' . $key);
 
-        static $didIni = false;
+                    if ($iniVal !== false) static::$config[$key] = $iniVal;
+                }
+            }
 
-        if (!$didIni) {
-          $didIni = true;
+            if ($format instanceof RFormatter) {
+                $this->fmt = $format;
+            } else {
+                $format = isset(static::$config['formatters'][$format]) ? static::$config['formatters'][$format] : 'R' . ucfirst($format) . 'Formatter';
 
-          foreach (array_keys(static::$config) as $key){
-            $iniVal = get_cfg_var('ref.' . $key);
+            if (!class_exists($format, false))
+                throw new \Exception(sprintf('%s class not found', $format));
 
-            if ($iniVal !== false) static::$config[$key] = $iniVal;
-          }
-        }
+                $this->fmt = new $format();
+            }
 
-        if ($format instanceof RFormatter) {
-            $this->fmt = $format;
-        } else {
-          $format = isset(static::$config['formatters'][$format]) ? static::$config['formatters'][$format] : 'R' . ucfirst($format) . 'Formatter';
+            if (static::$env) return;
 
-          if(!class_exists($format, false))
-            throw new \Exception(sprintf('%s class not found', $format));
-
-          $this->fmt = new $format();
-        }
-
-        if(static::$env)
-          return;
-
-        static::$env = array(
+            static::$env = array(
 
           // php 5.4+ ?
           'is54'         => version_compare(PHP_VERSION, '5.4') >= 0,
