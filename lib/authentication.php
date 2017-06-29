@@ -41,7 +41,7 @@
 
         public static function allows()
         {
-            if ($user = static::user()) {
+            if ($user = static::user(false)) {
                 $class      = static::called();
                 $user       = item($user);
                 $args       = func_get_args();
@@ -59,7 +59,7 @@
 
         public static function get($default = null, $class = null)
         {
-            $class = $class ?: static::called();
+            $class = $class ?: static::called();;
 
             if (session_id()) {
                 $user = session($class->ns)
@@ -71,7 +71,7 @@
             }
 
             if ($user) {
-                $user = !is_array($user) ? $user->toArray() : $user;
+                $user = arrayable($user) ? $user->toArray() : $user;
                 actual($class->actual, $user);
 
                 return $user;
@@ -87,7 +87,7 @@
             $user = $user ?: static::get($user, $class);
 
             if ($user) {
-                $user = !is_array($user) ? $user->toArray() : $user;
+                $user = arrayable($user) ? $user->toArray() : $user;
                 actual($class->actual, $user);
 
                 if (session_id()) {
@@ -114,7 +114,7 @@
         {
             $class = static::called();
 
-            $user = !is_array($user) ? $user->toArray() : $user;
+            $user = arrayable($user) ? $user->toArray() : $user;
 
             actual($class->actual, $user);
 
