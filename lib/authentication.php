@@ -16,7 +16,7 @@
             $policies           = Registry::get('guard.policies.' . $class->actual, []);
             $policies[$policy]  = $callable;
 
-            Registry::set('guard.policies', $policies);
+            Registry::set('guard.policies.' . $class->actual, $policies);
 
             return $class;
         }
