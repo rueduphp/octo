@@ -6574,3 +6574,15 @@
             throw new \BadMethodCallException("Method {$m} does not exist.");
         }
     }
+
+    function inner()
+    {
+        $args = func_get_args();
+
+        if (class_exists($args[0])) {
+            $args = array_shift($args);
+            $args = array_shift($args);
+
+            return call_user_func_array($args[0], $args[1]);
+        }
+    }
