@@ -2059,6 +2059,7 @@
 
             File::load(path('app') . '/config/*config*.php');
             File::load(path('app') . '/config/*routes*.php');
+            File::load(path('app') . '/routes/*.php');
 
             if (!$cli) {
                 try {

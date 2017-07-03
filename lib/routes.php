@@ -171,7 +171,7 @@
         public static function before($before, callable $next)
         {
             if (is_string($before)) {
-                $class = maker($class);
+                $class = maker($before);
 
                 $before = [$class, 'handle'];
             }
