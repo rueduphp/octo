@@ -159,13 +159,42 @@
             return toClosure($array);
         }
 
+        public static function prefix($prefix, callable $next)
+        {
+            Registry::set('core.routes.prefix', $prefix);
+
+            $next();
+
+            Registry::set('core.routes.prefix', '');
+        }
+
+        public static function before($before, callable $next)
+        {
+            if (is_string($before)) {
+                $class = maker($class);
+
+                $before = [$class, 'handle'];
+            }
+
+            if (is_callable($before)) {
+                Registry::set('core.routes.before', $before);
+
+                $next();
+
+                Registry::set('core.routes.before', null);
+            }
+        }
+
         public static function __callStatic($m, $a)
         {
             if ('array' == $m) {
                 return toClosure($a);
             }
 
-            $uri        = array_shift($a);
+            $before     = Registry::get('core.routes.before', null);
+            $prefix     = Registry::get('core.routes.prefix', '');
+            $prefix     = strlen($prefix) ? trim($prefix, '/') . '/' : $prefix;
+            $uri        = $prefix . array_shift($a);
             $callback   = array_shift($a);
 
             if (!$callback instanceof \Closure) {
@@ -193,9 +222,10 @@
 
                 $render = empty($render);
 
-                $callback = function () use ($controller, $action, $render) {
-                    return [$controller, $action, $render];
-                };
+                $callback = compactCallback($controller, $action, $render);
+                // $callback = function () use ($controller, $action, $render) {
+                //     return [$controller, $action, $render];
+                // };
             }
 
             $method = Strings::lower($m);
@@ -252,7 +282,13 @@
             foreach ($methods as $meth) {
                 if (!isset(static::$routes[$meth])) static::$routes[$meth] = [];
 
-                array_unshift(static::$routes[$meth], ['uri' => $uri, 'callback' => $callback]);
+                $exists = coll(static::$routes[$meth])->where('uri', $uri)->count() > 0;
+
+                if (!$exists) {
+                    array_unshift(static::$routes[$meth], ['uri' => $uri, 'callback' => $callback]);
+                } else {
+                    exception('Routes', "The route with uri $uri ever exists for " . Strings::upper($meth) ." method.");
+                }
             }
 
             $reflection = reflectClosure($callback);
@@ -291,6 +327,10 @@
             if (isset($render))     $dataRoute["render"]        = $render;
 
             $route = model('uri', $dataRoute);
+
+            if (is_callable($before)) {
+                $route->setBefore($before);
+            }
 
             $route->macro('as', function ($name) use ($route) {
                 return $route->setName($name);

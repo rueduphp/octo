@@ -20,7 +20,7 @@
             return $this;
         }
 
-        public static function required($field, $message = '##field## is required')
+        public function required($field, $message = '##field## is required')
         {
             $check = strlen(isAke($this->bag, $field, null)) > 0;
 
@@ -31,7 +31,7 @@
             return $check;
         }
 
-        public static function min($field, $min, $message = '##field## is too short')
+        public function min($field, $min, $message = '##field## is too short')
         {
             $check = strlen(isAke($this->bag, $field, null)) < $min + 0;
 
@@ -42,7 +42,7 @@
             return $check;
         }
 
-        public static function max($field, $max, $message = '##field## is too long')
+        public function max($field, $max, $message = '##field## is too long')
         {
             $check = strlen(isAke($this->bag, $field, null)) > $max + 0;
 
@@ -53,7 +53,7 @@
             return $check;
         }
 
-        public static function fnmatch($field, $fnmatch, $message = '##field## is incorrect')
+        public function fnmatch($field, $fnmatch, $message = '##field## is incorrect')
         {
             $check = fnmatch($fnmatch, isAke($this->bag, $field, null));
 
@@ -64,7 +64,7 @@
             return $check;
         }
 
-        public static function match($field, $pattern, $message = '##field## is incorrect')
+        public function match($field, $pattern, $message = '##field## is incorrect')
         {
             $check = false;
 
@@ -79,7 +79,7 @@
             return $check;
         }
 
-        public static function int($field, $message = '##field## is not an integer')
+        public function int($field, $message = '##field## is not an integer')
         {
             $check = reallyInt(isAke($this->bag, $field, null));
 
@@ -90,7 +90,7 @@
             return $check;
         }
 
-        public static function float($field, $message = '##field## is not a float')
+        public function float($field, $message = '##field## is not a float')
         {
             $check = isAke($this->bag, $field, null) === floatval(isAke($this->bag, $field, null));
 
@@ -101,7 +101,7 @@
             return $check;
         }
 
-        public static function number($field, $message = '##field## is not a number')
+        public function number($field, $message = '##field## is not a number')
         {
             $check = isAke($this->bag, $field, null) === isAke($this->bag, $field, null) + 0;
 
@@ -112,7 +112,7 @@
             return $check;
         }
 
-        public static function numeric($field, $message = '##field## is not numeric')
+        public function numeric($field, $message = '##field## is not numeric')
         {
             $check = is_numeric(isAke($this->bag, $field, null));
 
@@ -123,7 +123,7 @@
             return $check;
         }
 
-        public static function email($field, $message = '##field## is not an email')
+        public function email($field, $message = '##field## is not an email')
         {
             $check = filter_var(isAke($this->bag, $field, null), FILTER_VALIDATE_EMAIL);
 
@@ -134,7 +134,7 @@
             return $check;
         }
 
-        public static function bool($field, $message = '##field## is not a boolean')
+        public function bool($field, $message = '##field## is not a boolean')
         {
             $check = isAke($this->bag, $field, null) === (bool) isAke($this->bag, $field, null);
 
@@ -145,7 +145,7 @@
             return $check;
         }
 
-        public static function custom($field, callable $custom, $message = '##field## is incorrect')
+        public function custom($field, callable $custom, $message = '##field## is incorrect')
         {
             $check = call($custom, [isAke($this->bag, $field, null)]);
 

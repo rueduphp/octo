@@ -514,6 +514,12 @@
                     if ($this->uri) {
                         route($route);
 
+                        if ($before = $this->uri->getBefore()) {
+                            if (is_callable($before)) {
+                                $before();
+                            }
+                        }
+
                         if ($middleware = $this->uri->getMiddleware()) {
                             if (!is_array($middleware)) {
                                 $middleware = [$middleware];

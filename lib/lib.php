@@ -1920,6 +1920,9 @@
             }
         }
 
+        Registry::set('core.routes.prefix', '');
+        Registry::set('core.routes.before', null);
+
         Registry::set('octo.subdir', $subdir);
 
         if (!defined('OCTO_STANDALONE')) {
@@ -6236,6 +6239,15 @@
         return ltrim(ob_get_clean());
     }
 
+    function compactCallback()
+    {
+        $args = func_get_args();
+
+        return function () use ($args) {
+            return $args;
+        };
+    }
+
     function auth($em = 'user')
     {
         return guard($em);
@@ -6572,17 +6584,5 @@
             }
 
             throw new \BadMethodCallException("Method {$m} does not exist.");
-        }
-    }
-
-    function inner()
-    {
-        $args = func_get_args();
-
-        if (class_exists($args[0])) {
-            $args = array_shift($args);
-            $args = array_shift($args);
-
-            return call_user_func_array($args[0], $args[1]);
         }
     }

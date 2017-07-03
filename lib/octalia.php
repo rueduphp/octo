@@ -3179,7 +3179,7 @@
             return $collection;
         }
 
-        public function has(Octalia $query)
+        public function has($query)
         {
             $ids = [];
 
