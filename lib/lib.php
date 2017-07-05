@@ -1248,7 +1248,11 @@
     function isAke($array, $k, $d = [])
     {
         if (true === is_object($array)) {
-            $array = (array) $array;
+            if (arrayable($array)) {
+                $array = $array->toArray();
+            } else {
+                $array = (array) $array;
+            }
         }
 
         return Arrays::get($array, $k, $d);
@@ -1272,7 +1276,7 @@
     function forever($ns = 'user')
     {
         if (php_sapi_name() == 'cli' || PHP_SAPI == 'cli') {
-            return sha1(SITE_NAME . '::cli');
+            return hash(File::read(__FILE__));
         }
 
         $ns         = SITE_NAME . '_' . $ns;
@@ -2028,11 +2032,16 @@
             $args   = func_get_args();
             $lib    = array_shift($args);
 
+            array_pop($args);
+
             return lib($lib, $args);
         });
 
         $app->make(function () {
-            return call_user_func_array('\\Octo\\maker', func_get_args());
+            $args = func_get_args();
+            array_pop($args);
+
+            return call_user_func_array('\\Octo\\maker', $args);
         });
 
         $app->register(function ($alias, $class, $args = []) use ($app) {
@@ -2165,6 +2174,23 @@
             }
         }
 
+        Routes::getPost('burst/(.*)-(.*).(.*)', function ($file, $hash, $ext) {
+            $asset = path('public') . '/'. $file . '.' . $ext;
+
+            if (!headers_sent() && File::exists($asset)) {
+                switch (strtolower($ext)) {
+                    case 'css':
+                        header('Content-type: text/css');
+                        break;
+                    case 'js':
+                        header('Content-type: text/javascript');
+                        break;
+                }
+
+                die(File::read($asset));
+            }
+        });
+
         loadEvents();
 
         listening('system.bootstrap');
@@ -2174,6 +2200,29 @@
         middlewares();
 
         rights();
+    }
+
+    function burst($asset)
+    {
+        if (!File::exists($asset)) {
+            $asset = path('public') . $asset;
+        }
+
+        if (File::exists($asset)) {
+            $age = md5(filemtime($asset));
+            $ext = Arrays::last(explode('.', $asset));
+            $tab = explode('.' . $ext, $asset);
+
+            array_pop($tab);
+
+            $segment = implode('.' . $ext, $tab);
+
+            $file = str_replace_first(path('public'), '', $segment);
+
+            return '/burst' . $file . '-' . $age . '.' . $ext;
+        }
+
+        return $asset;
     }
 
     function modelEvent($model, $event, $next = [])

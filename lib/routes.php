@@ -161,15 +161,30 @@
 
         public static function prefix($prefix, callable $next)
         {
-            Registry::set('core.routes.prefix', $prefix);
+            $old = Registry::get('core.routes.prefix', '');
+
+            if (strlen($old)) {
+                $prefix = $old . '/' . $prefix;
+            }
+
+            Registry::set('core.routes.prefix', trim($prefix, '/'));
 
             $next();
 
-            Registry::set('core.routes.prefix', '');
+            Registry::set('core.routes.prefix', $old);
         }
 
         public static function before($before, callable $next)
         {
+            $old = Registry::get('core.routes.before', null);
+
+            if (is_callable($old)) {
+                $before = function () use ($old, $before) {
+                    call_user_func_array($old, func_get_args());
+                    call_user_func_array($before, func_get_args());
+                };
+            }
+
             if (is_string($before)) {
                 $class = maker($before);
 
@@ -181,7 +196,7 @@
 
                 $next();
 
-                Registry::set('core.routes.before', null);
+                Registry::set('core.routes.before', $old);
             }
         }
 

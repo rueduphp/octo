@@ -290,7 +290,7 @@
                 }
             }
 
-            $a = time();
+            $a = hash(time());
 
             $file = path('public') . DS . 'cache' . DS . $a . '.' . $type;
             File::delete($file);
@@ -312,6 +312,11 @@
             fmr('minify')->set($keyage, $a);
 
             return Registry::get('octo.subdir', '') . '/cache/' . $a . '.' . $type;
+        }
+
+        public function burst($asset)
+        {
+            return burst($asset);
         }
 
         protected function model($model, $force = false)

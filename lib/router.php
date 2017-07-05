@@ -516,7 +516,7 @@
 
                         if ($before = $this->uri->getBefore()) {
                             if (is_callable($before)) {
-                                $before();
+                                call_user_func_array($before, []);
                             }
                         }
 

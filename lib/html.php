@@ -3,7 +3,7 @@
 
     class Html
     {
-        public static $macros = array();
+        public static $macros = [];
         const encoding = 'UTF-8';
 
         public static function macro($name, $macro)
@@ -38,7 +38,7 @@
 
         public static function style($url, $attributes = array())
         {
-            $defaults = array('media' => 'all', 'type' => 'text/css', 'rel' => 'stylesheet');
+            $defaults = ['media' => 'all', 'type' => 'text/css', 'rel' => 'stylesheet'];
             $attributes = $attributes + $defaults;
 
             return '<link href="' . $url . '"' . static::attributes($attributes) . '>' . PHP_EOL;

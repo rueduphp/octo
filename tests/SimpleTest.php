@@ -80,4 +80,12 @@
 
             $this->assertEquals(3, $this->app['event_test_value']);
         }
+
+        /** @test */
+        public function it_burst()
+        {
+            $burst = $this->burst('/assets/css/style.css');
+
+            $this->assertEquals('/burst/assets/css/style-32a2ff7d5070683b66aaaca072262573.css', $burst);
+        }
     }

@@ -184,8 +184,9 @@
             } else {
                 $format = isset(static::$config['formatters'][$format]) ? static::$config['formatters'][$format] : 'R' . ucfirst($format) . 'Formatter';
 
-            if (!class_exists($format, false))
-                throw new \Exception(sprintf('%s class not found', $format));
+                $format = 'Octo\\' . $format;
+
+                if (!class_exists($format, false)) throw new \Exception(sprintf('%s class not found', $format));
 
                 $this->fmt = new $format();
             }
@@ -224,9 +225,10 @@
        *
        * @param   string $name
        */
-      public function __get($name){
-        throw new \Exception(sprintf('No such property: %s', $name));
-      }
+        public function __get($name)
+        {
+            throw new \Exception(sprintf('No such property: %s', $name));
+        }
 
 
 
@@ -236,9 +238,10 @@
        * @param   string $name
        * @param   mixed $value
        */
-      public function __set($name, $value){
-        throw new \Exception(sprintf('Cannot set %s. Not allowed', $name));
-      }
+        public function __set($name, $value)
+        {
+            throw new \Exception(sprintf('Cannot set %s. Not allowed', $name));
+        }
 
 
 
@@ -270,9 +273,6 @@
         static::$time += microtime(true) - $this->startTime;
       }
 
-
-
-
       /**
        * Executes a function the given number of times and returns the elapsed time.
        *
@@ -298,8 +298,6 @@
 
         return round($time, 4);
       }
-
-
 
       /**
        * Timer utility
