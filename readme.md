@@ -1,4 +1,4 @@
-<p align="center"><a href="https://github.com/rueduphp" target="_blank"><img src="https://avatars3.githubusercontent.com/u/22199444?v=3&s=460" style="max-width: 125px; height: auto;"></a></p>
+<p align="center"><a href="https://github.com/rueduphp" target="_blank"><img src="https://avatars3.githubusercontent.com/u/22199444?v=3&s=460" style="width: 125px;"></a></p>
 
 <p align="center">
 <a href="https://travis-ci.org/rueduphp/octo"><img src="https://travis-ci.org/rueduphp/octo.svg" alt="Build Status"></a>
