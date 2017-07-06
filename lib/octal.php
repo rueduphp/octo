@@ -77,6 +77,38 @@
             }
         }
 
+        public static function called()
+        {
+            $class  = get_called_class();
+            $i      = maker($class);
+
+            if (!isset($i->entity) && fnmatch('*Entity', $class)) {
+                $i->entity = Strings::uncamelize(
+                    str_replace(
+                        'Entity',
+                        '',
+                        Arrays::last(
+                            explode(
+                                '\\',
+                                $class
+                            )
+                        )
+                    )
+                );
+            }
+
+            $uncamelized = Strings::uncamelize($i->entity);
+
+            if (fnmatch('*_*', $uncamelized)) {
+                list($database, $table) = explode('_', $uncamelized, 2);
+            } else {
+                $table = $uncamelized;
+                $database = Strings::uncamelize(Config::get('application.name', 'core'));
+            }
+
+            return actual("entity.{$database}.{$table}", $i);
+        }
+
         public function __set($key, $value)
         {
             if ('row' == $key) {
