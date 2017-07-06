@@ -86,6 +86,8 @@
         {
             $burst = $this->burst('/assets/css/style.css');
 
-            $this->assertEquals('/burst/assets/css/style-32a2ff7d5070683b66aaaca072262573.css', $burst);
+            $hash = md5(filemtime(__DIR__ . '/assets/css/style.css'));
+
+            $this->assertEquals('/burst/assets/css/style-' . $hash . '.css', $burst);
         }
     }
