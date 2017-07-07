@@ -1,5 +1,8 @@
 <?php
     use Octo\Registry;
+    use Octo\InternalEvents;
+    use Octo\On;
+    use Octo\Emit;
     use function Octo\context;
 
     class MyEvent extends Octo\Fire {}
@@ -79,6 +82,32 @@
             MyEvent::fire('test_2');
 
             $this->assertEquals(3, $this->app['event_test_value']);
+        }
+
+        /** @test */
+        public function internal_fire_class()
+        {
+            $this->app['event_test_value'] = 0;
+
+            $this->assertTrue(InternalEvents::called() instanceof Octo\Fire);
+            $this->assertTrue(InternalEvents::called() instanceof InternalEvents);
+            $this->assertEquals('Octo\InternalEvents', InternalEvents::called()->ns());
+
+            $this->assertEquals(0, count(Registry::get('fire.events.Octo\InternalEvents', [])));
+
+            On::test(function () {
+                $this->app['event_test_value'] += 2;
+            });
+
+            $this->assertEquals(1, count(Registry::get('fire.events.Octo\InternalEvents', [])));
+
+            Emit::test();
+
+            $this->assertEquals(2, $this->app['event_test_value']);
+
+            Emit::test();
+
+            $this->assertEquals(4, $this->app['event_test_value']);
         }
 
         /** @test */

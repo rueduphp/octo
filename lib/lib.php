@@ -6636,3 +6636,32 @@
             throw new \BadMethodCallException("Method {$m} does not exist.");
         }
     }
+    /**
+     * Events helpers classes
+     *
+     */
+
+    class InternalEvents extends Fire {}
+
+    class On
+    {
+        public static function __callStatic($m, $a)
+        {
+            $event      = array_shift($a);
+            $priority   = array_shift($a);
+
+            InternalEvents::listen(Inflector::uncamelize($m), $event, $priority);
+        }
+    }
+
+    class Emit
+    {
+        public static function __callStatic($m, $a)
+        {
+            $event      = Inflector::uncamelize($m);
+
+            $args       = array_merge([$event], $a);
+
+            return forward_static_call_array(['Octo\InternalEvents', 'fire'], $args);
+        }
+    }

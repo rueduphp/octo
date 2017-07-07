@@ -9,7 +9,7 @@
 
     	public function __construct($app = null)
     	{
-            $app = !$app ? app() : $app;
+            $app = !$app ? context('app') : $app;
 
     		$this->app = $app;
     	}
