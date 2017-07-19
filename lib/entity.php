@@ -1,27 +1,217 @@
 <?php
     namespace Octo;
 
+    use PDOException;
+
     class Entity
     {
-        public static function __callStatic($method, $args)
+        protected $table;
+        protected $guarded      = [];
+        protected $fillable     = [];
+        protected $hidden       = [];
+        protected $timestamps   = true;
+        protected $softDelete   = false;
+        protected $primaryKey   = 'id';
+
+        protected static $booted = [];
+
+        public function __construct()
         {
-            $db = Inflector::uncamelize($method);
+            $class  = get_called_class();
 
-            if (fnmatch('*_*', $db)) {
-                list($database, $table) = explode('_', $db, 2);
-            } else {
-                $database   = SITE_NAME;
-                $table      = $db;
+            $methods = get_class_methods($this);
+
+            if (!isset(static::$booted[$class])) {
+                static::$booted[$class] = true;
+
+                if (in_array('events', $methods)) {
+                    static::events($this);
+                }
+
+                if (in_array('policies', $methods)) {
+                    static::policies($this);
+                }
+
+                if (in_array('boot', $methods)) {
+                    static::boot($this);
+                }
+
+                $this->fire('booting');
+
+                $traits = class_uses($class);
+
+                if (!empty($traits)) {
+                    foreach ($traits as $trait) {
+                        $tab        = explode('\\', $trait);
+                        $traitName  = Strings::lower(end($tab));
+                        $method     = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
+
+                        if (in_array($method, $methods)) {
+                            call_user_func_array([$this, $method], []);
+                        }
+                    }
+                }
+
+                $this->fire('booted');
             }
+        }
 
-            if (empty($args)) {
-                return db($database, $table);
-            } elseif (count($args) == 1) {
-                $id = array_shift($args);
+        public function fire($event, $concern = null, $return = false)
+        {
+            $methods = get_class_methods($this);
+            $method  = 'on' . Strings::camelize($event);
 
-                if (is_numeric($id)) {
-                    return db($database, $table)->find($id);
+            if (in_array($method, $methods)) {
+                $result = $this->$method($concern);
+
+                if ($return) {
+                    return $result;
                 }
             }
+
+            return $concern;
+        }
+
+        public function setTable($table)
+        {
+            $this->table = $table;
+
+            return $this;
+        }
+
+        public static function table()
+        {
+            return static::called()->table;
+        }
+
+        public static function pk()
+        {
+            return static::called()->primaryKey;
+        }
+
+        public static function called()
+        {
+            $class  = get_called_class();
+            $i      = maker($class);
+
+            if (!isset($i->table)) {
+                $table = $i->table = Strings::lower(
+                    Arrays::last(
+                        explode(
+                            '\\',
+                            $class
+                        )
+                    )
+                );
+            } else {
+                $table = $i->table;
+            }
+
+            return actual("orm.entity.$table", $i);
+        }
+
+        public static function model(array $data = [])
+        {
+            return new Record($data, static::called());
+        }
+
+        protected static function db()
+        {
+            return foundry(Orm::class)->table(static::called()->table);
+        }
+
+        public static function new(array $data)
+        {
+            return static::create($data);
+        }
+
+        public static function create(array $data)
+        {
+            unset($data[static::pk()]);
+
+            try {
+                $new = static::db()
+                ->insert($data)
+                ->run();
+            } catch (PDOException $e) {
+                $row    = $e->errorInfo[2];
+                $fields = array_keys($data);
+
+                foreach ($fields as $field) {
+                    if (fnmatch("* $field*", $row)) {
+                        unset($data[$field]);
+                    }
+                }
+
+                return static::create($data);
+            }
+
+            return static::find(static::lastId());
+        }
+
+        public function pivot($record, $entityClass)
+        {
+            return $this->pivots($record, $entityClass, false);
+        }
+
+        public function pivots($record, $entityClass, $many = true)
+        {
+            $otherEntity = maker($entityClass);
+
+            $tables = [$this->table(), $otherEntity->table()];
+
+            sort($tables);
+
+            $pivot = implode('', $tables);
+
+            $pivotEntity = (new Entity)->setTable($pivot);
+
+            $getter = getter($this->pk());
+
+            $query = $pivotEntity
+            ->where(
+                $this->table() . '_id',
+                $record->$getter()
+            );
+
+            if ($many) {
+                return $query->get();
+            }
+
+            return $query->first();
+        }
+
+        public static function __callStatic($m, $a)
+        {
+            $instance = static::db();
+
+            if ('new' == $m) {
+                return static::create(current($a));
+            }
+
+            $result = call_user_func_array([$instance, $m], $a);
+
+            if ($m != 'lastId' && (startsWith($m, 'find') || startsWith($m, 'first') || fnmatch('last*', $m))) {
+                return $result ? static::model($result) : null;
+            }
+
+            return $result;
+        }
+
+        public function __call($m, $a)
+        {
+            $instance = static::db();
+
+            if ('new' == $m) {
+                return static::create(current($a));
+            }
+
+            $result = call_user_func_array([$instance, $m], $a);
+
+            if ($m != 'lastId' && (startsWith($m, 'find') || startsWith($m, 'first') || fnmatch('last*', $m))) {
+                return $result ? static::model($result) : null;
+            }
+
+            return $result;
         }
     }

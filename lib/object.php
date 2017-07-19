@@ -125,7 +125,7 @@
             return $this;
         }
 
-        public function contains($k)
+        public function contains($key)
         {
             return 'octodummy' != $this->get($key, 'octodummy');
         }
@@ -171,8 +171,6 @@
 
             if ($c) {
                 if (is_callable($c)) {
-                    $driver = isAke($this->callbacks, "driver", null);
-
                     return call_user_func_array($c, array_merge($a, [$this]));
                 }
             } else {

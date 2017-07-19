@@ -21,7 +21,7 @@
             $name       = $row[14][11];
             $ws         = $row[14][7][0];
             $tel        = $row[14][3][0];
-            $address    = $row[14][2][0] . ', ' . $row[14][2][1];
+            $address    = Arrays::get($row, '14.2.0') . ', ' . Arrays::get($row, '14.2.1');
             $price      = $row[14][4][2];
             $rate       = floatval($row[14][4][7]);
             $avis       = (int) $row[14][4][8];
@@ -57,17 +57,18 @@
                 'avis'      => $avis,
                 'price'     => $price,
                 'schedule'  => $this->schedule($horaires),
-                'img_in'    => 'http:' . $row[14][37][0][1][6][0],
-                'img_out'   => 'http:' . $row[14][37][0][2][6][0],
+                'img_in'    => 'http:' . Arrays::get($row, '14.37.0.1.0.0'),
+                'img_out'   => 'http:' . Arrays::get($row, '14.37.0.2.6.0'),
                 'place_id'  => $row[14][78]
             ];
 
             if (strlen($obj['place_id'])) {
-                $obj['external'] = json_decode($this->dwnCache('https://maps.googleapis.com/maps/api/place/details/json?placeid='.$obj['place_id'].'&key=AIzaSyBIfV0EMXrTDjrvD92QX5bBiyFmBbT-W8E&cb=pp'), true);
+                $obj['external'] = json_decode($this->dwnCache('https://maps.googleapis.com/maps/api/place/details/json?placeid=' . $obj['place_id'] . '&key=AIzaSyBIfV0EMXrTDjrvD92QX5bBiyFmBbT-W8E&cb=pp'), true);
             }
 
             if ($obj['img_in'] == 'http:') unset($obj['img_in']);
             if ($obj['img_out'] == 'http:') unset($obj['img_out']);
+            if ($obj['abstract'] == '. ') unset($obj['abstract']);
 
             return $obj;
         }
@@ -156,9 +157,13 @@
 
         public function dwnCache($url, $max = null)
         {
-            return fmr('geo')->until('url.' . sha1($url), function () use ($url) {
+            if (APPLICATION_ENV == 'testing') {
                 return lib('geo')->dwn($url);
-            }, $max);
+            } else {
+                return fmr('geo')->until('url.' . sha1($url), function () use ($url) {
+                    return lib('geo')->dwn($url);
+                }, $max);
+            }
         }
 
         public function dwn($url)
@@ -168,7 +173,7 @@
             $ip         = rand(200, 225) . '.' . rand(0, 255) . '.' . rand(0, 255) . '.' . rand(0, 255);
             $ch         = curl_init();
 
-            $headers    = array();
+            $headers    = [];
 
             curl_setopt($ch, CURLOPT_URL,       $url);
             curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);

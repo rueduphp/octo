@@ -68,4 +68,17 @@
         {
             $this->assertEquals('bar', $this->lib('inflector')->lower('BAR'));
         }
+
+        /** @test */
+        public function coords()
+        {
+            $infos = $this->lib('geo')->addressByLatLng(48.8163897,-3.0640017);
+
+            $this->assertEquals('19 Route de Loguivy de la Mer, 22620 Ploubazlanec, France', $infos['formatted_address']);
+
+            $infos = $this->lib('geo')->getCoordsMap('Tour eiffel');
+
+            $this->assertEquals('Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France', $infos['normalized_address']);
+            $this->assertEquals(48.8583701, $infos['lat']);
+        }
     }

@@ -2103,20 +2103,12 @@
 
         public function firstBy($field, $value, $model = true)
         {
-            if (is_array($value)) {
-                return $this->in($field, $value)->first($model);
-            }
-
-            return $this->where($field, $value)->first($model);
+            return $this->findBy($field, $value)->first($model);
         }
 
         public function lastBy($field, $value, $model = true)
         {
-            if (is_array($value)) {
-                return $this->in($field, $value)->last($model);
-            }
-
-            return $this->where($field, $value)->last($model);
+            return $this->findBy($field, $value)->last($model);
         }
 
         public function in($field, array $values)
@@ -2328,7 +2320,7 @@
                 $date = (int) $date->timestamp;
             }
 
-            return $this->where([$field, $op, $date]);
+            return $this->where($field, $op, $date);
         }
 
         public function orWhen($field, $op, $date)
@@ -2487,7 +2479,7 @@
 
         public function firstOrCreate($conditions)
         {
-            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+            $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
 
             $q = $this;
 

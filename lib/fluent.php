@@ -131,6 +131,8 @@
          */
         public function __call($method, $parameters)
         {
+            $method = Strings::uncamelize($method);
+
             if ($callable = isAke(self::$macros, $method)) {
                 return call_user_func_array($callable, $parameters);
             }
@@ -138,13 +140,13 @@
             if (!empty($parameters)) {
                 $callable = current($parameters);
 
-                if (is_callable($callable)) {
+                if (is_callable($callable) && $method != 'custom') {
                     self::$macros[$method] = $callable;
+                } else {
+                    $this->attributes[$method] = $callable;
                 }
             } else {
-                $parameters[] = true;
-
-                $this->attributes[$method] = current($parameters);
+                $this->attributes[$method] = true;
             }
 
             return $this;

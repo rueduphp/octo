@@ -810,6 +810,13 @@
         return lib('fluent', [$attributes]);
     }
 
+    function record($attributes = [], $entity)
+    {
+        $attributes = arrayable($attributes) ? $attributes->toArray() : $attributes;
+
+        return lib('record', [$attributes]);
+    }
+
     function request($k = null, $d = null)
     {
         return Input::method($k, $d);
@@ -1646,7 +1653,8 @@
     function partial($file, $args = [])
     {
         vue(
-            $file, $args
+            $file,
+            $args
         )->partial(
             actual('vue')
         );
@@ -1686,7 +1694,11 @@
 
     function vue($file, $args = [], $status = 200)
     {
-        $path = path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
+        if (!File::exists($file)) {
+            $path = path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
+        } else {
+            $path = $file;
+        }
 
         $vue = o([
             'withs'     => [],
@@ -1736,7 +1748,12 @@
 
             foreach ($includes as $include) {
                 $inc = cut("'", "'", $include);
-                $pathFile = path('app') . '/views/' . str_replace('.', '/', $inc) . '.phtml';
+
+                if (!File::exists($inc)) {
+                    $pathFile = path('app') . '/views/' . str_replace('.', '/', $inc) . '.phtml';
+                } else {
+                    $pathFile = $inc;
+                }
 
                 if (File::exists($pathFile)) {
                     $incContent = File::read($pathFile);
@@ -1780,7 +1797,8 @@
 
         $vue->macro('partial', function ($page) use ($vue) {
             $args = array_merge([
-                'tpl' => $page, 'partial' => $vue
+                'tpl'       => $page,
+                'partial'   => $vue
                 ],
                 $page->getArgs(),
                 $vue->getArgs()
@@ -2117,6 +2135,7 @@
             \PDO::ATTR_CASE                 => \PDO::CASE_NATURAL,
             \PDO::ATTR_ERRMODE              => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_ORACLE_NULLS         => \PDO::NULL_NATURAL,
+            \PDO::ATTR_DEFAULT_FETCH_MODE   => \PDO::FETCH_ASSOC,
             \PDO::ATTR_STRINGIFY_FETCHES    => false,
             \PDO::ATTR_EMULATE_PREPARES     => false
         ];
@@ -2831,6 +2850,14 @@
         }
 
         return lib('ghost', [$inputs, null]);
+    }
+
+    function middleware($class)
+    {
+        $middlewares    = Registry::get('core.middlewares', []);
+        $middlewares[]  = $class;
+
+        Registry::set('core.middlewares', $middlewares);
     }
 
     function middlewares($when = 'before')
@@ -3602,7 +3629,7 @@
 
     function tpl($file, $args = [])
     {
-        $content = '';
+        $content = null;
 
         if (file_exists($file) && is_readable($file)) {
             extract($args);
@@ -3621,7 +3648,7 @@
 
     function lang($k, $args =  [], $default = null)
     {
-        $lng = lng();
+        $lng        = lng();
         $dictionary = null;
         $translated = Registry::get('translated.' . $lng, []);
 
@@ -5662,6 +5689,11 @@
         }
     }
 
+    function modeler($model)
+    {
+        return em($model);
+    }
+
     function entity($model, array $data = [])
     {
         return em($model)->model($data);
@@ -6092,6 +6124,10 @@
     function notify($model, $instance, array $args = [])
     {
         if ($model->exists()) {
+            if (is_string($instance)) {
+                $instance = maker($instance);
+            }
+
             $channels = $instance->channels();
 
             foreach ($channels as $channel) {
@@ -6534,7 +6570,7 @@
         $class->macro('reveal', function () {
             $auth = actual('auth.class');
 
-            return is_object($auth) ? $auth : new Auth;
+            return is_object($auth) ? $auth : actual('auth.class', new Auth);
         });
 
         $class->macro('policy', function ($policy, callable $callable) use ($class) {
@@ -6612,6 +6648,17 @@
         return fmr()->remember($key, $ifNot, 60 * $minutes);
     }
 
+    function isJson($value)
+    {
+        if (!is_scalar($value) && !method_exists($value, '__toString')) {
+            return false;
+        }
+
+        json_decode($value);
+
+        return json_last_error() === JSON_ERROR_NONE;
+    }
+
     class OctoLab
     {
         public static function __callStatic($m, $a)
@@ -6664,4 +6711,112 @@
 
             return forward_static_call_array(['Octo\InternalEvents', 'fire'], $args);
         }
+    }
+
+    function ip($trusted = [])
+    {
+        $realIp = $_SERVER['REMOTE_ADDR'];
+
+        foreach($trusted as &$t) {
+            if (filter_var(
+                $t,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_NO_PRIV_RANGE |
+                FILTER_FLAG_NO_RES_RANGE |
+                FILTER_FLAG_IPV4 |
+                FILTER_FLAG_IPV6
+            ) === false) {
+                $t = null;
+            }
+        }
+
+        unset($t);
+
+        $trusted = array_filter($trusted);
+
+        if (filter_var(
+            $_SERVER['SERVER_ADDR'],
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE |
+            FILTER_FLAG_NO_RES_RANGE |
+            FILTER_FLAG_IPV4 |
+            FILTER_FLAG_IPV6
+        ) !== false) {
+            $trusted[] = $_SERVER['SERVER_ADDR'];
+        }
+
+        $ip_fields = [
+            'HTTP_CLIENT_IP',
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_FORWARDED',
+            'HTTP_FORWARDED_FOR',
+            'HTTP_FORWARDED',
+            'HTTP_X_CLUSTER_CLIENT_IP',
+            'HTTP_CF_CONNECTING_IP',
+        ];
+
+        foreach ($ip_fields as $key) {
+            if (array_key_exists($key, $_SERVER) === true) {
+                $proxy_list = explode(',', $_SERVER[$key]);
+
+                $proxy_list = array_reverse($proxy_list);
+
+                $last   = null;
+                $lan    = false;
+
+                if (filter_var(
+                    $_SERVER['REMOTE_ADDR'],
+                    FILTER_VALIDATE_IP,
+                    FILTER_FLAG_IPV4 |
+                    FILTER_FLAG_IPV6
+                ) !== false) {
+                    if (filter_var(
+                        $_SERVER['REMOTE_ADDR'],
+                        FILTER_VALIDATE_IP,
+                        FILTER_FLAG_NO_PRIV_RANGE |
+                        FILTER_FLAG_IPV4 |
+                        FILTER_FLAG_IPV6
+                    ) === false) {
+                        $last = $_SERVER['REMOTE_ADDR'];
+                        $lan = true;
+                    }
+                }
+
+                foreach ($proxy_list as $k => &$ip) {
+                    $ip = trim($ip);
+
+                    if (is_null($last) || filter_var(
+                        $ip,
+                        FILTER_VALIDATE_IP,
+                        FILTER_FLAG_IPV4 |
+                        FILTER_FLAG_IPV6
+                    ) === false) {
+                        break;
+                    }
+
+                    if ($lan && filter_var(
+                        $ip,
+                        FILTER_VALIDATE_IP,
+                        FILTER_FLAG_NO_PRIV_RANGE |
+                        FILTER_FLAG_IPV4 |
+                        FILTER_FLAG_IPV6
+                    ) === false) {
+                        $last = $ip;
+
+                        continue;
+                    }
+
+                    (in_array($last, $trusted) || $lan) && $realIp = $ip;
+                    !in_array($ip, $trusted) && $lan = false;
+
+                    if (in_array($ip, $trusted)) {
+                        $last = $ip;
+                    } else {
+                        $last = null;
+                    }
+                }
+            }
+        }
+
+        return $realIp;
     }

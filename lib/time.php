@@ -183,7 +183,8 @@
             }
 
             $errors = self::getLastErrors();
-            throw new InvalidArgumentException(implode(PHP_EOL, $errors['errors']));
+
+            throw new \InvalidArgumentException(implode(PHP_EOL, $errors['errors']));
         }
 
         public static function createFromTimestamp($timestamp, $tz = null)

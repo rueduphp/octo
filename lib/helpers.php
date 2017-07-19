@@ -202,6 +202,23 @@
         }
     }
 
+    if (!function_exists('octo')) {
+        function octo($k = null, $v = 'octodummy')
+        {
+            $app = Octo\context('app');
+
+            if ($k) {
+                if ('octodummy' == $v) {
+                    return $app[$k];
+                }
+
+                $app[$k] = $v;
+            }
+
+            return $app;
+        }
+    }
+
     if (!function_exists('upper')) {
         function upper()
         {
@@ -379,9 +396,9 @@
     }
 
     if (!function_exists('context')) {
-        function context($context, array $array = [])
+        function context($context, array $data = [])
         {
-            return Octo\context($context, $array);
+            return Octo\context($context, $data);
         }
     }
 

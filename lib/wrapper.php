@@ -87,7 +87,7 @@
             }
 
             if(false !== ($list = $this->run($sql))) {
-                $fields = array();
+                $fields = [];
 
                 foreach($list as $record) $fields[] = $record[$key];
 
@@ -99,7 +99,7 @@
                 );
             }
 
-            return array();
+            return [];
         }
 
         private function cleanup($bind)

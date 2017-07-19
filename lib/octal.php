@@ -12,7 +12,7 @@
         {
             $class = get_called_class();
 
-            if (!isset($this->entity) && fnmatch('*Entity', $class)) {
+            if (!isset($this->entity)) {
                 $this->entity = Strings::uncamelize(
                     str_replace(
                         'Entity',
@@ -82,7 +82,7 @@
             $class  = get_called_class();
             $i      = maker($class);
 
-            if (!isset($i->entity) && fnmatch('*Entity', $class)) {
+            if (!isset($i->entity)) {
                 $i->entity = Strings::uncamelize(
                     str_replace(
                         'Entity',

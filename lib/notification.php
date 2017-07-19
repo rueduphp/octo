@@ -143,7 +143,15 @@
                 $to = [$to];
             }
 
-            $html = tpl(__DIR__ . DS . 'notif.email.php', compact('status', 'subject', 'action', 'lines'));
+            $html = tpl(
+                __DIR__ . DS . 'notif.email.php',
+                compact(
+                    'status',
+                    'subject',
+                    'action',
+                    'lines'
+                )
+            );
 
             foreach ($to as $email) {
                 $mail = new Courrier();
