@@ -5,11 +5,13 @@
 
     class Redis
     {
-        protected $ns, $client;
+        protected $ns, $client, $id;
 
         public function __construct($ns = null)
         {
             $this->ns = is_null($ns) ? 'core' : $ns;
+
+            $this->id = sha1($this->ns);
         }
 
         public function __call($m, $a)
@@ -20,6 +22,13 @@
         public static function __callStatic($m, $a)
         {
             return call_user_func_array([maker(__CLASS__), $m], $a);
+        }
+
+        public function setClient($client)
+        {
+            $this->client = $client;
+
+            return $this;
         }
 
         protected function client()
@@ -42,7 +51,7 @@
             $key = $this->ns . '.' . $key;
             $val = $this->client()->get($key);
 
-            return $val ? unserialize($val) : $default;
+            return $val ? $this->unserialize($val) : $default;
         }
 
         public function age($key)
@@ -57,21 +66,93 @@
         {
             $key = $this->ns . '.' . $key;
 
-            $this->client()->set($key, serialize($value));
+            $this->client()->set($key, $this->serialize($value));
             $this->client()->hset('key_ages', $key, time());
 
             if (0 < $expire) {
-                $this->client()->expire($key, $expire);
+                $this->client()->expire($key, intval($expire * 60));
             }
 
             return $this;
+        }
+
+        public function replace($key, $value, $expire = 0)
+        {
+            if ($this->has($key)) {
+                $this->set($key, $value, $expire);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public function at($k, $v, $timestamp)
+        {
+            return $this->set($k, $v, ($timestamp - time()) / 60);
+        }
+
+        public function forever($k, $v)
+        {
+            return $this->set($k, $v);
+        }
+
+        public function remember($k, $c, $e = 0)
+        {
+            if (!is_callable($c)) {
+                $c = function () use ($c) {return $c;};
+            }
+
+            return $this->getOr($k, $c, $e);
+        }
+
+        public function setnx($key, $value, $expire = 0)
+        {
+            if (!$this->has($key)) {
+                $this->set($key, $value, $expire);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public function destroy($k)
+        {
+            return $this->delete($k);
+        }
+
+        public function setMany(array $values, $expire = 0)
+        {
+            $this->client()->multi();
+
+            foreach ($values as $key => $value) {
+                $this->set($key, $value, $minutes);
+            }
+
+            $this->client()->exec();
+        }
+
+        public function many(array $keys)
+        {
+            $results = [];
+
+            $values = $this->client()->mget(array_map(function ($key) {
+                return $this->ns . '.' . $key;
+            }, $keys));
+
+            foreach ($values as $index => $value) {
+                $results[$keys[$index]] = !is_null($value) ? $this->unserialize($value) : null;
+            }
+
+            return $results;
         }
 
         public function hset($key, $id, $data)
         {
             $key = $this->ns . '.' . $key;
 
-            $this->client()->hset($key, $id, serialize($data));
+            $this->client()->hset($key, $id, $this->serialize($data));
 
             return $this;
         }
@@ -81,7 +162,7 @@
             $key = $this->ns . '.' . $key;
             $val = $this->client()->hget($key, $id);
 
-            return $val ? unserialize($val) : $default;
+            return $val ? $this->unserialize($val) : $default;
         }
 
         public function hgetall($key, $default = null)
@@ -89,7 +170,7 @@
             $key    = $this->ns . '.' . $key;
 
             $data   = array_map(function ($row) {
-                return unserialize($row);
+                return $this->unserialize($row);
             }, array_values($this->client()->hgetall($key)));
 
             return array_values(array_unique($data));
@@ -131,6 +212,11 @@
             return $this->client()->exists($key);
         }
 
+        public function has($key)
+        {
+            return $this->exists($key);
+        }
+
         public function incrby($key, $by = 1)
         {
             $key = $this->ns . '.' . $key;
@@ -157,6 +243,27 @@
             $key = $this->ns . '.' . $key;
 
             return $this->client()->decr($key);
+        }
+
+        public function increment($key)
+        {
+            $key = $this->ns . '.' . $key;
+
+            return $this->client()->incr($key);
+        }
+
+        public function decrement($key)
+        {
+            $key = $this->ns . '.' . $key;
+
+            return $this->client()->decr($key);
+        }
+
+        public function flush()
+        {
+            $this->client()->flushdb();
+
+            return true;
         }
 
         public function keys($pattern)
@@ -187,7 +294,7 @@
             return count($this->client()->keys($pattern));
         }
 
-        public function session($k, $v = 'dummyget', $e = null)
+        public function session($k, $v = 'dummyget', $e = 0)
         {
             $user       = session('front')->getUser();
             $isLogged   = !is_null($user);
@@ -196,7 +303,7 @@
             return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
-        public function getOr($k, callable $c, $e = null)
+        public function getOr($k, callable $c, $e = 0)
         {
             if ($this->has($k)) {
                 return $this->get($k);
@@ -224,12 +331,73 @@
             return false;
         }
 
-        public function view($k, $v = 'dummyget', $e = null)
+        public function view($k, $v = 'dummyget', $e = 0)
         {
             $user       = session('front')->getUser();
             $isLogged   = !is_null($user);
             $key        = $isLogged ? sha1(lng() . '.1.' . $k) :  sha1(lng() . '.0.' . $k);
 
             return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
+        }
+
+        public function readAndDelete($key, $default = null)
+        {
+            $value = $this->get($key, $default);
+
+            $this->forget($key);
+
+            return $value;
+        }
+
+        public function pull($key, $default = null)
+        {
+            return $this->readAndDelete($key, $default);
+        }
+
+        public function getDel($k, $d = null)
+        {
+            return $this->readAndDelete($key, $default);
+        }
+
+        public function start($k, $d = null)
+        {
+            if (!$this->has($k)) {
+                Registry::set('cache.buffer.' . $this->id, $k);
+                ob_start();
+
+                return $d;
+            }
+
+            Registry::delete('cache.buffer.' . $this->id);
+
+            return $this->get($k);
+        }
+
+        public function end($ttl = 60)
+        {
+            if ($k = Registry::get('cache.buffer.' . $this->id)) {
+                $value = ob_get_clean();
+
+                $this->set($k, $value, $this->getTtl($ttl));
+
+                return $value;
+            }
+
+            return false;
+        }
+
+        public function getTtl($e = 0)
+        {
+            return $e ?: appenv('CACHE_TTL', $e);
+        }
+
+        protected function serialize($value)
+        {
+            return is_numeric($value) ? $value : serialize($value);
+        }
+
+        protected function unserialize($value)
+        {
+            return is_numeric($value) ? $value : unserialize($value);
         }
     }

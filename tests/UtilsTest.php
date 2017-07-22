@@ -6,7 +6,7 @@
         public function setUp()
         {
             parent::setUp();
-            Redys::flushDb();
+            Redys::flush();
         }
 
         /** @test */
