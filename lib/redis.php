@@ -59,7 +59,7 @@
             $key = $this->ns . '.' . $key;
             $age = $this->client()->hget('key_ages', $key);
 
-            return $age;
+            return intval($age);
         }
 
         public function set($key, $value, $expire = 0)
@@ -340,6 +340,16 @@
             return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
+        public function all($pattern = '*')
+        {
+            return $this->keys($pattern);
+        }
+
+        public function forget($k)
+        {
+            return $this->delete($k);
+        }
+
         public function readAndDelete($key, $default = null)
         {
             $value = $this->get($key, $default);
@@ -384,6 +394,45 @@
             }
 
             return false;
+        }
+
+        public function until($k, callable $c, $maxAge = null, $args = [])
+        {
+            $keyAge = $k . '.maxage';
+            $v      = $this->get($k);
+
+            if ($v) {
+                if (is_null($maxAge)) {
+                    return $v;
+                }
+
+                $age = $this->get($keyAge);
+
+                if (!$age) {
+                    $age = $maxAge - 1;
+                }
+
+                if ($age >= $maxAge) {
+                    return $v;
+                } else {
+                    $this->delete($k);
+                    $this->delete($keyAge);
+                }
+            }
+
+            $data = call_user_func_array($c, $args);
+
+            $this->set($k, $data);
+
+            if (!is_null($maxAge)) {
+                if ($maxAge < time()) {
+                    $maxAge = ($maxAge * 60) + microtime(true);
+                }
+
+                $this->set($keyAge, $maxAge);
+            }
+
+            return $data;
         }
 
         public function getTtl($e = 0)

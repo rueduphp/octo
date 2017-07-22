@@ -93,11 +93,16 @@
         /** @test */
         public function redis()
         {
-            Redys::set('test', 'OK');
+            Redys::set('test', 1);
 
-            $this->assertEquals('OK', Redys::get('test'));
+            $dt = $this->lib('time');
+            $dt2 = $this->fromTs(Redys::age('test'));
+
+            $this->assertEquals($dt, $dt2);
+            $this->assertEquals(1, Redys::get('test'));
             $this->assertEquals('default', Redys::get('test2', 'default'));
-
-            $this->assertCount(1, Redys::keys('*'));
+            $this->assertCount(1, Redys::all());
+            Redys::forget('test');
+            $this->assertCount(0, Redys::all());
         }
     }

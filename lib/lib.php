@@ -3270,6 +3270,11 @@
         return $result;
     }
 
+    function fromTs($timestamp)
+    {
+        return lib('time')->createFromTimestamp($timestamp);
+    }
+
     function appenv($key, $default = null)
     {
         $env = path('base') . '/.env';
