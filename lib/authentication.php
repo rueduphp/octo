@@ -59,20 +59,30 @@
 
         public static function get($default = null, $class = null)
         {
-            $class = $class ?: static::called();;
+            $class = $class ?: static::called();
+
+            $fromSession = false;
 
             if (session_id()) {
                 $user = session($class->ns)
                 ->getUser(
                     actual($class->actual)
                 );
+
+                $fromSession = !is_null($user);
             } else {
                 $user = actual($class->actual);
             }
 
             if ($user) {
                 $user = arrayable($user) ? $user->toArray() : $user;
+                $user = item($user);
+
                 actual($class->actual, $user);
+
+                if (session_id() && !$fromSession) {
+                    session($class->ns)->setUser($user);
+                }
 
                 return $user;
             }
@@ -88,6 +98,7 @@
 
             if ($user) {
                 $user = arrayable($user) ? $user->toArray() : $user;
+                $user = item($user);
                 actual($class->actual, $user);
 
                 if (session_id()) {
@@ -115,6 +126,8 @@
             $class = static::called();
 
             $user = arrayable($user) ? $user->toArray() : $user;
+
+            $user = item($user);
 
             actual($class->actual, $user);
 
@@ -164,13 +177,19 @@
         {
             $class = static::called();
 
-            $user = static::get(null, $class);
+            $user = actual($class->actual);
 
-            if ($user && $model) {
-                return em($class->entity)->find((int) $user['id']);
+            if (!$user) {
+                $user = static::get(null, $class);
+
+                if ($user && $model) {
+                    return em($class->entity)->find((int) $user['id']);
+                }
             }
 
-            return $user;
+            $user = arrayable($user) ? $user->toArray() : $user;
+
+            return item($user);
         }
 
         public static function __callStatic($m, $a)

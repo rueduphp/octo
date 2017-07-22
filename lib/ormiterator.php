@@ -71,7 +71,8 @@
             $this->item = $this->statement->fetch();
 
             if ($this->hook && $hook instanceof Closure) {
-                $this->item = $this->hook($this->item);
+                $hook = $this->hook;
+                $this->item = $hook($this->item);
             }
         }
 

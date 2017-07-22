@@ -1,12 +1,11 @@
 <?php
     namespace Octo;
 
-    use \Predis\Client as pc;
+    use Predis\Client as pc;
 
     class Redis
     {
-        private $ns;
-        private $client;
+        protected $ns, $client;
 
         public function __construct($ns = null)
         {
@@ -18,15 +17,20 @@
             return call_user_func_array([$this->client(), $m], $a);
         }
 
-        private function client()
+        public static function __callStatic($m, $a)
+        {
+            return call_user_func_array([maker(__CLASS__), $m], $a);
+        }
+
+        protected function client()
         {
             defined("APPLICATION_ENV") || define('APPLICATION_ENV', 'production');
 
             if (is_null($this->client)) {
                 $this->client = new pc([
-                    'host'      => Config::get('redis.host', '127.0.0.1'),
-                    'port'      => Config::get('redis.port', 6379),
-                    'database'  => Config::get('redis.database', 0)
+                    'host'      => Config::get('redis.host', appenv('REDIS_HOST', '127.0.0.1')),
+                    'port'      => Config::get('redis.port', appenv('REDIS_PORT', 6379)),
+                    'database'  => Config::get('redis.database', appenv('REDIS_DB', 0))
                 ]);
             }
 

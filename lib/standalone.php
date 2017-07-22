@@ -1,6 +1,8 @@
 <?php
     namespace Octo;
 
+    session_start();
+
     define('OCTO_STANDALONE', true);
 
     path("app", realpath(__DIR__ . '/../tests'));

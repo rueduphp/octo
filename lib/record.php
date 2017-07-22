@@ -37,7 +37,7 @@
                 }
             }
 
-            $entity->fire('make_model', $this);
+            $entity->fire('model', $this);
         }
 
         public function entity()

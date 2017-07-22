@@ -1,6 +1,14 @@
 <?php
+    use Octo\Redys;
+
     class UtilsTest extends TestCase
     {
+        public function setUp()
+        {
+            parent::setUp();
+            Redys::flushDb();
+        }
+
         /** @test */
         public function firstReturnsFirstItemInCollection()
         {
@@ -80,5 +88,16 @@
 
             $this->assertEquals('Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France', $infos['normalized_address']);
             $this->assertEquals(48.8583701, $infos['lat']);
+        }
+
+        /** @test */
+        public function redis()
+        {
+            Redys::set('test', 'OK');
+
+            $this->assertEquals('OK', Redys::get('test'));
+            $this->assertEquals('default', Redys::get('test2', 'default'));
+
+            $this->assertCount(1, Redys::keys('*'));
         }
     }

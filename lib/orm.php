@@ -104,26 +104,42 @@
             return $this->pdo->rollBack();
         }
 
-        public function run($make = true)
+        public function native($reset = true)
+        {
+            return $this->run(false, $reset);
+        }
+
+        public function queries($q = null)
+        {
+            if ($q) {
+                Registry::set('orm.queries', $q);
+            } else {
+                return Registry::get('orm.queries', []);
+            }
+        }
+
+        public function run($make = true, $reset = true)
         {
             $stmt = $this->getStatement($make);
 
             $stmt->execute($this->values());
 
-            $this->reset();
+            $queries = $this->queries();
+
+            $queries[] = $this->query;
+
+            $this->queries($queries);
+
+            if (true === $reset) {
+                $this->reset();
+            }
 
             return $stmt;
         }
 
-        public function get($make = true)
+        public function get($make = true, $reset = true)
         {
-            $stmt = $this->getStatement($make);
-
-            $stmt->execute($this->values());
-
-            $this->reset();
-
-            return $stmt;
+            return $this->run($make, $reset);
         }
 
         public function sql()
@@ -200,79 +216,38 @@
 
         public function count()
         {
-            if (empty($this->table)) {
-                exception('orm', 'No table set.');
-            }
-
-            $this->query = "SELECT COUNT(*) AS aggregate FROM " . $this->table;
-            $this->query .= $this->joinClause();
-            $this->query .= $this->whereClause();
-            $this->query .= $this->groupByClause();
-            $this->query .= $this->havingClause();
-
-            $row = $this->get(false)->fetch();
-
-            return $row['aggregate'];
+            return $this->aggregate('count');
         }
 
         public function sum($key)
         {
-            if (empty($this->table)) {
-                exception('orm', 'No table set.');
-            }
-
-            $this->query = "SELECT SUM($key) AS aggregate FROM " . $this->table;
-            $this->query .= $this->joinClause();
-            $this->query .= $this->whereClause();
-            $this->query .= $this->groupByClause();
-            $this->query .= $this->havingClause();
-
-            $row = $this->get(false)->fetch();
-
-            return $row['aggregate'];
+            return $this->aggregate('sum', $key);
         }
 
         public function avg($key)
         {
-            if (empty($this->table)) {
-                exception('orm', 'No table set.');
-            }
-
-            $this->query = "SELECT AVG($key) AS aggregate FROM " . $this->table;
-            $this->query .= $this->joinClause();
-            $this->query .= $this->whereClause();
-            $this->query .= $this->groupByClause();
-            $this->query .= $this->havingClause();
-
-            $row = $this->get(false)->fetch();
-
-            return $row['aggregate'];
+            return $this->aggregate('avg', $key);
         }
 
         public function min($key)
         {
-            if (empty($this->table)) {
-                exception('orm', 'No table set.');
-            }
-
-            $this->query = "SELECT MIN($key) AS aggregate FROM " . $this->table;
-            $this->query .= $this->joinClause();
-            $this->query .= $this->whereClause();
-            $this->query .= $this->groupByClause();
-            $this->query .= $this->havingClause();
-
-            $row = $this->get(false)->fetch();
-
-            return $row['aggregate'];
+            return $this->aggregate('min', $key);
         }
 
         public function max($key)
+        {
+            return $this->aggregate('max', $key);
+        }
+
+        protected function aggregate($type, $key = '*')
         {
             if (empty($this->table)) {
                 exception('orm', 'No table set.');
             }
 
-            $this->query = "SELECT MAX($key) AS aggregate FROM " . $this->table;
+            $type = Strings::upper($type);
+
+            $this->query = "SELECT $type($key) AS aggregate FROM " . $this->table;
             $this->query .= $this->joinClause();
             $this->query .= $this->whereClause();
             $this->query .= $this->groupByClause();
@@ -715,6 +690,11 @@
             return $this;
         }
 
+        public function destroy($table = null)
+        {
+            return $this->delete($table)->run();
+        }
+
         public function delete($table = null)
         {
             if ($table) {
@@ -734,6 +714,11 @@
             ->values(array_values($data));
 
             return $this;
+        }
+
+        public function edit(array $data)
+        {
+            return $this->update($data)->run();
         }
 
         public function update(array $data)
@@ -896,8 +881,12 @@
         public function offset($offset = 0)
         {
             if ($offset >= 0) {
+                $offset = max(0, $offset);
+
                 $this->offset = intval($offset);
             }
+
+            return $this;
         }
 
         public function skip($value)
@@ -1253,7 +1242,7 @@
 
         public function all($cursor = false)
         {
-            return $cursor ? $this->rows() : $p;
+            return $cursor ? $this->cursor() : $this->results();
         }
 
         public function getHook()
@@ -1380,12 +1369,155 @@
                 return $entity;
             });
 
+            $collection->fn('update', function (array $data) {
+                return $this->edit($data);
+            });
+
+            $collection->fn('delete', function () {
+                return $this->destroy();
+            });
+
             return $collection;
         }
 
-        public function collection()
+        public function collection($model = false, $reset = true)
         {
-            return coll($this->select()->run()->fetchAll());
+            $rows = $this->select()->run(true, $reset)->fetchAll();
+
+            if ($model) {
+                $rows = $this->models($rows);
+            }
+
+            return coll($rows);
+        }
+
+        public function results($make = true)
+        {
+            $entity = $this->getEntity();
+
+            if (empty($this->columns())) {
+                $this->select();
+            }
+
+            $stmt = $this->getStatement($make);
+
+            $stmt->execute($this->values());
+
+            return $this->collectionEntity($entity, $this->models($stmt->fetchAll()));
+        }
+
+        public function models(array $rows)
+        {
+            $collection = [];
+            $entity = $this->getEntity();
+
+            foreach ($rows as $row) {
+                $collection[] = $entity->model($row);
+            }
+
+            return $collection;
+        }
+
+        public function paginate($page, $count)
+        {
+            return $this->limit(($page - 1) * $count, $count);
+        }
+
+        public function each(callable $callback, $count = 1000)
+        {
+            if (empty($this->orders)) {
+                $this->orderBy($this->getEntity()->pk());
+            }
+
+            return $this->split($count, function ($rows) use ($callback) {
+                foreach ($rows as $row) {
+                    if ($callback($row) === false) {
+                        return false;
+                    }
+                }
+            });
+        }
+
+        public function split($count, callable $callback)
+        {
+            $entity = $this->getEntity();
+
+            if (empty($this->columns())) {
+                $this->select();
+            }
+
+            $stmt = $this->run();
+
+            $continue = true;
+
+            do {
+                $size       = $count;
+                $results    = [];
+
+                while ($size > 0) {
+                    $size--;
+                    $row = $stmt->fetch();
+
+                    if ($row) {
+                        $results[] = $entity->model($row);
+                    } else {
+                        $continue = false;
+                    }
+                }
+
+                if (call_user_func($callback, $results) === false) {
+                    return false;
+                }
+            } while (true === $continue);
+
+            return true;
+        }
+
+        public function chunk($count, callable $callback)
+        {
+            $entity = $this->getEntity();
+            $pk     = $entity->pk();
+
+            if (empty($this->columns())) {
+                $this->select([$pk]);
+            }
+
+            $ids = coll(
+                coll(
+                    $this->run()
+                    ->fetchAll()
+                )->pluck($pk)
+            )->values()
+            ->toArray();
+
+            if (!empty($ids)) {
+                do {
+                    $size = $count;
+                    $results = [];
+
+                    while ($size > 0) {
+                        $size--;
+                        $id     = array_shift($ids);
+                        $row    = $this->table(
+                            $entity->table()
+                        )->find($id);
+
+                        if (!$row) {
+                            break;
+                        }
+
+                        $results[] = $entity->model($row);
+                    }
+
+                    if (call_user_func($callback, $results) === false) {
+                        return false;
+                    }
+                } while (!empty($ids));
+            } else {
+                return false;
+            }
+
+            return true;
         }
 
         public function last()
