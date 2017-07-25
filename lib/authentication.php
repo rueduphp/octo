@@ -207,7 +207,7 @@
 
             $user = arrayable($user) ? $user->toArray() : $user;
 
-            return item($user);
+            return !empty($user) ? item($user) : null;
         }
 
         public static function __callStatic($m, $a)
