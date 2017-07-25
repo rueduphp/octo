@@ -81,7 +81,7 @@
 
         public function __construct($ns = 'core', $dir = null)
         {
-            $dir = is_null($dir) ? Config::get('dir.cache', session_save_path()) : $dir;
+            $dir = is_null($dir) ? conf('dir.cache', session_save_path()) : $dir;
 
             $this->dir = $dir . DS . $ns;
 

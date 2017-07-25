@@ -162,6 +162,8 @@
                 exception('orm', 'No table set.');
             }
 
+            $entity = $this->getEntity();
+
             if (startsWith($this->query, 'SELECT ')) {
                 $this->query .= implode(' , ', $this->columns());
                 $this->query .= ' FROM ' . $this->table;

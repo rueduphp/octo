@@ -42,7 +42,7 @@
             if(!$fp)
                 throw new Exception("ERROR. Could not open connection");
             else {
-                fputs ($fp, $header.$data);
+                fputs ($fp, $header . $data);
 
                 while (!feof($fp)) {
                     $res .= fread ($fp, 1024);

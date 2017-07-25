@@ -11,7 +11,7 @@
 
         public function __construct($db = 'core', $table = 'core', $driver = null, $dir = null)
         {
-            $dir            = empty($dir) ? Config::get('octalia.dir', session_save_path()) : $dir;
+            $dir            = empty($dir) ? conf('octalia.dir', session_save_path()) : $dir;
             $driver         = empty($driver) ? fmr("odb.$db.$table", $dir) : $driver;
 
             $this->ns       = "$db.$table";

@@ -5,7 +5,7 @@
     {
         public static function send($config)
         {
-            $config = !is_array($config) ? $config->toArray() : $config;
+            $config = arrayable($config) ? $config->toArray() : $config;
 
             return mailto($config);
         }

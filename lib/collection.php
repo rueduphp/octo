@@ -38,7 +38,7 @@
                 }
             }
 
-            return $collec ? coll($coll) : count($coll);
+            return $collec ? $this->new($coll) : count($coll);
         }
 
         public function lastFake()
@@ -710,14 +710,8 @@
 
         protected function getArrays($items)
         {
-            if ($items instanceof Collection) {
-                $items = $items->all();
-            } elseif (is_object($items)) {
-                $methods = get_class_methods($items);
-
-                if (in_array('toArray', $methods)) {
-                    $items = $items->toArray();
-                }
+            if (arrayable($items)) {
+                $items = $items->toArray();
             }
 
             return $items;
@@ -1057,9 +1051,7 @@
 
         public function __set($key, $value)
         {
-            $this->items[$key] = $value;
-
-            return $this;
+            $this->offsetSet($key, $value);
         }
 
         public function __isset($key)

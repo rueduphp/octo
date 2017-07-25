@@ -1,5 +1,8 @@
 <?php
     use Octo\Redys;
+    use function Octo\em as dbo;
+
+    class Dummy {}
 
     class UtilsTest extends TestCase
     {
@@ -88,6 +91,11 @@
 
             $this->assertEquals('Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France', $infos['normalized_address']);
             $this->assertEquals(48.8583701, $infos['lat']);
+
+            $infos = $this->lib('geo')->getCoordsMap('Musée Grévin');
+
+            $this->assertEquals('10 Boulevard Montmartre, 75009 Paris, France', $infos['normalized_address']);
+            $this->assertEquals(48.8718378, $infos['lat']);
         }
 
         /** @test */
@@ -102,7 +110,34 @@
             $this->assertEquals(1, Redys::get('test'));
             $this->assertEquals('default', Redys::get('test2', 'default'));
             $this->assertCount(1, Redys::all());
+
             Redys::forget('test');
+
             $this->assertCount(0, Redys::all());
+        }
+
+        /**
+         * @test
+         */
+        public function jobs()
+        {
+            $job = $this->job();
+
+            $job->in(Tests\Job::class, 1);
+
+            $this->assertEquals(1, dbo('systemClosure')->count());
+            $this->assertEquals(Octo\Cacheredis::class, get_class(dbo('systemClosure')->driver));
+        }
+
+        /**
+         * @test
+         */
+        public function wiring()
+        {
+            $this->wire(PDO::class, function () {
+                return new Dummy;
+            });
+
+            $this->assertEquals(Dummy::class, get_class($this->maker(PDO::class)));
         }
     }

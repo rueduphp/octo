@@ -6,7 +6,7 @@
     class Entity
     {
         protected $table;
-        protected $guarded      = [];
+        protected $guarded      = null;
         protected $fillable     = [];
         protected $hidden       = [];
         protected $timestamps   = true;
@@ -89,6 +89,16 @@
             return static::called()->primaryKey;
         }
 
+        public static function guarded()
+        {
+            return static::called()->guarded;
+        }
+
+        public static function fillable()
+        {
+            return static::called()->fillable;
+        }
+
         public static function called()
         {
             $class  = get_called_class();
@@ -117,7 +127,7 @@
 
         protected static function db()
         {
-            return foundry(Orm::class)->table(static::called()->table);
+            return foundry(Orm::class)->table(static::table());
         }
 
         public static function new(array $data)
@@ -125,9 +135,19 @@
             return static::create($data);
         }
 
+        public static function validate(array $data)
+        {
+            $model = static::model($data);
+
+            $model->clean();
+            $model->validate();
+        }
+
         public static function create(array $data)
         {
             unset($data[static::pk()]);
+
+            static::validate($data);
 
             try {
                 $new = static::db()

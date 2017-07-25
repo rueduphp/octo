@@ -41,7 +41,8 @@
 
         public static function allows()
         {
-            if ($user = static::user(false)) {
+            if ($user = static::user()) {
+                $user       = arrayable($user) ? $user->toArray() : $user;
                 $class      = static::called();
                 $user       = item($user);
                 $args       = func_get_args();
@@ -124,6 +125,23 @@
         public static function login($user)
         {
             $class = static::called();
+
+            $user = arrayable($user) ? $user->toArray() : $user;
+
+            $user = item($user);
+
+            actual($class->actual, $user);
+
+            if (session_id()) {
+                session($class->ns)->setUser($user);
+            }
+        }
+
+        public static function loginWithId($id)
+        {
+            $class = static::called();
+
+            $user = em($class->entity)->findOrFail((int) $id);
 
             $user = arrayable($user) ? $user->toArray() : $user;
 

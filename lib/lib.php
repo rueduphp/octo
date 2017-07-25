@@ -202,6 +202,11 @@
         );
     }
 
+    function job()
+    {
+        return new Job;
+    }
+
     function osum(array $data, $field)
     {
         return coll($data)->sum($field);
@@ -1881,8 +1886,9 @@
         require_once __DIR__ . DS . 'debug.php';
         require_once __DIR__ . DS . 'cachei.php';
 
-        if (!defined("OCTO_MAX")) define('OCTO_MAX', 9223372036854775808);
-        if (!defined("OCTO_MIN")) define('OCTO_MIN', OCTO_MAX * -1);
+        if (!defined("OCTO_MAX"))       define('OCTO_MAX',          9223372036854775808);
+        if (!defined("OCTO_MIN"))       define('OCTO_MIN',          OCTO_MAX * -1);
+        if (!defined("OCTO_CACHE_TTL")) define('OCTO_CACHE_TTL',    strtotime('+1 year') - time());
 
         if (!class_exists('Octo\Route')) {
             Alias::facade('Route', 'Routes', 'Octo');
@@ -1947,7 +1953,7 @@
 
         Registry::set('octo.subdir', $subdir);
 
-        if (!defined('OCTO_STANDALONE')) {
+        if (!defined('OCTO_STANDALONE') && true !== getenv('OCTO_STANDALONE')) {
             defined('WEBROOT') || define('WEBROOT', Registry::get('octo.subdir', '/'));
 
             date_default_timezone_set(Config::get('timezone', 'Europe/Paris'));
@@ -3135,6 +3141,42 @@
         return maker($class, $args, true);
     }
 
+    function wire($concern, $callable)
+    {
+        if (!is_callable($callable)) {
+            $callable = function () use ($callable) { return $callable; };
+        }
+
+        $wires = Registry::get('core.wires', []);
+
+        $wires[$concern] = $callable;
+
+        Registry::set('core.wires', $wires);
+    }
+
+    function wiring($file)
+    {
+        if (is_file($file)) {
+            $wires = include $file;
+
+            foreach ($wires as $concern => $callable) {
+                wire($concern, $callable);
+            }
+        }
+    }
+
+    function autowire($concern)
+    {
+        $wires      = Registry::get('core.wires', []);
+        $callable   = isAke($wires, $concern, null);
+
+        if ($callable && is_callable($callable)) {
+            return $callable();
+        }
+
+        return false;
+    }
+
     function maker($make, $args = [], $singleton = true)
     {
         static $binds = [];
@@ -3145,6 +3187,12 @@
 
         if ($callable && is_callable($callable) && $singleton) {
             return call_user_func_array($callable, $args);
+        }
+
+        if ($i = autowire($make)) {
+            $binds[$make] = resolver($i);
+
+            return $i;
         }
 
         $ref = new \ReflectionClass($make);
@@ -3273,6 +3321,11 @@
     function fromTs($timestamp)
     {
         return lib('time')->createFromTimestamp($timestamp);
+    }
+
+    function conf($key, $default = null)
+    {
+        return Config::get($key, appenv($key, $default));
     }
 
     function appenv($key, $default = null)
@@ -5655,7 +5708,7 @@
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
 
         if ('octodummy' != $v) {
-            return fmr('once')->set($key, $v);
+            return fmr('once')->set($key, value($v));
         }
 
         $value = fmr('once')->get($key);
@@ -5670,7 +5723,7 @@
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
 
         if ('octodummy' != $v) {
-            return fmr('keep')->set($key, $v);
+            return fmr('keep')->set($key, value($v));
         }
 
         return fmr('keep')->get($key);
@@ -5685,7 +5738,7 @@
 
     function engine($database = 'core', $table = 'core', $driver = 'odb')
     {
-        $engine = Config::get('octalia.engine', $driver);
+        $engine = conf('octalia.engine', $driver);
 
         if (function_exists('\\Octo\\' . $engine)) {
             return call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
@@ -5857,8 +5910,9 @@
         $status = $mailer->send($message);
     */
 
-    function mailto(array $config)
+    function mailto($config)
     {
+        $config     = arrayable($config) ? $config->toArray() : $config;
         $mailer     = mailer();
 
         $to         = isAke($config, 'to', null);

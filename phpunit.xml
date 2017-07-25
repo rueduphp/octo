@@ -16,5 +16,6 @@
     <php>
         <env name="APPLICATION_ENV" value="testing"/>
         <env name="SITE_NAME" value="octo"/>
+        <env name="OCTO_STANDALONE" value="true"/>
     </php>
 </phpunit>

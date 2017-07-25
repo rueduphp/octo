@@ -5,6 +5,8 @@
 
         public function makeApplication()
         {
+            Octo\Config::set('octalia.engine', 'rdb');
+
             return Octo\context('app');
         }
     }

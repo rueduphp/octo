@@ -96,7 +96,7 @@
 
         public static function background()
         {
-            $file = path('public') . '/queue.php';
+            $file = path('base') . '/queue.php';
 
             if (File::exists($file)) {
                 $cmd = 'php ' . $file;

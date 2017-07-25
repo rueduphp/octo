@@ -5,6 +5,8 @@
 
     class Post extends Entity
     {
+        protected $fillable = ['content', 'fake', 'title', 'user_id'];
+
         public function user()
         {
             return User::class;
@@ -39,5 +41,13 @@
         public function post()
         {
             return Post::class;
+        }
+    }
+
+    class Job
+    {
+        public function process()
+        {
+
         }
     }

@@ -14,34 +14,34 @@
 
             $data = json_decode($data, true);
 
-            $row = $data[0][1][0];
+            $row = Arrays::get($data, '0.1.0');
 
-            $latRow     = $row[14][9][2];
-            $lngRow     = $row[14][9][3];
-            $name       = $row[14][11];
-            $ws         = $row[14][7][0];
-            $tel        = $row[14][3][0];
+            $latRow     = Arrays::get($row, '14.9.2');
+            $lngRow     = Arrays::get($row, '14.9.3');
+            $name       = Arrays::get($row, '14.11');
+            $ws         = Arrays::get($row, '14.7.0');
+            $tel        = Arrays::get($row, '14.3.0');
             $address    = Arrays::get($row, '14.2.0') . ', ' . Arrays::get($row, '14.2.1');
-            $price      = $row[14][4][2];
-            $rate       = floatval($row[14][4][7]);
-            $avis       = (int) $row[14][4][8];
-            $type       = $row[14][13][0];
-            $hexa       = $row[14][10];
-            $label      = $row[14][18];
-            $link       = $row[14][4][3][0];
+            $price      = Arrays::get($row, '14.4.2');
+            $rate       = floatval(Arrays::get($row, '14.4.7'));
+            $avis       = (int) Arrays::get($row, '14.4.8');
+            $type       = Arrays::get($row, '14.13.0');
+            $hexa       = Arrays::get($row, '14.10');
+            $label      = Arrays::get($row, '14.18');
+            $link       = Arrays::get($row, '14.4.3.0');
 
             if (strstr($link, 'ludocid')) {
                 $cid        = 'g' . cut('ludocid=', '#', $link);
             } else {
-                $cid        = 'g' . cut('.com/', '/', $row[6][1]);
+                $cid        = 'g' . cut('.com/', '/', Arrays::get($row, '6.1'));
             }
 
-            $horaires   = $row[14][34][1];
+            $horaires   = Arrays::get($row, '14.34.1');
 
-            $abstract   = $row[14][32][0][1] . '. ' . $row[14][32][1][1];
+            $abstract   = Arrays::get($row, '14.32.0.1') . '. ' . Arrays::get($row, '14.32.1.1');
 
             $obj = [
-                'coords'    => $data[3][0][0],
+                'coords'    => Arrays::get($data, '3.0.0'),
                 'hexa'      => $hexa,
                 'cid'       => $cid,
                 'type'      => $type,
@@ -59,7 +59,7 @@
                 'schedule'  => $this->schedule($horaires),
                 'img_in'    => 'http:' . Arrays::get($row, '14.37.0.1.0.0'),
                 'img_out'   => 'http:' . Arrays::get($row, '14.37.0.2.6.0'),
-                'place_id'  => $row[14][78]
+                'place_id'  => Arrays::get($row, '14.78')
             ];
 
             if (strlen($obj['place_id'])) {
@@ -186,7 +186,7 @@
             curl_setopt($ch, CURLOPT_HEADER, 0);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
-            $result     = curl_exec($ch);
+            $result = curl_exec($ch);
             curl_close ($ch);
 
             return $result;
@@ -282,11 +282,11 @@
                 if (isset($dtab[1])) {
                     $i = $dtab[1];
 
-                    $id_hex = $i[0][0];
-                    $lat = $i[0][2][0];
-                    $lng = $i[0][2][1];
-                    $addr = $i[13];
-                    $type = $i[12];
+                    $id_hex = Arrays::get($i, '0.0');
+                    $lat    = Arrays::get($i, '0.2.0');
+                    $lng    = Arrays::get($i, '0.2.1');
+                    $addr   = Arrays::get($i, '13');
+                    $type   = Arrays::get($i, '12');
 
                     if (fnmatch('*, *, *', $addr)) {
                         list($streetAddress, $zipCity, $country) = explode(', ', $addr, 3);
@@ -369,10 +369,10 @@
 
                 $i = $dtab[1];
 
-                $lat = $i[0][2][0];
-                $lng = $i[0][2][1];
-                $addr = $i[13];
-                $type = $i[12];
+                $lat    = Arrays::get($i, '0.2.0');
+                $lng    = Arrays::get($i, '0.2.1');
+                $addr   = Arrays::get($i, '13');
+                $type   = Arrays::get($i, '12');
 
                 $streetAddress = '';
 
@@ -588,30 +588,30 @@
             $collection = [];
 
             foreach ($tab as $row) {
-                $latRow     = $row[14][9][2];
-                $lngRow     = $row[14][9][3];
+                $latRow     = Arrays::get($row, '14.9.2');
+                $lngRow     = Arrays::get($row, '14.9.3');
                 $distances  = $this->distance($lng, $lat, $lngRow, $latRow);
-                $name       = $row[14][11];
-                $ws         = $row[14][7][0];
-                $tel        = $row[14][3][0];
-                $address    = $row[14][2][0] . ', ' . $row[14][2][1];
-                $price      = $row[14][4][2];
-                $rate       = floatval($row[14][4][7]);
-                $avis       = (int) $row[14][4][8];
-                $type       = $row[14][13][0];
-                $hexa       = $row[14][10];
-                $label      = $row[14][18];
-                $link       = $row[14][4][3][0];
+                $name       = Arrays::get($row, '14.11');
+                $ws         = Arrays::get($row, '14.7.0');
+                $tel        = Arrays::get($row, '14.3.0');
+                $address    = Arrays::get($row, '14.2.0') . ', ' . Arrays::get($row, '14.2.1');
+                $price      = Arrays::get($row, '14.4.2');
+                $rate       = floatval(Arrays::get($row, '14.4.7'));
+                $avis       = (int) Arrays::get($row, '14.42.8');
+                $type       = Arrays::get($row, '14.13.0');
+                $hexa       = Arrays::get($row, '14.10');
+                $label      = Arrays::get($row, '14.18');
+                $link       = Arrays::get($row, '14.4.3.0');
 
                 if (strstr($link, 'ludocid')) {
                     $cid = 'g' . cut('ludocid=', '#', $link);
                 } else {
-                    $cid = 'g' . cut('.com/', '/', $row[6][1]);
+                    $cid = 'g' . cut('.com/', '/', Arrays::get($row, '6.1'));
                 }
 
-                $horaires = $row[14][34][1];
+                $horaires = Arrays::get($row, '14.34.1');
 
-                $abstract = $row[14][32][0][1] . '. ' . $row[14][32][1][1];
+                $abstract = Arrays::get($row, '14.32.0.1') . '. ' . Arrays::get($row, '14.32.1.1');
 
                 $obj = [
                     'distance'  => $distances['km'] * 1000,
@@ -630,8 +630,8 @@
                     'avis'      => $avis,
                     'price'     => $price,
                     'schedule'  => $this->schedule($horaires),
-                    'img_in'    => 'http:' . $row[14][37][0][1][6][0],
-                    'img_out'   => 'http:' . $row[14][37][0][2][6][0],
+                    'img_in'    => 'http:' . Arrays::get($row, '14.37.0.1.6.0'),
+                    'img_out'   => 'http:' . Arrays::get($row, '14.37.0.2.6.0'),
                 ];
 
                 if ($obj['img_in'] == 'http:') {

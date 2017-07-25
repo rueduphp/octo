@@ -389,7 +389,7 @@
             return date('Y-m-d H:i:s');
         }
 
-        protected function clean()
+        public function clean()
         {
             $fields = actual('orm.fields.' . $this->entity->pk());
 
@@ -406,8 +406,42 @@
             $this->entity()->fire('clean', $this);
         }
 
-        protected function validate()
+        public function validate()
         {
+            $guarded    = $this->entity()->guarded();
+            $fillable   = $this->entity()->fillable();
+            $data       = $this->toArray();
+
+            if ($this->exists()) {
+                unset($data[$this->entity()->pk()]);
+                unset($data['created_at']);
+                unset($data['updated_at']);
+            }
+
+            $keys = array_keys($data);
+
+            if (!is_array($guarded)) {
+                if ($fillable != $keys) {
+                    foreach ($keys as $key) {
+                        if (!in_array($key, $fillable)) {
+                            exception(
+                                'orm_entity',
+                                "Field $key is not fillable in model " . get_class($this->entity()) . "."
+                            );
+                        }
+                    }
+                }
+            } else {
+                foreach ($guarded as $key) {
+                    if (in_array($key, $keys)) {
+                        exception(
+                            'orm_entity',
+                            "Field $key is guarded in model " . get_class($this->entity()) . "."
+                        );
+                    }
+                }
+            }
+
             $this->entity()->fire('validate', $this);
         }
 

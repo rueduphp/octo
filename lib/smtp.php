@@ -1,6 +1,8 @@
 <?php
     namespace Octo;
 
+    use Exception;
+
     class Smtp
     {
         private $connection;
