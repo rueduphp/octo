@@ -125,15 +125,21 @@
 
                 list($controllerName, $action, $render) = $this->route;
 
-                $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
+                if (!class_exists($controllerName)) {
+                    $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
 
-                if (!is_file($controllerFile)) {
-                    return $this->is404($cb404);
+                    if (!is_file($controllerFile)) {
+                        return $this->is404($cb404);
+                    }
+
+                    require_once $controllerFile;
+
+                    $class = '\\' . $namespace . '\\App' . ucfirst(Inflector::lower($controllerName)) . 'Controller';
+
+                    actual('controller.file', $controllerFile);
+                } else {
+                    $class = $controllerName;
                 }
-
-                require_once $controllerFile;
-
-                $class      = '\\' . $namespace . '\\App' . ucfirst(Inflector::lower($controllerName)) . 'Controller';
 
                 $actions    = get_class_methods($class);
                 $father     = get_parent_class($class);
@@ -148,12 +154,11 @@
                         )
                     );
 
-                    $controller         = maker($class, [], false);
+                    $controller         = foundry($class);
                     $controller->_name  = $controllerName;
                     $controller->action = $a;
 
                     actual('controller', $controller);
-                    actual('controller.file', $controllerFile);
 
                     $this->controllerBoot($controller);
 
@@ -351,22 +356,26 @@
 
             list($controllerName, $action, $render) = $route['callback']();
 
-            $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
-
-            if (!is_file($controllerFile)) {
-                return $this->is404();
-            }
-
             $method = $this->getMethod();
 
             $action = lcfirst(Str::camelize(Str::lower($method) . '_' . $action));
 
-            $code = File::read($controllerFile);
-            $ns = cut('namespace ', ';', $code);
+            if (!class_exists($controllerName)) {
+                $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
 
-            require_once $controllerFile;
+                if (!is_file($controllerFile)) {
+                    return $this->is404();
+                }
 
-            $class = '\\' . $ns . '\\App' . ucfirst(Str::lower($controllerName)) . 'Controller';
+                $code = File::read($controllerFile);
+                $ns = cut('namespace ', ';', $code);
+
+                require_once $controllerFile;
+
+                $class = '\\' . $ns . '\\App' . ucfirst(Str::lower($controllerName)) . 'Controller';
+            } else {
+                $class = $controllerName;
+            }
 
             $actions = get_class_methods($class);
 
@@ -374,7 +383,8 @@
                 return $this->is404();
             }
 
-            $controller = maker($class, [], false);
+            $controller = foundry($class);
+            actual('controller', $controller);
 
             $callable = [$controller, $action];
 
@@ -416,6 +426,7 @@
                     $p++;
                 }
 
+
                 $this->controllerBoot($controller);
 
                 $return = call($callable, $params);
@@ -444,6 +455,8 @@
                             null
                         )
                     );
+                } else {
+                    return item()->render(false);
                 }
             } else {
                 return null;
@@ -533,7 +546,16 @@
                     }
 
                     if (!empty($params)) {
-                        $this->params($route, $params);
+                        $status = $this->params($route, $params);
+
+                        if (arrayable($status)) {
+                            if (!$status->render) {
+                                $this->route = $status;
+                                $found++;
+
+                                break;
+                            }
+                        }
                     }
 
                     if ($quit) {

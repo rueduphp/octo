@@ -102,7 +102,7 @@
                 | Create
                 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                 */
-                self::get($prefix . '/add', $controller . '#add');
+                self::get($prefix . '/create', $controller . '#create');
                 self::post($prefix . '/store', $controller . '#store');
 
                 /*
@@ -141,7 +141,7 @@
                 self::getPost($prefix . '/delete/([0-9]+)', function ($id) use ($controller) {
                     $_REQUEST['id'] = $id;
 
-                    return [$controller, 'delete'];
+                    return [$controller, 'destroy'];
                 });
 
                 /*
@@ -211,6 +211,16 @@
             $prefix     = strlen($prefix) ? trim($prefix, '/') . '/' : $prefix;
             $uri        = $prefix . array_shift($a);
             $callback   = array_shift($a);
+
+            if (is_array($callback)) {
+                if (2 == count($callback)) {
+                    $callback[] = true;
+                }
+
+                list($controller, $action, $render) = $callback;
+
+                $callback = compactCallback($controller, $action, $render);
+            }
 
             if (!$callback instanceof \Closure) {
                 $render = null;

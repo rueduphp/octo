@@ -598,8 +598,8 @@
 
                 $xls = str_replace(['##head##', '##body##'], [$head, $body], $xls);
 
-                header ("Content-type: application/excel");
-                header ('Content-disposition: attachement; filename="Export.xls"');
+                header("Content-type: application/excel");
+                header('Content-disposition: attachement; filename="Export.xls"');
                 header("Content-Transfer-Encoding: binary");
                 header("Expires: 0");
                 header("Cache-Control: no-cache, must-revalidate");
@@ -611,8 +611,8 @@
             } elseif ($type == 'php') {
                 $content = var_export($rows, true);
 
-                header ("Content-type: application/php");
-                header ('Content-disposition: attachement; filename="Export.php"');
+                header("Content-type: application/php");
+                header('Content-disposition: attachement; filename="Export.php"');
                 header("Content-Transfer-Encoding: binary");
                 header("Expires: 0");
                 header("Cache-Control: no-cache, must-revalidate");

@@ -815,6 +815,11 @@
         return lib('fluent', [$attributes]);
     }
 
+    function q($attributes = [])
+    {
+        return item($attributes);
+    }
+
     function record($attributes = [], $entity)
     {
         $attributes = arrayable($attributes) ? $attributes->toArray() : $attributes;

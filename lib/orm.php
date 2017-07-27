@@ -436,7 +436,20 @@
             return $this->_whereNull($key, 'OR', true);
         }
 
-        public function many($conditions)
+        public function __invoke($concern = null)
+        {
+            if ($concern) {
+                if (reallyInt($concern)) {
+                    return $this->getEntity()->find((int) $concern);
+                } else {
+                    return $this->query($concern);
+                }
+            }
+
+            return get_class($this->getEntity());
+        }
+
+        public function query($conditions)
         {
             $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
 
@@ -845,7 +858,7 @@
                 return '';
             }
 
-            return ' GROUP BY '.implode(' , ', $this->groups);
+            return ' GROUP BY ' . implode(' , ', $this->groups);
         }
 
         public function groupBy($columns)
@@ -904,6 +917,7 @@
 
             return ' OFFSET ' . $this->offset;
         }
+
         public function latest($column = 'created_at')
         {
             return $this->orderBy($column, 'DESC');
@@ -955,8 +969,12 @@
             return array_keys($array) !== range(0, count($array) - 1);
         }
 
-        public function findBy($field, $value)
+        public function findBy($field, $value = null)
         {
+            if (is_null($value)) {
+                return $this->query($field);
+            }
+
             if (is_array($value)) {
                 return $this->in($field, $value);
             }

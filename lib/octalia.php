@@ -2455,7 +2455,7 @@
 
         function search($conditions)
         {
-            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+            $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
 
             foreach ($conditions as $field => $value) {
                 $this->where($field, $value);
