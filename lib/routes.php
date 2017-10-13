@@ -81,42 +81,186 @@
             }
         }
 
-        public static function __callStatic($m, $a)
+        public static function resource($model, $controller = null)
         {
-            $uri        = array_shift($a);
-            $callback   = array_shift($a);
+            if (is_object($model)) {
+                $db     = $model->db();
+                $table  = $model->table();
 
-            if (!$callback instanceof \Closure) {
-                $callback = function () use ($callback) {
-                    $render = null;
+                $prefix = '';
 
-                    if (fnmatch('*#*', $callback)) {
-                        if (fnmatch('*#*#*', $callback)) {
-                            list($controller, $action, $render) = explode('#', $callback, 3);
-                        } else {
-                            list($controller, $action) = explode('#', $callback, 2);
-                        }
-                    } elseif (fnmatch('*@*', $callback)) {
-                        if (fnmatch('*@*@*', $callback)) {
-                            list($controller, $action, $render) = explode('@', $callback, 3);
-                        } else {
-                            list($controller, $action) = explode('@', $callback, 2);
-                        }
-                    } elseif (fnmatch('*.*', $callback)) {
-                        if (fnmatch('*.*.*', $callback)) {
-                            list($controller, $action, $render) = explode('.', $callback, 3);
-                        } else {
-                            list($controller, $action) = explode('.', $callback, 2);
-                        }
-                    }
+                if ('core' != $db) {
+                    $prefix = trim(trim($orefix, '/') . '/' . $db, '/');
+                }
 
-                    $render = empty($render);
+                $controller = empty($controller) ? $table : $controller;
 
-                    return [$controller, $action, $render];
+                $prefix = trim(trim($orefix, '/') . '/' . $controller, '/');
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Create
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::get($prefix . '/create', $controller . '#create');
+                self::post($prefix . '/store', $controller . '#store');
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Read
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::get($prefix . '/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'find'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Update
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::get($prefix . '/edit/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'update'];
+                });
+
+                self::post($prefix . '/update/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'update'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | Delete
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::getPost($prefix . '/delete/([0-9]+)', function ($id) use ($controller) {
+                    $_REQUEST['id'] = $id;
+
+                    return [$controller, 'destroy'];
+                });
+
+                /*
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                | List
+                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                */
+                self::getPost($prefix, $controller . '#index');
+                self::getPost($prefix . '/list', $controller . '#index');
+            }
+        }
+
+        public static function json(array $array)
+        {
+            return toClosure($array);
+        }
+
+        public static function prefix($prefix, callable $next)
+        {
+            $old = Registry::get('core.routes.prefix', '');
+
+            if (strlen($old)) {
+                $prefix = $old . '/' . $prefix;
+            }
+
+            Registry::set('core.routes.prefix', trim($prefix, '/'));
+
+            $next();
+
+            Registry::set('core.routes.prefix', $old);
+        }
+
+        public static function before($before, callable $next)
+        {
+            $old = Registry::get('core.routes.before', null);
+
+            if (is_callable($old)) {
+                $before = function () use ($old, $before) {
+                    call_user_func_array($old, func_get_args());
+                    call_user_func_array($before, func_get_args());
                 };
             }
 
-            $method     = Strings::lower($m);
+            if (is_string($before)) {
+                $class = maker($before);
+
+                $before = [$class, 'handle'];
+            }
+
+            if (is_callable($before)) {
+                Registry::set('core.routes.before', $before);
+
+                $next();
+
+                Registry::set('core.routes.before', $old);
+            }
+        }
+
+        public static function __callStatic($m, $a)
+        {
+            if ('array' == $m) {
+                return toClosure($a);
+            }
+
+            $before     = Registry::get('core.routes.before', null);
+            $prefix     = Registry::get('core.routes.prefix', '');
+            $prefix     = strlen($prefix) ? trim($prefix, '/') . '/' : $prefix;
+            $uri        = $prefix . array_shift($a);
+            $callback   = array_shift($a);
+
+            if (is_string($callback)) {
+                if (class_exists($callback)) {
+                    $callback = compactCallback($callback, 'render', true);
+                }
+            } else if (is_array($callback)) {
+                if (1 == count($callback)) {
+                    $callback[] = 'render';
+                    $callback[] = true;
+                } else if (2 == count($callback)) {
+                    $callback[] = true;
+                }
+
+                list($controller, $action, $render) = $callback;
+
+                $callback = compactCallback($controller, $action, $render);
+            }
+
+            if (!$callback instanceof \Closure) {
+                $render = null;
+
+                if (fnmatch('*#*', $callback)) {
+                    if (fnmatch('*#*#*', $callback)) {
+                        list($controller, $action, $render) = explode('#', $callback, 3);
+                    } else {
+                        list($controller, $action) = explode('#', $callback, 2);
+                    }
+                } elseif (fnmatch('*@*', $callback)) {
+                    if (fnmatch('*@*@*', $callback)) {
+                        list($controller, $action, $render) = explode('@', $callback, 3);
+                    } else {
+                        list($controller, $action) = explode('@', $callback, 2);
+                    }
+                } elseif (fnmatch('*.*', $callback)) {
+                    if (fnmatch('*.*.*', $callback)) {
+                        list($controller, $action, $render) = explode('.', $callback, 3);
+                    } else {
+                        list($controller, $action) = explode('.', $callback, 2);
+                    }
+                }
+
+                $render = empty($render);
+
+                $callback = compactCallback($controller, $action, $render);
+                // $callback = function () use ($controller, $action, $render) {
+                //     return [$controller, $action, $render];
+                // };
+            }
+
+            $method = Strings::lower($m);
 
             $methods = [];
 
@@ -170,7 +314,13 @@
             foreach ($methods as $meth) {
                 if (!isset(static::$routes[$meth])) static::$routes[$meth] = [];
 
-                array_unshift(static::$routes[$meth], ['uri' => $uri, 'callback' => $callback]);
+                $exists = coll(static::$routes[$meth])->where('uri', $uri)->count() > 0;
+
+                if (!$exists) {
+                    array_unshift(static::$routes[$meth], ['uri' => $uri, 'callback' => $callback]);
+                } else {
+                    exception('Routes', "The route with uri $uri ever exists for " . Strings::upper($meth) ." method.");
+                }
             }
 
             $reflection = reflectClosure($callback);
@@ -196,20 +346,30 @@
 
             $name = '.' === $name ? 'home' : $name;
 
-            $route = model('uri', [
+            $dataRoute = [
                 'name'      => $name,
                 'uri'       => $uri,
                 'url'       => $url,
                 'method'    => $method,
                 'params'    => $params
-            ]);
+            ];
+
+            if (isset($controller)) $dataRoute["controller"]    = $controller;
+            if (isset($action))     $dataRoute["action"]        = $action;
+            if (isset($render))     $dataRoute["render"]        = $render;
+
+            $route = model('uri', $dataRoute);
+
+            if (is_callable($before)) {
+                $route->setBefore($before);
+            }
 
             $route->macro('as', function ($name) use ($route) {
                 return $route->setName($name);
             });
 
-            $route->macro('middleware', function (callable $cb) use ($route) {
-                return $route->setMiddleware($cb);
+            $route->macro('middleware', function ($middleware) use ($route) {
+                return $route->setMiddleware($middleware);
             });
 
             $route->macro('uses', function ($string) use ($route) {
@@ -219,11 +379,13 @@
                     list($controller, $action) = explode('#', $string, 2);
                 } elseif (fnmatch('*.*', $string)) {
                     list($controller, $action) = explode('.', $string, 2);
+                } elseif (fnmatch('*:*', $string)) {
+                    list($controller, $action) = explode(':', $string, 2);
                 }
 
                 return $route
-                    ->setController($controller)
-                    ->setAction($action);
+                ->setController($controller)
+                ->setAction($action);
             });
 
             if (!empty($a)) {
@@ -292,6 +454,11 @@
             return null;
         }
 
+        public static function isRoute($name, $args = [])
+        {
+            return static::url($name, $args) == $_SERVER['REQUEST_URI'];
+        }
+
         public static function url($name, $args = [])
         {
             $url = null;
@@ -335,5 +502,101 @@
             foreach ($routes as $route) {
                 static::$middlewares[$route->getName()] = $middleware;
             }
+        }
+
+        public static function crud($entity)
+        {
+            static::get('admin/' . $entity . '/list', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'listCrud'];
+            })->as('list' . $entity);
+
+            static::get('admin/' . $entity . '/list-(.*)', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'listCrud'];
+            })->as('list' . $entity . 'p');
+
+            static::get('admin/' . $entity . '/create', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'createCrud'];
+            })->as('create' . $entity);
+
+            static::get('admin/' . $entity . '/delete/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'deleteCrud'];
+            })->as('delete' . $entity);
+
+            static::get('admin/' . $entity . '/edit/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'editCrud'];
+            })->as('edit' . $entity);
+
+            static::post('admin/' . $entity . '/update/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'updateCrud'];
+            })->as('update' . $entity);
+
+            static::post('admin/' . $entity . '/add', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'addCrud'];
+            })->as('add' . $entity);
+        }
+
+        public static function cruding($entity)
+        {
+            static::get('admin/' . $entity . '/list', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'list' . $entity];
+            })->as('list' . $entity);
+
+            static::get('admin/' . $entity . '/list-(.*)', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'list' . $entity];
+            })->as('list' . $entity . 'p');
+
+            static::get('admin/' . $entity . '/create', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'create' . $entity];
+            })->as('create' . $entity);
+
+            static::get('admin/' . $entity . '/delete/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'delete' . $entity];
+            })->as('delete' . $entity);
+
+            static::get('admin/' . $entity . '/edit/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'edit' . $entity];
+            })->as('edit' . $entity);
+
+            static::post('admin/' . $entity . '/update/([0-9]+)', function ($id) use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+                $_REQUEST['id'] = $id;
+
+                return ['admin', 'update' . $entity];
+            })->as('update' . $entity);
+
+            static::post('admin/' . $entity . '/add', function () use ($entity) {
+                $_REQUEST['entity_crud'] = $entity;
+
+                return ['admin', 'add' . $entity];
+            })->as('add' . $entity);
         }
     }

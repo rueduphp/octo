@@ -3,8 +3,12 @@
 
     class Bus
     {
-        public function set($event, callable $closure)
+        public function set($event, $closure)
         {
+            if (is_string($closure)) {
+                $closure = resolverClass($closure);
+            }
+
             $bus = Registry::get('core.bus', []);
             $bus[$event] = $closure;
             Registry::set('core.bus', $bus);
@@ -12,7 +16,7 @@
             return $this;
         }
 
-        public function push($event, callable $closure)
+        public function push($event, $closure)
         {
             return $this->set($event, $closure);
         }

@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class OWn
+    class Own
     {
         public static function __callStatic($m, $a)
         {

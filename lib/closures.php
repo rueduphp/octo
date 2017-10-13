@@ -108,7 +108,7 @@
                 $file->next();
             }
 
-            if (fnmatch('*function*', $content)) {
+            if (strstr($content, 'function')) {
                 list($dummy, $code) = explode('function', $content, 2);
                 $code = 'function' . $code;
 
@@ -116,17 +116,17 @@
                 $last = end($tab);
 
                 $code = str_replace('}' . $last, '}', $code);
-            }
 
-            return em('SystemClosure')
-            ->firstOrCreate(['name' => $name, 'key' => $id])
-            ->setCode($code)
-            ->save();
+                return em('systemClosure')
+                ->firstOrCreate(['name' => $name, 'key' => $id])
+                ->setCode($code)
+                ->save();
+            }
         }
 
         public function fireStore($id, $args = [])
         {
-            $row = em('SystemClosure')->findOrFail((int) $id);
+            $row = em('systemClosure')->findOrFail((int) $id);
 
             $closure = eval('return ' . $row->code . ';');
 

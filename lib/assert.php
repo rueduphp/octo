@@ -691,8 +691,4 @@
 
             return mb_strwidth($value, $encoding);
         }
-
-        private function __construct()
-        {
-        }
     }

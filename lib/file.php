@@ -338,7 +338,7 @@
         public static function readdir($path)
         {
             // initialisation variable de retour
-            $ret = array();
+            $ret = [];
 
             // on gère par sécurité la fin du path pour ajouter ou pas le /
             if ('/' != substr($path, -1)) {
@@ -380,13 +380,13 @@
 
             $tab       = explode(DS, $fileLocation);
             $fileName  = end($tab);
-            $extension = strtolower(
+            $extension = static::lower(
                 substr(
                     $fileName,
                     strrpos(
                         $fileName,
                         '.'
-                    )+1
+                    ) + 1
                 )
             );
 
@@ -440,7 +440,7 @@
             $contentDisposition = 'attachment';
 
             if (strstr($_SERVER['HTTP_USER_AGENT'], "MSIE")) {
-                $fileName = preg_replace('/\./', '%2e', $fileName, substr_count($fileName, '.')-1);
+                $fileName = preg_replace('/\./', '%2e', $fileName, substr_count($fileName, '.') - 1);
 
                 header("Content-Disposition: $contentDisposition;filename=\"$fileName\"");
             } else {
@@ -490,7 +490,7 @@
 
             exit;
 
-            return ((connection_status() == 0) && !connection_aborted());
+            return connection_status() == 0 && !connection_aborted();
         }
 
         /* GP 12-10-2014 - Use this method vs file_get_contents to ensure the reading mode and improve the lock status */
@@ -553,6 +553,37 @@
 
         public static function getPerms($file)
         {
-            return substr(sprintf('%o', fileperms($file)), -3);
+            return substr(
+                sprintf(
+                    '%o',
+                    fileperms($file)
+                ),
+                -3
+            );
+        }
+
+        public static function iterator($directory)
+        {
+            return new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator(
+                    $directory,
+                    \FilesystemIterator::SKIP_DOTS
+                ),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+        }
+
+        public static function load($pattern)
+        {
+            $files = glob($pattern);
+
+            foreach ($files as $file) {
+                require_once $file;
+            }
+        }
+
+        public static function upload($field)
+        {
+            return upload($field);
         }
     }

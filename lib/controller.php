@@ -15,12 +15,7 @@
 
         public function __get($var)
         {
-            return $this->$var;
-        }
-
-        public function middleware($name)
-        {
-            return lib('middleware')->listen($name);
+            return isset($this->$var) ? $this->$var : null;
         }
 
         public function __call($method, $args)

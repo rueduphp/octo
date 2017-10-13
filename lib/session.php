@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class Session
+    class Session implements \ArrayAccess, FastSessionInterface
     {
         private $_name;
 
@@ -408,5 +408,25 @@
             }
 
             return $this->set($k, $v);
+        }
+
+        public function offsetGet($key)
+        {
+            return $this->get($key);
+        }
+
+        public function offsetSet($key, $value)
+        {
+            return $this->set($key, $value);
+        }
+
+        public function offsetExists($key)
+        {
+            return $this->has($key);
+        }
+
+        public function offsetUnset($key)
+        {
+            $this->erase($key);
         }
     }

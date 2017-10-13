@@ -1,0 +1,244 @@
+<?php
+    use Octo\Redys;
+    use function Octo\em as dbo;
+
+    class Foo {}
+    class Dummy
+    {
+        public function test()
+        {
+            return 200;
+        }
+    }
+
+    class UtilsTest extends TestCase
+    {
+        public function setUp()
+        {
+            parent::setUp();
+            Redys::flush();
+        }
+
+        /** @test */
+        public function firstReturnsFirstItemInCollection()
+        {
+            $c = $this->coll(['foo', 'bar']);
+            $this->assertEquals('foo', $c->first());
+        }
+
+        /** @test */
+        public function lastReturnsLastItemInCollection()
+        {
+            $c = $this->coll(['foo', 'bar']);
+            $this->assertEquals('bar', $c->last());
+        }
+
+        /** @test */
+        public function firstWithCallback()
+        {
+            $data = $this->coll(['foo', 'bar', 'baz']);
+
+            $result = $data->first(function ($key, $value) {
+                return $value === 'bar';
+            });
+
+            $this->assertEquals('bar', $result);
+        }
+
+        /** @test */
+        public function firstWithCallbackAndDefault()
+        {
+            $data = $this->coll(['foo', 'bar']);
+
+            $result = $data->first(function ($key, $value) {
+                return $value === 'baz';
+            }, 'default');
+
+            $this->assertEquals('default', $result);
+        }
+
+        /** @test */
+        public function shiftReturnsAndRemovesFirstItemInCollection()
+        {
+            $c = $this->coll(['foo', 'bar']);
+
+            $this->assertEquals('foo', $c->shift());
+            $this->assertEquals('bar', $c->first());
+        }
+
+        /** @test */
+        public function popReturnsAndRemovesLastItemInCollection()
+        {
+            $c = $this->coll(['foo', 'bar']);
+
+            $this->assertEquals('bar', $c->pop());
+            $this->assertEquals('foo', $c->first());
+        }
+
+        /** @test */
+        public function sortcoll()
+        {
+            $c = $this->coll([['name' => 'foo'], ['name' => 'bar']])->sortBy('name');
+
+            $this->assertEquals('bar', $c->first()['name']);
+
+            $c->sortByDesc('name');
+
+            $this->assertEquals('foo', $c->first()['name']);
+        }
+
+        /** @test */
+        public function mapcoll()
+        {
+            $c = $this->coll([['name' => 'foo'], ['name' => 'bar']])->map(function ($row, $index) {
+                if ($row['name'] == 'bar') {
+                    $this->context('app')->test = $index;
+                    $row['name'] = 'baz';
+                }
+
+                return $row;
+            });
+
+            $this->assertEquals('baz', $c->pop()['name']);
+            $this->assertEquals(1, $this->context('app')->test);
+            $this->assertEquals(1, $c->count());
+            $this->assertEquals('foo', $c->shift()['name']);
+            $this->assertEquals(0, $c->count());
+        }
+
+        /** @test */
+        public function it_should_be_uppered()
+        {
+            $this->assertEquals('BAR', $this->lib('inflector')->upper('bar'));
+        }
+
+        /** @test */
+        public function it_should_be_lowered()
+        {
+            $this->assertEquals('bar', $this->lib('inflector')->lower('BAR'));
+        }
+
+        /** @test */
+        // public function coords()
+        // {
+        //     $infos = $this->lib('geo')->addressByLatLng(48.8163897,-3.0640017);
+
+        //     $this->assertEquals('19 Route de Loguivy de la Mer, 22620 Ploubazlanec, France', $infos['formatted_address']);
+
+        //     $infos = $this->lib('geo')->getCoordsMap('Tour eiffel');
+
+        //     $this->assertEquals('Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France', $infos['normalized_address']);
+        //     $this->assertEquals(48.8583701, $infos['lat']);
+
+        //     $infos = $this->lib('geo')->getCoordsMap('Musée Grévin');
+
+        //     $this->assertEquals('10 Boulevard Montmartre, 75009 Paris, France', $infos['normalized_address']);
+        //     $this->assertEquals(48.8718378, $infos['lat']);
+        // }
+
+        /** @test */
+        public function redis()
+        {
+            Redys::set('test', 1);
+
+            $dt     = $this->lib('time');
+            $dt2    = $this->fromTs(Redys::age('test'));
+
+
+            $this->assertEquals(0, $dt->diff($dt2)->s);
+            $this->assertEquals(1, Redys::get('test'));
+            $this->assertEquals('default', Redys::get('test2', 'default'));
+            $this->assertCount(1, Redys::all());
+
+            Redys::forget('test');
+
+            $this->assertCount(0, Redys::all());
+        }
+
+        /**
+         * @test
+         */
+        public function jobs()
+        {
+            $job = $this->job();
+
+            $job->in(Tests\Job::class, 1);
+
+            $this->assertEquals(1, dbo('systemClosure')->count());
+            $this->assertEquals(Octo\Cacheredis::class, get_class(dbo('systemClosure')->driver));
+        }
+
+        /**
+         * @test
+         */
+        public function wiring()
+        {
+            $this->wire(Foo::class, function () {
+                return new Dummy;
+            });
+
+            $this->assertEquals(Dummy::class, get_class($this->maker(Foo::class)));
+            $this->assertEquals(Dummy::class, get_class($pdo = $this->container(Foo::class)));
+
+            $this->assertEquals(200, $pdo->test());
+        }
+
+        /**
+         * @test
+         */
+        public function superdiTest()
+        {
+            /* Registry */
+            sdi()->registry('test', 'dummy');
+            $this->assertEquals('dummy', sdi()->registry('test'));
+
+            $pdo = sdi()->mock(Foo::class);
+
+            $pdo->test(function () {
+                return 20;
+            });
+
+            $this->assertEquals(200, $pdo->test());
+
+            sdi()->register(Foo::class, function () {
+                return new Dummy;
+            });
+
+            $pdo = sdi()->resolve(Foo::class);
+
+            $this->assertEquals(Dummy::class, get_class($pdo));
+
+            $this->assertEquals(200, $pdo->test());
+
+            $app = sdi();
+
+            $app['test'] = 'hello';
+
+            $app->dummy(function () {
+                return 20;
+            });
+
+            $this->assertEquals('hello', sdi()->test);
+            $this->assertEquals('hello', sdi()->getTest());
+            $this->assertEquals('test2', sdi()->setTest('test2')->test);
+            $this->assertEquals(20, sdi()->dummy());
+
+            sdi()->register(Octo\Inflector::class, function () {
+                return Octo\dyn(new Octo\Inflector);
+            });
+
+            $this->assertEquals(
+                Octo\Dyn::class,
+                get_class(
+                    sdi()->factory(Octo\Inflector::class)
+                )
+            );
+
+            $this->assertEquals(
+                Octo\Inflector::class,
+                get_class(
+                    sdi()->factory(Octo\Inflector::class)->getNative()
+                )
+            );
+        }
+    }

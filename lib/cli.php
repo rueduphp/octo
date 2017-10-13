@@ -82,7 +82,7 @@
 
         public static function show($msg, $type = 'INFO')
         {
-            $cli = new self(array('boot'));
+            $cli = new self(['boot']);
             $cli->render($msg, $type);
         }
 
@@ -96,7 +96,7 @@
                 $parameters = $this->styles[$parameters];
             }
 
-            $codes = array();
+            $codes = [];
 
             $fg = isAke($parameters, 'fg', null);
             $bg = isAke($parameters, 'bg', null);
@@ -124,7 +124,7 @@
         {
             $collection = [];
 
-            if (count($args)) {
+            if (!empty($args)) {
                 foreach ($args as $arg) {
                     if (strstr($arg, '=')) {
                         list($key, $value) = explode('=', $arg, 2);
@@ -138,18 +138,18 @@
             return $collection;
         }
 
-        public static function tasks()
+        public static function tasks($dir = null)
         {
-            $tasks = glob(path('tasks') . DS . '*.php');
-            $collection = array();
+            $dir = is_null($dir) ? path('tasks') : $dir;
+            $tasks = glob($dir . DS . '*.php');
+            $collection = [];
 
             if (count($tasks)) {
                 foreach ($tasks as $task) {
-                    $task = str_replace(
-                        array(
-                            path('tasks') . DS,
+                    $task = str_replace([
+                            $dir . DS,
                             '.php'
-                        ),
+                        ],
                         '',
                         $task
                     );

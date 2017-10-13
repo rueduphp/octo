@@ -16,8 +16,10 @@
 
         public function open($savePath, $sessionName)
         {
-            $this->prefix = $sessionName . ':';
-            $this->ttl = (int) ini_get('session.gc_maxlifetime');
+            $this->prefix   = $sessionName . ':';
+            $this->ttl      = (int) ini_get('session.gc_maxlifetime');
+
+            return true;
         }
 
         public function close()

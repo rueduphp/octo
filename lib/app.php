@@ -331,8 +331,8 @@
             }
 
             if (!isset($this->bindings[$toResolve])) {
-                if ($this->missingLeadingSlash($toResolve) && isset($this->bindings['\\'.$toResolve])) {
-                    $toResolve = '\\'.$toResolve;
+                if ($this->missingLeadingSlash($toResolve) && isset($this->bindings['\\' . $toResolve])) {
+                    $toResolve = '\\' . $toResolve;
                 }
 
                 return $toResolve;
@@ -377,7 +377,7 @@
             if (!$reflector->isInstantiable()) {
                 $message = "Target [$real] is not instantiable.";
 
-                throw new \BindingResolutionException($message);
+                throw new \Exception($message);
             }
 
             $this->buildStack[] = $real;

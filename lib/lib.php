@@ -6,6 +6,7 @@
     }
 
     require_once __DIR__ . '/base.php';
+    require_once __DIR__ . '/helpers.php';
 
     /* constantes */
     defined('APPLICATION_ENV')  || define('APPLICATION_ENV', 'production');
@@ -22,41 +23,31 @@
         error_reporting(-1);
     }
 
+    require_once __DIR__ . '/autoloader.php';
+
     spl_autoload_register(function ($class) {
-        $tab    = explode('\\', $class);
-        $ns     = array_shift($tab);
-        $lib    = array_shift($tab);
-
-        if ('Octo' == $ns && !class_exists($class)) {
-            if (!empty($tab)) {
-                $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
-            } else {
-                $file = __DIR__ . DS . strtolower($lib) . '.php';
-            }
-
-            if (file_exists($file)) {
-                require_once $file;
-
-                return;
-            }
-        }
+        return (new Autoloader)->loader($class);
     });
 
     function view($html = null, $code = 200, $title = 'Octo')
     {
+        static $viewClass = null;
+
         if (empty($html)) {
-            $class = o();
+            if (is_null($viewClass)) {
+                $viewClass = o();
 
-            $class->macro('assign', function ($k, $v) {
-                $vars = Registry::get('views.vars', []);
-                $vars[$k] = value($v);
+                $viewClass->macro('assign', function ($k, $v) {
+                    $vars = Registry::get('views.vars', []);
+                    $vars[$k] = value($v);
 
-                Registry::set('views.vars', $vars);
+                    Registry::set('views.vars', $vars);
 
-                return view();
-            });
+                    return view();
+                });
+            }
 
-            return $class;
+            return $viewClass;
         }
 
         $tpl = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . $title . '</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.5.0/css/font-awesome.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Oswald:100,300,400,700,900"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/css/bootstrap.min.css"><style>body{font-family:"Oswald";}</style></head><body id="app-layout"><div class="container-fluid">##html##</div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/js/bootstrap.min.js"></script></body></html>';
@@ -82,6 +73,12 @@
 
         if (fnmatch('*:*', $file)) {
             list($c, $a) = explode(':', $file, 2);
+
+            $file = path('app') . DS . 'views' . DS . $c . DS . $a . '.phtml';
+        }
+
+        if (fnmatch('*.*', $file)) {
+            list($c, $a) = explode('.', $file, 2);
 
             $file = path('app') . DS . 'views' . DS . $c . DS . $a . '.phtml';
         }
@@ -115,9 +112,27 @@
         }
     }
 
+    function twig($folder = null,  array $config = [])
+    {
+        $folder = is_null($folder) ? actual('fast.twig.path') : $folder;
+
+        if (is_dir($folder)) {
+            actual('fast.twig.path', $folder);
+            $loader = new \Twig_Loader_Filesystem($folder);
+
+            $renderer = new FastTwigRenderer($loader, $config);
+
+            actual('fast.renderer', $renderer);
+
+            return $renderer;
+        }
+
+        exception('twig', "The folder $folder does not exist.");
+    }
+
     function controller()
     {
-        return Registry::get('app.controller');
+        return Registry::get('app.controller', null);
     }
 
     function is_home()
@@ -205,6 +220,11 @@
         );
     }
 
+    function job()
+    {
+        return new Job;
+    }
+
     function osum(array $data, $field)
     {
         return coll($data)->sum($field);
@@ -255,19 +275,46 @@
         return lib('eav', [$db, $table, 'sqlite']);
     }
 
-    function odb($db, $table, $driver = null)
+    function odb($db, $table)
     {
-        return lib('Octalia', [$db, $table, $driver]);
+        return lib('Octalia', [$db, $table]);
     }
 
-    function ldb($db, $table, $driver = null)
+    function ldb($db, $table)
     {
         return lib('octalia', [$db, $table, lib('cachelite', ["$db.$table"])]);
     }
 
+    function ndb($db, $table)
+    {
+        return lib('octalia', [$db, $table, lib('now', ["ndb.$db.$table"])]);
+    }
+
+    function dbMemory($model, $new = false)
+    {
+        $models = Registry::get('dbMemory.models', []);
+
+        $model = Strings::uncamelize($model);
+
+        if (!isset($models[$model]) || true === $new) {
+            if (fnmatch('*_*', $model)) {
+                list($database, $table) = explode('_', $model, 2);
+            } else {
+                $database   = Strings::uncamelize(Config::get('application.name', 'core'));
+                $table      = $model;
+            }
+
+            $models[$model] = ndb($database, $table);
+
+            Registry::set('dbMemory.models', $models);
+        }
+
+        return $models[$model];
+    }
+
     function sdb($db, $table, $driver = null)
     {
-        return lib('octalia', [$db, $table, lib('Cachesql', ["$db.$table"])]);
+        return lib('octalia', [$db, $table, lib('cachesql', ["$db.$table"])]);
     }
 
     function mdb($db, $table, $driver = null)
@@ -339,9 +386,66 @@
         return $acd;
     }
 
+    function viewCacheObject($object, callable $callable, $driver = null)
+    {
+        $maxAge = $object->updated_at->timestamp;
+        $key    = 'vco:' . $object->db() . ':' . $object->table() . ':' . $object->id;
+
+        viewCache($key, $maxAge, $callable, $driver);
+    }
+
+    function cache($key, $maxAge, callable $callable, $driver = null)
+    {
+        // viewCache($key, $maxAge, $callable, $driver);
+    }
+
+    function viewCache($key, $maxAge, callable $callable, $driver = null)
+    {
+        $continue   = true;
+
+        $driver     = is_null($driver) ? fmr('view') : $driver;
+
+        $keyAge     = $key . ':maxage';
+        $v          = $driver->get($k);
+
+        if ($v) {
+            $age = $driver->get($keyAge);
+
+            if (!$age) {
+                $age = $maxAge - 1;
+            }
+
+            if ($age >= $maxAge) {
+                $continue = false;
+                echo $v;
+            } else {
+                $driver->delete($key);
+                $driver->delete($keyAge);
+            }
+        }
+
+        if (true === $continue) {
+            ob_start();
+
+            $callable();
+
+            $content = ob_get_clean();
+
+            $driver->set($key, $content);
+            $driver->set($keyAge, $maxAge);
+
+            echo $content;
+        }
+    }
+
     function o(array $o = [])
     {
         return lib('object', [$o]);
+    }
+
+    function fo(array $o = [])
+    {
+        return lib('fastobject', [$o]);
     }
 
     function exif($file)
@@ -428,6 +532,17 @@
         }
     }
 
+    function make_entity($entity)
+    {
+        $class = $entity . 'Entity';
+
+        if (!class_exists('Octo\\' . $class)) {
+            $code = 'namespace Octo; class ' . $class . ' extends Octal {}';
+
+            eval($code);
+        }
+    }
+
     function entityFacade($db)
     {
         $db = Strings::camelize($db);
@@ -488,7 +603,7 @@
 
             if ($method == "table") return $table;
 
-            return call_user_func_array([engine($database, $table)($db, $table), $method], $args);
+            return call_user_func_array([engine($db, $table), $method], $args);
         }}';
 
             eval($code);
@@ -559,18 +674,19 @@
         $command = 'curl -X POST https://api.sparkpost.com/api/v1/transmissions -H "Authorization: ' . optGet("api.mail.key") . '" -H "Content-Type: application/json" -d \'{"content": {"from": "' . $from . '","subject": ' . json_encode($subject) . ',';
 
         if ($text && $html) {
-            $command .= '"text": ' . json_encode($text) . ', "html": ' . json_encode($html) . '';
+            $command .= '"text": ' . json_encode($text) . ', "html": ' . json_encode($html);
         } else {
             if ($text) {
-                $command .= '"text": ' . json_encode($text) . '';
+                $command .= '"text": ' . json_encode($text);
             }
 
             if ($html) {
-                $command .= '"html": ' . json_encode($html) . '';
+                $command .= '"html": ' . json_encode($html);
             }
         }
 
         $command .= '},"recipients": [{ "address": "' . $to . '" }]}\'';
+
         exec($command);
 
         return true;
@@ -611,27 +727,30 @@
         return $d;
     }
 
-    function log($message, $type = 'INFO', $ns = 'core')
+    function log($message, $type = 'INFO')
     {
         if (is_array($message)) $message = implode(PHP_EOL, $message);
 
         $type = Strings::upper($type);
 
-        $db = System::Log();
+        $db = em('systemLog');
 
-        $db->create([
+        $db->store([
             'message'   => $message,
             'type'      => $type
-        ])->save();
+        ]);
     }
 
-    function logs($type = 'INFO', $ns = 'core')
+    function logs($type = 'INFO')
     {
         $type = Strings::upper($type);
 
-        $db = engine('logs', $ns);
+        $db = em('systemLog');
 
-        return $db->where(['type', '=', $type])->sortByDesc('id')->get();
+        return $db
+        ->where('type', $type)
+        ->sortByDesc('id')
+        ->get();
     }
 
     function trackView($page, array $data = [])
@@ -670,12 +789,12 @@
         return Arrays::get($array, $k, $d);
     }
 
-    function aset($array, $k, $v = null)
+    function aset(&$array, $k, $v = null)
     {
         return Arrays::set($array, $k, $v);
     }
 
-    function adel($array, $k)
+    function adel(&$array, $k)
     {
         Arrays::forget($array, $k);
     }
@@ -703,26 +822,60 @@
     {
         if (empty($k)) {
             return lib('object', [oclean($_SERVER)]);
-        } else {
-            return isAke(oclean($_SERVER), $k, $d);
         }
+
+        return isAke(oclean($_SERVER), $k, $d);
     }
 
     function post($k = null, $d = null)
     {
         if (empty($k)) {
             return Post::notEmpty();
-        } else {
-            return Post::get($k, $d);
         }
+
+        return Post::get($k, $d);
+    }
+
+    function item($attributes = [])
+    {
+        $attributes = arrayable($attributes) ? $attributes->toArray() : $attributes;
+
+        return lib('fluent', [$attributes]);
+    }
+
+    function q($attributes = [])
+    {
+        return item($attributes);
+    }
+
+    function record($attributes = [], $entity)
+    {
+        $attributes = arrayable($attributes) ? $attributes->toArray() : $attributes;
+
+        return lib('record', [$attributes]);
     }
 
     function request($k = null, $d = null)
     {
-        if (empty($k)) {
-            return lib('object', [oclean($_REQUEST)]);
-        } else {
-            return isAke(oclean($_REQUEST), $k, $d);
+        return Input::method($k, $d);
+    }
+
+    function customRequest($name, $cb = null)
+    {
+        $requests = Registry::get('core.requests', []);
+
+        if (is_callable($cb)) {
+            $requests[$name] = $cb;
+
+            Registry::set('core.requests', $requests);
+
+            return true;
+        }
+
+        $request = isAke($requests, $name, null);
+
+        if (is_callable($request)) {
+            $request();
         }
     }
 
@@ -750,7 +903,7 @@
 
     function i64($field)
     {
-        if (Arrays::exists($field, $_FILES)) {
+        if (Arrays::exists($_FILES, $field)) {
             $fileupload         = $_FILES[$field]['tmp_name'];
             $fileuploadName     = $_FILES[$field]['name'];
 
@@ -773,9 +926,22 @@
         return null;
     }
 
+    function src64($src)
+    {
+        $tab    = explode(".", $src);
+        $ext    = Strings::lower(Arrays::last($tab));
+
+        return 'data:image/' . $ext . ';base64,' . base64_encode(dwnCache($src));
+    }
+
+    function base64($data, $mime = 'image/jpg')
+    {
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
+    }
+
     function upload($field, $dest = null)
     {
-        if (Arrays::exists($field, $_FILES)) {
+        if (Arrays::exists($_FILES, $field)) {
             $fileupload         = $_FILES[$field]['tmp_name'];
             $fileuploadName     = $_FILES[$field]['name'];
 
@@ -788,7 +954,7 @@
 
                 if (empty($dest)) {
                     $tab    = explode(".", $fileuploadName);
-                    $bucket = new Bucket(SITE_NAME, URLSITE . 'bucket');
+                    $bucket = new Bucket(SITE_NAME, URLSITE . '/bucket');
                     $ext    = Strings::lower(Arrays::last($tab));
                     $res    = $bucket->data($data, $ext);
 
@@ -901,6 +1067,18 @@
         return $data;
     }
 
+    function ldd()
+    {
+        call_user_func_array('\\dd', func_get_args());
+    }
+
+    function lvd()
+    {
+        array_map(function ($x) {
+            (new \Illuminate\Support\Debug\Dumper)->dump($x);
+        }, func_get_args());
+    }
+
     function dd()
     {
         array_map(
@@ -1004,7 +1182,7 @@
 
         return !strlen(
             preg_replace(
-                  ',[\x09\x0A\x0D\x20-\x7E]'
+                ',[\x09\x0A\x0D\x20-\x7E]'
                 . '|[\xC2-\xDF][\x80-\xBF]'
                 . '|\xE0[\xA0-\xBF][\x80-\xBF]'
                 . '|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}'
@@ -1033,7 +1211,7 @@
         );
     }
 
-    function cut($start, $end, $string)
+    function cut($start, $end, $string, $default = null)
     {
         if (strstr($string, $start) && strstr($string, $end) && isset($start) && isset($end)) {
             list($dummy, $string) = explode($start, $string, 2);
@@ -1045,7 +1223,7 @@
             }
         }
 
-        return null;
+        return $default;
     }
 
     function xCache($k, callable $c, $maxAge = null, $args = [])
@@ -1124,19 +1302,17 @@
         return $return;
     }
 
-    function isAke($tab, $key, $default = [])
+    function isAke($array, $k, $d = [])
     {
-        if (true === is_object($tab)) {
-            $tab = (array) $tab;
+        if (true === is_object($array)) {
+            if (arrayable($array)) {
+                $array = $array->toArray();
+            } else {
+                $array = (array) $array;
+            }
         }
 
-        return is_array($tab) ?
-            Arrays::isAssoc($tab) ?
-                Arrays::exists($key, $tab) ?
-                    $tab[$key] :
-                $default :
-            $default :
-        $default;
+        return Arrays::get($array, $k, $d);
     }
 
     function uuid()
@@ -1157,7 +1333,7 @@
     function forever($ns = 'user')
     {
         if (php_sapi_name() == 'cli' || PHP_SAPI == 'cli') {
-            return sha1(SITE_NAME . '::cli');
+            return hash(File::read(__FILE__));
         }
 
         $ns         = SITE_NAME . '_' . $ns;
@@ -1192,7 +1368,7 @@
             $language = isAke(
                 $_REQUEST,
                 $var,
-                \Locale::acceptFromHttp($_SERVER["HTTP_ACCEPT_LANGUAGE"])
+                \Locale::acceptFromHttp($fromBrowser)
             );
 
             session($context)->setLanguage($language);
@@ -1211,19 +1387,35 @@
         return locale($context);
     }
 
-    function coll(array $data = [])
+    function coll($data = [])
     {
+        $data = arrayable($data) ? $data->toArray() : $data;
+
         return new Collection($data);
     }
 
-    function kh($ns = null)
+    function kh($ns = null, $dir = null)
     {
-        return new Cache($ns);
+        return fmr($ns, $dir);
     }
 
     function fmr($ns = null, $dir = null)
     {
+        if ($cache = conf($ns . '.fmr.instance')) {
+            return $cache;
+        }
+
         return new Cache($ns, $dir);
+    }
+
+    function stock($ns = null, $data = [])
+    {
+        return new Now($ns, $data);
+    }
+
+    function srf($from, $to, $subject)
+    {
+        return str_replace_first($from, $to, $subject);
     }
 
     function lite($ns = null)
@@ -1281,7 +1473,7 @@
             // $this->_hooks[\'afterRead\'] = ;
             // $this->_hooks[\'afterUpdate\'] = ;
             // $this->_hooks[\'afterDelete\'] = ;
-            // $this->_hooks[\'validate\'] = function () use ($data) {
+            // $this->_hooks[\'validate\'] = function () use ($obj) {
             //     return true;
             // };
         }
@@ -1299,47 +1491,201 @@
         return new $instanciate($class, $data);
     }
 
-    function lib($lib, $args = [])
+    function libonce($lib, $args = [])
     {
+        return lib($lib, $args, true);
+    }
 
-        $class = '\\Octo\\' . Strings::camelize($lib);
+    function lib($lib, $args = [], $singleton = false)
+    {
+        try {
+            $class = '\\Octo\\' . Strings::camelize($lib);
 
-        if (!class_exists($class)) {
-            $file = __DIR__ . DS . Strings::lower($lib) . '.php';
+            if (!class_exists($class)) {
+                $file = __DIR__ . DS . Strings::lower($lib) . '.php';
 
-            if (file_exists($file)) {
-                require_once $file;
+                if (file_exists($file)) {
+                    require_once $file;
+                }
             }
-        }
 
-        return (new App)->make($class, $args);
-    }
-
-    function factory()
-    {
-        $factory    = lib('OctaliaFactory')->construct(\Faker\Factory::create('fr_FR'));
-        $arguments  = func_get_args();
-
-        $db = $arguments[0];
-
-        if (isset($arguments[1]) && is_string($arguments[1])) {
-            return $factory->of($db, $arguments[1])->times(isset($arguments[2]) ? $arguments[2] : 1);
-        } elseif (isset($arguments[1])) {
-            return $factory->of($db)->times($arguments[1]);
-        } else {
-            return $factory->of($db);
+            return maker($class, $args, $singleton);
+        } catch (\Exception $e) {
+            return maker($lib, $args, $singleton);
         }
     }
 
-    function auth($ns = 'web')
+    function str()
     {
-        return lib('guard', [$ns]);
+        return maker(Inflector::class);
+    }
+
+    function reg()
+    {
+        return maker(Now::class);
+    }
+
+    function memoryFactory($class, $count = 1, $lng = 'fr_FR')
+    {
+        if (!is_numeric($count) || $count < 1) {
+            exception('Factory', 'You must create at least one row.');
+        }
+
+        $model = maker($class, [], false);
+        $faker = faker($lng);
+
+        $entity = dbMemory(
+            lcfirst(
+                Strings::camelize(
+                    $model->orm()->db . '_' . $model->orm()->table
+                )
+            )
+        );
+
+        $rows = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $rows[] = $model->factory($faker);
+        }
+
+        $factories = o([
+            'rows'      => $rows,
+            'entity'    => $entity
+        ]);
+
+        $factories->macro('raw', function ($subst = []) use ($factories) {
+            $rows = $factories->getRows();
+
+            if (!empty($subst)) {
+                $res = [];
+
+                foreach ($rows as $row) {
+                    foreach ($subst as $k => $v) {
+                        $row[$k] = $v;
+                    }
+
+                    $res[] = $row;
+                }
+
+                return count($res) == 1 ? current($res) : coll($res);
+            } else {
+                return count($rows) == 1 ? current($rows) : coll($rows);
+            }
+        });
+
+        $factories->macro('store', function ($subst = []) use ($factories) {
+            $em     = $factories->getEntity();
+            $rows   = [];
+
+            foreach ($factories->getRows() as $row) {
+                if (!empty($subst)) {
+                    foreach ($subst as $k => $v) {
+                        $row[$k] = $v;
+                    }
+                }
+
+                $rows[] = $em->persist($row);
+            }
+
+            if (count($rows) == 1) {
+                return $em->model(current($rows));
+            }
+
+            return $em
+            ->resetted()
+            ->in(
+                'id',
+                coll($rows)->pluck('id')
+            )->get();
+        });
+
+        return $factories;
+    }
+
+    function fast($context = null)
+    {
+        if ($context && $context instanceof Fast) {
+            actual('fast', $context);
+        }
+
+        return actual('fast');
+    }
+
+    function factory($class, $count = 1, $lng = 'fr_FR')
+    {
+        if (!is_numeric($count) || $count < 1) {
+            exception('Factory', 'You must create at least one row.');
+        }
+
+        $model = maker($class);
+        $faker = faker($lng);
+
+        $entity = $model->orm();
+
+        $rows = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $rows[] = $model->factory($faker);
+        }
+
+        $factories = o([
+            'rows'      => $rows,
+            'entity'    => $entity
+        ]);
+
+        $factories->macro('raw', function ($subst = []) use ($factories) {
+            $rows = $factories->getRows();
+
+            if (!empty($subst)) {
+                $res = [];
+
+                foreach ($rows as $row) {
+                    foreach ($subst as $k => $v) {
+                        $row[$k] = $v;
+                    }
+
+                    $res[] = $row;
+                }
+
+                return count($res) == 1 ? current($res) : coll($res);
+            } else {
+                return count($rows) == 1 ? current($rows) : coll($rows);
+            }
+        });
+
+        $factories->macro('store', function ($subst = []) use ($factories) {
+            $em = $factories->getEntity();
+            $rows = [];
+
+            foreach ($factories->getRows() as $row) {
+                if (!empty($subst)) {
+                    foreach ($subst as $k => $v) {
+                        $row[$k] = $v;
+                    }
+                }
+
+                $rows[] = $em->persist($row);
+            }
+
+            if (count($rows) == 1) {
+                return $em->model(current($rows));
+            }
+
+            return $em
+            ->resetted()
+            ->in(
+                'id',
+                coll($rows)->pluck('id')
+            )->get();
+        });
+
+        return $factories;
     }
 
     function status($code = 200)
     {
-        $headerMessage = Api::getMessage($code);
-        $protocol = isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.1';
+        $headerMessage  = Api::getMessage($code);
+        $protocol       = isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.1';
 
         if (!headers_sent()) {
             header($protocol . " $code $headerMessage");
@@ -1367,9 +1713,234 @@
         abort($code, $message);
     }
 
+    function partial($file, $args = [])
+    {
+        vue(
+            $file,
+            $args
+        )->partial(
+            actual('vue')
+        );
+    }
+
+    function layout($file, $page = null, $sections = null)
+    {
+        $page = is_null($page) ? actual('vue') : $page;
+
+        $sections   = !is_array($sections)
+        ? ['content', 'js', 'css']
+        : array_merge(['content', 'js', 'css'], $sections);
+
+        vue(
+            $file,
+            $page->getArgs()
+        )->layout(
+            $page,
+            $sections
+        );
+    }
+
+    function codeEvaluation($code, array $args = [])
+    {
+        ob_start();
+
+        extract($args);
+
+        eval(' ?>' . $code . '<?php ');
+
+        $eval = ob_get_contents();
+
+        ob_end_clean();
+
+        return $eval;
+    }
+
+    function vue($file, $args = [], $status = 200)
+    {
+        if (!File::exists($file)) {
+            $path = path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
+        } else {
+            $path = $file;
+        }
+
+        $vue = o([
+            'withs'     => [],
+            'is_vue'    => true,
+            'status'    => (int) $status,
+            'args'      => $args,
+            'path'      => $path
+        ]);
+
+        $vue->macro('render', function () use ($vue) {
+            $withs = $vue->withs;
+
+            if (!empty($withs)) {
+                foreach ($withs as $k => $v) {
+                    $setter = setter($k);
+                    session()->$setter($v);
+                }
+            }
+
+            $args = array_merge(['tpl' => $vue], $vue->getArgs());
+
+            $html = evaluate(
+                $vue->getPath(),
+                $args
+            );
+
+            response(
+                $html,
+                (int) $vue->getStatus()
+            );
+        });
+
+        $vue->macro('inline', function () use ($vue) {
+            $withs = $vue->withs;
+
+            if (!empty($withs)) {
+                foreach ($withs as $k => $v) {
+                    $setter = setter($k);
+                    session()->$setter($v);
+                }
+            }
+
+            $args = array_merge(['tpl' => $vue], $vue->getArgs());
+
+            $html = evaluate(
+                $vue->getPath(),
+                $args
+            );
+
+            return $html;
+        });
+
+        $vue->macro('layout', function ($page, $sections) use ($vue) {
+            $args = array_merge([
+                'self'      => actual('controller'),
+                'layout'    => $vue,
+                'tpl'       => $page
+                ],
+                $vue->getArgs()
+            );
+
+            $layoutContent  = File::read($vue->getPath());
+            $pageContent    = File::read($page->getPath());
+
+            $includes = explode("@include(", $pageContent);
+            array_shift($includes);
+
+            foreach ($includes as $include) {
+                $inc = cut("'", "'", $include);
+
+                if (!File::exists($inc)) {
+                    $pathFile = path('app') . '/views/' . str_replace('.', '/', $inc) . '.phtml';
+                } else {
+                    $pathFile = $inc;
+                }
+
+                if (File::exists($pathFile)) {
+                    $incContent = File::read($pathFile);
+                    $pageContent = str_replace("@include('$inc')", $incContent, $pageContent);
+                }
+            }
+
+            $sections = explode("@section(", $pageContent);
+            array_shift($sections);
+
+            foreach ($sections as $sub) {
+                $section = cut("'", "'", $sub);
+
+                $sectionContent = cut(
+                    "@section('$section')",
+                    "@endsection",
+                    $pageContent
+                );
+
+                $layoutContent = str_replace([
+                        "{{ $section }}",
+                        '{{' . $section . '}}',
+                        '{{ ' . $section . '}}',
+                        '{{' . $section . ' }}'
+                    ],
+                    $sectionContent,
+                    $layoutContent
+                );
+            }
+
+            $layoutContent = str_replace(
+                '$this',
+                '$self',
+                $layoutContent
+            );
+
+            response(
+                codeEvaluation(
+                    $layoutContent,
+                    $args
+                ),
+                (int) $vue->getStatus()
+            );
+        });
+
+        $vue->macro('partial', function ($page) use ($vue) {
+            $args = array_merge([
+                    'tpl'       => $page,
+                    'partial'   => $vue
+                ],
+                $page->getArgs(),
+                $vue->getArgs()
+            );
+
+            echo evaluate(
+                $vue->getPath(),
+                $args
+            );
+        });
+
+        $vue->macro('with', function ($k, $v) use ($vue) {
+            $withs      = $vue->withs;
+            $withs[$k]  = $v;
+
+            $vue->withs = $withs;
+
+            return $vue;
+        });
+
+        $vue->macro('can', function () {
+            $guard = guard();
+
+            $check = call_user_func_array([$guard, 'allows'], func_get_args());
+
+            if ($check) {
+                return true;
+            }
+
+            return false;
+        });
+
+        $vue->macro('cannot', function () {
+            $guard = guard();
+
+            $check = call_user_func_array([$guard, 'allows'], func_get_args());
+
+            if ($check) {
+                return false;
+            }
+
+            return true;
+        });
+
+        actual(
+            'vue',
+            $vue
+        );
+
+        return $vue;
+    }
+
     function path($k = null, $v = null, $d = null)
     {
-        $paths = (new Now)->get('octo.paths', []);
+        $paths = paths();
 
         if (is_null($k)) {
             return coll($paths);
@@ -1391,13 +1962,20 @@
 
     function systemBoot($dir = null)
     {
+        $whoops = new \Whoops\Run;
+        $whoops->pushHandler(new \Whoops\Handler\PrettyPageHandler);
+        $whoops->register();
+
         forever();
 
+        require_once __DIR__ . DS . 'fast.php';
         require_once __DIR__ . DS . 'di.php';
+        require_once __DIR__ . DS . 'debug.php';
         require_once __DIR__ . DS . 'cachei.php';
 
-        define('OCTO_MAX', 9223372036854775808);
-        define('OCTO_MIN', -9223372036854775808);
+        if (!defined("OCTO_MAX"))       define('OCTO_MAX',          9223372036854775808);
+        if (!defined("OCTO_MIN"))       define('OCTO_MIN',          OCTO_MAX * -1);
+        if (!defined("OCTO_CACHE_TTL")) define('OCTO_CACHE_TTL',    strtotime('+1 year') - time());
 
         if (!class_exists('Octo\Route')) {
             Alias::facade('Route', 'Routes', 'Octo');
@@ -1409,38 +1987,6 @@
 
         if (!class_exists('Octo\Dir')) {
             Alias::facade('Dir', 'File', 'Octo');
-        }
-
-        if (!class_exists('Octo\Date')) {
-            Alias::facade('Date', 'Time', 'Octo');
-        }
-
-        if (!class_exists('Octo\Db')) {
-            Alias::facade('Db', 'Entitytable', 'Octo');
-        }
-
-        if (!class_exists('Octo\Octal')) {
-            Alias::facade('Octal', 'Entitykv', 'Octo');
-        }
-
-        if (!class_exists('Octo\Octus')) {
-            Alias::facade('Octus', 'Manager', 'Illuminate\Database\Capsule');
-        }
-
-        if (!class_exists('Octo\Testing')) {
-            entityFacade('testing');
-        }
-
-        if (!class_exists('Octo\System')) {
-            entityFacade('system');
-        }
-
-        if (!class_exists('Octo\Admin')) {
-           entityFacade('admin');
-       }
-
-       if (!class_exists('Octo\Rest')) {
-            entityFacade('rest');
         }
 
         if (!class_exists('Octo\Kh')) {
@@ -1459,13 +2005,8 @@
            staticFacade('\\Octo\\Now', 'Registry');
         }
 
-        if (!class_exists('Octo\Stubber')) {
-           staticFacade('\\Kahlan\\Plugin\\Stub', 'Stubber');
-        }
-
-        if (!class_exists('Octo\Refactor')) {
-           staticFacade('\\Kahlan\\Plugin\\Monkey', 'Refactor');
-        }
+        Autoloader::alias('Str', '\\Octo\\Inflector');
+        Autoloader::alias('Dater', '\\Carbon\\Carbon');
 
         $dirs = Arrays::last(
             explode(
@@ -1494,21 +2035,24 @@
             }
         }
 
+        Registry::set('core.routes.prefix', '');
+        Registry::set('core.routes.before', null);
+
         Registry::set('octo.subdir', $subdir);
 
-        if (!defined('OCTO_STANDALONE')) {
-            defined('WEBROOT')  || define('WEBROOT', Registry::get('octo.subdir', '/'));
+        if (!defined('OCTO_STANDALONE') && true !== getenv('OCTO_STANDALONE')) {
+            defined('WEBROOT') || define('WEBROOT', Registry::get('octo.subdir', '/'));
 
             date_default_timezone_set(Config::get('timezone', 'Europe/Paris'));
 
-            if (!IS_CLI) {
+            if (!IS_CLI && isset($_SERVER["SERVER_PORT"])) {
                 $protocol = 'http';
 
                 if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') {
                     $protocol .= 's';
                 }
 
-                if ($_SERVER["SERVER_PORT"] != "80") {
+                if ($_SERVER["SERVER_PORT"] != "80" && $_SERVER["SERVER_PORT"] != "443") {
                     $urlSite = "$protocol://" . $_SERVER["SERVER_NAME"] . ':' . $_SERVER["SERVER_PORT"] . WEBROOT;
                 } else {
                     $urlSite = "$protocol://" . $_SERVER["SERVER_NAME"] . WEBROOT;
@@ -1520,9 +2064,147 @@
             ini_set('error_log', path('storage') . DS . 'logs' . DS . 'error.log');
         }
 
-        define('OCTO_DAY_KEY', sha1((OCTO_MAX / 7) + strtotime('today') . forever()));
+        if (!defined('OCTO_DAY_KEY')) define('OCTO_DAY_KEY', sha1((OCTO_MAX / 7) + strtotime('today') . forever()));
 
         path('public', realpath($dir));
+
+        $app = context('app');
+
+        $app->on(function ($event, callable $callable, $priority = 0) {
+            $events = Registry::get('context.app.events', []);
+
+            if (!isset($events[$event])) {
+                $events[$event] = [];
+            }
+
+            $priority = !is_int($priority) ? 0 : $priority;
+
+            $ev = $events[$event][] = new Listener($callable, $priority);
+
+            Registry::set('context.app.events', $events);
+
+            return $ev;
+        });
+
+        $app->emit(function () {
+            $args   = func_get_args();
+            $event  = array_shift($args);
+
+            $events = Registry::get('context.app.events', []);
+
+            $eventsToCall = isAke($events, $event, []);
+
+            if (!empty($eventsToCall)) {
+                $collection = [];
+
+                foreach ($eventsToCall as $eventToCall) {
+                    $collection[] = [
+                        'event'     => $eventToCall,
+                        'priority'  => $eventToCall->priority
+                    ];
+                }
+
+                $listeners = array_values(coll($collection)->sortByDesc('priority')->toArray());
+
+                $results = [];
+
+                foreach ($listeners as $listenerCalled) {
+                    $listener = $listenerCalled['event'];
+
+                    $continue = true;
+
+                    if ($listener->called) {
+                        if ($listener->once === true) {
+                            $continue = false;
+                        }
+                    }
+
+                    if (!$continue) {
+                        break;
+                    } else {
+                        $listener->called = true;
+                        $result = call_user_func_array($listener->callable, $args);
+
+                        if ($listener->halt) {
+                            Registry::set('context.app.events', []);
+
+                            return $result;
+                        } else {
+                            $results[] = $result;
+                        }
+                    }
+                }
+
+                return $results;
+            }
+        });
+
+        $app->class(function () {
+            $args   = func_get_args();
+            $lib    = array_shift($args);
+
+            array_pop($args);
+
+            return lib($lib, $args);
+        });
+
+        $app->make(function () {
+            $args = func_get_args();
+            array_pop($args);
+
+            return call_user_func_array('\\Octo\\maker', $args);
+        });
+
+        $app->register(function ($alias, $class, $args = []) use ($app) {
+            if (is_object($args)) {
+                $args = [];
+            }
+
+            $instance       = maker($class, $args);
+            $app[$alias]    = $instance;
+        });
+
+        $app->run(function ($namespace = 'App', $cli = false) {
+            if (is_object($namespace)) {
+                $namespace = 'App';
+            }
+
+            if (is_object($cli)) {
+                $cli = false;
+            }
+
+            File::load(path('app') . '/lib/*.php');
+
+            lib('timer')->start();
+
+            File::load(path('app') . '/config/*config*.php');
+            File::load(path('app') . '/config/*routes*.php');
+            File::load(path('app') . '/routes/*.php');
+
+            if (!$cli) {
+                try {
+                    lib('router')->run($namespace);
+                } catch (\Exception $e) {
+                    dd($e);
+                }
+            }
+        });
+
+        $app->cli(function($app) {
+            $app->run('App', true);
+        });
+
+        $app->request(function () {
+            return \GuzzleHttp\Psr7\ServerRequest::fromGlobals();
+        });
+
+        $app->response(function () {
+            return new \GuzzleHttp\Psr7\Response;
+        });
+
+        $app->render(function(\Psr\Http\Message\ResponseInterface $response) {
+            \Http\Response\send($response);
+        });
 
         if (!empty($_POST)) {
             bag('Post');
@@ -1530,11 +2212,843 @@
         }
 
         register_shutdown_function(function () {
-            on('shutdown', function () {
-                Queue::listen();
-                Later::shutdown();
-            });
+            Queue::listen();
+            Later::shutdown();
+            middlewares('after');
+            listening('system.shutdown');
+            shutdown();
         });
+
+        $bootstrap = path('app') . '/config/bootstrap.php';
+
+        if (File::exists($bootstrap)) {
+            require_once $bootstrap;
+        }
+
+        $autoload = path('app') . '/config/autoload.php';
+
+        if (File::exists($autoload)) {
+            $all        = include $autoload;
+            $aliases    = isAke($all, 'aliases', []);
+            $mapped     = isAke($all, 'mapped', []);
+
+            Autoloader::aliasing($aliases);
+            Autoloader::mapping($mapped);
+        }
+
+        Routes::getPost('burst/(.*)-(.*).(.*)', function ($file, $hash, $ext) {
+            $asset = path('public') . '/'. $file . '.' . $ext;
+
+            if (!headers_sent() && File::exists($asset)) {
+                switch (strtolower($ext)) {
+                    case 'css':
+                        header('Content-type: text/css');
+                        break;
+                    case 'js':
+                        header('Content-type: text/javascript');
+                        break;
+                }
+
+                die(File::read($asset));
+            }
+        });
+
+        loadEvents();
+
+        listening('system.bootstrap');
+
+        services();
+
+        middlewares();
+
+        rights();
+    }
+
+    function burst($asset)
+    {
+        if (!File::exists($asset)) {
+            $asset = path('public') . $asset;
+        }
+
+        if (File::exists($asset)) {
+            $age = md5(filemtime($asset));
+            $ext = Arrays::last(explode('.', $asset));
+            $tab = explode('.' . $ext, $asset);
+
+            array_pop($tab);
+
+            $segment = implode('.' . $ext, $tab);
+
+            $file = str_replace_first(path('public'), '', $segment);
+
+            return '/burst' . $file . '-' . $age . '.' . $ext;
+        }
+
+        return $asset;
+    }
+
+    /**
+     * @param Object $model
+     * @param string $event
+     * @param array $next
+     * @return mixed|Object
+     */
+    function modelEvent(Object $model, string $event, $next = [])
+    {
+        $allEvents = Registry::get('octalia.events', []);
+
+        $class = get_class($model);
+
+        if (is_callable($next)) {
+            $allEvents[sha1($class)][$event] = $next;
+
+            Registry::set('octalia.events', $allEvents);
+        } else {
+            $events = isAke($allEvents, sha1($class), []);
+
+            $cb = isAke($events, $event, null);
+
+            if (is_callable($cb)) {
+                return call_user_func_array($cb, array_merge([$model], $next));
+            }
+        }
+
+        return $model;
+    }
+
+    /**
+     * @param $instance
+     * @return Ghost
+     */
+    function getRow($instance)
+    {
+        return make([], $instance);
+    }
+
+    /**
+     * @param array $rows
+     * @return Collection
+     */
+    function collectify(array $rows = [])
+    {
+        $collection = [];
+
+        foreach ($rows as $row) {
+            $collection[] = make($row);
+        }
+
+        return coll($collection);
+    }
+
+    /**
+     * @param array $array
+     * @param null $instance
+     * @return Ghost
+     */
+    function make(array $array = [], $instance = null)
+    {
+        return lib('ghost', [$array, $instance]);
+    }
+
+    /**
+     * @param $class
+     * @param array $array
+     * @return Magic
+     */
+    function magic($class, array $array = [])
+    {
+        return lib('magic', [$array, $class]);
+    }
+
+    /**
+     * @param $context
+     * @param array $array
+     * @return Context
+     */
+    function context($context, array $array = [])
+    {
+        return lib('context', [$array, $context]);
+    }
+
+    /**
+     * @param $mock
+     * @param array $args
+     * @return Mockery
+     */
+    function mockery($mock, array $args = [])
+    {
+        $class = maker($mock, $args);
+
+        $methods = get_class_methods($class);
+
+        $mock = lib(
+            'mockery',
+            [
+                [],
+                Inflector::camelize(
+                    'mock_' .
+                    Inflector::urlize(get_class($class), '_')
+                )
+            ]
+        );
+
+        foreach ($methods as $method) {
+            call_user_func_array([$mock, $method], [function () use ($class, $method) {
+                return call_user_func_array([$class, $method], func_get_args());
+            }]);
+        }
+
+        return $mock;
+    }
+
+    function shutdown(callable $callable = null)
+    {
+        $callables = Registry::get('core.shutdown', []);
+
+        if (is_callable($callable)) {
+            $callables[] = $callable;
+            Registry::set('core.shutdown', $callables);
+        } else {
+            foreach ($callables as $callable) {
+                if (is_callable($callable)) {
+                    $callable();
+                }
+            }
+        }
+    }
+
+    function tern($a, $b)
+    {
+        return $a ?: $b;
+    }
+
+    function queue()
+    {
+        return call_user_func_array([lib('later'), 'set'], func_get_args());
+    }
+
+    function listenQueue()
+    {
+        return call_user_func_array([lib('later'), 'listen'], func_get_args());
+    }
+
+    function bgQueue()
+    {
+        return call_user_func_array([lib('later'), 'background'], func_get_args());
+    }
+
+    function _($segment, $args = [], $locale = null)
+    {
+        echo trans($segment, $args, $locale);
+    }
+
+    function trans($segment, $args = [], $locale = null)
+    {
+        $translation = $segment;
+
+        $keys   = explode('.', $segment);
+        $key    = array_shift($keys);
+        $keys   = implode('.', $keys);
+
+        $path   = tern(path('lang'), path('app') . '/lang/');
+
+        $lng    = tern($locale, lng());
+
+        $file   = $path . $lng . '/' . Inflector::lower($key) . '.php';
+
+        if (File::exists($file)) {
+            $segments       = include($file);
+            $translation    = aget($segments, $keys);
+
+            if (!empty($args) && !empty($translation)) {
+                $args = coll($args)->sortBy(function($a) {
+                    return mb_strlen($a) * -1;
+                });
+
+                foreach ($args as $k => $v) {
+                    $translation = str_replace('{{ ' . $k . ' }}', $v, $translation);
+                }
+            }
+        }
+
+        return $translation;
+    }
+
+    function rights()
+    {
+        listening('rights.booting');
+
+        $acl = path('app') . '/config/acl.php';
+
+        $rights = lib('ghost', [[], 'rights']);
+
+        $rights->add(function ($type, $data) use ($rights) {
+            $rights[$type] = obj('acl_' . $type, $data);
+
+            return $rights;
+        });
+
+        if (File::exists($acl)) {
+            $datas = include $acl;
+
+            foreach ($datas as $k => $v) {
+                $rights->add($k, $v);
+            }
+        }
+
+        return $rights;
+    }
+
+    function obj($instance, array $array = [])
+    {
+        $key = sha1($instance);
+
+        $objects = Registry::get('core.objects', []);
+
+        $object = isAke($objects, $key, null);
+
+        if (!$object) {
+            $class = Strings::camelize('octo_' . Strings::uncamelize($instance));
+
+            if (!class_exists($class)) {
+                $code = 'class ' . $class . ' extends \\Octo\\Collection {}';
+                eval($code);
+            }
+
+            $class = '\\' . $class;
+
+            $object = new $class($array);
+
+            $objects[$key] = $object;
+
+            Registry::set('core.objects', $objects);
+        }
+
+        return $object;
+    }
+
+    function classify($instance, array $array = [])
+    {
+        $class = Strings::camelize('octo_' . Strings::uncamelize($instance));
+
+        if (!class_exists($class)) {
+            $code = 'class ' . $class . ' extends \\Octo\\Ghost {}';
+            eval($code);
+        }
+
+        $class = '\\' . $class;
+
+        return new $class($array, sha1($class));
+    }
+
+    function inMemory($array = null)
+    {
+        static $inMemoryData = [];
+
+        if ($array) {
+            $inMemoryData = $array;
+        }
+
+        return $inMemoryData;
+    }
+
+    function segment($ns = 'core', $array = null)
+    {
+        $data       = inMemory();
+        $segment    = aget($data, $ns, []);
+
+        if ($array) {
+            $segment = $array;
+            aset($data, $ns, $segment);
+            inMemory($data);
+        }
+
+        return $segment;
+    }
+
+    function set($k, $v)
+    {
+        $data = segment('core');
+        aset($data, $k, $v);
+
+        segment('core', $data);
+    }
+
+    function get($k, $d = null)
+    {
+        $data   = segment('core');
+        $value  = aget($data, $k, $d);
+
+        return value($value);
+    }
+
+    function getDel($k, $d = null)
+    {
+        if (has($k)) {
+            $data   = segment('core');
+            $value  = aget($data, $k, $d);
+            forget($k);
+
+            return value($value);
+        }
+
+        return $d;
+    }
+
+    function getMacro($k, array $args = [], $d = null)
+    {
+        if (has($k)) {
+            $data   = segment('core');
+            $cb     = aget($data, $k, $d);
+
+            if (is_callable($cb)) {
+                return call_user_func_array($cb, $args);
+            }
+        }
+
+        return $d;
+    }
+
+    function has($k)
+    {
+        return 'octodummy' != get($k, 'octodummy');
+    }
+
+    function forget($k)
+    {
+        if (has($k)) {
+            $data = segment('core');
+            adel($data, $k);
+
+            segment('core', $data);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    function del($k)
+    {
+        return forget($k);
+    }
+
+    function incr($k, $by = 1)
+    {
+        $old = get($k, 0);
+        $new = $old + $by;
+
+        set($k, $new);
+
+        return $new;
+    }
+
+    function increment($k, $by = 1)
+    {
+        return incr($k, $by);
+    }
+
+    function decr($k, $by = 1)
+    {
+        $old = get($k, 0);
+        $new = $old - $by;
+
+        set($k, $new);
+
+        return $new;
+    }
+
+    function decrement($k, $by = 1)
+    {
+        return decr($k, $by);
+    }
+
+    function getOr($k, callable $c)
+    {
+        $res = get($k, 'octodummy');
+
+        if ('octodummy' == $res) {
+            set($k, $res = $c());
+        }
+
+        return $res;
+    }
+
+    function i18n()
+    {
+        $made = Registry::get('i18n.made', false);
+        $cb = null;
+
+        if (!$made) {
+            $cb = function () {
+                Registry::set('i18n.made', true);
+                $i18n = classify('i18n');
+
+                return $i18n;
+            };
+        }
+
+        return single('i18n', $cb);
+    }
+
+    function provider($service = null, array $args = [])
+    {
+        $provider = classify('providers');
+
+        if ($service) {
+            $callable = $provider[$service];
+
+            if (!$callable) {
+                $callable = $provider[$service] = function () use ($service, $args) {
+                    return maker($service, $args);
+                };
+            }
+
+            return call_user_func_array(
+                $callable,
+                array_merge(
+                    [$provider],
+                    $args
+                )
+            );
+        }
+
+        return $provider;
+    }
+
+    function eventer()
+    {
+        $made = Registry::get('eventer.made', false);
+        $cb = null;
+
+        if (!$made) {
+            $cb = function () {
+                Registry::set('eventer.made', true);
+                $eventer = classify('eventer');
+
+                $eventer->on(function () use ($eventer) {
+                    $args       = func_get_args();
+                    $event      = array_shift($args);
+                    $call       = array_shift($args);
+                    $priority   = array_shift($args);
+                    $priority   = $priority || 0;
+
+                    $events = Registry::get('eventer.events', []);
+
+                    if (!$call instanceof \Closure) {
+                        $call = resolverClass($call);
+                    }
+
+                    $priorities = isAke($events, $event, []);
+
+                    $segment = isset($priorities[$priority]) ? $priorities[$priority] : [];
+
+                    $segment[] = $call;
+
+                    $events[$event][$priority] = $segment;
+
+                    Registry::set('eventer.events', $events);
+
+                    return $eventer;
+                });
+
+                $eventer->listen(function () {
+                    $events = Registry::get('eventer.events', []);
+
+                    $args = func_get_args();
+
+                    $event = array_shift($args);
+
+                    $fireEvents = isAke($events, $event, []);
+
+                    $results = [];
+
+                    if (!empty($fireEvents)) {
+                        foreach ($fireEvents as $priority => $eventsLoaded) {
+                            $key = $event . '_' . $priority;
+
+                            $results[$key] = [];
+
+                            foreach ($eventsLoaded as $eventLoaded) {
+                                if ($eventLoaded && is_callable($eventLoaded)) {
+                                    $result = call_user_func_array($eventLoaded, $args);
+
+                                    if ($result instanceof Object && $result->getStopPropagation() == 1) {
+                                        return $results;
+                                    }
+
+                                    $results[$key][] = $result;
+                                }
+                            }
+                        }
+                    }
+
+                    return $results;
+                });
+
+                $eventer->forget(function ($event, $priority = 'octodummy') use ($eventer) {
+                    $events = Registry::get('eventer.events', []);
+
+                    if ('octodummy' == $priority) {
+                        unset($events[$event]);
+                    } else {
+                        unset($events[$event][$priority]);
+                    }
+
+                    Registry::set('eventer.events', $events);
+
+                    return $eventer;
+                });
+
+                return $eventer;
+            };
+        }
+
+        return single('eventer', $cb);
+    }
+
+    function stopPropagation($value = null)
+    {
+        $o = o();
+
+        return $o->setStopPropagation(1)->setValue(value($value));
+    }
+
+    function emit()
+    {
+        return call_user_func_array([eventer(), 'listen'], func_get_args());
+    }
+
+    function setting()
+    {
+        $made = Registry::get('settings.made', false);
+        $cb = null;
+
+        if (!$made) {
+            $cb = function () {
+                Registry::set('settings.made', true);
+                $settings = classify('settings');
+
+                $settings->set(function ($k, $v) use ($settings) {
+                    $k = sha1(forever() . $k);
+
+                    em('systemSetting')
+                    ->firstOrCreate(['name' => $k])
+                    ->setValue($v)
+                    ->save();
+
+                    return $settings;
+                });
+
+                $settings->get(function ($k, $d = null) {
+                    $k = sha1(forever() . $k);
+
+                    $setting = em('systemSetting')
+                    ->where(['name', '=', $k])
+                    ->first(true);
+
+                    return $setting ? $setting->value : $d;
+                });
+
+                $settings->has(function ($k) {
+                    $k = sha1(forever() . $k);
+
+                    $setting = em('systemSetting')
+                    ->where(['name', '=', $k])
+                    ->first(true);
+
+                    return $setting ? true : false;
+                });
+
+                $settings->delete(function ($k) {
+                    $k = sha1(forever() . $k);
+
+                    $setting = em('systemSetting')
+                    ->where(['name', '=', $k])
+                    ->first(true);
+
+                    return $setting ? $setting->delete() : false;
+                });
+
+                return $settings;
+            };
+        }
+
+        return single('settings', $cb);
+    }
+
+    function objectify($instance, array $array = [])
+    {
+        return single($instance, function () use ($instance, $array) {
+            return classify($instance, $array);
+        });
+    }
+
+    function resolve($class, array $args = [])
+    {
+        return single($class, null, $args);
+    }
+
+    function singlify($class, $resolver = null, array $args = [])
+    {
+        $key = sha1($class);
+        $singletons = Registry::get('core.singletons', []);
+
+        if ($resolver && is_callable($resolver)) {
+            $single = call_user_func_array($resolver, $args);
+
+            $singletons[$key] = $single;
+
+            Registry::set('core.singletons', $singletons);
+        } else {
+            $single = isAke($singletons, $key, null);
+
+            if (!$single) {
+                $single = maker($class, $args);
+
+                if ($single) {
+                    $singletons[$key] = $single;
+
+                    Registry::set('core.singletons', $singletons);
+                }
+            }
+        }
+
+        return $single;
+    }
+
+    function ionly()
+    {
+        $keys = func_get_args();
+        $inputs = [];
+
+        foreach ($keys as $key) {
+            $inputs[$key] = isAke($_REQUEST, $key, null);
+        }
+
+        return lib('ghost', [$inputs, null]);
+    }
+
+    function middleware($class)
+    {
+        $middlewares    = Registry::get('core.middlewares', []);
+        $middlewares[]  = $class;
+
+        Registry::set('core.middlewares', $middlewares);
+    }
+
+    function middlewares($when = 'before')
+    {
+        listening('middlewares.booting');
+
+        $middlewares        = Registry::get('core.middlewares', []);
+        $request            = make($_REQUEST, "request");
+        $middlewaresFile    = path('app') . '/config/middlewares.php';
+
+        if (File::exists($middlewaresFile)) {
+            $middlewaresFromConfig  = include $middlewaresFile;
+            $middlewares            = array_merge($middlewares, $middlewaresFromConfig);
+        }
+
+        foreach ($middlewares as $middlewareClass) {
+            $middleware = maker($middlewareClass, [], false);
+            $methods    = get_class_methods($middleware);
+            $method     = lcfirst(Strings::camelize('apply_' . $when));
+
+            if (in_array($method, $methods)) {
+                call_user_func_array([$middleware, $method], [$request, context("app")]);
+            }
+        }
+    }
+
+    function aliases($className)
+    {
+        static $aliases = [];
+
+        $aliasesFile = path('app') . '/config/aliases.php';
+
+        if (file_exists($aliasesFile)) {
+            $aliasesFromConfig  = include $aliasesFile;
+            $aliases            = array_merge($aliases, $aliasesFromConfig);
+        }
+
+        foreach ($aliases as $alias => $class) {
+            if ($alias == $className) {
+                return class_alias($class, $alias);
+            }
+        }
+
+        return false;
+    }
+
+    function loadEvents()
+    {
+        $events = path('app') . '/config/events.php';
+
+        if (File::exists($events)) {
+            require_once $events;
+        }
+
+        subscribers();
+    }
+
+    function subscriber($subscriberClass)
+    {
+        $subscriber = maker($subscriberClass);
+
+        $events = $subscriber->getEvents();
+
+        foreach ($events as $event => $method) {
+            Fly::on($event, $subscriberClass . '@' . $method);
+        }
+    }
+
+    function subscribers()
+    {
+        $subscribersFile = path('app') . '/config/subscribers.php';
+
+        if (File::exists($subscribersFile)) {
+            $subscribers = include $subscribersFile;
+
+            foreach ($subscribers as $subscriberClass) {
+                subscriber($subscriberClass);
+            }
+        }
+    }
+
+    function services()
+    {
+        listening('services.booting');
+
+        $services = Registry::get('core.services', []);
+
+        require_once __DIR__ . DS . 'serviceprovider.php';
+
+        $servicesFile = path('app') . '/config/services.php';
+
+        if (File::exists($servicesFile)) {
+            $servicesFromConfig = include $servicesFile;
+            $services           = array_merge($services, $servicesFromConfig);
+        }
+
+        foreach ($services as $serviceClass) {
+            $service = maker($serviceClass);
+
+            $service->register(context('app'));
+        }
+    }
+
+    function ioc($class)
+    {
+        $app            = context('app');
+        $service        = maker($class);
+
+        callMethod($service, 'register', $app);
+        $provides = callMethod($service, 'provides');
+
+        foreach ($provides as $alias) {
+            $app[$alias] = $service;
+        }
     }
 
     function perms($path)
@@ -1559,11 +3073,22 @@
 
             $zones[$k]['zone']  = $zone;
             $zones[$k]['text']  = '(GMT' . date('P', $ts) . ') ' . $zones[$k]['zone'];
-            $zones[$k]['order'] = str_replace('-', '1', str_replace('+', '2', date('P', $ts))) . $zone;
+            $zones[$k]['order'] = str_replace(
+                '-',
+                '1',
+                str_replace(
+                    '+',
+                    '2',
+                    date('P', $ts)
+                )
+            ) . $zone;
         }
 
         usort($zones, function ($a, $b) {
-            return strcmp($a['order'], $b['order']);
+            return strcmp(
+                $a['order'],
+                $b['order']
+            );
         });
 
         date_default_timezone_set($actual);
@@ -1586,9 +3111,9 @@
         return session('csrf')->getToken();
     }
 
-    function csrf_field($echo = true)
+    function csrf_field($name = 'octo_token', $echo = true)
     {
-        $tokenName = Config::get('token_name', 'octo_token');
+        $tokenName = Config::get('token_name', $name);
         $token = csrf_make();
         $field = '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
 
@@ -1603,14 +3128,18 @@
     {
         $token = token();
 
-        session('csrf')->setOldToken(session('csrf')->getToken())->setToken($token);
+        session('csrf')
+        ->setOldToken(
+            session('csrf')
+            ->getToken()
+        )->setToken($token);
 
         return $token;
     }
 
-    function csrf_match()
+    function csrf_match($name = 'octo_token')
     {
-        $tokenName = Config::get('token_name', 'octo_token');
+        $tokenName = Config::get('token_name', $name);
 
         return posted($tokenName) == session('csrf')->getToken();
     }
@@ -1634,6 +3163,457 @@
         }
 
         return App::getInstance()->make($make, $params);
+    }
+
+    function injector($make, $params = [])
+    {
+        return (new Now)->make($make, $params);
+    }
+
+    function next()
+    {
+        static $nextables = [];
+
+        $args   = func_get_args();
+
+        $name  = array_shift($args);
+        $next  = array_shift($args);
+
+        if (!isset($nextables[$name])) {
+            $nextables[$name] = [];
+        }
+
+        $nextables[$name][] = call_user_func_array($next, $args);
+
+        $return = o();
+
+        $return->fn('next', function () {
+            return call_user_func_array('\\Octo\\next', func_get_args());
+        });
+
+        return $return;
+    }
+
+    function container($concern, $callable = 'octodummy')
+    {
+        if ('octodummy' != $callable) {
+            wire($concern, $callable);
+        } else {
+            $what = autowire($concern, true);
+
+            if ($what && is_callable($what)) {
+                if ($what instanceof \Closure) {
+                    return call_user_func($what);
+                }
+
+                return maker($concern);
+            }
+
+            return $what;
+        }
+    }
+
+    function caller(array $args)
+    {
+        return call_user_func_array('Octo\foundry', $args);
+    }
+
+    function foundry()
+    {
+        $args   = func_get_args();
+
+        $class  = array_shift($args);
+
+        return maker($class, $args, false);
+    }
+
+    function single()
+    {
+        $args   = func_get_args();
+
+        $class  = array_shift($args);
+
+        return maker($class, $args, true);
+    }
+
+    function singleton()
+    {
+        $args   = func_get_args();
+
+        $class  = array_shift($args);
+
+        return maker($class, $args, true);
+    }
+
+    function wire($concern, $callable)
+    {
+        if (!is_callable($callable)) {
+            $callable = function () use ($callable) { return $callable; };
+        }
+
+        $wires = Registry::get('core.wires', []);
+
+        $wires[$concern] = $callable;
+
+        Registry::set('core.wires', $wires);
+    }
+
+    function wiring($file)
+    {
+        if (is_file($file)) {
+            $wires = include $file;
+
+            foreach ($wires as $concern => $callable) {
+                wire($concern, $callable);
+            }
+        }
+    }
+
+    function autowire($concern, $raw = false)
+    {
+        $wires      = Registry::get('core.wires', []);
+        $callable   = isAke($wires, $concern, null);
+
+        if (!$raw && $callable && is_callable($callable)) {
+            return $callable();
+        }
+
+        return $callable;
+    }
+
+    function superdi()
+    {
+        $superdi = Registry::get('core.superdi');
+
+        if (!$superdi) {
+            $superdi = o();
+
+            $superdi->macro('registry', function ($key, $value = 'octodummy') use ($superdi) {
+                if ($value == $superdi && func_num_args() == 2) {
+                    $value = 'octodummy';
+                }
+
+                /* Polymorphism  */
+                if (is_array($key)) {
+                    foreach ($key as $k => $v) {
+                        $superdi->dataset($k, $v);
+                    }
+
+                    return $superdi;
+                }
+
+                if ('octodummy' == $value) {
+                    return $superdi->dataget($key);
+                }
+
+                return $superdi->dataset($key, $value);
+            });
+
+            $superdi->macro('dataget', function ($key, $default = null) use ($superdi) {
+                if ($default == $superdi && func_num_args() == 2) {
+                    $default = null;
+                }
+
+                return isAke(Registry::get('core.superdi.data', []), $key, $default);
+            });
+
+            $superdi->macro('datahas', function ($key) {
+                return 'octodummy' != isAke(Registry::get('core.superdi.data', []), $key, 'octodummy');
+            });
+
+            $superdi->macro('dataset', function ($key, $value) use ($superdi) {
+                $data = Registry::get('core.superdi.data', []);
+
+                $data[$key] = $value;
+
+                Registry::set('core.superdi.data', $data);
+
+                return $superdi;
+            });
+
+            $superdi->macro('datadel', function ($key) use ($superdi) {
+                $data = Registry::get('core.superdi.data', []);
+
+                unset($data[$key]);
+
+                Registry::set('core.superdi.data', $data);
+
+                return $superdi;
+            });
+
+            $superdi->macro('call', function () {
+                $args = func_get_args();
+                array_pop($args);
+
+                return call_user_func_array('\\Octo\\callMethod', $args);
+            });
+
+            $superdi->macro('resolve', function () {
+                $args = func_get_args();
+                array_pop($args);
+
+                return call_user_func_array('\\Octo\\foundry', $args);
+            });
+
+            $superdi->macro('factory', function () {
+                $args = func_get_args();
+                array_pop($args);
+
+                return call_user_func_array('\\Octo\\foundry', $args);
+            });
+
+            $superdi->macro('singleton', function () {
+                $args = func_get_args();
+                array_pop($args);
+
+                return call_user_func_array('\\Octo\\maker', $args);
+            });
+
+            $superdi->macro('register', function ($concern, $callable, $c = null) use ($superdi) {
+                if ($c == $superdi && func_num_args() == 3) {
+                    $c = null;
+                }
+
+                wire($concern, $callable);
+
+                if ($c) {
+                    $c->set($concern, true);
+                }
+
+                return $superdi;
+            });
+
+            $superdi->macro('define', function ($concern, $callable) use ($superdi) {
+                return $superdi->register($concern, $callable);
+            });
+
+            $superdi->macro('mock', function () use ($superdi) {
+                $args = func_get_args();
+                array_pop($args);
+
+                $mock = $superdi->resolve(...$args);
+
+                return dyn($mock);
+            });
+
+            Registry::set('core.superdi', $superdi);
+        }
+
+        return $superdi;
+    }
+
+    function binds($concern = null)
+    {
+        $binds = Registry::get('core.all.binds', []);
+
+        if (is_array($concern)) {
+            Registry::set('core.all.binds', $concern);
+        } else {
+            return $binds;
+        }
+    }
+
+    function maker($make, $args = [], $singleton = true)
+    {
+        $binds = binds();
+
+        $args       = arrayable($args) ? $args->toArray() : $args;
+        $callable   = isAke($binds, $make, null);
+
+        if ($callable && is_callable($callable) && $singleton) {
+            return call_user_func_array($callable, $args);
+        }
+
+        if ($i = autowire($make)) {
+            $binds[$make] = resolver($i);
+
+            binds($binds);
+
+            return $i;
+        }
+
+        $ref                = new \ReflectionClass($make);
+        $canMakeInstance    = $ref->isInstantiable();
+
+        if ($canMakeInstance) {
+            $maker = $ref->getConstructor();
+
+            if ($maker) {
+                $params = $maker->getParameters();
+
+                if (empty($args) || count($args) != count($params)) {
+                    $instanceParams = [];
+
+                    foreach ($params as $param) {
+                        if (!empty($args)) {
+                            $p = array_shift($args);
+
+                            if (is_null($p)) {
+                                try {
+                                    $p = $param->getDefaultValue();
+                                } catch (\Exception $e) {
+                                    $p = null;
+                                }
+                            }
+                        } else {
+                            $classParam = $param->getClass();
+
+                            if ($classParam) {
+                                $p = maker($classParam->getName());
+                            } else {
+                                try {
+                                    $p = $param->getDefaultValue();
+                                } catch (\Exception $e) {
+                                    exception('Dic', $param->getName() . " parameter has no default value.");
+                                }
+                            }
+                        }
+
+                        $instanceParams[] = $p;
+                    }
+
+                    if (!empty($instanceParams)) {
+                        $i = $ref->newInstanceArgs($instanceParams);
+                    } else {
+                        $i = $ref->newInstance();
+                    }
+                } else {
+                    $i = $ref->newInstanceArgs($args);
+                }
+
+                $binds[$make] = resolver($i);
+
+                binds($binds);
+
+                return $i;
+            } else {
+                $i = $ref->newInstance();
+
+                $binds[$make] = resolver($i);
+
+                binds($binds);
+
+                return $i;
+            }
+        } else {
+            exception('Dic', "The class $make is not intantiable.");
+        }
+
+        exception('Dic', "The class $make is not set.");
+    }
+
+    function callMethod()
+    {
+        $args       = func_get_args();
+        $object     = array_shift($args);
+        $method     = array_shift($args);
+        $fnParams   = $args;
+        $reflection = new \ReflectionClass(get_class($object));
+        $ref        = $reflection->getMethod($method);
+        $params     = $ref->getParameters();
+
+        if (empty($args) || count($args) != count($params)) {
+            foreach ($params as $param) {
+                if (!empty($args)) {
+                    $p = array_shift($args);
+
+                    if (is_null($p)) {
+                        try {
+                            $p = $param->getDefaultValue();
+                        } catch (\Exception $e) {
+                            $p = null;
+                        }
+                    }
+                } else {
+                    $classParam = $param->getClass();
+
+                    if ($classParam) {
+                        $p = maker($classParam->getName());
+                    } else {
+                        try {
+                            $p = $param->getDefaultValue();
+                        } catch (\Exception $e) {
+                            exception('Dic', $param->getName() . " parameter has no default value.");
+                        }
+                    }
+
+                    $fnParams[] = $p;
+                }
+            }
+        }
+
+        $closure = $ref->getClosure($object);
+
+        return call_user_func_array($closure, $fnParams);
+    }
+
+    function loadFiles($pattern)
+    {
+        $files = glob($pattern);
+
+        foreach ($files as $file) {
+            require_once $file;
+        }
+    }
+
+    function resolver($object)
+    {
+        if (is_callable($object)) {
+            $object = $object();
+        }
+
+        if (is_string($object)) {
+            $object = maker($object);
+        }
+
+        return function () use ($object) {
+            return $object;
+        };
+    }
+
+    function makeOnce(\Closure $callable)
+    {
+        $key        = lib('closures')->makeId($callable);
+        $records    = Registry::get('make.once', []);
+        $dummy      = sha1('octodummy' . date('dmY'));
+
+        $result     = isAke($records, $key, $dummy);
+
+        if ($result == $dummy) {
+            $result         = $callable();
+            $records[$key]  = $result;
+
+            Registry::set('make.once', $records);
+        }
+
+        return $result;
+    }
+
+    function fromTs($timestamp)
+    {
+        return lib('time')->createFromTimestamp($timestamp);
+    }
+
+    function conf($key, $default = null)
+    {
+        return Config::get($key, appenv($key, $default));
+    }
+
+    function appenv($key, $default = null)
+    {
+        $env = path('base') . '/.env';
+
+        if (File::exists($env)) {
+            $ini = makeOnce(
+                function () use ($env) {
+                    return parse_ini_file($env);
+                }
+            );
+
+            return isAke($ini, $key, $default);
+        }
+
+        return $default;
     }
 
     function env($key, $default = null)
@@ -1688,17 +3668,20 @@
 
         $key = 'gravatar.' . sha1(serialize(func_get_args()));
 
-        return session()->getOr($key, function () use ($email, $size, &$is_gravatar_loaded, &$gravatar) {
+        return session('web')
+        ->getOr($key, function () use ($email, $size, &$is_gravatar_loaded, &$gravatar) {
             $account = null;
 
             if (is_numeric($email)) {
-                $account = System::Account()->find((int) $email);
+                $account = em('systemAccount')->find((int) $email);
 
                 if ($account) {
                     $email = $account->getEmail();
                 }
             } else {
-                $account = System::Account()->where(['email', '=', Strings::lower($email)])->first(true);
+                $account = em('systemAccount')
+                ->where('email', Strings::lower($email))
+                ->first(true);
             }
 
             $default = URLSITE . 'assets/img/nobody.svg';
@@ -1724,25 +3707,12 @@
         });
     }
 
-    function is_admin($user = null)
-    {
-        $user = empty($user) ? auth()->user() : $user;
-
-        if ($role_id    = isAke($user, 'role_id', null)) {
-            $role       = System::Role()->find((int) $role_id);
-
-            return $role->name == 'admin';
-        }
-
-        return false;
-    }
-
     function octo_role($user = null)
     {
         $user = empty($user) ? auth()->user() : $user;
 
         if ($role_id    = isAke($user, 'role_id', null)) {
-            $role       = System::Role()->find((int) $role_id);
+            $role       = em('systemRole')->find((int) $role_id);
 
             return $role->name;
         }
@@ -1759,13 +3729,13 @@
         $account_id = auth()->user('id');
 
         if ($account_id) {
-            $account = System::Account()
+            $account = em('systemAccount')
             ->find((int) $account_id);
 
             if ($account) {
-                $permission = System::Permission()
-                ->where(['action', '=', $action])
-                ->where(['account_id', '=', (int) $account_id])
+                $permission = em('systemPermission')
+                ->where('action', $action)
+                ->where('account_id', (int) $account_id)
                 ->first();
 
                 if ($permission) {
@@ -1782,7 +3752,7 @@
         return !octo_can($action);
     }
 
-    function free_space($path = null)
+    function freeSpace($path = null)
     {
         $path = is_null($path) ? path('octalia') : $apth;
 
@@ -1802,7 +3772,7 @@
         return 0;
     }
 
-    function time_ago(Time $dt, $time_zone, $lang_code = 'en')
+    function timeAgo(Time $dt, $time_zone, $lang_code = 'en')
     {
         $sec = $dt->diffInSeconds(Time::now($time_zone));
         Time::setLocale($lang_code);
@@ -1814,14 +3784,20 @@
     function ohash($str, $salt = null)
     {
         $salt = empty($salt) ? osalt() : $salt;
-        $hash = hash($str . $salt);
+        $hash = hash(base64_encode($str . $salt));
 
         return strrev($hash);
     }
 
     function osalt()
     {
-        return strrev(hash(token()));
+        return strrev(
+            hash(
+                base64_encode(
+                    token()
+                )
+            )
+        );
     }
 
     require_once __DIR__ . DS . 'traits.php';
@@ -1891,7 +3867,7 @@
                 if ($target instanceof Collection) {
                     $target = $target->all();
                 } elseif (!is_array($target)) {
-                    return File::value($default);
+                    return value($default);
                 }
 
                 $result = Arrays::pluck($target, $key);
@@ -1904,7 +3880,7 @@
             } elseif (is_object($target) && isset($target->{$segment})) {
                 $target = $target->{$segment};
             } else {
-                return File::value($default);
+                return value($default);
             }
         }
 
@@ -1977,12 +3953,12 @@
             return Config::get($key);
         }
 
-        return Config::set($key, $value);
+        Config::set($key, $value);
     }
 
     function tpl($file, $args = [])
     {
-        $content = '';
+        $content = null;
 
         if (file_exists($file) && is_readable($file)) {
             extract($args);
@@ -2001,7 +3977,7 @@
 
     function lang($k, $args =  [], $default = null)
     {
-        $lng = lng();
+        $lng        = lng();
         $dictionary = null;
         $translated = Registry::get('translated.' . $lng, []);
 
@@ -2043,11 +4019,6 @@
         Registry::get('translated.' . $lng, $translated);
 
         return $val;
-    }
-
-    function _($k, $a = [], $d = null)
-    {
-        echo lang($k, $a, $d);
     }
 
     function sqlite($db = null)
@@ -2106,7 +4077,7 @@
     {
         $promise = o();
 
-        $promise->macro('success', function (callable $succes = null) {
+        $promise->macro('success', function (callable $success = null) {
             if (is_callable($success)) {
                 return $success();
             }
@@ -2125,9 +4096,138 @@
         return $promise;
     }
 
+    function options()
+    {
+        $options = o();
+
+        $options->macro('set', function ($k, $v) use ($options) {
+            $option = em('systemOption')
+            ->firstOrCreate(['name' => $k])
+            ->setValue($v)
+            ->save();
+
+            return $options;
+        });
+
+        $options->macro('get', function ($k, $d = null) {
+            $option = em('systemOption')
+            ->where('name', $k)
+            ->first(true);
+
+            return $option ? $option->value : $d;
+        });
+
+        $options->macro('has', function ($k) {
+            $option = em('systemOption')
+            ->where('name', $k)
+            ->first(true);
+
+            return $option ? true : false;
+        });
+
+        $options->macro('delete', function ($k) {
+            $option = em('systemOption')
+            ->where('name', $k)
+            ->first(true);
+
+            return $option ? $option->delete() : false;
+        });
+
+        return $options;
+    }
+
+    function settings()
+    {
+        $settings = o();
+
+        $settings->macro('set', function ($k, $v) use ($settings) {
+            $k = sha1(forever() . $k);
+
+            em('systemSetting')
+            ->firstOrCreate(['name' => $k])
+            ->setValue($v)
+            ->save();
+
+            return $settings;
+        });
+
+        $settings->macro('get', function ($k, $d = null) {
+            $k = sha1(forever() . $k);
+
+            $setting = em('systemSetting')
+            ->where('name', $k)
+            ->first(true);
+
+            return $setting ? $setting->value : $d;
+        });
+
+        $settings->macro('has', function ($k) {
+            $k = sha1(forever() . $k);
+
+            $setting = em('systemSetting')
+            ->where(['name', '=', $k])
+            ->first(true);
+
+            return $setting ? true : false;
+        });
+
+        $settings->macro('delete', function ($k) {
+            $k = sha1(forever() . $k);
+
+            $setting = em('systemSetting')
+            ->where(['name', '=', $k])
+            ->first(true);
+
+            return $setting ? $setting->delete() : false;
+        });
+
+        return $settings;
+    }
+
+    function events()
+    {
+        $events = o();
+
+        $events->macro('on', function ($event, callable $cb) use ($events) {
+            $_events = Registry::get('core.events', []);
+
+            $_events[$event] = $cb;
+
+            Registry::set('core.events', $_events);
+
+            return $events;
+        });
+
+        $events->macro('broadcast', function ($event, array $args = []) {
+            $events = Registry::get('core.events', []);
+
+            $event = isAke($events, $event, null);
+
+            if (is_callable($event)) {
+                return call_user_func_array($event, $args);
+            }
+
+            return null;
+        });
+
+        $events->macro('fire', function ($event, array $args = []) {
+            $events = Registry::get('core.events', []);
+
+            $event = isAke($events, $event, null);
+
+            if (is_callable($event)) {
+                return call_user_func_array($event, $args);
+            }
+
+            return null;
+        });
+
+        return $events;
+    }
+
     function listen($event, array $args = [])
     {
-        $events = Registry::get('core_events', []);
+        $events = Registry::get('core.events', []);
 
         $e = isAke($events, $event, null);
 
@@ -2151,11 +4251,11 @@
 
     function broadcast($event, callable $cb)
     {
-        $events = Registry::get('core_events', []);
+        $events = Registry::get('core.events', []);
 
         $events[$event] = $cb;
 
-        Registry::set('core_events', $events);
+        Registry::set('core.events', $events);
     }
 
     function isWindows()
@@ -2172,8 +4272,8 @@
 
     function staticEtag()
     {
-        $controller = Registry::get('app.controller.file');
-        $tpl        = Registry::get('app.view.file');
+        $controller = actual('controller.file');
+        $tpl        = actual('view.file');
 
         if ($controller && $tpl) {
             if (File::exists($controller) && File::exists($tpl)) {
@@ -2195,7 +4295,7 @@
         if ((isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) === $time) || (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $etag === trim($_SERVER['HTTP_IF_NONE_MATCH']))) {
             status(304);
 
-            exit();
+            exit;
         }
     }
 
@@ -2224,13 +4324,38 @@
         return File::value($value);
     }
 
-    function posted($k = null, $d = null)
+    function arrayed(array $array, $k = null, $d = null)
     {
         if (empty($k)) {
-            return !empty($_POST);
+            return !empty($array);
         }
 
-        return isAke($_POST, $k, $d);
+        if (is_array($k)) {
+            $collection = [];
+
+            foreach ($k as $key) {
+                $collection[$key] = isAke($array, $key, $d);
+            }
+
+            return $collection;
+        }
+
+        return isAke($array, $k, $d);
+    }
+
+    function posted($k = null, $d = null)
+    {
+        return arrayed($_POST, $k, $d);
+    }
+
+    function requested($k = null, $d = null)
+    {
+        return arrayed($_REQUEST, $k, $d);
+    }
+
+    function getted($k = null, $d = null)
+    {
+        return arrayed($_GET, $k, $d);
     }
 
     function checkReferer()
@@ -2252,6 +4377,13 @@
         }
 
         return $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    }
+
+    function image($config = null)
+    {
+        $config = !is_array($config) ? ['driver' => 'imagick'] : $config;
+
+        return maker(\Intervention\Image\ImageManager::class, [$config]);
     }
 
     function imgResize($source_file, $dest_dir, $max_w, $max_h, $stamp_file = null)
@@ -2415,21 +4547,21 @@
         return $val ?: $d;
     }
 
-    function int($number)
+    function toInt($number)
     {
         settype($number, 'integer');
 
         return (int) $number;
     }
 
-    function float($number)
+    function toFloat($number)
     {
         settype($number, 'float');
 
         return (float) $number;
     }
 
-    function string($string)
+    function toString($string)
     {
         settype($string, 'string');
 
@@ -2449,7 +4581,7 @@
             }
         }
 
-        return (new App)->make($class, $args);
+        return maker($class, $args);
     }
 
     function appli($lib, $args = [], $dir = null)
@@ -2465,7 +4597,7 @@
             }
         }
 
-        return (new App)->make($class, $args);
+        return maker($class, $args);
     }
 
     function exception($type, $message, $extends = '\\Exception')
@@ -2520,7 +4652,7 @@
         return app($make, $params);
     }
 
-    function singleton($make, $params = [])
+    function singler($make, $params = [])
     {
         return App::getInstance()->singleton($make, $params);
     }
@@ -2596,7 +4728,7 @@
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
-        if ($username !== NULL) {
+        if ($username !== null) {
             curl_setopt($ch, CURLOPT_USERPWD, $username . ':' . $password);
         }
 
@@ -2673,7 +4805,7 @@
                 $classCode = File::read($fileName);
                 list($dummy, $classCode) = explode('namespace Octo;', $classCode, 2);
 
-                $code = "namespace { $classCode };";
+                $code = "namespace { $classCode }";
 
                 eval($code);
             }
@@ -2705,7 +4837,7 @@
 
         spl_autoload_register(function ($class) use ($from, $to) {
             if (!class_exists($class) && class_exists($to . '\\' . $class)) {
-                $ref = new \ReflectionClass($to. '\\' . $class);
+                $ref = new \ReflectionClass($to . '\\' . $class);
                 $fileName = $ref->getFileName();
 
                 $classCode = File::read($fileName);
@@ -2954,6 +5086,50 @@
         return back($url);
     }
 
+    function flasher()
+    {
+        $flasher = o();
+
+        $flasher->macro('success', function ($v = 'octodummy') {
+            if ($v instanceof Object) {
+                $v = 'octodummy';
+            }
+
+            $key = "success";
+            return flash($key, $v);
+        });
+
+        $flasher->macro('error', function ($v = 'octodummy') {
+            if ($v instanceof Object) {
+                $v = 'octodummy';
+            }
+
+            $key = "error";
+            return flash($key, $v);
+        });
+
+        $flasher->macro('hasSuccess', function () {
+            return hasflash('error');
+        });
+
+        $flasher->macro('hasError', function () {
+            return hasflash('error');
+        });
+
+        return $flasher;
+    }
+
+    function hasflash($k)
+    {
+        $session = session('flash');
+
+        $getter = getter($k);
+
+        $value = $session->$getter('octodummy');
+
+        return 'octodummy' !== $value;
+    }
+
     function flash($k, $v = 'octodummy')
     {
         $session = session('flash');
@@ -2973,6 +5149,49 @@
         return $value;
     }
 
+    function cufa()
+    {
+        $args = func_get_args();
+
+        $callable = array_shift($args);
+
+        return call(
+            $callable,
+            $args
+        );
+    }
+
+    function closure()
+    {
+        $args       = func_get_args();
+        $callable   = array_shift($args);
+
+        $fn = o([
+            'callable' => $callable,
+            'args' => $args
+        ]);
+
+        $fn->macro('call', function () {
+            $nextArgs   = func_get_args();
+            $next       = array_shift($nextArgs);
+            $res        = call_user_func_array(
+                $fn->getCallable(),
+                $fn->getArgs()
+            );
+
+            if (is_callable($next)) {
+                $res = call_user_func_array(
+                    $next,
+                    array_merge([$res], $nextArgs)
+                );
+            }
+
+            return $res;
+        });
+
+        return $fn;
+    }
+
     function call($callback, array $args)
     {
         if (is_string($callback) && fnmatch('*::*', $callback)) {
@@ -2981,7 +5200,7 @@
 
         if (is_array($callback) && isset($callback[1]) && is_object($callback[0])) {
             if ($count = count($args)) {
-                $args = array_values($args);
+                $args   = array_values($args);
             }
 
             list($instance, $method) = $callback;
@@ -2992,8 +5211,8 @@
             $class = '\\' . ltrim($class, '\\');
 
             return $class::{$method}(...$args);
-        } elseif (is_string($callback) or $callback instanceOf \Closure) {
-            is_string($callback) and $callback = ltrim($callback, '\\');
+        } elseif (is_string($callback) || $callback instanceOf \Closure) {
+            is_string($callback) && $callback = ltrim($callback, '\\');
         }
 
         return $callback(...$args);
@@ -3002,33 +5221,33 @@
     function hash($str)
     {
         if (function_exists('hash_algos')) {
-            foreach (array('sha512', 'sha384', 'sha256', 'sha224', 'sha1', 'md5') as $hash) {
+            foreach (['sha512', 'sha384', 'sha256', 'sha224', 'sha1', 'md5'] as $hash) {
                 if (in_array($hash, hash_algos())) {
                     return \hash($hash, $str);
                 }
             }
         }
 
-        return md5($token_base);
+        return sha1($token_base);
     }
 
     function e($value, $flags = ENT_QUOTES, $encoding = 'UTF-8')
     {
         static $cleaned = [];
 
-        if (is_bool($value) or is_int($value) or is_float($value) or in_array($value, $cleaned, true)) {
+        if (is_bool($value) || is_int($value) || is_float($value) || in_array($value, $cleaned, true)) {
             return $value;
         }
 
         if (is_string($value)) {
             $value = htmlentities($value, $flags, $encoding, false);
-        } elseif (is_array($value) or ($value instanceof \Iterator && $value instanceof \ArrayAccess)) {
+        } elseif (is_array($value) || ($value instanceof \Iterator && $value instanceof \ArrayAccess)) {
             is_object($value) && $cleaned[] = $value;
 
             foreach ($value as $k => $v) {
                 $value[$k] = e($v, $flags, $encoding);
             }
-        } elseif ($value instanceof \Iterator or get_class($value) == 'stdClass') {
+        } elseif ($value instanceof \Iterator || get_class($value) == 'stdClass') {
             $cleaned[] = $value;
 
             foreach ($value as $k => $v) {
@@ -3057,9 +5276,18 @@
         return new $class($data);
     }
 
+    function isRoute($name, array $args = [])
+    {
+        return Routes::isRoute($name, $args);
+    }
+
     function urlFor($name, array $args = [])
     {
         $url = Routes::url($name, $args);
+
+        if (!$url) {
+            $url = $name;
+        }
 
         return WEBROOT . '/' . trim($url, '/');
     }
@@ -3089,13 +5317,17 @@
             list($controllerName, $action) = explode('#', $what, 2);
         }
 
-        $actualController = Registry::get('app.controller', null);
+        if (fnmatch('*:*', $what)) {
+            list($controllerName, $action) = explode(':', $what, 2);
+        }
+
+        $actualController = actual('controller');
 
         if (!empty($actualController)) {
             if (is_object($actualController)) {
-                $classC = get_class($actualController);
-                $tab = explode('\\', $classC);
-                $namespace = array_shift($tab);
+                $classC     = get_class($actualController);
+                $tab        = explode('\\', $classC);
+                $namespace  = array_shift($tab);
 
                 $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
 
@@ -3135,7 +5367,10 @@
                     return $return->go();
                 }
 
-                return Router::render($controller, Registry::get('cb.404'));
+                return Router::render(
+                    $controller,
+                    Registry::get('cb.404')
+                );
             }
         }
     }
@@ -3314,12 +5549,17 @@
         return $result;
     }
 
-    function faker()
+    function faker($lng = 'fr_FR')
     {
-        return \Faker\Factory::create(Config::get('faker.provider', 'fr_FR'));
+        return \Faker\Factory::create(
+            Config::get(
+                'faker.provider',
+                $lng
+            )
+        );
     }
 
-    function provider($alias, callable $resolver = null)
+    function providers($alias, callable $resolver = null)
     {
         return app()->provider($alias, $resolver);
     }
@@ -3337,11 +5577,13 @@
         return $res;
     }
 
-    function start_session()
+    function start_session($ns = 'web')
     {
         if (!session_id() && !headers_sent() && !isset($_SESSION)) {
             session_start();
         }
+
+        return session($ns);
     }
 
     function lower($str)
@@ -3356,14 +5598,24 @@
 
     function polymorph(Object $object)
     {
-        return engine($object->db(), $object->polymorph_type)->find((int) $object->polymorph_id);
+        return em(
+            $object->db(),
+            $object->polymorph_type
+        )->find((int) $object->polymorph_id);
     }
 
     function polymorphs(Object $object, $parent)
     {
-        return engine($object->db(), $parent)
-        ->where('polymorph_type', $object->table())
-        ->where('polymorph_id', (int) $object->id);
+        return engine(
+            $object->db(),
+            $parent
+        )->where(
+            'polymorph_type',
+            $object->table()
+        )->where(
+            'polymorph_id',
+            (int) $object->id
+        );
     }
 
     function tsToTime($timestamp, $tz = null)
@@ -3410,9 +5662,55 @@
         }
     }
 
+    function actual()
+    {
+        $args   = func_get_args();
+        $num    = func_num_args();
+        $key    = array_shift($args);
+        $value  = array_shift($args);
+
+        $actuals = Registry::get('core.actuals', []);
+
+        if (is_null($key)) {
+            return $actuals;
+        }
+
+        if (1 == $num) {
+            return isAke($actuals, $key, null);
+        }
+
+        $value = value($value);
+
+        $actuals[$key] = $value;
+
+        Registry::set('core.actuals', $actuals);
+
+        return $value;
+    }
+
     function fire($event, array $args = [])
     {
         return event($event, null, $args);
+    }
+
+    function listening($event, $concern = null, $return = false)
+    {
+        if (Fly::has($event)) {
+            $result = Fly::listen($event, $concern);
+
+            if ($return) {
+                return $result;
+            }
+        }
+
+        return $concern;
+    }
+
+    function subscribe($event, callable $callable, $back = null)
+    {
+       Fly::on($event, $callable);
+
+       return $back;
     }
 
     function validator($name)
@@ -3441,7 +5739,7 @@
             return $validator;
         });
 
-        $validator->macro('check', function (array $data = []) {
+        $validator->macro('check', function (array $data = []) use ($name) {
             $errors = [];
 
             $data = empty($data) ? $_POST : $data;
@@ -3474,11 +5772,17 @@
         return $validator;
     }
 
-    function laravel53($app, $name = 'laravel_app', callable $config = null)
+    function laravel()
+    {
+        return call_user_func_array('\\app', func_get_args());
+    }
+
+    function laravel5($app, $name = 'laravel_app', callable $config = null)
     {
         Timer::start();
 
-        $basePath = base_path();
+        $basePath = \base_path();
+        $appPath = \app_path();
 
         systemBoot($basePath . '/public');
 
@@ -3502,7 +5806,11 @@
             Dir::mkdir($basePath . '/database/octalia/data');
         }
 
-        Config::set('laravel', $app);
+        if (!is_dir($appPath . '/Entities')) {
+            Dir::mkdir($appPath . '/Entities');
+        }
+
+        Registry::set('laravel', $app);
 
         Config::set('application.name',     $name);
         Config::set('application.dir',      realpath($basePath . '/app'));
@@ -3523,43 +5831,6 @@
         path('octalia',                     Config::get('octalia.dir', session_save_path()));
         path('cache',                       Config::get('dir.cache', session_save_path()));
 
-        $methods = get_defined_functions();
-
-        getHelpers();
-        getHelpers('App');
-
-        lib('MigrationCommand');
-
-        $app['command.octo.migration'] = $app->share(
-            function ($app) {
-                return new MigrationCommand;
-            }
-        );
-
-        $commands[] = 'command.octo.migration';
-
-        $app['command.octo.seed'] = $app->share(
-            function ($app) {
-                return new SeedCommand;
-            }
-        );
-
-        $commands[] = 'command.octo.seed';
-
-        $app['command.octo.clean'] = $app->share(
-            function ($app) {
-                return new CleanFakeCommand;
-            }
-        );
-
-        $commands[] = 'command.octo.clean';
-
-        $events = $app['events'];
-
-        $events->listen(\Illuminate\Console\Events\ArtisanStarting::class, function ($event) use ($commands) {
-            $event->artisan->resolveCommands($commands);
-        });
-
         if (is_callable($config)) {
             $config($app);
         }
@@ -3567,7 +5838,7 @@
 
     function tinker()
     {
-        laravel53(\app());
+        laravel5(laravel());
     }
 
     function createModel(Octalia $model, array $fields = [])
@@ -3581,7 +5852,7 @@
                 }
             }
 
-            $model->create($row)->save();
+            $model->store($row);
             $model->forget();
 
             return true;
@@ -3610,7 +5881,7 @@
 
                     if (!function_exists($from . '\\' . $fn)) {
                         $code = 'namespace ' . $from . ' {
-                            function '. $fn .' ()
+                            function ' . $fn . ' ()
                             {
                                 return call_user_func_array("\\' . str_replace('\\', '\\\\', $function) . '", func_get_args());
                             };
@@ -3724,15 +5995,44 @@
         return new Utils;
     }
 
-    function engine($database = 'core', $table = 'core', $driver = 'ldb')
+    function dic()
     {
-        $engine = Config::get('octalia.engine', 'ldb');
+        $dic = Registry::get('core.dic');
 
-        if (function_exists('\\Octo\\' . $engine)) {
-            return call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
-        } else {
-            exception('core', "Engine $engine does not exist.");
+        if (!$dic) {
+            $dic = o();
+
+            $dic->macro('get', function ($k, $d = null) {
+                $key = 'dic.' . Strings::urlize($k, '.');
+
+                return Registry::get($key, $d);
+            });
+
+            $dic->macro('set', function ($k, $v) {
+                $key = 'dic.' . Strings::urlize($k, '.');
+
+                return Registry::get($key, $v);
+            });
+
+            Registry::set('core.dic', $dic);
         }
+
+        return $dic;
+    }
+
+    function once($k, $v = 'octodummy')
+    {
+        $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
+
+        if ('octodummy' != $v) {
+            return fmr('once')->set($key, value($v));
+        }
+
+        $value = fmr('once')->get($key);
+
+        fmr('once')->del($key);
+
+        return $value;
     }
 
     function keep($k, $v = 'octodummy')
@@ -3740,7 +6040,7 @@
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
 
         if ('octodummy' != $v) {
-            return fmr('keep')->set($key, $v);
+            return fmr('keep')->set($key, value($v));
         }
 
         return fmr('keep')->get($key);
@@ -3751,6 +6051,44 @@
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
 
         return fmr('keep')->del($key);
+    }
+
+    function getEngine()
+    {
+        $driver = actual('octalia_driver');
+
+        if ($driver && is_object($driver)) {
+            $class = get_class($driver);
+
+            if ($class == Now::class) {
+                return 'Octo\\ndb';
+            } else if ($class == Cacheredis::class) {
+                return 'Octo\\rdb';
+            }
+        }
+
+        return 'Octo\\odb';
+    }
+
+    function engine($database = 'core', $table = 'core', $driver = 'odb')
+    {
+        $engine = conf('octalia.engine', $driver);
+
+        if (function_exists('\\Octo\\' . $engine)) {
+            return call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
+        } else {
+            exception('core', "Engine $engine does not exist.");
+        }
+    }
+
+    function modeler($model)
+    {
+        return em($model);
+    }
+
+    function entity($model, array $data = [])
+    {
+        return em($model)->model($data);
     }
 
     function em($model, $engine = 'engine', $force = false)
@@ -3767,7 +6105,6 @@
                 $table      = $model;
             }
 
-            // $models[$model] = engine($database, $table);
             $models[$model] = call_user_func_array('\\Octo\\' . $engine, [$database, $table]);
 
             Registry::set('em.models', $models);
@@ -3799,50 +6136,25 @@
         return array_keys($a)[count($a) - 1];
     }
 
-    function dic()
+    function guest($ns = 'web')
     {
-        $dic = Registry::get('core.dic');
-
-        if (!$dic) {
-            $dic = o();
-
-            $dic->macro('get', function ($k, $d = null) {
-                $key = 'dic.' . Strings::urlize($k, '.');
-
-                return Registry::get($key, $d);
-            });
-
-            $dic->macro('set', function ($k, $v) {
-                $key = 'dic.' . Strings::urlize($k, '.');
-
-                return Registry::get($key, $v);
-            });
-
-            Registry::set('core.dic', $dic);
-        }
-
-        return $dic;
-    }
-
-    function guest()
-    {
-        $u = session('web')->getUser();
+        $u = session($ns)->getUser();
 
         return is_null($u);
     }
 
-    function role()
+    function role($ns = 'web')
     {
-        if (!guest()) {
-            $user = session('web')->getUser();
-            $role = System::Role()->find((int) $user['role_id']);
+        if (!guest($ns)) {
+            $user = session($ns)->getUser();
+            $role = em('systemRole')->find((int) $user['role_id']);
 
             if ($role) {
                 return $role;
             }
         }
 
-        return 'guest';
+        return o(['label' => 'guest']);
     }
 
     function dom()
@@ -3901,14 +6213,14 @@
                 return Registry::set($key, $cb);
             });
 
-            $gate->macro('allows', function ($k) {
+            $gate->macro('allows', function ($k, $ns = 'web') {
                 $key = 'gate.' . Strings::urlize($k, '.');
 
-                if (!guest()) {
+                if (!guest($ns)) {
                     $cb = Registry::get($key);
 
                     if ($cb) {
-                        return $cb(session('web')->getUser());
+                        return $cb(session($ns)->getUser());
                     }
                 }
 
@@ -3924,7 +6236,7 @@
     /*
         $mailer = mailer();
         $message = message()
-        ->setSubject('subjecy')
+        ->setSubject('subject')
         ->setTo(['client@site.com' => 'Client'])
         ->setFrom(['contact@site.com' => 'Contact'])
         ->setBody('This is a message!!', 'text/html');
@@ -3932,33 +6244,52 @@
         $status = $mailer->send($message);
     */
 
-    function message()
+    function mailto($config)
     {
-        require_once (__DIR__ . '/swift/swift_required.php');
+        $config     = arrayable($config) ? $config->toArray() : $config;
+        $mailer     = mailer();
 
-        return \Swift_Message::newInstance();
+        $to         = isAke($config, 'to', null);
+        $toName     = isAke($config, 'to_name', $to);
+
+        $from       = isAke($config, 'from', conf('MAILER_FROM', 'admin@localhost'));
+        $fromName   = isAke($config, 'from_name', $from);
+
+        $subject    = isAke($config, 'subject', null);
+        $body       = isAke($config, 'body', null);
+
+        $message    = message()
+        ->setTo([$to => $toName])
+        ->setSubject($subject)
+        ->setFrom([$from => $fromName])
+        ->setBody($body, 'text/html');
+
+        return $mailer->send($message);
+    }
+
+    function message($swift = null)
+    {
+        return foundry(Mailable::class, $swift);
     }
 
     function mailer()
     {
-        require_once (__DIR__ . '/swift/swift_required.php');
-
-        $mailer = Config::get('app.mailer', 'php'); /* smtp, sendmail, php */
+        $mailer = conf('MAILER_DRIVER', 'php'); /* smtp, sendmail, php */
 
         switch ($mailer) {
             case 'smtp':
                 $transport = \Swift_SmtpTransport::newInstance(
-                    Config::get('smtp.host', 'localhost'),
-                    Config::get('smtp.port', 443),
-                    'ssl'
+                    conf('SMTP_HOST', 'localhost'),
+                    conf('SMTP_PORT', 443),
+                    conf('SMTP_SECURITY', 'ssl')
                 )
-                ->setUsername(Config::get('smtp.user'))
-                ->setPassword(Config::get('smtp.password'));
+                ->setUsername(conf('SMTP_USER', ''))
+                ->setPassword(conf('SMTP_PASSWORD', ''));
 
                 break;
             case 'sendmail':
                 $transport = \Swift_SendmailTransport::newInstance(
-                    Config::get('sendmail', '/usr/lib/sendmail')
+                    conf('SENDMAIL_PATH', '/usr/lib/sendmail')
                 );
 
                 break;
@@ -3974,15 +6305,955 @@
 
     function memory()
     {
-        $memory = Registry::get('db.memory');
+        $PDOoptions = [
+            \PDO::ATTR_CASE                 => \PDO::CASE_NATURAL,
+            \PDO::ATTR_ERRMODE              => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_ORACLE_NULLS         => \PDO::NULL_NATURAL,
+            \PDO::ATTR_DEFAULT_FETCH_MODE   => \PDO::FETCH_ASSOC,
+            \PDO::ATTR_STRINGIFY_FETCHES    => false,
+            \PDO::ATTR_EMULATE_PREPARES     => false
+        ];
 
-        if (!$memory) {
-            $memory = new \PDO('sqlite::memory:');
-            $memory->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-            $memory->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
-
-            Registry::set('db.memory', $memory);
-        }
+        $memory = foundry(\PDO::class, 'sqlite::memory:', null, null, $PDOoptions);
+        $memory->setAttribute(\PDO::ATTR_STATEMENT_CLASS, [Statement::class, [$memory]]);
 
         return $memory;
+    }
+
+    function formatSize($size)
+    {
+        $mod = 1024;
+        $units = explode(' ', 'B KB MB GB TB PB');
+
+        for ($i = 0; $size > $mod; $i++) {
+            $size /= $mod;
+        }
+
+        return round($size, 2) . ' ' . $units[$i];
+    }
+
+    function foldersize($path, $format = true)
+    {
+        $total_size = 0;
+        $files = scandir($path);
+
+        foreach($files as $t) {
+            if (is_dir(rtrim($path, '/') . '/' . $t)) {
+                if ($t <> "." && $t <> "..") {
+                    $size = foldersize(rtrim($path, '/') . '/' . $t);
+
+                    $total_size += $size;
+                }
+            } else {
+                $size = filesize(rtrim($path, '/') . '/' . $t);
+                $total_size += $size;
+            }
+        }
+
+        return $format ? formatSize($total_size) : $total_size;
+    }
+
+    function myarray($name, $row = 'octodummy')
+    {
+        $arrays = Registry::get('core.arrays', []);
+
+        $array = isAke($name, $arrays, []);
+
+        if ($row != 'octodummy') {
+            $array[] = $row;
+
+            $arrays[$name] = $array;
+
+            Registry::set('core.arrays', $arrays);
+        }
+
+        return $array;
+    }
+
+    function myarrayToCollection($name)
+    {
+        return coll(myarray($name));
+    }
+
+    /* Alias of myarrayToCollection */
+    function ma2c($name)
+    {
+        return myarrayToCollection($name);
+    }
+
+    function globalized($name, $default = null)
+    {
+        $key = 'globalize.' . Strings::urlize($name, '.');
+
+        return Registry::get($key, $default);
+    }
+
+    function globalize($name, $value)
+    {
+        $key = 'globalize.' . Strings::urlize($name, '.');
+
+        return Registry::set($key, $value);
+    }
+
+    function mylite($db = null)
+    {
+        $db = is_null($db) ? Config::get('sqlite.db', path('storage') . DS . 'lite') : $db;
+
+        $mylite  =  new \PDO('sqlite:' . $db);
+
+        $mylite->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $mylite->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+
+        return $mylite;
+    }
+
+    function mysql($host = '127.0.0.1', $database = null, $user = 'root', $password = '')
+    {
+        $dsn = 'mysql:dbname=' . Config::get('mysql.database', $database) . ';host=' . Config::get('mysql.host', $host);
+
+        $mysql =  new \PDO(
+            $dsn,
+            Config::get('mysql.user', $user),
+            Config::get('mysql.password', $password)
+        );
+
+        $mysql->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $mysql->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+
+        return $mysql;
+    }
+
+    function deNamespace($className)
+    {
+        $className = trim($className, '\\');
+
+        if ($lastSeparator = strrpos($className, '\\')) {
+            $className = substr($className, $lastSeparator + 1);
+        }
+
+        return $className;
+    }
+
+    function getNamespace($className)
+    {
+        $className = trim($className, '\\');
+
+        if ($lastSeparator = strrpos($className, '\\')) {
+            return substr($className, 0, $lastSeparator + 1);
+        }
+
+        return '';
+    }
+
+    function acl($data = null)
+    {
+        if (empty($data)) {
+            return coll(Registry::get('core.acl', []));
+        } else {
+            Registry::set('core.acl', array_values($data->toArray()));
+        }
+    }
+
+    function is_admin()
+    {
+        return role()->getLabel() == 'admin';
+    }
+
+    function can($resource)
+    {
+        $role = role();
+
+        if ($role->getLabel() == 'admin') {
+            return true;
+        }
+
+        $row = acl()
+        ->where('resource', $resource)
+        ->where('role_id', $role)
+        ->first();
+
+        return $row ? true : false;
+    }
+
+    function stream($name, $contents = 'octodummy')
+    {
+        $streams = Registry::get('core.streams', []);
+
+        if ('octodummy' == $contents) {
+            $stream = isAke($streams, $name, null);
+        } else {
+            $stream = fopen('php://memory','r+');
+            fwrite($stream, $contents);
+            fseek($stream, 0);
+
+            $streams[$name] = $stream;
+
+            Registry::set('core.streams', $streams);
+        }
+
+        return $stream;
+    }
+
+    function undot($collection)
+    {
+        $collection = (array) $collection;
+        $output = [];
+
+        foreach ($collection as $key => $value) {
+            $output = aset($output, $key, $value);
+
+            if (is_array($value) && !strpos($key, '.')) {
+                $nested = undot($value);
+
+                $output[$key] = $nested;
+            }
+        }
+
+        return $output;
+    }
+
+    function notify($model, $instance, array $args = [])
+    {
+        if ($model->exists()) {
+            if (is_string($instance)) {
+                $instance = maker($instance);
+            }
+
+            $channels = $instance->channels();
+
+            foreach ($channels as $channel) {
+                call_user_func_array([$instance, $channel], $args);
+
+                $dbRow = em('systemNotification')->store([
+                    'model'     => get_class($model),
+                    'model_id'  => $model->id,
+                    'type'      => get_class($instance),
+                    'channel'   => $channel,
+                    'read'      => false
+                ]);
+            }
+        }
+    }
+
+    function resolverClass($class, $sep = '@')
+    {
+        return function() use ($class, $sep) {
+            $segments   = explode($sep, $class);
+            $method     = count($segments) == 2 ? $segments[1] : 'handle';
+            $callable   = [maker($segments[0]), $method];
+            $data       = func_get_args();
+
+            return call_user_func_array($callable, $data);
+        };
+    }
+
+    function octo($k = null, $v = 'octodummy')
+    {
+        $app = context('app');
+
+        if ($k) {
+            if ('octodummy' == $v) {
+                return $app[$k];
+            }
+
+            $app[$k] = $v;
+        }
+
+        return $app;
+    }
+
+    function aliasToApp($alias, $class, $action = 'construct')
+    {
+        octo($alias, resolverAction($class, $action));
+    }
+
+    function resolverAction($class, $action = 'construct')
+    {
+        $resolver = function () use ($class, $action) {
+            $instance = maker($class);
+
+            if ($action != 'construct') {
+                return call_user_func_array([$instance, $action], func_get_args());
+            }
+
+            return $instance;
+        };
+
+        return $resolver;
+    }
+
+    function strArray($strArray)
+    {
+        return !is_array($strArray)
+        ? strstr($strArray, ',')
+            ? explode(
+                ',',
+                str_replace(
+                    [' ,', ', '],
+                    ',',
+                    $strArray
+                )
+            )
+            : [$strArray]
+        : $strArray;
+    }
+
+    function kryptid($length = 15)
+    {
+        static $kryptid = null;
+
+        if (is_null($kryptid)) {
+            $kryptid = new Hashids(
+                hash('azertyuiop1234567890'),
+                (int) $length,
+                'abcdefghijkmnpqrstuvwxyz0123456789'
+            );
+        }
+
+        return $kryptid;
+    }
+
+    function zipFolder($source, $destination)
+    {
+        if(is_file($destination)) unlink($destination);
+
+        if (!extension_loaded('zip') || !file_exists($source)) {
+            return false;
+        }
+
+        $zip = new \ZipArchive();
+
+        if (!$zip->open($destination, \ZIPARCHIVE::CREATE)) {
+            return false;
+        }
+
+        $source = str_replace('\\', '/', realpath($source));
+
+        if (is_dir($source) === true) {
+            $files = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($source),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ($files as $file) {
+                $file = str_replace('\\', '/', $file);
+
+                if (in_array(substr($file, strrpos($file, '/') + 1), array('.', '..'))) continue;
+
+                $file = realpath($file);
+
+                if (is_dir($file) === true) {
+                    $zip
+                    ->addEmptyDir(
+                        str_replace($source . '/', '', $file . '/')
+                    );
+                } else if (is_file($file) === true) {
+                    $zip
+                    ->addFromString(
+                        str_replace($source . '/', '', $file),
+                        file_get_contents($file)
+                    );
+                }
+            }
+        } else if (is_file($source) === true) {
+            $zip->addFromString(basename($source), file_get_contents($source));
+        }
+
+        return $zip->close();
+    }
+
+    function fetch($array, $key)
+    {
+        return lib('arrays')->fetch($array, $key);
+    }
+
+    function pluck($array, $key)
+    {
+        return array_map(
+            function($row) use ($key)  {
+                return is_object($row) ? $row->$key : $row[$key];
+            },
+            $array
+        );
+    }
+
+    function is_false($bool)
+    {
+        return false === $bool;
+    }
+
+    function is_true($bool)
+    {
+        return true === $bool;
+    }
+
+    function evaluate($path, $args = [])
+    {
+        $ob_get_level = ob_get_level();
+
+        ob_start();
+
+        extract($args);
+
+        $self = actual('controller');
+
+        try {
+            include $path;
+        } catch (\Exception $e) {
+            while (ob_get_level() > $ob_get_level) {
+                ob_end_clean();
+            }
+
+            view('<h1>An error occured !</h1><p>' . $e->getMessage() . '</p>', 500, 'An error occured');
+        } catch (\Throwable $e) {
+            while (ob_get_level() > $ob_get_level) {
+                ob_end_clean();
+            }
+
+            view('<h1>An error occured !</h1><p>' . $e->getMessage() . '</p>', 500, 'An error occured');
+        }
+
+        return ltrim(ob_get_clean());
+    }
+
+    function compactCallback()
+    {
+        $args = func_get_args();
+
+        return function () use ($args) {
+            return $args;
+        };
+    }
+
+    function auth($em = 'user')
+    {
+        return guard($em);
+    }
+
+    function load_entity($class)
+    {
+        Autoloader::entity($class);
+    }
+
+    function recall()
+    {
+        $args       = func_get_args();
+        $callback   = array_shift($args);
+
+        if (!is_callable($callback)) {
+            $callback = toClosure($callback);
+        }
+
+        $key        = hash(serializeClosure($callback));
+        $minutes    = end($args);
+        $minutes    = is_numeric($minutes) ? $minutes * 60 : null;
+
+        $cache      = fmr('recall');
+
+        if ($cache->has($key)) {
+            return $cache->get($ke);
+        }
+
+        $calue = call_user_func_array($callback, $args);
+
+        $cache->set($key, $value, $minutes);
+
+        return $value;
+    }
+
+    function remember($key, $callback, $minutes = null)
+    {
+        $minutes = !is_null($minutes) ? $minutes * 60 : null;
+
+        if (!is_callable($callback)) {
+            $callback = toClosure($callback);
+        }
+
+        return fmr()->getOr($key, $callback, $minutes);
+    }
+
+    function toClosure($concern)
+    {
+        return voidToCallback($concern);
+    }
+
+    function voidToCallback($concern)
+    {
+        return function () use ($concern) {
+            return $concern;
+        };
+    }
+
+    function mcache($host = 'localhost', $port = 11211, $ns = 'octo.core')
+    {
+        $mc = mc($host, $port, $ns);
+
+        $cache = dyn($mc);
+
+        $cache->macro('watch', function ($k, callable $exists = null, callable $notExists = null) use ($cache) {
+            if ($exists instanceof Dyn) {
+                $exists = null;
+            }
+
+            if ($notExists instanceof Dyn) {
+                $notExists = null;
+            }
+
+            if ($cache->has($k)) {
+                if (is_callable($exists)) {
+                    return $exists($cache->get($k));
+                }
+            } else {
+                if (is_callable($notExists)) {
+                    return $notExists();
+                }
+            }
+
+            return false;
+        });
+
+        $cache->macro('aged', function ($k, callable $c, $maxAge = null, $args = []) use ($cache) {
+            if ($maxAge instanceof Dyn) {
+                $maxAge = null;
+            }
+
+            if ($args instanceof Dyn) {
+                $args = [];
+            }
+
+            $keyAge = $k . '.maxage';
+            $v      = $cache->get($k);
+
+            if ($v) {
+                if (is_null($maxAge)) {
+                    return $v;
+                }
+
+                $age = $cache->get($keyAge);
+
+                if (!$age) {
+                    $age = $maxAge - 1;
+                }
+
+                if ($age >= $maxAge) {
+                    return $v;
+                } else {
+                    $cache->delete($k);
+                    $cache->delete($keyAge);
+                }
+            }
+
+            $data = call_user_func_array($c, $args);
+
+            $cache->set($k, $data);
+
+            if (!is_null($maxAge)) {
+                if ($maxAge < 3600 * 24 * 30) {
+                    $maxAge = ($maxAge * 60) + microtime(true);
+                }
+
+                $cache->set($keyAge, $maxAge);
+            }
+
+            return $data;
+        });
+
+        $cache->macro('incr', function ($k, $by = 1) use ($cache) {
+            if ($by instanceof Dyn) {
+                $by = 1;
+            }
+
+            if (!$cache->has($k)) {
+                $old = 0;
+            } else {
+                $old = $cache->get($k);
+            }
+
+            $new = $old + $by;
+
+            $cache->set($k, $new);
+
+            return $new;
+        });
+
+        $cache->macro('decr', function ($k, $by = 1) use ($cache) {
+            if ($by instanceof Dyn) {
+                $by = 1;
+            }
+
+            if (!$cache->has($k)) {
+                $old = 0;
+            } else {
+                $old = $cache->get($k);
+            }
+
+            $new = $old - $by;
+
+            $cache->set($k, $new);
+
+            return $new;
+        });
+
+        $cache->macro('has', function ($k) use ($cache) {
+            $val = $cache->get($k);
+
+            return $cache->getResultCode() != \Memcached::RES_NOTFOUND;
+        });
+
+        $cache->macro('getOr', function ($k, callable $c, $e = 0) use ($cache) {
+            if ($e instanceof Dyn) {
+                $e = 0;
+            }
+
+            $val = $cache->get($k);
+
+            if ($cache->getResultCode() == \Memcached::RES_NOTFOUND) {
+                $res = $c();
+
+                $cache->set($k, $res, (int) $e);
+
+                return $res;
+            } else {
+                return $val;
+            }
+        });
+
+        return $cache;
+    }
+
+    function mc($host = 'localhost', $port = 11211, $ns = 'octo.core')
+    {
+        $i = maker(Memcached::class, [$ns]);
+
+        $i->setOption(\Memcached::OPT_LIBKETAMA_COMPATIBLE, true);
+
+        if (empty($i->getServerList())) {
+            $i->addServer($host, $port);
+        }
+
+        return $i;
+    }
+
+    function guard($ns = 'web', $em = 'user')
+    {
+        $class = o();
+
+        $class->macro('login', function ($user) use ($class) {
+            $user = arrayable($user) ? $user->toArray() : $user;
+
+            return $class->reveal()->login($user);
+        });
+
+        $class->macro('logout', function () use ($class) {
+            return $class->reveal()->logout();
+        });
+
+        $class->macro('id', function () use ($class) {
+            return $class->reveal()->id();
+        });
+
+        $class->macro('email', function () use ($class) {
+            return $class->reveal()->email();
+        });
+
+        $class->macro('on', function () use ($class) {
+            return call_user_func_array([$class, 'policy'], func_get_args());
+        });
+
+        $class->macro('user', function ($model = true) use ($class) {
+            return $class->reveal()->user($model);
+        });
+
+        $class->macro('logWithId', function ($id, $route = 'home') use ($class)  {
+            $auth = $class->reveal();
+            $user = em($auth->entity)->find((int) $id);
+
+            if ($user) {
+                $auth->login($user);
+                go(urlFor($route));
+            } else {
+                exception('guard', "Unknown id.");
+            }
+        });
+
+        $class->macro('logByUser', function ($user, $route = 'home') use ($class) {
+            $user = arrayable($user) ? $user->toArray() : $user;
+
+            $class->reveal()->login($user);
+
+            go(urlFor($route));
+        });
+
+        $class->macro('reveal', function () {
+            $auth = actual('auth.class');
+
+            return is_object($auth) ? $auth : actual('auth.class', new Auth);
+        });
+
+        $class->macro('policy', function ($policy, callable $callable) use ($class) {
+            $policies           = Registry::get('guard.policies', []);
+            $policies[$policy]  = $callable;
+
+            Registry::set('guard.policies', $policies);
+
+            return $class;
+        });
+
+        $class->macro('allows', function () use ($class) {
+            $auth = $class->reveal();
+            $user = $auth->user();
+
+            if ($user) {
+                $user       = item($user);
+                $args       = func_get_args();
+                $policy     = array_shift($args);
+                $policies   = Registry::get('guard.policies', []);
+                $policy     = isAke($policies, $policy, null);
+
+                if (is_callable($policy)) {
+                    return call_user_func_array($policy, array_merge([$user], $args));
+                }
+            }
+
+            return false;
+        });
+
+        return $class;
+    }
+
+    function be($user, $ns = 'web')
+    {
+        $user = arrayable($user) ? $user->toArray() : $user;
+
+        session($ns)->setUser($user);
+    }
+
+    function client()
+    {
+        return maker(\GuzzleHttp\Client::class, [], false);
+    }
+
+    function itOr($a, $b)
+    {
+        return $a ?: $b;
+    }
+
+    function infoClass($classname)
+    {
+        $parts     = explode('\\', $classname);
+        $classname = array_pop($parts);
+        $namespace = implode('\\', $parts);
+
+        return o([
+            'namespace' => $namespace,
+            'classname' => $classname,
+        ]);
+    }
+
+    function addressToCoords($address)
+    {
+        return lib('geo')->getCoordsMap($address);
+    }
+
+    function arrayable($concern)
+    {
+        return is_object($concern) && in_array('toArray', get_class_methods($concern));
+    }
+
+    function cacher($key, $minutes, $ifNot)
+    {
+        return fmr()->remember($key, $ifNot, 60 * $minutes);
+    }
+
+    function isJson($value)
+    {
+        if (!is_scalar($value) && !method_exists($value, '__toString')) {
+            return false;
+        }
+
+        json_decode($value);
+
+        return json_last_error() === JSON_ERROR_NONE;
+    }
+
+    class OctoLab
+    {
+        public static function __callStatic($m, $a)
+        {
+            if (function_exists('\\Octo\\' . $m)) {
+                return call_user_func_array('\\Octo\\' . $m, $a);
+            } elseif (function_exists('\\' . $m)) {
+                return call_user_func_array('\\' . $m, $a);
+            }
+
+            throw new \BadMethodCallException("Method {$m} does not exist.");
+        }
+
+        public function __call($m, $a)
+        {
+            if (function_exists('\\Octo\\' . $m)) {
+                return call_user_func_array('\\Octo\\' . $m, $a);
+            } elseif (function_exists('\\' . $m)) {
+                return call_user_func_array('\\' . $m, $a);
+            }
+
+            throw new \BadMethodCallException("Method {$m} does not exist.");
+        }
+    }
+
+    /**
+     * Events helpers classes
+     */
+
+    class InternalEvents extends Fire {}
+
+    class On
+    {
+        public static function __callStatic($m, $a)
+        {
+            $event      = array_shift($a);
+            $priority   = array_shift($a);
+
+            InternalEvents::listen(Inflector::uncamelize($m), $event, $priority);
+        }
+    }
+
+    class Emit
+    {
+        public static function __callStatic($m, $a)
+        {
+            $event = Inflector::uncamelize($m);
+            $args  = array_merge([$event], $a);
+
+            return forward_static_call_array(['Octo\InternalEvents', 'fire'], $args);
+        }
+    }
+
+    function initArray($rows)
+    {
+        if (!is_array($rows)) {
+            $rows = func_get_args();
+        }
+
+        return array_combine(
+            $rows,
+            array_fill(
+                0,
+                count($rows),
+                null
+            )
+        );
+    }
+
+    function paired()
+    {
+        return coll(func_get_args())->paired()->toArray();
+    }
+
+    function ip($trusted = [])
+    {
+        $realIp = $_SERVER['REMOTE_ADDR'];
+
+        foreach($trusted as &$t) {
+            if (filter_var(
+                $t,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_NO_PRIV_RANGE |
+                FILTER_FLAG_NO_RES_RANGE |
+                FILTER_FLAG_IPV4 |
+                FILTER_FLAG_IPV6
+            ) === false) {
+                $t = null;
+            }
+        }
+
+        unset($t);
+
+        $trusted = array_filter($trusted);
+
+        if (filter_var(
+            $_SERVER['SERVER_ADDR'],
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE |
+            FILTER_FLAG_NO_RES_RANGE |
+            FILTER_FLAG_IPV4 |
+            FILTER_FLAG_IPV6
+        ) !== false) {
+            $trusted[] = $_SERVER['SERVER_ADDR'];
+        }
+
+        $ip_fields = [
+            'HTTP_CLIENT_IP',
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_FORWARDED',
+            'HTTP_FORWARDED_FOR',
+            'HTTP_FORWARDED',
+            'HTTP_X_CLUSTER_CLIENT_IP',
+            'HTTP_CF_CONNECTING_IP'
+        ];
+
+        foreach ($ip_fields as $key) {
+            if (array_key_exists($key, $_SERVER) === true) {
+                $proxy_list = explode(',', $_SERVER[$key]);
+
+                $proxy_list = array_reverse($proxy_list);
+
+                $last   = null;
+                $lan    = false;
+
+                if (filter_var(
+                    $_SERVER['REMOTE_ADDR'],
+                    FILTER_VALIDATE_IP,
+                    FILTER_FLAG_IPV4 |
+                    FILTER_FLAG_IPV6
+                ) !== false) {
+                    if (filter_var(
+                        $_SERVER['REMOTE_ADDR'],
+                        FILTER_VALIDATE_IP,
+                        FILTER_FLAG_NO_PRIV_RANGE |
+                        FILTER_FLAG_IPV4 |
+                        FILTER_FLAG_IPV6
+                    ) === false) {
+                        $last = $_SERVER['REMOTE_ADDR'];
+                        $lan = true;
+                    }
+                }
+
+                foreach ($proxy_list as $k => &$ip) {
+                    $ip = trim($ip);
+
+                    if (is_null($last) || filter_var(
+                        $ip,
+                        FILTER_VALIDATE_IP,
+                        FILTER_FLAG_IPV4 |
+                        FILTER_FLAG_IPV6
+                    ) === false) {
+                        break;
+                    }
+
+                    if ($lan && filter_var(
+                        $ip,
+                        FILTER_VALIDATE_IP,
+                        FILTER_FLAG_NO_PRIV_RANGE |
+                        FILTER_FLAG_IPV4 |
+                        FILTER_FLAG_IPV6
+                    ) === false) {
+                        $last = $ip;
+
+                        continue;
+                    }
+
+                    (in_array($last, $trusted) || $lan) && $realIp = $ip;
+                    !in_array($ip, $trusted) && $lan = false;
+
+                    if (in_array($ip, $trusted)) {
+                        $last = $ip;
+                    } else {
+                        $last = null;
+                    }
+                }
+            }
+        }
+
+        return $realIp;
     }

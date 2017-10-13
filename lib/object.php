@@ -91,7 +91,7 @@
 
         public function hasModel()
         {
-            return !empty($this->model);
+            return 'octodummy' != isAke($this->callbacks, "table", 'octodummy');
         }
 
         public function reset()
@@ -109,8 +109,10 @@
             return new self($data);
         }
 
-        public function fill(array $data = [])
+        public function fill($data = [])
         {
+            $data = arrayable($data) ? $data->toArray() : $data;
+
             foreach ($data as $k => $v) {
                 $this->set($k, $v);
             }
@@ -118,14 +120,16 @@
             return $this;
         }
 
-        public function merge(array $data = [])
+        public function merge($data = [])
         {
+            $data = arrayable($data) ? $data->toArray() : $data;
+
             $this->data = array_merge($this->data, $data);
 
             return $this;
         }
 
-        public function contains($k)
+        public function contains($key)
         {
             return 'octodummy' != $this->get($key, 'octodummy');
         }
@@ -157,7 +161,7 @@
 
             if ('getCacheKey' == $m) {
                 if ($this->hasModel()) {
-                    if ($this->exits()) {
+                    if ($this->exists()) {
                         return sha1(
                             $this->db() .
                             $this->table() .
@@ -169,20 +173,8 @@
 
             $c = isAke($this->callbacks, $m, null);
 
-            if ('save' == $m) {
-                if ($this->initial == $this->data && $this->exists()) {
-                    return $this;
-                } else {
-                    $db = odb($this->db(), $this->table(), $this->driver());
-
-                    return $db->save($this->array());
-                }
-            }
-
             if ($c) {
                 if (is_callable($c)) {
-                    $driver = isAke($this->callbacks, "driver", null);
-
                     return call_user_func_array($c, array_merge($a, [$this]));
                 }
             } else {
@@ -200,7 +192,7 @@
                     return new self($data);
                 }
 
-                if (substr($m, 0, 3) == 'set') {
+                if (substr($m, 0, 3) == 'set' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -209,7 +201,7 @@
                     return $this->set($field, $v);
                 }
 
-                if (substr($m, 0, 3) == 'get') {
+                if (substr($m, 0, 3) == 'get' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -218,14 +210,14 @@
                     return $this->get($field, $d);
                 }
 
-                if (substr($m, 0, 3) == 'has') {
+                if (substr($m, 0, 3) == 'has' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
                     return $this->has($field);
                 }
 
-                if (substr($m, 0, 3) == 'del') {
+                if (substr($m, 0, 3) == 'del' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -267,36 +259,41 @@
                             }
 
                             if ($driver) {
+                                $engine = getEngine();
+
                                 if (fnmatch('*s', $fktable)) {
                                     $fk = $this->table() . '_id';
                                     $fkParent = substr($fktable, 0, -1);
 
-                                    if (!$model) {
-                                        $model = false;
+                                    if (is_null($model)) {
+                                        $model = true;
                                     } else {
                                         if (true !== $model) {
                                             $model = false;
                                         }
                                     }
 
-                                    return engine($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
+                                    return $engine($this->db(), $fkParent)
+                                    ->where($fk, (int) $this->get('id'));
                                 } else {
                                     $id = isAke($this->data, $fktable . '_id', 'octodummy');
 
                                     if (is_numeric($id)) {
-                                        return engine($this->db(), $fktable, $this->driver())->find((int) $id, $o);
+                                        return $engine($this->db(), $fktable)->find((int) $id, $o);
                                     } else {
                                         $fk = $this->table() . '_id';
 
-                                        if (!$model) {
-                                            $model = false;
+                                        if (is_null($model)) {
+                                            $model = true;
                                         } else {
                                             if (true !== $model) {
                                                 $model = false;
                                             }
                                         }
 
-                                        return engine($this->db(), $fktable, $this->driver())->where([$fk, '=', (int) $this->get('id')])->first($model);
+                                        return $engine($this->db(), $fktable)
+                                        ->where($fk, (int) $this->get('id'))
+                                        ->first($model);
                                     }
                                 }
                             }
@@ -304,7 +301,13 @@
                     }
                 } else {
                     if (count($a) == 1) {
-                        return $this->set($m, current($a));
+                        $arg = current($a);
+
+                        if ($arg instanceof \Closure) {
+                            return $this->fn($m, $arg);
+                        } else {
+                            return $this->set($m, $arg);
+                        }
                     }
                 }
             }
@@ -317,10 +320,11 @@
         public function fresh()
         {
             if ($this->hasModel() && $this->exists()) {
-                return engine($this->db(), $this->table(), $this->driver())->find((int) $this->data['id']);
+                return engine($this->db(), $this->table(), $this->driver())
+                ->find((int) $this->data['id']);
             }
 
-            return $this;
+            return new self;
         }
 
         public function fn($m, callable $c)
@@ -392,7 +396,23 @@
         {
             $driver = isAke($this->callbacks, "driver", null);
 
-            if (fnmatch('*s', $k)) {
+            if ($driver) {
+                $entity = $this->instance()->entity();
+
+                if ($entity) {
+                    $attrMethod = lcfirst(Strings::camelize('set_attribute_' . $k));
+                    $methods    = get_class_methods($entity);
+
+                    if (in_array($attrMethod, $methods)) {
+                        $value = call_user_func_array([$entity, $attrMethod], [$v, $this]);
+                        Arrays::set($this->data, $k, value($value));
+
+                        return $this;
+                    }
+                }
+            }
+
+            if (fnmatch('*s', $k) && $driver) {
                 if (is_array($v) && !empty($v)) {
                     $first = current($v);
 
@@ -425,11 +445,25 @@
             $driver = isAke($this->callbacks, "driver", null);
 
             if ($driver && !isset($this->data[$k])) {
+                $entity = $this->instance()->entity();
+
+                if ($entity) {
+                    $attrMethod = lcfirst(Strings::camelize('get_attribute_' . $k));
+                    $methods    = get_class_methods($entity);
+
+                    if (in_array($attrMethod, $methods)) {
+                        return call_user_func_array([$entity, $attrMethod], [$this]);
+                    }
+                }
+
+                $engine = getEngine();
+
                 if (fnmatch('*s', $k)) {
                     $fk = $this->table() . '_id';
                     $fkParent = substr($k, 0, -1);
 
-                    $query = engine($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
+                    $query = $engine($this->db(), $fkParent)
+                    ->where($fk, (int) $this->get('id'));
 
                     if ($query->count() > 0) {
                         return $query;
@@ -438,11 +472,13 @@
                     $id = isAke($this->data, $k . '_id', 'octodummy');
 
                     if (is_numeric($id)) {
-                        return engine($this->db(), $k, $this->driver())->row((int) $this->get($k . '_id'));
+                        return $engine($this->db(), $k)
+                        ->find((int) $this->get($k . '_id'));
                     } else {
                         $fk = $this->table() . '_id';
 
-                        $query = engine($this->db(), $k, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
+                        $query = $engine($this->db(), $k)
+                        ->where($fk, (int) $this->get('id'));
 
                         if ($query->count() > 0) {
                             return $query->first();
@@ -486,14 +522,6 @@
                     $fk = $this->table() . '_id';
                     $fkParent = substr($k, 0, -1);
 
-                    if (!$model) {
-                        $model = false;
-                    } else {
-                        if (true !== $model) {
-                            $model = false;
-                        }
-                    }
-
                     $query = engine($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
 
                     return $query->count() > 0;
@@ -532,14 +560,6 @@
                     $fk = $this->table() . '_id';
                     $fkParent = substr($k, 0, -1);
 
-                    if (!$model) {
-                        $model = false;
-                    } else {
-                        if (true !== $model) {
-                            $model = false;
-                        }
-                    }
-
                     $rows = engine($this->db(), $fkParent, $this->driver())->where([$fk, '=', (int) $this->get('id')]);
 
                     if ($rows->count() > 0) {
@@ -557,7 +577,7 @@
                     }
                 }
             } else {
-                unset($this->data[$l]);
+                unset($this->data[$k]);
             }
         }
 
@@ -676,7 +696,7 @@
 
         public function created()
         {
-            return Time::createFromTimestamp(isAke($this->data, 'updated_at', time()));
+            return Time::createFromTimestamp(isAke($this->data, 'created_at', time()));
         }
 
         public function now()
@@ -744,7 +764,11 @@
         {
             if ($this->hasModel() && $this->exists()) {
                 if (is_null($polymorph)) {
-                    return engine($this->db(), $this->polymorph_type, $this->driver())->find((int) $this->polymorph_id);
+                    return engine(
+                        $this->db(),
+                        $this->polymorph_type,
+                        $this->driver()
+                    )->find((int) $this->polymorph_id);
                 }
 
                 $this->data['polymorph_type'] = $polymorph->table();
@@ -772,9 +796,17 @@
                 $idFk = $fk . '_id';
 
                 if (isset($this->data[$idFk]) && is_numeric($this->data[$idFk])) {
-                    return engine($this->db(), $fk, $this->driver())->find((int) $this->data[$idFk]);
+                    return engine(
+                        $this->db(),
+                        $fk,
+                        $this->driver()
+                    )->find((int) $this->data[$idFk]);
                 } else {
-                    $query = engine($this->db(), $fk, $this->driver())->where($this->table() . '_id', (int) $this->get('id'));
+                    $query = engine(
+                        $this->db(),
+                        $fk,
+                        $this->driver()
+                    )->where($this->table() . '_id', (int) $this->get('id'));
 
                     return $many ? $query : $query->first(true);
                 }
@@ -817,7 +849,7 @@
             return $this;
         }
 
-        public function pivots(Octalia $model)
+        public function pivoted(Octalia $model)
         {
             if ($this->hasModel() && $this->exists()) {
                 $relations = $this->manyToMany($model);
@@ -830,11 +862,17 @@
                 }
 
                 if (empty($ids)) {
-                    return engine($this->db(), $model->table, $this->driver())
-                    ->where(['id', '<', 0]);
+                    return engine(
+                        $this->db(),
+                        $model->table,
+                        $this->driver()
+                    )->where(['id', '<', 0]);
                 } else {
-                    return engine($this->db(), $model->table, $this->driver())
-                    ->where(['id', 'IN', $ids]);
+                    return engine(
+                        $this->db(),
+                        $model->table,
+                        $this->driver()
+                    )->where(['id', 'IN', $ids]);
                 }
             }
 
@@ -849,15 +887,23 @@
                 $pivot = implode('', $tables);
 
                 if ($sync) {
-                    $relation = odb($this->db(), $pivot, $this->driver())->firstOrCreate([
+                    $relation = engine(
+                        $this->db(),
+                        $pivot,
+                        $this->driver()
+                    )->firstOrCreate([
                         $this->table() . '_id' => (int) $this->get('id'),
                         $model->table() . '_id' => (int) $model->id
                     ]);
                 } else {
-                    $relation = odb($this->db(), $pivot, $this->driver())->create([
+                    $relation = engine(
+                        $this->db(),
+                        $pivot,
+                        $this->driver()
+                    )->store([
                         $this->table() . '_id' => (int) $this->get('id'),
                         $model->table() . '_id' => (int) $model->id
-                    ])->save();
+                    ]);
                 }
 
                 if (!empty($data)) {
@@ -880,11 +926,90 @@
                 sort($tables);
                 $pivot = implode('', $tables);
 
-                return engine($this->db(), $pivot, $this->driver())
+                return engine(
+                    $this->db(),
+                    $pivot,
+                    $this->driver()
+                )
                 ->where($this->table() . '_id', (int) $this->get('id'))
                 ->where($model->table() . '_id', (int) $model->id)
                 ->delete();
             }
+
+            return $this;
+        }
+
+        public function synchronize(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::sync($this, $model);
+            }
+        }
+
+        public function unsynchronize(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::remove($this, $model);
+            }
+        }
+
+        public function synchronized(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::get($this, $model);
+            }
+        }
+
+        public function pivots($em)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::pivoted($this, $em);
+            }
+        }
+
+        public function bound(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                return Pivot::bound($this, $model);
+            }
+        }
+
+        public function add(Object $model)
+        {
+            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+                if ($this->db() != $model->db()) {
+                    exception('db', "add method requires the 2 models have the same database.");
+                }
+
+                $table  = $model->table();
+                $setter = setter($table . '_id');
+                $this->$setter($model->id);
+            }
+        }
+
+        public function isDirty()
+        {
+            return $this->initial != $this->data;
+        }
+
+        public function dirty()
+        {
+            $dirty = [];
+
+            if ($this->initial != $this->data) {
+                foreach ($this->data as $k => $v) {
+                    if ($this->initial[$l] != $v) {
+                        $dirty[$k] = $v;
+                    }
+                }
+            }
+
+            return $dirty;
+        }
+
+        public function cb($m, callable $cb)
+        {
+            $this->callbacks[$m] = $cb;
 
             return $this;
         }

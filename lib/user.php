@@ -88,11 +88,11 @@
                     $account = $this->getOption('account');
 
                     if ($account) {
-                        $user = System::Account()->find((int) $account, false);
+                        $user = em('systemAccount')->find((int) $account, false);
                     }
 
                     if (!$user) {
-                        $user = System::Visitor()->firstOrCreate(['forever' => $forever])->toArray();
+                        $user = em('systemVisitor')->firstOrCreate(['forever' => $forever])->toArray();
                         $user['accounted']  = false;
                         $user['visitor']    = true;
                     } else {
@@ -160,13 +160,13 @@
                     $row[$k] = $v;
                 }
 
-                System::Track()->create($row)->save();
+                em('systemTrack')->store($row);
             }
         }
 
         public function logs()
         {
-            $rows = System::Track()->sortByDesc('created_at')->get();
+            $rows = em('systemTrack')->sortByDesc('created_at')->get();
 
             $csv = [];
 
@@ -284,9 +284,9 @@
             }
 
             if ($user['accounted']) {
-                return System::Account()->find((int) $user['id']);
+                return em('systemAccount')->find((int) $user['id']);
             } else {
-                return System::Visitor()->find((int) $user['id']);
+                return em('systemVisitor')->find((int) $user['id']);
             }
         }
 
@@ -307,12 +307,13 @@
             }
 
             if ($ip == '127.0.0.1') {
-                return ['ip' > $ip, 'language' => $lng];
+                return ['ip' => $ip, 'language' => $lng];
             }
 
             $url = "http://ip-api.com/json/$ip";
 
             $json = dwnCache($url);
+
             $json = str_replace(
                 array(
                     'query',

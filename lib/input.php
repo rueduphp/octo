@@ -7,12 +7,20 @@
         {
             $all = self::clean($_GET) + self::clean($_POST) + self::clean($_REQUEST);
 
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
+
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
 
         public static function post($k = null, $d = null)
         {
             $all = self::clean($_POST);
+
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
 
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
@@ -21,12 +29,20 @@
         {
             $all = self::clean($_GET);
 
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
+
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
 
         public static function request($k = null, $d = null)
         {
             $all = self::clean($_REQUEST);
+
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
 
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
@@ -37,12 +53,20 @@
 
             $all = self::clean($_SESSION);
 
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
+
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
 
         public static function server($k = null, $d = null)
         {
             $all = self::clean($_SERVER);
+
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
 
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
@@ -51,12 +75,20 @@
         {
             $all = self::clean($GLOBALS);
 
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
+
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
 
         public static function cookie($k = null, $d = null)
         {
             $all = self::clean($_COOKIE);
+
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
 
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
@@ -66,6 +98,10 @@
             $data = empty($data) ? $_POST : $data;
 
             $all = self::clean($data);
+
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
 
             return $k ? isAke(oclean($all), $k, value($d)) : o($all);
         }
@@ -102,5 +138,54 @@
             }
 
             return $data;
+        }
+
+        public static function upload($field)
+        {
+            return upload($field);
+        }
+
+        protected static function only(array $array, $keys)
+        {
+            $keys = is_array($keys) ? $keys : func_get_args();
+
+            return array_intersect_key($array, array_flip((array) $keys));
+        }
+
+        protected static function except($array, $keys)
+        {
+            $keys = is_array($keys) ? $keys : func_get_args();
+
+            return array_diff_key($array, array_flip((array) $keys));
+        }
+
+        public static function method($k = null, $d = null)
+        {
+            $method = Request::method();
+
+            if ('GET' == $method) {
+                $all = self::clean($_GET);
+            } else {
+                $all = self::clean($_POST);
+            }
+
+            if (is_array($k)) {
+                return self::only($all, $k);
+            }
+
+            return $k ? isAke(oclean($all), $k, value($d)) : o($all);
+        }
+
+        public static function __callStatic($m, $a)
+        {
+            $method = Request::method();
+
+            if ('GET' == $method) {
+                $all = self::clean($_GET);
+            } else {
+                $all = self::clean($_POST);
+            }
+
+            return isAke($all, $m, current($a));
         }
     }

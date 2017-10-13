@@ -25,7 +25,6 @@
 
         public function __construct($ns = 'core')
         {
-
             $this->dir = $ns;
 
             $this->id = sha1('redis' . $ns);

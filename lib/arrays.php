@@ -103,7 +103,7 @@
                 $key = array_shift($keys);
 
                 if (!isset($array[$key]) || !is_array($array[$key])) {
-                    $array[$key] = array();
+                    $array[$key] = [];
                 }
 
                 $array = &$array[$key];
@@ -196,7 +196,7 @@
                         return $array[$key];
                     }
                 } elseif ($key === '*') {
-                    $values = array();
+                    $values = [];
 
                     foreach ($array as $arr) {
                         if ($value = static::path($arr, implode('.', $keys))) {
@@ -229,7 +229,7 @@
                 }
 
                 if ( ! isset($array[$key])) {
-                    $array[$key] = array();
+                    $array[$key] = [];
                 }
 
                 $array = & $array[$key];
@@ -491,7 +491,7 @@
 
         public static function dot($array, $prepend = '')
         {
-            $results = array();
+            $results = [];
 
             foreach ($array as $key => $value) {
                 if (is_array($value)) {
@@ -528,7 +528,7 @@
 
         public static function flatten($array)
         {
-            $return = array();
+            $return = [];
 
             array_walk_recursive($array, function($x) use (&$return) { $return[] = $x; });
 
@@ -663,7 +663,7 @@
 
         public static function where($array, \Closure $callback)
         {
-            $filtered = array();
+            $filtered = [];
 
             foreach ($array as $key => $value) {
                 if (call_user_func($callback, $key, $value)) {
@@ -676,13 +676,19 @@
 
         public static function stringParams($array)
         {
-            return static::where($array, function($k, $v) { return is_string($k); });
+            return static::where(
+                $array,
+                function($k, $v) { return is_string($k); }
+            );
         }
 
 
         public static function numericParams($array)
         {
-            return static::where($array, function($k, $v) { return is_numeric($k); });
+            return static::where(
+                $array,
+                function($k, $v) { return is_numeric($k); }
+            );
         }
 
         public static function __callStatic($method, $args)
@@ -732,7 +738,7 @@
         public static function fetch($array, $key, $separator = '.')
         {
             foreach (explode($separator, $key) as $segment) {
-                $results = array();
+                $results = [];
 
                 foreach ($array as $value) {
                     $value = (array) $value;
@@ -747,11 +753,17 @@
 
         public static function sep($array, $prepend = '', $separator = '.')
         {
-            $results = array();
+            $results = [];
 
             foreach ($array as $key => $value) {
                 if (is_array($value)) {
-                    $results = array_merge($results, static::dot($value, $prepend . $key . $separator));
+                    $results = array_merge(
+                        $results,
+                        static::dot(
+                            $value,
+                            $prepend . $key . $separator
+                        )
+                    );
                 } else {
                     $results[$prepend . $key] = $value;
                 }
@@ -762,12 +774,13 @@
 
         public static function build($array, \Closure $callback)
         {
-            $results = array();
+            $results = [];
 
             foreach ($array as $key => $value) {
                 list($innerKey, $innerValue) = call_user_func($callback, $key, $value);
                 $results[$innerKey] = $innerValue;
             }
+
             return $results;
         }
 
@@ -801,7 +814,7 @@
                 }
             }
 
-            return File::value($default);
+            return value($default);
         }
 
         public static function lastOne($array, callable $callback, $default = null)
@@ -824,18 +837,18 @@
                     $target = $target[$segment];
                 } elseif ($target instanceof \ArrayAccess) {
                     if (!isset($target[$segment])) {
-                        return File::value($default);
+                        return value($default);
                     }
 
                     $target = $target[$segment];
                 } elseif (is_object($target)) {
                     if (!isset($target->{$segment})) {
-                        return File::value($default);
+                        return value($default);
                     }
 
                     $target = $target->{$segment};
                 } else {
-                    return File::value($default);
+                    return value($default);
                 }
             }
 
@@ -932,5 +945,48 @@
             }
 
             return $array;
+        }
+
+        public static function findBy($array, $key, $value)
+        {
+            $collection = [];
+
+            foreach ($array as $row) {
+                if (isset($row[$key]) && $row[$key] == $value) {
+                    $collection[] = $row;
+                }
+            }
+
+            return $collection;
+        }
+
+        public static function reduce($array, callable $callable)
+        {
+            $collection = [];
+
+            foreach ($array as $row) {
+                if ($check = call_user_func_array($callable, [$row])) {
+                    $collection[] = $row;
+                }
+            }
+
+            return $collection;
+        }
+
+        public static function chunk_fixed(\SplFixedArray $arr, $size)
+        {
+            $chunks = new \SplFixedArray(ceil(count($arr) / $size));
+
+            foreach ($arr as $idx => $value) {
+                if ($idx % $size === 0) {
+                    $chunks[$idx / $size] = $chunk = new \SplFixedArray($size);
+                }
+
+                $chunk[$idx % $size] = $value;
+            }
+
+            $chunk->setSize(count($arr) % $size);
+
+            return $chunks;
         }
     }

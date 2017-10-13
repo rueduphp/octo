@@ -5,6 +5,24 @@
 
     use BadMethodCallException;
 
+    trait Tractor
+    {
+        public function bootTrait()
+        {
+            $traits = class_uses();
+
+            foreach ($traits as $trait) {
+                $class = str_replace('\\', '_', $trait);
+
+                $function = Inflector::camelize('boot_' . $class);
+
+                try {
+                    self::$function();
+                } catch (\Exception $e) {}
+            }
+        }
+    }
+
     trait Singleton
     {
         protected static $instance;
@@ -29,6 +47,22 @@
         public function __wakeup()
         {
             trigger_error('Unserializing ' . __CLASS__ . ' is not allowed.', E_USER_ERROR);
+        }
+    }
+
+    trait Instantiable
+    {
+        public static function getInstance()
+        {
+            $class = get_called_class();
+
+            if (!Registry::exists('instances.' . $class)) {
+                $ref    = new \Reflectionclass($class);
+                $args   = func_get_args();
+                Registry::set('instances.' . $class, $args ? $ref->newinstanceargs($args) : new $class);
+            }
+
+            return Registry::get('instances.' . $class);
         }
     }
 
@@ -215,7 +249,6 @@
 
     trait Macroable
     {
-
         protected static $macros = [];
 
         public static function macro($name, callable $macro)
@@ -232,9 +265,24 @@
         {
             if (static::hasMacro($method)) {
                 if (static::$macros[$method] instanceof \Closure) {
-                    return call_user_func_array(\Closure::bind(static::$macros[$method], null, get_called_class()), $parameters);
+                    return call_user_func_array(
+                        \Closure::bind(
+                            static::$macros[$method],
+                            null,
+                            get_called_class()
+                        ),
+                        $parameters
+                    );
                 } else {
                     return call_user_func_array(static::$macros[$method], $parameters);
+                }
+            } else {
+                if (!empty($parameters)) {
+                    $callable = current($parameters);
+
+                    if ($callable instanceof \Closure) {
+                        static::$macros[$method] = $callable;
+                    }
                 }
             }
 
@@ -244,12 +292,20 @@
         public function __call($method, $parameters)
         {
             if (static::hasMacro($method)) {
-                if (static::$macros[$method] instanceof \Closure) {
+                if (self::$macros[$method] instanceof \Closure) {
                     $args = array_merge([$this], $parameters);
 
                     return call_user_func_array(static::$macros[$method], $args);
                 } else {
                     return call_user_func_array(static::$macros[$method], $parameters);
+                }
+            } else {
+                if (!empty($parameters)) {
+                    $callable = current($parameters);
+
+                    if ($callable instanceof \Closure) {
+                        self::$macros[$method] = $callable;
+                    }
                 }
             }
 

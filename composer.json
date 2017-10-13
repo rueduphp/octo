@@ -1,7 +1,7 @@
 {
     "name": "rueduphp/octo",
     "description": "Rue du PHP framework",
-    "keywords": ["framework", "rueduphp"],
+    "keywords": ["framework", "PHP7", "ORM", "rueduphp"],
     "license": "MIT",
     "authors": [
         {
@@ -16,12 +16,26 @@
         "fzaninotto/faker": "@stable",
         "aws/aws-sdk-php": "@stable",
         "illuminate/database": "@stable",
-        "psy/psysh": "@stable",
         "wisembly/elephant.io": "~3.0",
-        "nitmedia/wkhtml2pdf": "dev-master#6b9daf3cca9a2eadc16935b440e1e80a5b7a01cd",
+        "nitmedia/wkhtml2pdf": "*",
+        "twig/twig": "*",
         "intervention/image": "^2.3",
         "intervention/imagecache": "^2.3",
-        "predis/predis": "1.1.*@dev"
+        "psy/psysh": "@stable",
+        "predis/predis": "1.1.*@dev",
+        "robmorgan/phinx": "@stable",
+        "symfony/debug": "3.1.*",
+        "symfony/process": "3.1.*",
+        "filp/whoops": "^2.1",
+        "psr/http-message": "^1.0",
+        "guzzlehttp/psr7": "^1.4",
+        "http-interop/response-sender": "^1.0",
+        "psr/log": "~1.0",
+        "swiftmailer/swiftmailer": "~5.1",
+        "zendframework/zend-expressive-fastroute": "^2.1",
+        "http-interop/http-middleware": "^0.4",
+        "middlewares/utils": "@stable",
+        "willdurand/geocoder": "^3.3"
     },
     "require-dev": {
         "phpunit/phpunit": "@stable"
@@ -29,6 +43,11 @@
     "autoload": {
         "files": [
             "lib/lib.php"
+        ]
+    },
+    "autoload-dev": {
+        "classmap": [
+            "tests/TestCase.php"
         ]
     },
     "config": {

@@ -183,7 +183,8 @@
             }
 
             $errors = self::getLastErrors();
-            throw new InvalidArgumentException(implode(PHP_EOL, $errors['errors']));
+
+            throw new \InvalidArgumentException(implode(PHP_EOL, $errors['errors']));
         }
 
         public static function createFromTimestamp($timestamp, $tz = null)
@@ -356,9 +357,9 @@
             return $this;
         }
 
-        public function setTime($hour, $minute, $second = 0)
+        public function setTime($hour, $minute, $second = null, $microseconds = null)
         {
-            parent::setTime($hour, $minute, $second);
+            parent::setTime($hour, $minute, $second, $microseconds);
 
             return $this;
         }

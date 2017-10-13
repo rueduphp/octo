@@ -87,7 +87,7 @@
             }
 
             if(false !== ($list = $this->run($sql))) {
-                $fields = array();
+                $fields = [];
 
                 foreach($list as $record) $fields[] = $record[$key];
 
@@ -99,7 +99,7 @@
                 );
             }
 
-            return array();
+            return [];
         }
 
         private function cleanup($bind)
@@ -144,7 +144,8 @@
             }
         }
 
-        public function select($table, $where = "", $bind = "", $fields = "*") {
+        public function select($table, $where = "", $bind = "", $fields = "*")
+        {
             $sql = "SELECT " . $fields . " FROM " . $table;
 
             if(!empty($where)) $sql .= " WHERE " . $where;
@@ -170,7 +171,7 @@
         public function update($table, $info, $where, $bind = "")
         {
             $fields     = $this->filter($table, $info);
-            $fieldSize  = sizeof($fields);
+            $fieldSize  = count($fields);
 
             $sql = "UPDATE " . $table . " SET ";
 

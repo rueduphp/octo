@@ -9,7 +9,10 @@
         {
             $this->bucket   = $bucket;
             $this->session  = session('data_bucket_' . $bucket);
-            $this->url      = is_null($url) ? str_replace('https://', 'http://', URLSITE) . 'bucket/' : $url . '/';
+
+            $this->url = is_null($url)
+            ? str_replace('https://', 'http://', URLSITE) . 'bucket/'
+            : $url . '/';
         }
 
         public function all($pattern)
@@ -29,7 +32,7 @@
 
             $tab        = json_decode($this->response, true);
             $res        = isAke($tab, 'message');
-            $collection = array();
+            $collection = [];
 
             if (is_array($res)) {
                 if (!empty($res)) {
@@ -50,7 +53,7 @@
             $keys = $this->session->getKeys();
 
             if (!empty($keys)) {
-                $seg = isAke($keys, sha1($pattern));
+                $seg = isAke($keys, sha1($pattern), null);
 
                 if (!empty($seg)) {
                     return $seg;
@@ -65,8 +68,8 @@
             );
 
             $tab        = json_decode($this->response, true);
-            $res        = isAke($tab, 'message');
-            $collection = array();
+            $res        = isAke($tab, 'message', []);
+            $collection = [];
 
             if (Arrays::is($res)) {
                 if (count($res)) {
@@ -77,7 +80,7 @@
             }
 
             if (empty($keys)) {
-                $keys = array();
+                $keys = [];
             }
 
             $keys[sha1($pattern)] = $collection;
@@ -107,10 +110,10 @@
             );
 
             $tab    = json_decode($this->response, true);
-            $value  = isAke($tab, 'message');
+            $value  = isAke($tab, 'message', null);
 
             if (empty($values)) {
-                $values = array();
+                $values = [];
             }
 
             $values[$hash] = $value;
@@ -125,7 +128,7 @@
             $values = $this->session->getValues();
 
             if (empty($values)) {
-                $values = array();
+                $values = [];
             }
 
             $values[$hash] = $value;
@@ -149,7 +152,7 @@
             $values = $this->session->getValues();
 
             if (empty($values)) {
-                $values = array();
+                $values = [];
             }
 
             $values[$hash] = $value;
@@ -176,12 +179,12 @@
             $values = $this->session->getValues();
 
             if (empty($values)) {
-                $values = array();
+                $values = [];
             }
 
             $values[$hash] = null;
             $this->session->setValues($values);
-            $this->session->setKeys(array());
+            $this->session->setKeys([]);
             $this->session->setData(null);
 
             return $this;
@@ -243,7 +246,7 @@
             );
 
             $tab    = json_decode($this->response, true);
-            $res    = isAke($tab, 'message');
+            $res    = isAke($tab, 'message', null);
 
             return $res;
         }
@@ -281,7 +284,7 @@
                 );
 
                 $tab    = json_decode($this->response, true);
-                $res    = isAke($tab, 'message');
+                $res    = isAke($tab, 'message', null);
 
                 return $res;
             }
@@ -289,7 +292,7 @@
             return false;
         }
 
-        private function call($action, $params = array())
+        private function call($action, $params = [])
         {
             $params['bucket'] = $this->bucket;
             $params['action'] = $action;
@@ -309,6 +312,6 @@
         {
             $this->call($m, current($a));
 
-            return isAke(json_decode($this->response, true), 'message');
+            return isAke(json_decode($this->response, true), 'message', null);
         }
     }

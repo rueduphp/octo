@@ -109,7 +109,7 @@
             self::render(['status' => 200, 'data' => $result], $type);
         }
 
-        private static function renderJson(array $data)
+        public static function renderJson(array $data)
         {
             header('content-type: application/json; charset=utf-8');
 

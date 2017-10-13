@@ -87,7 +87,7 @@
 
         protected static function action($action, $https = null)
         {
-            $uri = (null === $action) ? URLSITE : $action;
+            $uri = (null === $action) ? current_url() : $action;
 
             return (null === $https) ? $uri : str_replace('http://', 'https://', $uri);
         }
@@ -99,15 +99,15 @@
 
         public static function token()
         {
-            return static::input('hidden', '_token', Utils::token());
+            return static::input('hidden', '_token', token());
         }
 
-        public static function label($name, $value, $attributes = array())
+        public static function label($name, $value, $attributes = [])
         {
             static::$labels[] = $name;
             $attributes = Html::attributes($attributes);
 
-            return '<label for="' . $name . '"' . $attributes . '>' . Html\helper::display($value) . '</label>';
+            return '<label for="' . $name . '"' . $attributes . '>' . static::display($value) . '</label>';
         }
 
         /**

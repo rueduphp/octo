@@ -28,7 +28,7 @@
             $res = call_user_func_array('mail', $args);
 
             if ($res === false) {
-                throw new Exception("Unable to send email.");
+                exception("Mail", "Unable to send email.");
             }
         }
     }

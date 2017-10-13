@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class Cache implements CacheI
+    class Cache implements CacheI, FastCacheInterface
     {
         use Notifiable;
 
@@ -39,6 +39,37 @@
             return $dir . DS . $k . '.kh';
         }
 
+        public function infos($dir = null, $topLevel = true, $recursion = false)
+        {
+            static $fileData = [];
+
+            $dir = empty($dir) ? $this->dir : $dir;
+
+            $relativePath = $dir;
+
+            if ($fp = @opendir($dir)) {
+                if ($recursion === false) {
+                    $fileData   = [];
+                    $dir        = rtrim(realpath($dir), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+                }
+
+                while (false !== ($file = readdir($fp))) {
+                    if (is_dir($dir . $file) && $file[0] !== '.' && $topLevel === false) {
+                        $this->infos($dir . $file . DIRECTORY_SEPARATOR, $topLevel, true);
+                    } elseif ($file[0] !== '.') {
+                        $fileData[$file]                  = $this->infos($dir . $file);
+                        $fileData[$file]['relative_path'] = $relativePath;
+                    }
+                }
+
+                closedir($fp);
+
+                return $fileData;
+            }
+
+            return false;
+        }
+
         public function pull($key, $default = null)
         {
             $value = $this->get($key, $default);
@@ -50,7 +81,7 @@
 
         public function __construct($ns = 'core', $dir = null)
         {
-            $dir = is_null($dir) ? Config::get('dir.cache', session_save_path()) : $dir;
+            $dir = is_null($dir) ? conf('dir.cache', session_save_path()) : $dir;
 
             $this->dir = $dir . DS . $ns;
 
@@ -140,7 +171,27 @@
             return $this;
         }
 
+        public function mset(array $values, $e = null)
+        {
+            foreach ($values as $k => $v) {
+                $this->set($k, $v, $e);
+            }
+
+            return $this;
+        }
+
         public function many(array $keys)
+        {
+            $return = [];
+
+            foreach ($keys as $key) {
+                $return[$key] = $this->get($key);
+            }
+
+            return $return;
+        }
+
+        public function mget(array $keys)
         {
             $return = [];
 
@@ -160,6 +211,22 @@
             }
 
             return false;
+        }
+
+        public function replace($key, $value, $expire = null)
+        {
+            if ($this->has($key)) {
+                $this->set($key, $value, $expire);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public function at($k, $v, $timestamp)
+        {
+            return $this->setExpireAt($k, $v, $timestamp);
         }
 
         public function setExpireAt($k, $v, $timestamp)
@@ -196,7 +263,7 @@
         {
             $v = $this->get($k);
 
-            return $this->set($k, $v, $timestamp);
+            return $this->setExpireAt($k, $v, $timestamp);
         }
 
         public function get($k, $d = null)
@@ -207,7 +274,7 @@
                 $age = filemtime($file);
 
                 if ($age >= time()) {
-                    return File::value(unserialize(File::read($file)));
+                    return value(unserialize(File::read($file)));
                 } else {
                     File::delete($file);
                 }

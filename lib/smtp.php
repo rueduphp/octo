@@ -1,6 +1,8 @@
 <?php
     namespace Octo;
 
+    use Exception;
+
     class Smtp
     {
         private $connection;
@@ -13,7 +15,6 @@
         private $context;
         private $persistent;
         private $message;
-
 
         public function __construct(Courrier $message)
         {

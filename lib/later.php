@@ -6,7 +6,7 @@
         public static function set($name, $closure, $args = [], $when = 0)
         {
             $closure_id = lib('closures')->store($name, $closure)->id;
-            $db         = em('SystemLatertask');
+            $db         = em('systemLatertask');
 
             $db->optimized = false;
 
@@ -17,26 +17,30 @@
             ]);
         }
 
-        public static function listen()
+        public static function listen($cli = true)
         {
             set_time_limit(false);
 
-            $dbTask     = em('SystemLatertask');
-            $dbInstance = em('SystemLaterinstance');
+            $dbTask     = em('systemLatertask');
+            $dbInstance = em('systemLaterinstance');
 
             $dbTask->optimized      = false;
             $dbInstance->optimized  = false;
 
-            $tasks = $dbTask->where(['when', '<', time()])->get();
+            $tasks = $dbTask->where('when', '<', time())->get();
 
             if ($tasks->count() > 0) {
                 foreach ($tasks as $task) {
-                    $check = $dbInstance->where(['task_id', '=', (int) $task['id']])->count();
+                    $check = $dbInstance->where('task_id', '=', (int) $task['id'])
+                    ->count();
 
                     $callback_id = isAke($task, 'callback_id', null);
 
                     if ($check == 0) {
-                        $instance = $dbInstance->create(['task_id' => (int) $task['id'], 'start' => time()])->save();
+                        $instance = $dbInstance->store([
+                            'task_id'   => (int) $task['id'],
+                            'start'     => time()
+                        ]);
 
                         $res = lib('closures')->fireStore(
                             (int) $task['closure_id'],
@@ -65,14 +69,14 @@
 
                         $instance->delete();
 
-                        $dbHistory = em('SystemLaterhistory');
+                        $dbHistory = em('systemLaterhistory');
 
                         $dbHistory->optimized = false;
 
-                        $dbHistory->create([
+                        $dbHistory->store([
                             'task'              => (array) $task,
                             'execution_time'    => time()
-                        ])->save();
+                        ]);
                     }
                 }
             }
@@ -92,7 +96,7 @@
 
         public static function background()
         {
-            $file = realpath(__DIR__ . '/laterbin.php');
+            $file = path('base') . '/queue.php';
 
             if (File::exists($file)) {
                 $cmd = 'php ' . $file;

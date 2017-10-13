@@ -8,8 +8,10 @@
         private static $data = [];
         private $ns;
 
-        public function __construct($ns = 'core', array $data = [])
+        public function __construct($ns = 'core', $data = [])
         {
+            $data = arrayable($data) ? $data->toArray() : $data;
+
             $this->ns = $ns;
 
             if (!isset(self::$data[$ns])) {
@@ -19,6 +21,50 @@
             foreach ($data as $k => $v) {
                 self::$data[$ns][$k] = $v;
             }
+        }
+
+        public function reset($ns = 'core')
+        {
+            unset(self::$data[$ns]);
+        }
+
+        public function resetAll()
+        {
+            self::$data = [];
+        }
+
+        public function getDirectory()
+        {
+            return 'now.' . $this->ns;
+        }
+
+        public function copy($new, $drop = false)
+        {
+            if (!isset(self::$data[$this->ns])) {
+                $actualData = self::$data[$this->ns];
+
+                if ($drop) {
+                    unset(self::$data[$this->ns]);
+                }
+
+                $this->ns = $new;
+
+                self::$data[$this->ns] = $actualData;
+
+                return $this;
+            } else {
+                exception('now', "Yhe namespace $ns is already in use.");
+            }
+        }
+
+        public function rename($new)
+        {
+            return $this->copy($new, true);
+        }
+
+        public function pattern($pattern = '*')
+        {
+            return Arrays::pattern(self::$data[$this->ns], $pattern);
         }
 
         public function flush()
@@ -122,13 +168,13 @@
 
         public function getOr($k, callable $c)
         {
-            if ($this->has($k)) {
-                return $this->get($k);
+            $res = $this->get($k, 'octodummy');
+
+            if ('octodummy' == $res) {
+                $this->set($k, $res = $c());
             }
 
-            $res = $c();
-
-            return $this->set($k, $res);
+            return $res;
         }
 
         public function listen($k, callable $c)
@@ -165,6 +211,11 @@
             return isset(self::$data[$this->ns][$k]);
         }
 
+        public function exists($k)
+        {
+            return isset(self::$data[$this->ns][$k]);
+        }
+
         public function offsetExists($k)
         {
             return $this->has($k);
@@ -193,6 +244,11 @@
         }
 
         public function del($k)
+        {
+            return $this->delete($k);
+        }
+
+        public function erase($k)
         {
             return $this->delete($k);
         }
@@ -466,11 +522,11 @@
             return $this->bind($class, $resolver);
         }
 
-        public function make($k, array $args = [])
+        public function make($k, array $args = [], $singleton = true)
         {
             $c = $this->get('binds.' . $k, null);
 
-            if (is_callable($c)) {
+            if ($c && is_callable($c) && $singleton) {
                 return call_user_func_array($c, $args);
             } else {
                 $ref = new \ReflectionClass($k);
@@ -480,26 +536,30 @@
                     $maker = $ref->getConstructor();
 
                     if ($maker) {
-                        $params = $maker->getParameters();
+                        if (empty($args)) {
+                            $params = $maker->getParameters();
 
-                        $instanceParams = [];
+                            $instanceParams = [];
 
-                        foreach ($params as $param) {
-                            $classParam = $param->getClass();
+                            foreach ($params as $param) {
+                                $classParam = $param->getClass();
 
-                            if ($classParam) {
-                                $p = $this->make($classParam->getName());
-                            } else {
-                                $p = $param->getDefaultValue();
+                                if ($classParam) {
+                                    $p = $this->make($classParam->getName());
+                                } else {
+                                    $p = $param->getDefaultValue();
+                                }
+
+                                $instanceParams[] = $p;
                             }
 
-                            $instanceParams[] = $p;
-                        }
-
-                        if (!empty($instanceParams)) {
-                            $this->instance($i = $ref->newInstanceArgs($instanceParams));
+                            if (!empty($instanceParams)) {
+                                $this->instance($i = $ref->newInstanceArgs($instanceParams));
+                            } else {
+                                $this->instance($i = $ref->newInstance());
+                            }
                         } else {
-                            $this->instance($i = $ref->newInstance());
+                            $this->instance($i = $ref->newInstanceArgs($args));
                         }
 
                         return $i;
@@ -514,5 +574,58 @@
             }
 
             exception('Dic', "The class $k is not set.");
+        }
+
+        public function core($k, $v = null)
+        {
+            $rows = $this->get('core.' . $k, []);
+
+            if ($v) {
+                $rows[] = $v;
+                $this->set('core.' . $k, $rows);
+
+                return $this;
+            } else {
+                return $rows;
+            }
+        }
+
+        public function until($k, callable $c, $maxAge = null, $args = [])
+        {
+            $keyAge = $k . '.maxage';
+            $v      = $this->get($k);
+
+            if ($v) {
+                if (is_null($maxAge)) {
+                    return $v;
+                }
+
+                $age = $this->get($keyAge);
+
+                if (!$age) {
+                    $age = $maxAge - 1;
+                }
+
+                if ($age >= $maxAge) {
+                    return $v;
+                } else {
+                    $this->delete($k);
+                    $this->delete($keyAge);
+                }
+            }
+
+            $data = call_user_func_array($c, $args);
+
+            $this->set($k, $data);
+
+            if (!is_null($maxAge)) {
+                if ($maxAge < 1000000) {
+                    $maxAge = ($maxAge * 60) + microtime(true);
+                }
+
+                $this->set($keyAge, $maxAge);
+            }
+
+            return $data;
         }
     }

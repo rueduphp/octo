@@ -11,7 +11,7 @@
 
         public function __construct($db = 'core', $table = 'core', $driver = null, $dir = null)
         {
-            $dir            = empty($dir) ? Config::get('octalia.dir', session_save_path()) : $dir;
+            $dir            = empty($dir) ? conf('octalia.dir', session_save_path()) : $dir;
             $driver         = empty($driver) ? fmr("odb.$db.$table", $dir) : $driver;
 
             $this->ns       = "$db.$table";
@@ -30,6 +30,11 @@
 
             Registry::set('octalia.start', microtime(true));
             Registry::set('octalia.instance', $this);
+
+            $this->entity();
+            $this->_events();
+
+            actual('octalia_driver', $driver);
         }
 
         public function validator()
@@ -106,6 +111,8 @@
                 return Registry::get('Octalia.' . sha1($this->ns) . '.optimized', Config::get('octalia.optimized', true));
             } elseif ($k == 'instance') {
                 return Registry::get('Octalia.' . sha1($this->ns) . '.instance', token());
+            } elseif ($k == 'modeler') {
+                return Registry::get('Octalia.' . sha1($this->ns) . '.modeler', 'Object');
             } else {
                 return $this->$k;
             }
@@ -121,6 +128,8 @@
                 return Registry::set('Octalia.' . sha1($this->ns) . '.kh', $v);
             } elseif ($k == 'optimized') {
                 return Registry::set('Octalia.' . sha1($this->ns) . '.optimized', $v);
+            } elseif ($k == 'modeler') {
+                return Registry::set('Octalia.' . sha1($this->ns) . '.modeler', $v);
             } elseif ($k == 'instance') {
                 Registry::set('Octalia.' . $v, $this);
 
@@ -139,7 +148,7 @@
                     }
 
                     if ($tuples) {
-                        $this->create($row)->save();
+                        $this->store($row);
                     } else {
                         $this->firstOrCreate($row);
                     }
@@ -171,22 +180,39 @@
             return $this->driver->get('lastid', 1);
         }
 
+        public function memory()
+        {
+            $entity = Inflector::camelize($this->db . '_' . $this->table);
+
+            $db = dbMemory($entity);
+
+            foreach ($this->get() as $row) {
+                $db->add($row);
+            }
+
+            return $db;
+        }
+
         public function instanciate($db = null, $table = null, $driver = null)
         {
+            $db     = is_null($db)      ? $this->db     : $db;
+            $table  = is_null($table)   ? $this->table  : $table;
+            $driver = is_null($driver)  ? $this->driver : $driver;
+
             return new self($db, $table, $driver);
         }
 
         public function age($t = null)
         {
             if (empty($t)) {
-                return $this->driver->getOr('age', function () {
+                $t = $this->driver->getOr('age', function () {
                     return microtime(true);
                 });
             } else {
                 $this->driver->set('age', $t);
-
-                return $this;
             }
+
+            return $t;
         }
 
         public function fresh()
@@ -223,7 +249,7 @@
         public function optimize()
         {
             $cb = function ($database, $table) {
-                $db = \Octo\engine($database, $table);
+                $db = $this->newQuery();
 
                 foreach ($db->fields() as $field) {
                     $db->select($field);
@@ -236,10 +262,13 @@
 
         public function ids()
         {
-            $keyCache = sha1('ids.' . $this->ns);
+            $keyCache = sha1($this->ns . '.ids');
 
             return $this->driver->until($keyCache, function () {
-                return array_keys($this->data());
+                $ids = array_keys($this->data());
+                asort($ids);
+
+                return $ids;
             }, $this->age());
         }
 
@@ -260,24 +289,30 @@
         {
             $this->reset();
 
-            return count($this->iterator());
+            return $this->fire('count', count($this->iterator()), true);
         }
 
-        private function add($row)
+        private function add($row, $fire = true)
         {
             $id = isAke($row, 'id', null);
 
-            $this->driver->set($id, $row);
+            if ($id) {
+                $this->driver->set($id, $row);
 
-            $rows = $this->data();
+                $rows = $this->data();
 
-            $rows[$id] = $row;
+                $rows[$id] = $row;
 
-            $this->data($rows);
+                $this->data($rows);
 
-            $this->driver->set('rows', $rows);
+                $this->driver->set('rows', $rows);
 
-            $this->age(microtime(true));
+                $this->age(microtime(true));
+
+                if ($fire) {
+                    $this->fire('added', $row);
+                }
+            }
 
             return $this;
         }
@@ -306,46 +341,162 @@
             return $return ? $collection : $this;
         }
 
-        public function create(array $data = [])
+        public function many(array $rows = [])
         {
+            foreach ($rows as $row) {
+                $this->save($row);
+            }
+        }
+
+        public function create($data = [])
+        {
+            $data = is_object($data) ? $data->toArray() : $data;
+
             return $this->model($data);
         }
 
-        public function store(array $data = [])
+        public function item($data = [])
         {
-            return $this->model($data)->save();
+            return item($data);
+        }
+
+        public function record($data = [])
+        {
+            return item($data);
+        }
+
+        public function store($data = [])
+        {
+            $data = is_object($data) ? $data->toArray() : $data;
+
+            $row = $this->model($data)->save();
+
+            return $row;
+        }
+
+        public function persist($data)
+        {
+            return $this->speedStore($data);
         }
 
         public function createIfNotExists(array $data = [])
         {
+            $data = is_object($data) ? $data->toArray() : $data;
+
             return $this->firstOrCreate($data);
         }
 
-        public function save(array $data, $model = true)
+        public function multiStore(array $rows)
         {
+            foreach ($rows as $data) {
+                $data = is_object($data) ? $data->toArray() : $data;
+
+                $data['id']         = $this->makeId();
+                $data['created_at'] = $data['updated_at'] = time();
+
+                $this->insert($data, false);
+            }
+
+            return $this;
+        }
+
+        public function speedStore($data)
+        {
+            $data = is_object($data) ? $data->toArray() : $data;
+
+            $data = $this->fire('saving', $data, true);
+
+            if (!isset($data['id'])) {
+                $data['id']         = $this->makeId();
+                $data['created_at'] = $data['updated_at'] = time();
+
+                $row = $this->insert($data, false);
+            } else {
+                $row = $this->modify($data, false);
+            }
+
+            return $this->fire('saved', $row, true);
+        }
+
+        private function guarded($dataToCheck, $fieldsGuarded)
+        {
+            $keys = array_keys($dataToCheck);
+
+            foreach ($keys as $key) {
+                if (in_array($key, $fieldsGuarded)) {
+                    exception('Octalia', "The field $key is not fillable.");
+                }
+            }
+        }
+
+        private function fillable($dataToCheck, $fieldsAllowed)
+        {
+            $keys = array_keys($dataToCheck);
+
+            foreach ($keys as $key) {
+                if (!in_array($key, $fieldsAllowed)) {
+                    exception('Octalia', "The field $key is not fillable.");
+                }
+            }
+        }
+
+        public function save($data, $model = true)
+        {
+            $data = is_object($data) ? $data->toArray() : $data;
+
             $this->reset();
+
+            $data = $this->fire('saving', $data, true);
+
+            $octal = $this->entity();
+
+            if (is_object($octal) && $octal instanceof Octal) {
+                $methods = get_class_methods($octal);
+
+                if (in_array('guard', $methods)) {
+                    $this->guarded($data, $octal->guard());
+                } elseif (in_array('fill', $methods)) {
+                    $this->fillable($data, $octal->fill());
+                }
+            }
+
+            if ($data === false) return false;
 
             $id = isAke($data, 'id', null);
 
             if ($id && is_int($id)) {
-                return $this->modify($data, $model);
+                $saved = $this->modify($data, $model);
+            } else {
+                $data['id']         = $this->makeId();
+                $data['created_at'] = $data['updated_at'] = time();
+
+                $saved = $this->insert($data, $model);
             }
 
-            $data['id']         = $this->makeId();
-            $data['created_at'] = $data['updated_at'] = time();
+            if ($saved) {
+                return $this->fire('saved', $saved, true);
+            }
 
-            return $this->insert($data, $model);
+            return $saved;
         }
 
         private function insert(array $data, $model = true)
         {
-            $this->add($data);
+            $data = $this->fire('creating', $data, true);
 
-            return $model ? $this->model($data) : $data;
+            if ($data === false) return false;
+
+            $this->add($data, false);
+
+            return $this->fire('created', $model ? $this->model($data) : $data, true);
         }
 
         private function modify(array $data, $model = true)
         {
+            $data = $this->fire('updating', $data, true);
+
+            if ($data === false) return false;
+
             $data['updated_at'] = time();
 
             $old = $this->row($data['id']);
@@ -356,17 +507,17 @@
 
             $data = array_merge($old, $data);
 
-            $this->delete($data['id']);
+            $this->delete($data['id'], false, false);
 
-            $this->add($data, true);
+            $this->add($data, false);
 
-            return $model ? $this->model($data) : $data;
+            return $this->fire('updated', $model ? $this->model($data) : $data, true);
         }
 
-        public function delete($id = null, $soft = false)
+        public function delete($id = null, $soft = false, $fire = true)
         {
             if (is_null($id)) {
-                return $this->deletes();
+                return 0 < $this->count() ? $this->deletes() : $this;
             }
 
             $row = $this->row($id);
@@ -374,6 +525,8 @@
             $exists = !is_null($row);
 
             if ($exists) {
+                if ($fire && $this->fire('deleting', $row, true) === false) return false;
+
                 if ($soft) {
                     $row['deleted_at'] = time();
                     $this->modify($row);
@@ -388,9 +541,11 @@
 
                     $this->age(microtime(true));
                 }
+
+                return $fire ? $this->fire('deleted', $exists, true) : $exists;
             }
 
-            return $exists;
+            return false;
         }
 
         public function drop()
@@ -399,6 +554,8 @@
 
             $this->age(microtime(true));
 
+            $this->all()->delete();
+
             if ($this->driver instanceof Cache) {
                 return File::rmdir($this->getDirectory());
             }
@@ -406,27 +563,19 @@
             return $this->driver->flush();
         }
 
+        public function findAll($model = true)
+        {
+            return $this->newQuery()->get($model);
+        }
+
         public function find($id = null, $model = true)
         {
             if (is_null($id)) {
-                return $this->get(true);
+                return $this->get($model);
             }
 
             if (is_array($id)) {
-                $coll = [];
-
-                foreach ($id as $key) {
-                    $row = $this->driver->get($key);
-
-                    if ($row) {
-                        $row = $this->read($row);
-                        $coll[] = $model ? $this->model($row) : $row;
-                    }
-                }
-
-                $this->reset();
-
-                return coll($coll);
+                return $this->newQuery()->whereIn('id', $id)->get($model);
             }
 
             $row = $this->driver->get($id);
@@ -467,7 +616,7 @@
 
         public function rowAndDelete($id)
         {
-            $row = $this->row($id, $model);
+            $row = $this->row($id);
 
             if ($row) {
                 $this->delete($id);
@@ -476,290 +625,56 @@
             return $this->read($row);
         }
 
-        public function model($row)
+        public function model($row = [])
         {
-            $class = Strings::camelize($this->db . '_' . $this->table . '_model');
-
-            $file = path('models') . '/' . $this->db . '/' . $this->table . '.php';
-
-            $row = treatCast($row);
-
-            if (file_exists($file)) {
-                $cbs = require_once $file;
-
-                $fns    = isAke($cbs, 'scopes', []);
-                $hooks  = isAke($cbs, 'hooks', []);
-
-                foreach ($cbs as $cbname => $cb) {
-                    if (is_callable($cb)) {
-                        $model->fn($cbname, $cb);
-                    }
-                }
-
-                foreach ($hooks as $when => $cb) {
-                    if (is_callable($cb)) {
-                        Arrays::set($model->hooks, $when, $cb);
-                    } else {
-                        if (is_array($cb)) {
-                            foreach ($cb as $action => $c) {
-                                Arrays::set($model->hooks, $when . '.' . $action, $c);
-                            }
-                        }
-                    }
-                }
-            } else {
-                if (!is_dir(path('models'))) {
-                    File::mkdir(path('models'));
-                }
-
-                if (!is_dir(path('models') . '/' . $this->db)) {
-                    File::mkdir(path('models') . '/' . $this->db);
-                }
-
-                $fks = array_keys(Arrays::pattern($row, '*_id'));
-
-                $indices = '["id", ';
-
-                foreach ($fks as $fk) {
-                    $indices .= '"' . $fk . '", ';
-                }
-
-                $indices = substr($indices, 0, -2) . ']';
-
-                $fields = ['id', 'created_at', 'updated_at'];
-
-                $rowFields = array_keys($row);
-
-                foreach ($rowFields as $f) {
-                    if (!in_array($f, $fields)) {
-                        $fields[] = $f;
-                    }
-                }
-
-                $fs = '[' . "\n\t\t\t";
-
-                foreach ($fields as $field) {
-                    if ($field == 'year' || $field == 'age' || $field == 'number' || $field == 'quantity' || $field == 'id' || $field == 'created_at' || $field == 'updated_at' || $field == 'deleted_at' || $field == 'created_by' || $field == 'updated_by' || $field == 'deleted_by' || fnmatch('*_id', $field)) {
-                        $type = 'integer';
-                    } elseif (in_array(
-                        $field, [
-                            'duration',
-                            'price',
-                            'size',
-                            'length',
-                            'width',
-                            'height',
-                            'depth'
-                        ]
-                    )) {
-                        $type = 'float';
-                    } else {
-                        $type = gettype($row[$field]);
-                    }
-
-                    $fs .= '"' . $field . '" => ["type" => "' . $type . '"], ';
-                }
-
-                $fs = substr($fs, 0, -2);
-
-                $tab = explode(', ', $fs);
-
-                $fs = implode(",\n\t\t\t", $tab);
-
-                $fs .= "\n\t\t" . ']';
-
-                File::put($file, '<?' . 'php' . "\n\t" . 'namespace Octo;' . "\n\n\t" . 'if (!class_exists("Octo\\'.$class.'")):' . "\n\n\t" . 'class ' . $class . " extends Object\n\t" .  '{' . "\n\t\t" .  'public function __construct(array $model)' . "\n\t\t" .  '{' . "\n\t\t\t" .  'parent::__construct($model);' . "\n\t\t" .  '}' . "\n\t" .  '}' . "\n\n\t" . 'endif;' . "\n\n\t" . 'return [' . "\n\t\t" . '"fields" => ' . $fs . ',' . "\n\t\t" . '"scopes" => [],' . "\n\t\t" . '"hooks" => [' . "\n\t\t\t" . '"validate" => null,' . "\n\t\t\t" . '"before" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . '],' . "\n\t\t\t" . '"after" => [' . "\n\t\t\t\t" . '"create" => null,' . "\n\t\t\t\t" . '"read" => null,' . "\n\t\t\t\t" . '"update" => null,' . "\n\t\t\t\t" . '"delete" => null' . "\n\t\t\t" . ']' . "\n\t\t" . '],' . "\n\t\t" . '"indices" => ' . $indices . "\n\t" . '];');
-
-                require $file;
+            if (is_null($row)) {
+                $row = [];
             }
 
-            $dir = path('factories');
+            $row = arrayable($row) ? $row->toArray() : $row;
 
-            if (!is_dir($dir)) {
-                File::mkdir($dir);
-            }
-
-            $dir .= DS . $this->db;
-
-            if (!is_dir($dir)) {
-                File::mkdir($dir);
-            }
-
-            $file = $dir . DS . $this->table . '.php';
-
-            if (!file_exists($file)) {
-                $fieldsOmitted = ['id', 'created_at', 'updated_at'];
-
-                $rowFields = array_keys($row);
-
-                $fields = [];
-
-                foreach ($rowFields as $f) {
-                    if (!in_array($f, $fieldsOmitted)) {
-                        $fields[] = $f;
-                    }
-                }
-
-                $code = '<?' . 'php' . "\n\tnamespace Octo;\n\n\t";
-                $code .= 'return function (\Faker\Generator $faker){' . "\n\t\t" . 'return [' . "\n\t\t\t";
-
-                $n = 0;
-
-                foreach ($fields as $field) {
-                    $val = 'Strings::random(10)';
-
-                    if ($field == 'password') {
-                        $val = '$faker->password';
-                    } elseif ($field == 'email') {
-                        $val = '$faker->safeEmail';
-                    } elseif ($field == 'username') {
-                        $val = '$faker->username';
-                    } elseif ($field == 'name' || $field == 'lastname') {
-                        $val = '$faker->lastName';
-                    } elseif ($field == 'firstname') {
-                        $val = '$faker->firstName';
-                    } elseif ($field == 'phone' || $field == 'tel' || $field == 'fax') {
-                        $val = '$faker->phoneNumber';
-                    } elseif ($field == 'latitude' || $field == 'lat') {
-                        $val = '$faker->latitude';
-                    } elseif ($field == 'longitude' || $field == 'lng') {
-                        $val = '$faker->longitude';
-                    } elseif ($field == 'city') {
-                        $val = '$faker->city';
-                    } elseif ($field == 'country') {
-                        $val = '$faker->country';
-                    } elseif ($field == 'address') {
-                        $val = '$faker->streetAddress';
-                    } elseif ($field == 'zip' || $field == 'postcode') {
-                        $val = '$faker->postcode';
-                    } elseif ($field == 'color') {
-                        $val = '$faker->colorName';
-                    } elseif ($field == 'company') {
-                        $val = '$faker->company';
-                    } elseif ($field == 'ip') {
-                        $val = '$faker->ipv4';
-                    } elseif ($field == 'url' || $field == 'website') {
-                        $val = '$faker->url';
-                    } elseif ($field == 'slug') {
-                        $val = '$faker->slug';
-                    } elseif ($field == 'barcode' || $field == 'ean13') {
-                        $val = '$faker->ean13';
-                    } elseif ($field == 'date' || $field == 'birthdate' || $field == 'deathdate') {
-                        $val = '$faker->date';
-                    } elseif ($field == 'time') {
-                        $val = '$faker->time';
-                    } elseif ($field == 'uuid') {
-                        $val = 'uuid()';
-                    } elseif ($field == 'token') {
-                        $val = 'token()';
-                    } elseif (in_array(
-                        $field, [
-                            'created_by',
-                            'updated_by',
-                            'deleted_by',
-                            'year',
-                            'age',
-                            'price',
-                            'size',
-                            'width',
-                            'height',
-                            'length',
-                            'depth',
-                            'quantity',
-                            'number'
-                        ]
-                    )) {
-                        $val = '$faker->numberBetween(15, 85)';
-                    } elseif (fnmatch('*_id', $field)) {
-                        $val = 'em("' . $this->db . '", "' . str_replace('_id', '', $field) . '")->createFake()->id';
-                    }
-
-                    if ($n < count($fields) - 1) {
-                        $code .= '"' . $field . '" => ' . $val . ',' . "\n\t\t\t";
-                    } else {
-                        $code .= '"' . $field . '" => ' . $val . '' . "\n\t\t";
-                    }
-
-                    $n++;
-                }
-
-                $code .= '];' . "\n\t";
-                $code .= '};';
-
-                File::put($file, $code);
-            }
-
-            $class  = '\\Octo\\' . $class;
-            $model  = new $class($row);
+            $model  = lib('activerecord', [$row]);
             $self   = $this;
 
-            $model->model(Strings::camelize($this->db . '_' . $this->table . '_model'))
-            ->fn('save', function ($event = null) use ($model) {
-                if (is_string($event)) {
-                    $model = on($event, [$model]);
-                } elseif (is_callable($event)) {
-                    $model = $event($model);
+            $model->fn('save', function ($event = null) use ($model) {
+                if ($model->exists() && !$model->isDirty()) {
+                    return $model;
                 }
 
-                $hook = isAke($model->hooks, 'validate', null);
+                $check = $this->fire('validate', $model->toArray(), true);
 
-                if ($hook) {
-                    $check = call_user_func_array($hook, [$model]);
-
-                    if (true !== $check) {
-                        exception('model', $check);
-                    }
+                if ($check != $model->toArray()) {
+                    exception('model', $check);
                 }
 
+                if ($model) {
+                    $row =  $this->save($model->toArray());
+
+                    return $row;
+                }
+
+                return $model;
+            })->fn('cacheKey', function () use ($model) {
                 if ($model->exists()) {
-                    $before = aget($model->hooks, 'before.update', null);
-                } else {
-                    $before = aget($model->hooks, 'before.create', null);
+                    return sprintf(
+                        "%s:%s:%s",
+                        $model->db() . '_' . $model->table(),
+                        $model->id,
+                        $model->updated_at->timestamp
+                    );
                 }
 
-                if (is_callable($before)) {
-                    $model = $before($model);
-                }
-
-                $row =  $this->save($model->toArray());
-
-                if ($model->exists()) {
-                    $after = aget($model->hooks, 'after.update', null);
-                } else {
-                    $after = aget($model->hooks, 'after.create', null);
-                }
-
-                if (is_callable($after)) {
-                    $row = $after($row);
-                }
-
-                return $row;
+                return sha1(serialize($model->toArray()));
             })->fn('delete', function ($event = null) use ($row, $model) {
-                if (is_string($event)) {
-                    $model = on($event, [$model]);
-                } elseif (is_callable($event)) {
-                    $model = $event($model);
-                }
-
                 if (isset($row['id'])) {
-                    $before = aget($model->hooks, 'before.delete', null);
+                    if ($model) {
+                        $status = $this->delete($row['id']);
 
-                    if (is_callable($before)) {
-                        $model = $before($model);
+                        return $status;
                     }
-
-                    $status = $this->delete($row['id']);
-
-                    $after = aget($model->hooks, 'after.delete', null);
-
-                    if (is_callable($after)) {
-                        $after($model->instance(), $status);
-                    }
-
-                    return $status;
-                } else {
-                    return false;
                 }
+
+                return false;
             })->fn('post', function (array $data = [], $save = false) use ($model) {
                 $data = empty($data) ? $_POST : $data;
 
@@ -781,7 +696,6 @@
                                     $v = (int) $v;
                                 } elseif (is_object($v)) {
                                     $model->set($k, $v->id);
-                                    $model->set(str_replace('_id', '', $k), $v->toArray());
                                     $continue = false;
                                 }
                             }
@@ -804,14 +718,26 @@
                 return $this->table;
             })->fn('db', function () {
                 return $this->db;
+            })->fn('em', function () {
+                return $this;
+            })->fn('entityName', function () {
+                $database   = $this->db;
+                $table      = $this->table;
+
+                return Strings::camelize($database . "_" . $table);
+            })->fn('entity', function () {
+                $database   = $this->db;
+                $table      = $this->table;
+
+                return actual("entity.$database.$table");
             })->fn('instance', function () {
                 return $this;
             })->fn('driver', function () {
-                return $this->driver;
+                return actual('octalia_driver');
             })->fn('has', function ($what) use ($model) {
                 $m = $what . 's';
 
-                return count($model->$m()) > 0;
+                return $model->$m()->count() > 0;
             })->fn('count', function ($what) use ($model) {
                 $m = $what . 's';
 
@@ -820,14 +746,62 @@
                 $field = $object->table() . '_id';
 
                 return $object->getId() == isAke($row, $field, 0);
+            })->fn('savePost', function ($data = null) use ($model) {
+                $data = is_null($data) ? $_POST : $data;
+
+                foreach ($_POST as $k => $v) {
+                    $setter = setter($k);
+                    $model->$setter($v);
+                }
+
+                return $model->save();
+            })->fn('storePost', function ($only = []) use ($model) {
+                foreach ($_POST as $k => $v) {
+                    if (!empty($only) && !in_array($k, $only)) {
+                        continue;
+                    }
+
+                    $setter = setter($k);
+                    $model->$setter($v);
+                }
+
+                return $model->save();
             });
 
-            return $model;
+            $octal = $this->entity();
+
+            if (is_object($octal) && $octal instanceof Octal && $model->exists()) {
+                $methods = get_class_methods($octal);
+
+                if (in_array('activeRecord', $methods)) {
+                    $model = $octal->activeRecord($model);
+                }
+            }
+
+            $traits = class_uses($model);
+
+            if (!empty($traits)) {
+                foreach ($traits as $trait) {
+                    $tab = explode('\\', $trait);
+                    $traitName = Strings::lower(end($tab));
+                    $method = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
+
+                    $methods = get_class_methods($model);
+
+                    if (in_array($method, $methods)) {
+                        call_user_func_array([$model, $method], []);
+                    }
+                }
+            }
+
+            return $this->fire('make_model', $model, true);
         }
 
         public function createFake()
         {
-            return $this->fake(1, false)->create(true)->lastFake();
+            return $this->fake(1, false)
+            ->create(true)
+            ->lastFake();
         }
 
         public function fake($amount = 1, $create = true)
@@ -931,12 +905,45 @@
 
         public function __call($m, $a)
         {
+            $database   = $this->db;
+            $table      = $this->table;
+
+            $entity = $this->entity();
+
+            if (is_object($entity) && $entity instanceof Octal) {
+                $methods    = get_class_methods($entity);
+                $method     = 'scope' . ucfirst(Strings::camelize($m));
+
+                if (in_array($method, $methods)) {
+                    return call_user_func_array([$entity, $method], array_merge([$this], $a));
+                }
+
+                $method = 'query' . ucfirst(Strings::camelize($m));
+
+                if (in_array($method, $methods)) {
+                    return call_user_func_array([$entity, $method], array_merge([$this], $a));
+                }
+            }
+
             if ($m == 'is' && count($a) == 2) {
-                return $this->where([
+                return $this->where(
                     current($a),
-                    '=',
                     end($a)
-                ]);
+                );
+            }
+
+            if ($m == 'resetted') {
+                return new self($this->db, $this->table, $this->driver);
+            }
+
+            if ($m == 'empty') {
+                $this->driver->set('rows', []);
+
+                $this->age(microtime(true));
+
+                $this->driver->set('ids', 0);
+
+                return $this->resetted();
             }
 
             if ($m == 'or') {
@@ -1072,7 +1079,22 @@
                     $value  = array_shift($a);
                 }
 
-                return $this->where([$field, $op, $value]);
+                return $this->where($field, $op, $value);
+            }
+
+            if (fnmatch('getBy*', $m) && strlen($m) > 5) {
+                $field = callField($m, 'getBy');
+
+                $op = '=';
+
+                if (count($a) == 2) {
+                    $op     = array_shift($a);
+                    $value  = array_shift($a);
+                } else {
+                    $value  = array_shift($a);
+                }
+
+                return $this->where($field, $op, $value);
             }
 
             if (fnmatch('where*', $m) && strlen($m) > 5) {
@@ -1087,14 +1109,14 @@
                     $value  = array_shift($a);
                 }
 
-                return $this->where([$field, $op, $value]);
+                return $this->where($field, $op, $value);
             }
 
             if (fnmatch('by*', $m) && strlen($m) > 2) {
                 $field = callField($m, 'by');
                 $value = array_shift($a);
 
-                return $this->where([$field, '=', $value]);
+                return $this->where($field, $value);
             }
 
             if (fnmatch('sortWith*', $m)) {
@@ -1121,9 +1143,7 @@
 
                 $model = array_shift($a);
 
-                if (!$model) {
-                    $model = false;
-                } else {
+                if (is_null($model)) {
                     $model = true;
                 }
 
@@ -1136,9 +1156,7 @@
 
                 $model = array_shift($a);
 
-                if (!$model) {
-                    $model = false;
-                } else {
+                if (is_null($model)) {
                     $model = true;
                 }
 
@@ -1151,11 +1169,11 @@
                 if ($o instanceof Object) {
                     $fk = Strings::uncamelize($m) . '_id';
 
-                    return $this->where([$fk, '=', (int) $o->id]);
+                    return $this->where($fk, (int) $o->id);
                 }
             }
 
-            $file = path('models') . '/' . $this->db . '/' . $this->table . '.php';
+            $file = path('models') . DS . $this->db . DS . $this->table . '.php';
 
             if (file_exists($file)) {
                 $cbs = require_once $file;
@@ -1175,7 +1193,7 @@
             return call_user_func_array([coll($data), $m], $a);
         }
 
-        public function first($model = false)
+        public function first($model = true)
         {
             $i  = $this->iterator();
             $id = current($i);
@@ -1185,7 +1203,7 @@
             return $this->find($id, $model);
         }
 
-        public function last($model = false)
+        public function last($model = true)
         {
             $i  = $this->iterator();
             $id = end($i);
@@ -1195,15 +1213,20 @@
             return $this->find($id, $model);
         }
 
-        public function collection()
+        public function takeFisrt($limit = 1, $model = true)
         {
-            return coll($this->data());
+            return $this->sortBy('id')->take($limit)->get($model);
+        }
+
+        public function takeLast($limit = 1, $model = true)
+        {
+            return $this->sortByDesc('id')->take($limit)->get($model);
         }
 
         public function slice($offset, $length = null)
         {
-            $ids = array_values(array_slice((array) $this->iterator(), $offset, $length, true));
-            $this->ids = SplFixedArray::fromArray($ids);
+            $ids        = array_values(array_slice((array) $this->iterator(), $offset, $length, true));
+            $this->ids  = SplFixedArray::fromArray($ids);
 
             return $this;
         }
@@ -1417,7 +1440,7 @@
 
             $keyCache = 'whqsql.' . sha1(serialize($this->query) . $this->ns);
 
-            $ids = $this->driver->until($keyCache, function () use ($key, $operator, $value) {
+            $ids = $this->driver->until($keyCache, function () use ($key, $operator, $value, $liteTable) {
                 $this->lite($key, $operator, $value);
 
                 $sql = "SELECT row_id as id FROM $liteTable WHERE $key ";
@@ -1489,7 +1512,7 @@
             } elseif ($nargs == 3) {
                 list($key, $operator, $value) = func_get_args();
             } else {
-                throw new Exception("This method requires at least one argument to proceed.");
+                exception('octalia', "This method requires at least one argument to proceed.");
             }
 
             $operator = Strings::lower($operator);
@@ -1601,6 +1624,12 @@
                 return $key($this);
             }
 
+            if ($key instanceof Object) {
+                $fkTable = $key->table();
+
+                return $this->where($fkTable . '_id', (int) $key->id);
+            }
+
             if ($key instanceof Octalia) {
                 $joins = $key->get();
 
@@ -1660,6 +1689,8 @@
             $liteTable = str_replace('.', '', $this->path);
 
             $this->query[] = [$key, $operator, $value];
+
+            $this->query = $this->fire('query', $this->query, true);
 
             $keyCache = 'owhs.' . sha1(serialize($this->query) . $this->ns);
 
@@ -1756,6 +1787,11 @@
             return $this;
         }
 
+        public function emptyQuery()
+        {
+            $this->ids = SplFixedArray::fromArray([]);
+        }
+
         public function exists()
         {
             if (!empty($this->query)) {
@@ -1792,7 +1828,7 @@
 
             $results    = coll($data)->each($callback);
 
-            $this->ids = array_values($results->fetch('id')->toArray());
+            $this->iterator(array_values($results->fetch('id')->toArray()));
 
             return $this;
         }
@@ -1816,19 +1852,34 @@
 
         public function paginate($page, $perPage)
         {
-            return $this->new(array_slice((array) $this->iterator(), ($page - 1) * $perPage, $perPage));
+            return $this->new(
+                array_slice(
+                    (array) $this->iterator(),
+                    ($page - 1) * $perPage,
+                    $perPage
+                )
+            );
         }
 
         public function deletes()
         {
             $deleted = 0;
 
-            foreach ($this->get() as $item) {
-                if (isset($item['id'])) {
-                    $row = $this->find((int) $item['id']);
+            foreach ($this->get(false) as $item) {
+                if ($item) {
+                    $id = $item['id'];
 
-                    if ($row) {
-                        $row->delete();
+                    if (is_numeric($id)) {
+                        $this->driver->delete($id);
+
+                        $rows = $this->driver->get('rows', []);
+
+                        unset($rows[$id]);
+
+                        $this->driver->set('rows', $rows);
+
+                        $this->age(microtime(true));
+
                         $deleted++;
                     }
                 }
@@ -1839,6 +1890,8 @@
 
         public function update(array $criteria)
         {
+            $criteria = is_object($criteria) ? $criteria->toArray() : $criteria;
+
             $affected = 0;
 
             foreach ($this->get() as $item) {
@@ -1848,7 +1901,7 @@
                     if ($row) {
                         foreach ($criteria as $k => $v) {
                             $setter = setter($k);
-                            $v = value($v);
+                            $v      = value($v);
                             $row->$setter($v);
                         }
 
@@ -1861,32 +1914,145 @@
             return $affected;
         }
 
-        public function get($model = false)
+        public function entity()
+        {
+            static $mapped = [];
+
+            $actual = actual("entity.{$this->db}.{$this->table}");
+
+            if (is_object($actual) && $actual instanceof Octal) {
+                return $actual;
+            }
+
+            if (empty($mapped)) {
+                $entities = glob(path('app') . '/entities/*.php');
+
+                foreach ($entities as $entity) {
+                    $code           = File::read($entity);
+                    $entityName     = cut('class ', ' extends', $code);
+                    $namespace      = cut('namespace ', ';', $code);
+                    $uncamelized    = Strings::uncamelize($entityName);
+
+                    if (fnmatch('*_entity', $uncamelized)) {
+                        $cleaned = str_replace('_entity', '', $uncamelized);
+
+                        if (fnmatch('*_*', $cleaned)) {
+                            list($db, $table) = explode('_', $cleaned, 2);
+                        } else {
+                            $table = $cleaned;
+                            $db = Strings::uncamelize(Config::get('application.name', 'core'));
+                        }
+                    }
+
+                    $mapped["$db.$table"] = '\\' . $namespace . '\\' . $entityName;
+                }
+            }
+
+            $index = $this->db . '.' . $this->table;
+
+            if (isset($mapped[$index])) {
+                $class = $mapped[$index];
+
+                actual("driver.{$this->db}.{$this->table}", $this->driver);
+
+                return actual("entity.{$this->db}.{$this->table}", maker($class));
+            }
+
+            return null;
+        }
+
+        public function get($model = true)
         {
             $this->reset();
 
             $iterator = lib('OctaliaIterator', [$this]);
 
-            return $model ? $iterator->model() : $iterator;
+            return $this->fire('get', $model ? $iterator->model() : $iterator, true);
+        }
+
+        public function items()
+        {
+            $this->reset();
+
+            $iterator = lib('OctaliaIterator', [$this]);
+
+            return $this->fire('get', $iterator->item(), true);
+        }
+
+        public function only()
+        {
+            $this->reset();
+
+            $iterator = lib('OctaliaIterator', [$this]);
+
+            $callable = [$iterator, 'only'];
+
+            return $this->fire(
+                'get',
+                call_user_func_array(
+                    $callable,
+                    func_get_args()
+                ),
+                true
+            );
+        }
+
+        public function except()
+        {
+            $this->reset();
+
+            $iterator = lib('OctaliaIterator', [$this]);
+
+            $callable = [$iterator, 'except'];
+
+            return $this->fire(
+                'get',
+                call_user_func_array(
+                    $callable,
+                    func_get_args()
+                ),
+                true
+            );
         }
 
         public function all()
         {
-            return coll($this->get()->toArray());
+            return $this->newQuery()->get();
         }
 
         public function models()
         {
-            return $this->get()->model();
+            return $this->get(true);
+        }
+
+        public function foreign()
+        {
+            return $this->get(false)->foreign();
         }
 
         public function splice($offset, $length = null, $replacement = [])
         {
             if (func_num_args() == 1) {
-                return $this->new(array_values(array_splice((array) $this->getIterator(), $offset)));
+                return $this->new(
+                    array_values(
+                        array_splice(
+                            (array) $this->getIterator(),
+                            $offset
+                        )
+                    )
+                );
             }
 
-            return $this->new(array_values(array_splice((array) $this->getIterator(), $offset, $length, $replacement)));
+            return $this->new(
+                array_values(
+                    array_splice(
+                        (array) $this->getIterator(),
+                        $offset,
+                        $length,
+                        $replacement
+                    )
+                )
+            );
         }
 
         public function average($field)
@@ -1913,24 +2079,38 @@
             return $this->where($field, 'like', $value);
         }
 
+        public function orLike($field, $value)
+        {
+            return $this->or($field, 'like', $value);
+        }
+
         public function notLike($field, $value)
         {
             return $this->where($field, 'not like', $value);
         }
 
+        public function orNotLike($field, $value)
+        {
+            return $this->or($field, 'not like', $value);
+        }
+
         public function findBy($field, $value)
         {
-            return $this->where($field, '=', $value);
+            if (is_array($value)) {
+                return $this->in($field, $value);
+            }
+
+            return $this->where($field, $value);
         }
 
-        public function firstBy($field, $value, $model = false)
+        public function firstBy($field, $value, $model = true)
         {
-            return $this->where($field, '=', $value)->first($model);
+            return $this->findBy($field, $value)->first($model);
         }
 
-        public function lastBy($field, $value, $model = false)
+        public function lastBy($field, $value, $model = true)
         {
-            return $this->where($field, '=', $value)->last($model);
+            return $this->findBy($field, $value)->last($model);
         }
 
         public function in($field, array $values)
@@ -1938,9 +2118,19 @@
             return $this->where($field, 'in', $values);
         }
 
+        public function orIn($field, array $values)
+        {
+            return $this->or($field, 'in', $values);
+        }
+
         public function notIn($field, array $values)
         {
             return $this->where($field, 'not in', $values);
+        }
+
+        public function orNotIn($field, array $values)
+        {
+            return $this->or($field, 'not in', $values);
         }
 
         public function WhereIn($field, array $values)
@@ -1948,9 +2138,19 @@
             return $this->where($field, 'in', $values);
         }
 
+        public function orWhereIn($field, array $values)
+        {
+            return $this->or($field, 'in', $values);
+        }
+
         public function whereNotIn($field, array $values)
         {
             return $this->where($field, 'not in', $values);
+        }
+
+        public function orWhereNotIn($field, array $values)
+        {
+            return $this->or($field, 'not in', $values);
         }
 
         public function rand($default = null)
@@ -1973,9 +2173,19 @@
             return $this->where($field, 'between', [$min, $max]);
         }
 
+        public function orBetween($field, $min, $max)
+        {
+            return $this->or($field, 'between', [$min, $max]);
+        }
+
         public function notBetween($field, $min, $max)
         {
             return $this->where($field, 'not between', [$min, $max]);
+        }
+
+        public function orNotBetween($field, $min, $max)
+        {
+            return $this->or($field, 'not between', [$min, $max]);
         }
 
         public function isNull($field)
@@ -1983,9 +2193,39 @@
             return $this->where($field, 'is', 'null');
         }
 
+        public function orIsNull($field)
+        {
+            return $this->or($field, 'is', 'null');
+        }
+
         public function isNotNull($field)
         {
             return $this->where($field, 'is not', 'null');
+        }
+
+        public function orIsNotNull($field)
+        {
+            return $this->or($field, 'is not', 'null');
+        }
+
+        public function startsWith($field, $value)
+        {
+            return $this->where($field, 'Like', $value . '%');
+        }
+
+        public function orStartsWith($field, $value)
+        {
+            return $this->or($field, 'Like', $value . '%');
+        }
+
+        public function endsWith($field, $value)
+        {
+            return $this->where($field, 'Like', '%' . $value);
+        }
+
+        public function orEndsWith($field, $value)
+        {
+            return $this->or($field, 'Like', '%' . $value);
         }
 
         public function post($create = false)
@@ -1997,45 +2237,83 @@
 
         public function storePost()
         {
-            return $yhis->post(true);
+            return $this->post(true);
         }
 
         public function lt($field, $value)
         {
-            return $this->where([$field, '<', $value]);
+            return $this->where($field, '<', $value);
+        }
+
+        public function orLt($field, $value)
+        {
+            return $this->or($field, '<', $value);
         }
 
         public function gt($field, $value)
         {
-            return $this->where([$field, '>', $value]);
+            return $this->where($field, '>', $value);
+        }
+
+        public function orGt($field, $value)
+        {
+            return $this->or($field, '>', $value);
         }
 
         public function lte($field, $value)
         {
-            return $this->where([$field, '<=', $value]);
+            return $this->where($field, '<=', $value);
+        }
+
+        public function orLte($field, $value)
+        {
+            return $this->or($field, '<=', $value);
         }
 
         public function gte($field, $value)
         {
-            return $this->where([$field, '>=', $value]);
+            return $this->where($field, '>=', $value);
         }
 
-        public function before($date, $exact = true)
+        public function orGte($field, $value)
+        {
+            return $this->or($field, '>=', $value);
+        }
+
+        public function before($date, $strict = true)
         {
             if (!is_int($date)) {
                 $date = (int) $date->timestamp;
             }
 
-            return $exact ? $this->lt('created_at', $date) : $this->lte('created_at', $date);
+            return $strict ? $this->lt('created_at', $date) : $this->lte('created_at', $date);
         }
 
-        public function after($date, $exact = true)
+        public function orBefore($date, $strict = true)
         {
             if (!is_int($date)) {
                 $date = (int) $date->timestamp;
             }
 
-            return $exact ? $this->gt('created_at', $date) : $this->gte('created_at', $date);
+            return $strict ? $this->orLt('created_at', $date) : $this->orLte('created_at', $date);
+        }
+
+        public function after($date, $strict = true)
+        {
+            if (!is_int($date)) {
+                $date = (int) $date->timestamp;
+            }
+
+            return $strict ? $this->gt('created_at', $date) : $this->gte('created_at', $date);
+        }
+
+        public function orAfter($date, $strict = true)
+        {
+            if (!is_int($date)) {
+                $date = (int) $date->timestamp;
+            }
+
+            return $strict ? $this->orGt('created_at', $date) : $this->orGte('created_at', $date);
         }
 
         public function when($field, $op, $date)
@@ -2044,7 +2322,16 @@
                 $date = (int) $date->timestamp;
             }
 
-            return $this->where([$field, $op, $date]);
+            return $this->where($field, $op, $date);
+        }
+
+        public function orWhen($field, $op, $date)
+        {
+            if (!is_int($date)) {
+                $date = (int) $date->timestamp;
+            }
+
+            return $this->or($field, $op, $date);
         }
 
         public function deleted()
@@ -2052,18 +2339,81 @@
             return $this->lte('deleted_at', microtime(true));
         }
 
+        public function orDeleted()
+        {
+            return $this->orLte('deleted_at', microtime(true));
+        }
+
+        public function hasId($id)
+        {
+            $row = $this->row($id);
+
+            return $row ? true : false;
+        }
+
+        public function findOr($id, $default = false)
+        {
+            $row = $this->row($id);
+
+            return $row ? $this->model($row) : $default;
+        }
+
+        public function findOrFalse($id)
+        {
+            return $this->findOr($id, false);
+        }
+
+        public function findOrNull($id)
+        {
+            return $this->findOr($id, null);
+        }
+
         public function findOrFail($id, $model = true)
         {
             $row = $this->row($id);
 
             if (!$row) {
-                throw new Exception("The row $id does not exist.");
+                exception('octalia', "The row $id does not exist.");
             } else {
                 return $model ? $this->model($row) : $row;
             }
         }
 
-        public function firstOrFail($model = false)
+        public function firstOr($default = false)
+        {
+            $row = $this->first();
+
+            return $row ? $this->model($row) : $default;
+        }
+
+        public function firstOrFalse()
+        {
+            return $this->firstOr(false);
+        }
+
+        public function firstOrNull()
+        {
+            return $this->firstOr(null);
+        }
+
+        public function lastOr($default = false)
+        {
+            $row = $this->last();
+
+            return $row ? $this->model($row) : $default;
+        }
+
+        public function lastOrFalse()
+        {
+            return $this->lastOr(false);
+        }
+
+        public function lastOrNull()
+        {
+            return $this->lastOr(null);
+        }
+
+        public function firstOrFail($model = true)
         {
             $row = $this->first();
 
@@ -2074,12 +2424,12 @@
             }
         }
 
-        public function lastOrFail($model = false)
+        public function lastOrFail($model = true)
         {
             $row = $this->last();
 
             if (!$row) {
-                throw new Exception("The row does not exist.");
+                exception('octalia', "The row does not exist.");
             } else {
                 return $model ? $this->model($row) : $row;
             }
@@ -2087,8 +2437,10 @@
 
         public function noTuple($conditions)
         {
+            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+
             foreach ($conditions as $k => $v) {
-                $this->where([$k, '=', $v]);
+                $this->where($k, $v);
             }
 
             if ($this->count() == 0) {
@@ -2105,6 +2457,8 @@
 
         function search($conditions)
         {
+            $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
+
             foreach ($conditions as $field => $value) {
                 $this->where($field, $value);
             }
@@ -2112,8 +2466,23 @@
             return $this;
         }
 
+        public function firstByAttributes($attributes, $model = true)
+        {
+            $attributes = is_object($attributes) ? $attributes->toArray() : $attributes;
+
+            $q = $this;
+
+            foreach ($attributes as $field => $value) {
+                $q->where($field, $value);
+            }
+
+            return $q->first($model);
+        }
+
         public function firstOrCreate($conditions)
         {
+            $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
+
             $q = $this;
 
             foreach ($conditions as $field => $value) {
@@ -2131,6 +2500,8 @@
 
         public function firstOrNew($conditions)
         {
+            $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
+
             $q = $this;
 
             foreach ($conditions as $field => $value) {
@@ -2175,11 +2546,19 @@
 
                 list($newDb, $newTable) = explode('.', $to, 2);
 
-                $new = new self($newDb, $newTable);
+                $new = new self($newDb, $newTable, $this->driver);
 
                 $new->age(microtime(true));
 
                 return $new;
+            } elseif ($this->driver instanceof Now) {
+                list($newDb, $newTable) = explode('.', $to, 2);
+
+                $this->driver->changeNamespace("ndb.$newDb.$newTable");
+
+                $this->age(microtime(true));
+
+                return $this;
             }
         }
 
@@ -2203,7 +2582,7 @@
 
                 list($newDb, $newTable) = explode('.', $to, 2);
 
-                $new = new self($newDb, $newTable);
+                $new = new self($newDb, $newTable, $this->driver);
 
                 $new->age(microtime(true));
 
@@ -2261,6 +2640,35 @@
             }
 
             return count($datas);
+        }
+
+        public function newQuery()
+        {
+            return new self($this->db, $this->table, $this->driver);
+        }
+
+        public function octal($octal)
+        {
+            actual("entity.{$this->db}.{$this->table}", $octal);
+
+            $driver = actual("driver.{$this->db}.{$this->table}");
+
+            if (is_object($driver)) {
+                $this->driver = $driver;
+            }
+
+            return $this->newQuery();
+        }
+
+        public function factory($count = 1, $lng = 'fr_FR')
+        {
+            $octal = actual("entity.{$this->db}.{$this->table}");
+
+            if ($octal && is_object($octal)) {
+                return factory(get_class($octal), $count, $lng);
+            } else {
+                exception('Octalia', 'No entity setted.');
+            }
         }
 
         public function json($json)
@@ -2332,6 +2740,10 @@
 
         public function read($row)
         {
+            if (is_object($row)) {
+                return $row;
+            }
+
             $model = $this->model($row);
 
             $before = aget($model->hooks, 'before.read', null);
@@ -2345,12 +2757,12 @@
                 $after($row, $this);
             }
 
-            return $row;
+            return $this->fire('fetch', $row, true);
         }
 
         public function attach($data)
         {
-            $sync = Registry::get('octalia.sync');;
+            $sync = Registry::get('octalia.sync');
 
             if ($sync) {
                 $tables = [$this->table, $sync->table()];
@@ -2365,7 +2777,7 @@
                 }
 
                 if (is_array($data) && !empty($data)) {
-                    $db = new self($sync->db(), $table);
+                    $db = new self($sync->db(), $table, $sync->driver());
 
                     foreach ($this->ids as $id) {
                         foreach ($data as $syncId) {
@@ -2387,7 +2799,7 @@
 
         public function detach($data)
         {
-            $sync = Registry::get('octalia.sync');;
+            $sync = Registry::get('octalia.sync');
 
             if ($sync) {
                 $tables = [$this->table, $sync->table()];
@@ -2402,7 +2814,7 @@
                 }
 
                 if (is_array($data) && !empty($data)) {
-                    $db = new self($sync->db(), $table);
+                    $db = new self($sync->db(), $table, $sync->driver());
 
                     foreach ($this->ids as $id) {
                         foreach ($data as $syncId) {
@@ -2423,7 +2835,7 @@
 
         public function sync($data)
         {
-            $sync = Registry::get('octalia.sync');;
+            $sync = Registry::get('octalia.sync');
 
             if ($sync) {
                 $tables = [$this->table, $sync->table()];
@@ -2438,7 +2850,7 @@
                 }
 
                 if (is_array($data)) {
-                    $db = new self($sync->db(), $table);
+                    $db = new self($sync->db(), $table, $sync->driver());
 
                     foreach ($this->ids as $id) {
                         $db->where([$this->table . '_id', '=', (int) $id])->delete();
@@ -2462,7 +2874,7 @@
 
         public function toggle($data)
         {
-            $sync = Registry::get('octalia.sync');;
+            $sync = Registry::get('octalia.sync');
 
             if ($sync) {
                 $tables = [$this->table, $sync->table()];
@@ -2477,7 +2889,7 @@
                 }
 
                 if (is_array($data)) {
-                    $db = new self($sync->db(), $table);
+                    $db = new self($sync->db(), $table, $sync->driver());
 
                     foreach ($this->ids as $id) {
                         $db->where([$this->table . '_id', '=', (int) $id])->delete();
@@ -2492,7 +2904,7 @@
                                 if ($exists) {
                                     $exists->delete();
                                 } else {
-                                    $db->store([
+                                    $db->persist([
                                         $sync->table() . '_id' => $syncId,
                                         $this->table . '_id' => $id
                                     ]);
@@ -2513,6 +2925,12 @@
             return $this->get()->repository();
         }
 
+
+        public function collection()
+        {
+            return $this->get()->collection();
+        }
+
         public function query()
         {
             $conditions = array_chunk(func_get_args(), 3);
@@ -2524,10 +2942,12 @@
             return $this;
         }
 
-        public function lookfor(array $criterias, $cursor = false)
+        public function lookfor($conditions, $cursor = false)
         {
-            foreach ($criterias as $field => $value) {
-                $this->where([$field, '=', $value]);
+            $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
+
+            foreach ($conditions as $field => $value) {
+                $this->where($field, $value);
             }
 
             return $cursor ? $this->get() : $this;
@@ -2568,7 +2988,7 @@
             return $this->model([]);
         }
 
-        public function updateOrCreate(array $attributes, array $values = [])
+        public function updateOrCreate($attributes, array $values = [])
         {
             return $this->firstOrCreate($attributes)->fill($values)->save();
         }
@@ -2595,12 +3015,12 @@
 
         public function findFirstBy($field, $value, $object = false)
         {
-            return $this->where([$field, '=', $value])->first($object);
+            return $this->where($field, $value)->first($object);
         }
 
         public function findLastBy($field, $value, $object = false)
         {
-            return $this->where([$field, '=', $value])->last($object);
+            return $this->where($field, $value)->last($object);
         }
 
         public function multiQuery(array $queries)
@@ -2615,6 +3035,11 @@
                     case 3:
                         list($field, $op, $value) = $query;
                         $operand = 'and';
+                        break;
+                    case 2:
+                        list($field, $value) = $query;
+                        $operand = 'and';
+                        $op = '=';
                         break;
                 }
 
@@ -2643,11 +3068,13 @@
 
             $where = empty($where) ? [['id', '>', 0]] : $where;
 
-            $db1 = engine($database, $t1);
+            $db1 = new self($database, $t1, $this->driver);
 
             $fk = $this->table . '_id';
 
-            $rows = $this->multiQuery($where)->get();
+            $rows = $this
+            ->multiQuery($where)
+            ->get();
 
             $ids = [];
 
@@ -2655,7 +3082,9 @@
                 $ids[] = $row['id'];
             }
 
-            $sub = $db1->where([$fk, 'IN', implode(',', $ids)])->get();
+            $sub = $db1
+            ->where([$fk, 'IN', implode(',', $ids)])
+            ->get();
 
             $ids = [];
 
@@ -2671,18 +3100,23 @@
                 list($database, $t2) = explode('.', $t2, 2);
             }
 
-            return engine($database, $t2)->where([$fk2, 'IN', implode(',', $ids)])->get();
+            return (new self($database, $t2, $this->driver))
+            ->newQuery()
+            ->where($fk2, 'IN', implode(',', $ids))
+            ->get();
         }
 
         public function findAndModify($where, array $update)
         {
             unset($update['id']);
-            $where = is_numeric($where) ? ['id', '=', $where] : $where;
+
+            $where = is_numeric($where) ? ['id', (int) $where] : $where;
 
             $rows = $this->where($where)->get();
 
             if (!empty($rows)) {
                 foreach ($rows as $row) {
+                    $row = arrayable($row) ? $row->toArray() : $row;
                     $id = isAke($row, 'id', 0);
 
                     if ($id > 0) {
@@ -2709,14 +3143,20 @@
             $collection = [];
 
             foreach ($tab1 as $row) {
+                $row = arrayable($row) ? $row->toArray() : $row;
+
                 $id = isAke($row, 'id', null);
+
                 if (strlen($id)) {
                     array_push($ids1, $id);
                 }
             }
 
             foreach ($tab2 as $row) {
+                $row = is_object($row) ? $row->toArray() : $row;
+
                 $id = isAke($row, 'id', null);
+
                 if (strlen($id)) {
                     array_push($ids2, $id);
                 }
@@ -2733,7 +3173,7 @@
             return $collection;
         }
 
-        public function has(Octalia $model)
+        public function has($query)
         {
             $ids = [];
 
@@ -2742,7 +3182,7 @@
             $fk = $this->table . '_id';
 
             foreach ($rows as $row) {
-                $relations = $model->where($fk, (int) $row['id'])->get();
+                $relations = $query->newQuery()->where($fk, (int) $row['id'])->get();
 
                 if ($relations->count()) {
                     $ids[] = $row['id'];
@@ -2750,10 +3190,10 @@
             }
 
             if (empty($ids)) {
-                return $this->where(['id', '<', 0]);
+                return $this->emptyQuery();
             }
 
-            return $this->where(['id', 'IN', $ids]);
+            return $this->in('id', $ids);
         }
 
         public static function getFields(Octalia $model)
@@ -2767,5 +3207,308 @@
             }
 
             return ['id', 'created_at', 'updated_at'];
+        }
+
+        public function __invoke(array $data = [])
+        {
+            return $this->model($data);
+        }
+
+        public function fire($event, $concern = null, $return = false)
+        {
+            $entity = $this->entity();
+
+            if (is_object($entity) && $entity instanceof Octal) {
+                $methods    = get_class_methods($entity);
+                $method     = 'on' . Strings::camelize($event);
+
+                if (in_array($method, $methods)) {
+                    $result = $entity->$method($concern, $this);
+
+                    if ($return) {
+                        return $result;
+                    }
+                }
+
+                $method = 'event' . Strings::camelize($event);
+
+                if (in_array($method, $methods)) {
+                    $result = $entity->$method($concern, $this);
+
+                    if ($return) {
+                        return $result;
+                    }
+                }
+            }
+
+            return $concern;
+        }
+
+        public function on($event, callable $cb, $back = null)
+        {
+            $key = 'octalia.' .
+            lcfirst(Strings::camelize($this->db . '_' . $this->table))
+            . '.' . $event;
+
+           Fly::on($key, $cb);
+
+           return is_null($back) ? $this : $back;
+        }
+
+        protected function _events()
+        {
+            actual('entity', $this);
+
+            $this->on('added', function ($row) {
+                $this->logs('added', $row);
+
+                return $row;
+            });
+
+            $this->on('created', function ($row) {
+                $this->logs('created', $row);
+
+                return $row;
+            });
+
+            $this->on('updated', function ($row) {
+                $this->logs('updated', $row);
+
+                return $row;
+            });
+
+            $this->on('deleted', function ($row) {
+                $this->logs('deleted', $row);
+
+                return $row;
+            });
+
+            $this->on('query', function ($query) {
+                $this->logs('query', $query, true);
+
+                return $query;
+            });
+        }
+
+        public function logs($key = null, $value = null, $replace = false)
+        {
+            $k = 'octalia.' .
+            lcfirst(Strings::camelize($this->db . '_' . $this->table))
+            . '.logs';
+
+            $logs = Registry::get($k, []);
+
+            if (is_null($key)) {
+                return $logs;
+            }
+
+            if (is_null($value)) {
+                return isAke($logs, $key, false === $replace ? [] : null);
+            }
+
+            if (false === $replace) {
+                if (!isset($logs[$key])) {
+                    $logs[$key] = [];
+                }
+
+                $logs[$key][] = $value;
+            } else {
+                $logs[$key] = $value;
+            }
+
+            Registry::set($k, $logs);
+        }
+
+        public function policy($event, callable $callable)
+        {
+            $guard = guard();
+
+            $policy = $this->db . '.' . $this->table . '.' . $event;
+
+            call_user_func_array([$guard, 'policy'], [$policy, $callable]);
+
+            return $this;
+        }
+
+        public function allows()
+        {
+            $args = func_get_args();
+
+            $event = array_shift($args);
+
+            $guard = guard();
+
+            $policy = $this->db . '.' . $this->table . '.' . $event;
+
+            $argsMethod = array_merge([$policy], $args);
+
+            return call_user_func_array([$guard, 'allows'], $argsMethod);
+        }
+
+        public function can()
+        {
+            return call_user_func_array([$this, 'allows'], func_get_args());
+        }
+
+        public function toArray()
+        {
+            return $this->get()->toArray();
+        }
+
+        public function toJson()
+        {
+            return $this->get()->toJson();
+        }
+
+        public function reduce(callable $callable)
+        {
+            $ids = [];
+
+            foreach ($this->get(false) as $row) {
+                if ($check = call_user_func_array($callable, [$row])) {
+                    $ids[] = $row['id'];
+                }
+            }
+
+            return $this->newQuery()->in('id', $ids);
+        }
+
+        public function split($numberOfGroups)
+        {
+            if ($this->isEmpty()) {
+                return $this;
+            }
+
+            $groupSize = ceil($this->count() / $numberOfGroups);
+
+            return $this->newQuery()->chunk($groupSize);
+        }
+
+        public function chunk($size)
+        {
+            if ($size <= 0) {
+                return $this;
+            }
+
+            $chunks = [];
+
+            foreach (array_chunk((array) $this->iterator(), $size, true) as $chunk) {
+                $chunks[] = $this->newQuery()->in('id', $chunk);
+            }
+
+            return $chunks;
+        }
+
+        public function export()
+        {
+            $rows = $this->get();
+
+            $array = [];
+
+            foreach ($rows as $row) {
+                $array[] = item($row->toArray());
+            }
+
+            return $array;
+        }
+
+        public function contains()
+        {
+            $models = func_get_args();
+            $first  = current($models);
+
+            $table  = $first->table();
+            $fk     = $table . '_id';
+
+            $ids = [];
+
+            foreach ($models as $model) {
+                $ids[] = $model['id'];
+            }
+
+            if (empty($ids)) {
+                return $this->emptyQuery();
+            }
+
+            return $this->in($fk, $ids)->exists();
+        }
+
+        public function hasOne($em)
+        {
+            if (is_string($em)) {
+                $em = maker($em);
+            }
+
+            $table = $em->table();
+            $fk = $table . '_id';
+
+            return $this->newQuery()->where($fk, '>', 0)->count() == 1;
+        }
+
+        public function hasMany($em)
+        {
+            if (is_string($em)) {
+                $em = maker($em);
+            }
+
+            $table = $em->table();
+            $fk = $table . '_id';
+
+            return $this->newQuery()->where($fk, '>', 0)->count() > 1;
+        }
+
+        public function foreigns($em)
+        {
+            if (is_string($em)) {
+                $em = maker($em);
+            }
+
+            $table = $em->table();
+            $fk = $table . '_id';
+
+            return $this->newQuery()->where($fk, '>', 0);
+        }
+
+        public function from($em)
+        {
+            if (is_string($em)) {
+                $em = maker($em);
+            }
+
+            return $em->newQuery()->where($this->table . '_id', '>', 0);
+        }
+
+        public function destroyer()
+        {
+            $results = [];
+
+            $rows = func_get_args();
+
+            foreach ($rows as $row) {
+                $results[] = $this->destroy($row);
+            }
+
+            return $results;
+        }
+
+        public function destroy($concern = null)
+        {
+            if (is_null($concern)) {
+                return $this->delete();
+            } else {
+                if (is_numeric($concern)) {
+                    return $this->delete($concern);
+                } else {
+                    if (is_object($concern) && arrayable($concern)) {
+                        $concern = $concern->toArray();
+                    }
+
+                    if (is_array($concern) && isset($concern['id'])) {
+                        return $this->delete((int) $concern['id']);
+                    }
+                }
+            }
+
+            return false;
         }
     }

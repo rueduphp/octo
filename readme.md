@@ -1,3 +1,5 @@
+<p align="center"><a href="https://github.com/rueduphp" target="_blank"><img src="https://avatars3.githubusercontent.com/u/22199444?v=3&s=125" style="width: 125px !important;"></a></p>
+
 ## Octo Framework
 
 Octo Framework is a PHP Framework to build applications.

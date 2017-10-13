@@ -85,7 +85,7 @@
                 return $this->user();
             }
 
-            return System::Account()->firstByForever($identifier);
+            return em('systemAccount')->firstByForever($identifier);
         }
 
         public function getVisitorByIdentifier($identifier = null)
@@ -94,13 +94,13 @@
                 return $this->user();
             }
 
-            return System::Visitor()->firstByForever($identifier);
+            return em('systemVisitor')->firstByForever($identifier);
         }
 
         public function login($login, $password)
         {
             if (!$this->isLogged()) {
-                $user = System::Account()->firstByLogin($login);
+                $user = em('systemAccount')->firstByLogin($login);
 
                 if (lib('hasher')->check($password, $user['password'])) {
                     session('web')->setUser($user);
@@ -134,7 +134,7 @@
 
         public function loginById($id)
         {
-            $user = System::Account()->findOrFail((int) $id);
+            $user = em('systemAccount')->findOrFail((int) $id);
 
             session('web')->setUser($user->toArray());
 
@@ -149,7 +149,7 @@
 
         public function loginByLogin($login)
         {
-            $user = System::Account()->firstByLogin((string) $login);
+            $user = em('systemAccount')->firstByLogin((string) $login);
 
             if (!$user) {
                 throw new Exception("User with login $login does not exist.");
@@ -168,7 +168,7 @@
 
         public function loginByEmail($email)
         {
-            $user = System::Account()->firstByEmail((string) $email);
+            $user = em('systemAccount')->firstByEmail((string) $email);
 
             if (!$user) {
                 throw new Exception("User with email $email does not exist.");

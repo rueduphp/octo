@@ -125,15 +125,21 @@
 
                 list($controllerName, $action, $render) = $this->route;
 
-                $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
+                if (!class_exists($controllerName)) {
+                    $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
 
-                if (!is_file($controllerFile)) {
-                    return $this->is404($cb404);
+                    if (!is_file($controllerFile)) {
+                        return $this->is404($cb404);
+                    }
+
+                    require_once $controllerFile;
+
+                    $class = '\\' . $namespace . '\\App' . ucfirst(Inflector::lower($controllerName)) . 'Controller';
+
+                    actual('controller.file', $controllerFile);
+                } else {
+                    $class = $controllerName;
                 }
-
-                require_once $controllerFile;
-
-                $class      = '\\' . $namespace . '\\App' . ucfirst(Inflector::lower($controllerName)) . 'Controller';
 
                 $actions    = get_class_methods($class);
                 $father     = get_parent_class($class);
@@ -148,41 +154,34 @@
                         )
                     );
 
-                    $controller         = new $class;
+                    $controller         = foundry($class);
                     $controller->_name  = $controllerName;
                     $controller->action = $a;
 
-                    Registry::set('app.controller', $controller);
-                    Registry::set('app.controller.file', $controllerFile);
+                    actual('controller', $controller);
 
-                    if (in_array('bootstrap', $actions)) {
-                        $controller->bootstrap();
-                    } else {
-                        if (in_array('init', $actions)) {
-                            $controller->init();
-                        }
-                    }
-
-                    if (in_array('before', $actions)) {
-                        $controller->before();
-                    }
+                    $this->controllerBoot($controller);
 
                     if (in_array($action, $actions)) {
-                        $return = $controller->$action();
+                        $return = callMethod($controller, $action);
                     } else {
                         return $this->is404($cb404);
                     }
 
-                    if (in_array('after', $actions)) {
-                        $controller->after();
-                    }
-
-                    if (in_array('unboot', $actions)) {
-                        $controller->unboot();
-                    }
+                    $this->controllerunboot($controller);
 
                     if ($return instanceof Object) {
-                        return $return->go();
+                        if ($return->hasModel()) {
+                            Api::renderJson($return->toArray());
+                        } else if ($return->getIsVue()) {
+                            $return->render();
+                        } else {
+                            return $return->go();
+                        }
+                    } elseif (is_object($return) && in_array('toArray', get_class_methods($return))) {
+                        Api::renderJson($return->toArray());
+                    } elseif (is_array($return)) {
+                        Api::renderJson($return);
                     }
                 } else {
                     $controller = new $class($action);
@@ -228,19 +227,18 @@
             $tpl = path('app') . DS . 'views' . DS . $controller->_name . DS . $controller->action . '.phtml';
 
             if (File::exists($tpl)) {
-                Registry::set('app.view.file', $tpl);
+                actual('view.file', $tpl);
                 $content = File::read($tpl);
 
                 $layout = cut('<layout>', '</layout>', $content);
 
                 if (!empty($layout)) {
-                    $content = Arrays::last(explode('</layout>', $content));
-                    $layout = path('app') . DS . 'views' . DS . 'layouts' . DS . $layout . '.phtml';
+                    $contents   = Arrays::last(explode('</layout>', $content));
+                    $layout     = path('app') . DS . 'views' . DS . 'layouts' . DS . $layout . '.phtml';
 
                     if (File::exists($layout)) {
-                        $layout = File::read($layout);
-
-                        $content = str_replace('<content></content>', $content, $layout);
+                        $layout     = File::read($layout);
+                        $content    = str_replace('<content></content>', $content, $layout);
                     }
                 }
 
@@ -279,8 +277,12 @@
             array_shift($rows);
 
             foreach ($rows as $row) {
-                $file = cut('"', '"', $row);
-                $content = str_replace('<partial file="' . $file . '">', '<?php $this->partial(\'' . str_replace('.', DS, $file) . '.phtml\'); ?>', $content);
+                $file       = cut('"', '"', $row);
+                $content    = str_replace(
+                    '<partial file="' . $file . '">',
+                    '<?php $this->partial(\'' . str_replace('.', DS, $file) . '.phtml\'); ?>',
+                    $content
+                );
             }
 
             $content = str_replace(['{{', '}}'], ['<?php $controller->e("', '");?>'], $content);
@@ -343,6 +345,158 @@
             }
         }
 
+        private function params($route, $params)
+        {
+            $ref = new \ReflectionFunction($route['callback']);
+            $cbParams = $ref->getParameters();
+
+            if (!empty($cbParams)) {
+                return null;
+            }
+
+            list($controllerName, $action, $render) = $route['callback']();
+
+            $method = $this->getMethod();
+
+            $action = lcfirst(Str::camelize(Str::lower($method) . '_' . $action));
+
+            if (!class_exists($controllerName)) {
+                $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
+
+                if (!is_file($controllerFile)) {
+                    return $this->is404();
+                }
+
+                $code = File::read($controllerFile);
+                $ns = cut('namespace ', ';', $code);
+
+                require_once $controllerFile;
+
+                $class = '\\' . $ns . '\\App' . ucfirst(Str::lower($controllerName)) . 'Controller';
+            } else {
+                $class = $controllerName;
+            }
+
+            $actions = get_class_methods($class);
+
+            if (!in_array($action, $actions)) {
+                return $this->is404();
+            }
+
+            $controller = foundry($class);
+            actual('controller', $controller);
+
+            $callable = [$controller, $action];
+
+            $ref = new \ReflectionMethod($controller, $action);
+
+            $parameters = $ref->getParameters();
+
+            if (!empty($parameters)) {
+                $p = 0;
+
+                foreach ($parameters as $parameter) {
+                    $classParam = $parameter->getClass();
+
+                    if ($classParam) {
+                        $cn = $classParam->getName();
+
+                        if (fnmatch('*Entity', $cn)) {
+                            $cp = maker($cn);
+                            $id = $params[$p];
+                            $params[$p] = $cp->find((int) $id);
+                        } else {
+                            $val = $params[$p];
+                            $params[$p] = maker($cn, [$val]);
+                        }
+                    } else {
+                        try {
+                            $dv = $parameter->getDefaultValue();
+
+                            if (fnmatch('*Entity', $dv)) {
+                                $cp = maker($dv);
+                                $id = $params[$p];
+                                $params[$p] = $cp->find((int) $id);
+                            } else {
+                                $params[$p] = $dv;
+                            }
+                        } catch (\Exception $e) {}
+                    }
+
+                    $p++;
+                }
+
+
+                $this->controllerBoot($controller);
+
+                $return = call($callable, $params);
+
+                $this->controllerunboot($controller);
+
+                if ($return instanceof Object) {
+                    if ($return->hasModel()) {
+                        Api::renderJson($return->toArray());
+                    } else if ($return->getIsVue()) {
+                        $return->render();
+                    } else {
+                        return $return->go();
+                    }
+                } elseif (is_object($return) && in_array('toArray', get_class_methods($return))) {
+                    Api::renderJson($return->toArray());
+                } elseif (is_array($return)) {
+                    Api::renderJson($return);
+                }
+
+                if (true === $render) {
+                    self::render(
+                        $controller,
+                        Registry::get(
+                            'cb.404',
+                            null
+                        )
+                    );
+                } else {
+                    return item()->render(false);
+                }
+            } else {
+                return null;
+            }
+        }
+
+        private function controllerunboot($controller)
+        {
+            $actions = get_class_methods($controller);
+
+            if (in_array('after', $actions)) {
+                callMethod($controller, 'after');
+            }
+
+            if (in_array('unboot', $actions)) {
+                callMethod($controller, 'unboot');
+            }
+        }
+
+        private function controllerBoot($controller)
+        {
+            $actions = get_class_methods($controller);
+
+            if (in_array('bootstrap', $actions)) {
+                callMethod($controller, 'bootstrap');
+            } else {
+                if (in_array('init', $actions)) {
+                    callMethod($controller, 'init');
+                }
+            }
+
+            if (in_array('policies', $actions)) {
+                callMethod($controller, 'policies');
+            }
+
+            if (in_array('before', $actions)) {
+                callMethod($controller, 'before');
+            }
+        }
+
         public function handling($routes, $quit = true)
         {
             $found = 0;
@@ -350,7 +504,7 @@
             $uri = $this->getUri();
 
             foreach ($routes as $route) {
-                if (preg_match_all('#^' . trim($route['uri']) . '$#', $uri, $matches, PREG_OFFSET_CAPTURE)) {
+                if (@preg_match_all('#^' . trim($route['uri']) . '$#', $uri, $matches, PREG_OFFSET_CAPTURE)) {
                     $matches = array_slice($matches, 1);
 
                     $params = array_map(function ($match, $index) use ($matches) {
@@ -373,18 +527,74 @@
                     if ($this->uri) {
                         route($route);
 
-                        if ($middleware = Route::getMiddleware($this->uri->getName())) {
-                            if (is_callable($middleware)) {
-                                call($middleware, [$this->uri]);
+                        if ($before = $this->uri->getBefore()) {
+                            if (is_callable($before)) {
+                                call_user_func_array($before, []);
+                            }
+                        }
+
+                        if ($middleware = $this->uri->getMiddleware()) {
+                            if (!is_array($middleware)) {
+                                $middleware = [$middleware];
+                            }
+
+                            foreach ($middleware as $handler) {
+                                $handler = maker($handler);
+                                $handler->handle();
+                            }
+                        }
+                    }
+
+                    if (!empty($params)) {
+                        $status = $this->params($route, $params);
+
+                        if (arrayable($status)) {
+                            if (!$status->render) {
+                                $this->route = $status;
+                                $found++;
+
+                                break;
                             }
                         }
                     }
 
                     if ($quit) {
                         if (is_callable($route['callback'])) {
-                            $this->route = call_user_func_array($route['callback'], $params);
+                            $return = $this->route = call_user_func_array($route['callback'], $params);
+
+                            if ($return instanceof \Closure) {
+                                $return = $return();
+
+                                if (is_array($return)) {
+                                    Api::renderJson($return);
+                                }
+                            }
+
+                            if ($return instanceof Object) {
+                                if ($return->hasModel()) {
+                                    Api::renderJson($return->toArray());
+                                } else if ($return->getIsVue()) {
+                                    $return->render();
+                                } else {
+                                    $return->go();
+                                }
+
+                                exit;
+                            } elseif (is_object($return) && in_array('toArray', get_class_methods($return))) {
+                                Api::renderJson($return->toArray());
+
+                                exit;
+                            }
                         } else {
-                            $this->route = explode('@', $route['callback']);
+                            if (fnmatch('*@*', $route['callback'])) {
+                                $this->route = explode('@', $route['callback']);
+                            } elseif (fnmatch('*#*', $route['callback'])) {
+                                $this->route = explode('#', $route['callback']);
+                            } elseif (fnmatch('*.*', $route['callback'])) {
+                                $this->route = explode('.', $route['callback']);
+                            } elseif (fnmatch('*:*', $route['callback'])) {
+                                $this->route = explode(':', $route['callback']);
+                            }
                         }
                     } else {
                         call_user_func_array($route['callback'], $params);

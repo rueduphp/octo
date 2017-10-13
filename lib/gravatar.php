@@ -3,14 +3,14 @@
 
     class Gravatar
     {
-        protected $size = 80;
-        protected $default_image = false;
-        protected $max_rating = 'g';
-        protected $use_secure_url = false;
-        protected $param_cache = NULL;
+        protected $size             = 80;
+        protected $default_image    = false;
+        protected $max_rating       = 'g';
+        protected $use_secure_url   = false;
+        protected $param_cache      = null;
 
-        const HTTP_URL = 'http://www.gravatar.com/avatar/';
-        const HTTPS_URL = 'https://secure.gravatar.com/avatar/';
+        const HTTP_URL              = 'http://www.gravatar.com/avatar/';
+        const HTTPS_URL             = 'https://secure.gravatar.com/avatar/';
 
         public function getAvatarSize()
         {
@@ -22,13 +22,13 @@
             $this->param_cache = NULL;
 
             if (!is_int($size) && !ctype_digit($size)) {
-                throw new Exception('Avatar size specified must be an integer');
+                exception('gravatar', 'Avatar size specified must be an integer');
             }
 
             $this->size = (int) $size;
 
             if ($this->size > 512 || $this->size < 0) {
-                throw new Exception('Avatar size must be within 0 pixels and 512 pixels');
+                exception('gravatar', 'Avatar size must be within 0 pixels and 512 pixels');
             }
 
             return $this;
@@ -53,7 +53,7 @@
 
             if (!isset($valid_defaults[$_image])) {
                 if (!filter_var($image, FILTER_VALIDATE_URL)) {
-                    throw new Exception('The default image specified is not a recognized gravatar "default" and is not a valid URL');
+                    exception('gravatar', 'The default image specified is not a recognized gravatar "default" and is not a valid URL');
                 } else {
                     $this->default_image = rawurlencode($image);
                 }
@@ -77,7 +77,7 @@
             $valid_ratings = array('g' => 1, 'pg' => 1, 'r' => 1, 'x' => 1);
 
             if (!isset($valid_ratings[$rating])) {
-                throw new Exception(sprintf('Invalid rating "%s" specified, only "g", "pg", "r", or "x" are allowed to be used.', $rating));
+                exception('gravatar', sprintf('Invalid rating "%s" specified, only "g", "pg", "r", or "x" are allowed to be used.', $rating));
             }
 
             $this->max_rating = $rating;

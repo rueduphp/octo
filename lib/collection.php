@@ -38,7 +38,7 @@
                 }
             }
 
-            return $collec ? coll($coll) : count($coll);
+            return $collec ? $this->new($coll) : count($coll);
         }
 
         public function lastFake()
@@ -157,7 +157,7 @@
 
         public function filter(callable $callback)
         {
-            return $this->new(array_filter($this->items, $callback));
+            return new static(array_filter($this->items, $callback));
         }
 
         public function whereLoose($key, $value)
@@ -621,7 +621,7 @@
             };
         }
 
-        public function zip($items)
+        public function zip()
         {
             $arrayableItems = array_map(function ($items) {
                 return $this->getArrays($items);
@@ -637,8 +637,16 @@
         public function toArray()
         {
             return array_map(function($value) {
-                return $value instanceof Collection ? $value->toArray() : $value;
+                return arrayable($value) ? $value->toArray() : $value;
+            }, $this->items);
+        }
 
+        public function items()
+        {
+            return array_map(function($value) {
+                $row = arrayable($value) ? $value->toArray() : $value;
+
+                return item($row);
             }, $this->items);
         }
 
@@ -677,6 +685,13 @@
             return $this->items[$key];
         }
 
+        public function add($value)
+        {
+            $this->items[] = $value;
+
+            return $this;
+        }
+
         public function offsetSet($key, $value)
         {
             if (is_null($key)) {
@@ -703,14 +718,8 @@
 
         protected function getArrays($items)
         {
-            if ($items instanceof Collection) {
-                $items = $items->all();
-            } elseif (is_object($items)) {
-                $methods = get_class_methods($items);
-
-                if (in_array('toArray', $methods)) {
-                    $items = $items->toArray();
-                }
+            if (arrayable($items)) {
+                $items = $items->toArray();
             }
 
             return $items;
@@ -1050,9 +1059,7 @@
 
         public function __set($key, $value)
         {
-            $this->items[$key] = $value;
-
-            return $this;
+            $this->offsetSet($key, $value);
         }
 
         public function __isset($key)
@@ -1070,6 +1077,15 @@
             return isAke($this->items, $key, null);
         }
 
+        public function replace(array $items)
+        {
+            foreach ($items as $key => $value) {
+                $this->offsetSet($key, $value);
+            }
+
+            return $this;
+        }
+
         public function index($index, $d = null)
         {
             return aget($this->items, $index, $d);
@@ -1083,5 +1099,25 @@
         public function toBase()
         {
             return is_subclass_of($this, self::class) ? new self($this) : $this;
+        }
+
+        public function paired()
+        {
+            $res    = [];
+
+            $args   = $this->items;
+            $max    = $this->count();
+
+            if (0 < $max && $max % 2 == 0) {
+                for ($i = 0; $i < $max; $i += 2) {
+                    $key = $args[$i];
+                    $value = $args[$i + 1];
+
+                    $res[$key] = $value;
+                }
+
+
+                return $this->new($res);
+            }
         }
     }

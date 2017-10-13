@@ -6,7 +6,7 @@
 
     class OctaliaIterator implements Countable, Iterator
     {
-        private $database, $table, $directory;
+        private $database, $table, $directory, $modeling = false;
 
         public function __construct($db, callable $closure = null)
         {
@@ -29,7 +29,7 @@
             if ($k == 'ids') {
                 $key = 'ids.' . $this->database . '.' . $this->db->table . '.' . sha1($this->directory);
 
-                if (!isset($this->ids)) {
+                if (!Registry::get($key, false)) {
                     $ids = $this->db->iterator();
                     Registry::set($key, $ids);
                 } else {
@@ -160,12 +160,12 @@
             return $this;
         }
 
-        public function one($model = false)
+        public function one()
         {
-            return $this->seek()->current($model);
+            return $this->seek()->current($this->modeling);
         }
 
-        public function current($model = false)
+        public function current()
         {
             $cursor = $this->getIterator();
 
@@ -181,7 +181,7 @@
 
                 $row = $this->db->read($row);
 
-                return $model ? $this->db->model($row) : $row;
+                return $this->modeling ? $this->db->model($row) : $row;
             }
 
             return false;
@@ -222,7 +222,7 @@
             return false;
         }
 
-        public function first($model = false)
+        public function first()
         {
             $id = current($this->getIterator());
 
@@ -234,10 +234,10 @@
                 $row = call_user_func_array($this->closure, [$row]);
             }
 
-            return $model ? $this->db->model($row) : $row;
+            return $this->modeling ? $this->db->model($row) : $row;
         }
 
-        public function last($model = false)
+        public function last()
         {
             $i  =  $this->getIterator();
             $id = end($i);
@@ -249,7 +249,67 @@
                 $row = call_user_func_array($this->closure, [$row]);
             }
 
-            return $model ? $this->db->model($row) : $row;
+            return $this->modeling ? $this->db->model($row) : $row;
+        }
+
+        public function with($entity)
+        {
+            if (is_callable($this->closure)) {
+                $cb = $this->closure;
+
+                $this->closure = function ($row) use ($entity, $cb) {
+                    $model = Inflector::uncamelize($entity);
+
+                    if (fnmatch('*_*', $model)) {
+                        list($database, $table) = explode('_', $model, 2);
+                    } else {
+                        $database   = $this->database;
+                        $table      = $model;
+                    }
+
+                    $fkDb = engine($database, $table, $this->db->driver);
+
+                    $row = $cb($row);
+
+                    if (!is_object($row)) {
+                        $row[$table] = $fkDb->row($row[$table . '_id']);
+                    } else {
+                        $setter = setter($table);
+                        $row->$setter($fkDb->find($row[$table . '_id']));
+                    }
+
+                    return $row;
+                };
+            } else {
+                $this->hook(function ($row) use ($entity) {
+                    $model = Inflector::uncamelize($entity);
+
+                    if (fnmatch('*_*', $model)) {
+                        list($database, $table) = explode('_', $model, 2);
+                    } else {
+                        $database   = $this->database;
+                        $table      = $model;
+                    }
+
+                    $fkDb = engine($database, $table, $this->db->driver);
+
+                    if (!is_object($row)) {
+                        $row[$table] = $fkDb->row($row[$table . '_id']);
+                    } else {
+                        $setter = setter($table);
+                        $row->$setter($fkDb->find($row[$table . '_id']));
+                    }
+
+                    return $row;
+                });
+            }
+
+            return $this;
+        }
+
+        public function pluck($field, $key = null)
+        {
+            return $this->collection()->pluck($field, $key);
         }
 
         public function model()
@@ -258,21 +318,83 @@
                 return $this->db->model($row);
             });
 
+            $this->modeling = true;
+
             return $this;
         }
 
-        public function toArray()
+        public function item()
+        {
+            $this->hook(function ($row) {
+                return $this->row($row);
+            });
+
+            return $this;
+        }
+
+        public function raw($foreign = false)
+        {
+            return $this->toArray($foreign);
+        }
+
+        public function toArray($foreign = true)
         {
             $collection = [];
 
             foreach ($this->getIterator() as $id) {
-                $collection[] = $this->db->read($this->db->row($id));
+                $row = $this->db->read($this->db->row($id));
+
+                if (!$row) {
+                    continue;
+                }
+
+                if ($foreign) {
+                    foreach ($row as $key => $value) {
+                        if (fnmatch('*_id', $key)) {
+                            $field = str_replace('_id', '', $key);
+
+                            $row[$field] = engine(
+                                $this->database,
+                                $field,
+                                $this->db->driver
+                            )->find((int) $value, false);
+                        }
+                    }
+                }
+
+                $collection[] = $row;
             }
 
             return $collection;
         }
 
+        public function foreign()
+        {
+            $this->hook(function ($row) {
+                foreach ($row as $key => $value) {
+                    if (fnmatch('*_id', $key)) {
+                        $field = str_replace('_id', '', $key);
+
+                        $row[$field] = engine(
+                            $this->database,
+                            $field,
+                            $this->db->driver
+                        )->find((int) $value, false);
+                    }
+                }
+
+                return $row;
+            });
+
+            return $this;
+        }
+
         public function repository()
+        {
+            return coll($this->toArray());
+        }
+
+        public function collection()
         {
             return coll($this->toArray());
         }
@@ -291,6 +413,13 @@
         public function toJson()
         {
             return json_encode($this->toArray());
+        }
+
+        public function map(callable $closure)
+        {
+            $this->closure = $closure;
+
+            return $this;
         }
 
         public function hook(callable $closure)
@@ -318,6 +447,20 @@
             return $affected;
         }
 
+        function memory()
+        {
+            $entity = Inflector::camelize($this->db . '_' . $this->table);
+
+            $db = dbMemory($entity);
+
+            foreach ($this->getIterator() as $id) {
+                $row = $this->db->read($this->db->row($id));
+                $db->add($row);
+            }
+
+            return $db->get();
+        }
+
         public function table()
         {
             return $this->table;
@@ -331,5 +474,151 @@
         public function directory()
         {
             return $this->directory;
+        }
+
+        public function only($fields)
+        {
+            if (is_string($fields)) {
+                $fields = func_get_args();
+            }
+
+            $this->hook(function ($row) use ($fields) {
+                $item = [];
+
+                foreach ($fields as $field) {
+                    if (isset($row[$field])) {
+                        $item[$field] = $row[$field];
+                    }
+                }
+
+                return $this->row($item);
+            });
+
+            return $this;
+        }
+
+        public function except($fields)
+        {
+            if (is_string($fields)) {
+                $fields = func_get_args();
+            }
+
+            $this->hook(function ($row) use ($fields) {
+                $item = [];
+
+                foreach ($row as $k => $v) {
+                    if (!in_array($k, $fields)) {
+                        $item[$field] = $row[$field];
+                    }
+                }
+
+                return $this->row($item);
+            });
+
+            return $this;
+        }
+
+        public function row($row)
+        {
+            $item = item($row);
+
+            $item->slug(function ($field) use ($item) {
+                return Inflector::urlize($item[$field]);
+            });
+
+            $fks = Arrays::pattern($row, '*_id');
+
+            foreach ($fks as $fk => $v) {
+                $field = str_replace('_id', '', $fk);
+
+                $item->$field(function () use ($field, $row) {
+                    return engine($this->database, $field, $this->db->driver)
+                    ->find((int) $row[$field . '_id']);
+                });
+            }
+
+            $item->toTime(function ($field) use ($row) {
+                return Time::createFromTimestamp(isAke($row, $field, time()));
+            });
+
+            return $item;
+        }
+
+        public function export($type = 'xls')
+        {
+            $rows   = $this->raw();
+            $fields = array_keys(current($rows));
+
+            if ($type == 'csv') {
+                $csv = [];
+
+                $csv[] = implode(';', $fields);
+
+                foreach ($rows as $row) {
+                    $item = [];
+
+                    foreach ($fields as $field) {
+                        $item[] = isAke($row, $field, null);
+                    }
+
+                    $csv[] = implode(';', $item);
+                }
+
+                $data = implode("\n", $csv);
+
+                header('Content-Encoding: UTF-8');
+                header('Content-type: text/csv; charset=UTF-8');
+                header('Content-Disposition: attachment; filename="Export.csv"');
+
+                echo "\xEF\xBB\xBF";
+
+                die($data);
+            } elseif ($type == 'xls') {
+                $xls = '<html><table witdh="100%" cellpadding="0" cellspacing="0"><thead>##head##</thead><tbody>##body##</tbody></table></html>';
+
+                $head = '<tr>';
+
+                foreach ($fields as $field) {
+                    $head .= '<th>' . $field . '</th>';
+                }
+
+                $head .= '</tr>';
+
+                $body = '';
+
+                foreach ($rows as $row) {
+                    $body .= '<tr>';
+
+                    foreach ($fields as $field) {
+                        $body .= '<td>' . isAke($row, $field, null) . '</td>';
+                    }
+
+                    $body .= '</tr>';
+                }
+
+                $xls = str_replace(['##head##', '##body##'], [$head, $body], $xls);
+
+                header("Content-type: application/excel");
+                header('Content-disposition: attachement; filename="Export.xls"');
+                header("Content-Transfer-Encoding: binary");
+                header("Expires: 0");
+                header("Cache-Control: no-cache, must-revalidate");
+                header("Pragma: no-cache");
+
+                echo "\xEF\xBB\xBF";
+
+                die($xls);
+            } elseif ($type == 'php') {
+                $content = var_export($rows, true);
+
+                header("Content-type: application/php");
+                header('Content-disposition: attachement; filename="Export.php"');
+                header("Content-Transfer-Encoding: binary");
+                header("Expires: 0");
+                header("Cache-Control: no-cache, must-revalidate");
+                header("Pragma: no-cache");
+
+                die('<?php' . "\nreturn " . $content . ';');
+            }
         }
     }

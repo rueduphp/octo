@@ -5,10 +5,10 @@
     {
         private $native, $events = [];
 
-        public function __construct($native = null)
+        public function __construct($native = null, $args = [])
         {
             if (is_string($native)) {
-                $this->native = app()->make($native, $args);
+                $this->native = maker($native, $args);
             } else {
                 $this->native = $native;
             }

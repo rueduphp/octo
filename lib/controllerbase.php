@@ -19,8 +19,10 @@
             $actions = get_class_methods($this);
 
             if (in_array('boot', $actions)) {
-                $this->boot();
+                callMethod($this, 'boot');
             }
+
+            actual('controller', $this);
         }
 
         public function getCsrf()
@@ -36,6 +38,16 @@
         public function url($url = '/')
         {
             return Registry::get('octo.subdir', '') . $url;
+        }
+
+        public function urlFor()
+        {
+            return call_user_func_array('\\Octo\urlFor', func_get_args());
+        }
+
+        public function isRoute()
+        {
+            return call_user_func_array('\\Octo\isRoute', func_get_args());
         }
 
         public function minify($asset)
@@ -103,24 +115,19 @@
             $_SERVER['REQUEST_URI']     = $url;
             $_SERVER['REQUEST_METHOD']  = $method;
 
-            lib('router')->run();
+            lib('router')->run(
+                (new \ReflectionClass(get_called_class()))
+                ->getNamespaceName()
+            );
 
             exit;
         }
 
-        public function user($k = null)
+        public function user()
         {
-            $user = auth()->user();
+            $callable = '\\Octo\\user';
 
-            if (!$user) {
-                $user = [];
-            }
-
-            if ($k) {
-                return isAke($user, $k, null);
-            }
-
-            return $user;
+            return call_user_func_array($callable, func_get_args());
         }
 
         public function lng()
@@ -195,39 +202,6 @@
             Api::render($array);
         }
 
-        public function formatSize($size)
-        {
-            $mod = 1024;
-            $units = explode(' ','B KB MB GB TB PB');
-
-            for ($i = 0; $size > $mod; $i++) {
-                $size /= $mod;
-            }
-
-            return round($size, 2) . ' ' . $units[$i];
-        }
-
-        function foldersize($path)
-        {
-            $total_size = 0;
-            $files = scandir($path);
-
-            foreach($files as $t) {
-                if (is_dir(rtrim($path, '/') . '/' . $t)) {
-                    if ($t<>"." && $t<>"..") {
-                        $size = $this->foldersize(rtrim($path, '/') . '/' . $t);
-
-                        $total_size += $size;
-                    }
-                } else {
-                    $size = filesize(rtrim($path, '/') . '/' . $t);
-                    $total_size += $size;
-                }
-            }
-
-            return $total_size;
-        }
-
         public function __call($m, $a)
         {
             if (function_exists('\\Octo\\' . $m)) {
@@ -244,6 +218,17 @@
             }
 
             return call_user_func_array(['\\Octo\\OctaliaHelpers', $m], $a);
+        }
+
+        public function cache()
+        {
+            $args = func_get_args();
+
+            if (is_string($args[0])) {
+                viewCache(array_shift($args), array_shift($args), array_shift($args), array_shift($args));
+            } else {
+                viewCacheObject(array_shift($args), array_shift($args), array_shift($args));
+            }
         }
 
         public function cacheassets($fields, $type = 'css')
@@ -305,7 +290,7 @@
                 }
             }
 
-            $a = time();
+            $a = hash(time());
 
             $file = path('public') . DS . 'cache' . DS . $a . '.' . $type;
             File::delete($file);
@@ -329,26 +314,158 @@
             return Registry::get('octo.subdir', '') . '/cache/' . $a . '.' . $type;
         }
 
+        public function burst($asset)
+        {
+            return burst($asset);
+        }
+
         protected function model($model, $force = false)
         {
             $model = Strings::uncamelize($model);
 
             if (!isset($this->models[$model]) || true === $force) {
-                if (fnmatch('*_*', $model)) {
-                    list($database, $table) = explode('_', $model, 2);
-                } else {
-                    $database   = Strings::uncamelize(Config::get('application.name', 'core'));
-                    $table      = $model;
-                }
-
-                $this->models[$model] = engine($database, $table);
+                $this->models[$model] = em($model);
             }
 
             return $this->models[$model];
         }
 
-        public function em()
+        public function em($model, $engine = 'engine', $force = false)
         {
-            return call_user_func_array('\\Octo\\em', func_get_args());
+            return em($model, $engine, $force);
+        }
+
+        public function middleware($class)
+        {
+            if (is_string($class)) {
+                $class = maker($class, [], false);
+            }
+
+            return $class->handle();
+        }
+
+        public function action($action)
+        {
+            $this->action = $action;
+            $this->$action();
+        }
+
+        public function etag($time)
+        {
+            $etag = 'W/"' . md5($time) . '"';
+
+            header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $time) . " GMT");
+            header('Cache-Control: public, max-age=604800');
+            header("Etag: $etag");
+
+            if ((isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) === $time) || (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $etag === trim($_SERVER['HTTP_IF_NONE_MATCH']))) {
+                header('HTTP/1.1 304 Not Modified');
+
+                exit();
+            }
+        }
+
+        public function routing($route, $args = [])
+        {
+            $this->go($this->urlFor($route, $args));
+        }
+
+        public function route($route, $args = [])
+        {
+            $this->go($this->urlFor($route, $args));
+        }
+
+        public function routeFor($route, $args = [])
+        {
+            $this->go($this->urlFor($route, $args));
+        }
+
+        public function authorize()
+        {
+            $guard = guard();
+
+            $check = call_user_func_array([$guard, 'allows'], func_get_args());
+
+            if ($check) {
+                return true;
+            }
+
+            exception('guard', 'This user is not authorized to execute this action.');
+        }
+
+        public function cannot()
+        {
+            $check = call_user_func_array([$this, 'can'], func_get_args());
+
+            return !$check;
+        }
+
+        public function can()
+        {
+            $guard = guard();
+
+            $check = call_user_func_array([$guard, 'allows'], func_get_args());
+
+            if ($check) {
+                return true;
+            }
+
+            return false;
+        }
+
+        public function policy()
+        {
+            $guard = guard();
+
+            return call_user_func_array([$guard, 'policy'], func_get_args());
+        }
+
+        public function pagination($query, $byPage = 10)
+        {
+            $page   = Input::request('page', 1);
+            $byPage = 10;
+
+            $this->total = $query->count();
+
+            $last = ceil($this->total / $byPage);
+
+            $this->results = $query->paginate($page, $byPage)->models();
+
+            if ($this->total > $byPage) {
+                $paginator          = new Paginator($this->results, $page, $this->total, $byPage, $last);
+                $this->pagination   = $paginator->links();
+            }
+        }
+
+        public function app($k = null, $v = 'octodummy')
+        {
+            $app = context('app');
+
+            if (is_null($k)) {
+                return $app;
+            }
+
+            if ('octodummy' == $v) {
+                return $app[$k];
+            }
+
+            $app[$k] = $v;
+
+            return $app;
+        }
+
+        public function queue()
+        {
+            return call_user_func_array('\\Octo\\queue', func_get_args());
+        }
+
+        public function bgQueue()
+        {
+            return call_user_func_array('\\Octo\\bgQueue', func_get_args());
+        }
+
+        public function container($concern, $callable = 'octodummy')
+        {
+            return container($concern, $callable);
         }
     }
