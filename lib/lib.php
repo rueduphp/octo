@@ -407,11 +407,6 @@
         viewCache($key, $maxAge, $callable, $driver);
     }
 
-    function cache($key, $maxAge, callable $callable, $driver = null)
-    {
-        // viewCache($key, $maxAge, $callable, $driver);
-    }
-
     function viewCache($key, $maxAge, callable $callable, $driver = null)
     {
         $continue   = true;
@@ -419,7 +414,7 @@
         $driver     = is_null($driver) ? fmr('view') : $driver;
 
         $keyAge     = $key . ':maxage';
-        $v          = $driver->get($k);
+        $v          = $driver->get($key);
 
         if ($v) {
             $age = $driver->get($keyAge);
@@ -451,6 +446,10 @@
         }
     }
 
+    /**
+     * @param array $o
+     * @return \Octo\Object
+     */
     function o(array $o = [])
     {
         return lib('object', [$o]);
@@ -1245,6 +1244,13 @@
         );
     }
 
+    /**
+     * @param string $start
+     * @param string $end
+     * @param string $string
+     * @param null|string $default
+     * @return null|string
+     */
     function cut($start, $end, $string, $default = null)
     {
         if (strstr($string, $start) && strstr($string, $end) && isset($start) && isset($end)) {
@@ -1260,6 +1266,13 @@
         return $default;
     }
 
+    /**
+     * @param string $k
+     * @param callable $c
+     * @param null $maxAge
+     * @param array $args
+     * @return mixed
+     */
     function xCache($k, callable $c, $maxAge = null, $args = [])
     {
         $dir = Config::get('x.cache.dir', realpath(path('storage') . '/cache/x'));
@@ -1314,6 +1327,10 @@
         return $data;
     }
 
+    /**
+     * @param string $file
+     * @return array|mixed
+     */
     function includer($file)
     {
         $return = [];
@@ -1325,6 +1342,10 @@
         return $return;
     }
 
+    /**
+     * @param array $files
+     * @return array
+     */
     function includers(array $files)
     {
         $return = [];
@@ -1336,6 +1357,12 @@
         return $return;
     }
 
+    /**
+     * @param array $array
+     * @param string $k
+     * @param null|array $d
+     * @return mixed
+     */
     function isAke($array, $k, $d = [])
     {
         if (true === is_object($array)) {
@@ -1349,6 +1376,9 @@
         return Arrays::get($array, $k, $d);
     }
 
+    /**
+     * @return string
+     */
     function uuid()
     {
         return sprintf(
@@ -1364,6 +1394,10 @@
         );
     }
 
+    /**
+     * @param string $ns
+     * @return mixed|string
+     */
     function forever($ns = 'user')
     {
         if (php_sapi_name() == 'cli' || PHP_SAPI == 'cli') {
@@ -1382,6 +1416,10 @@
         return $cookie;
     }
 
+    /**
+     * @param string $context
+     * @return string
+     */
     function locale($context = 'web')
     {
         $language       = session($context)->getLanguage();
@@ -1416,11 +1454,19 @@
         return $language;
     }
 
+    /**
+     * @param string $context
+     * @return string
+     */
     function lng($context = 'web')
     {
         return locale($context);
     }
 
+    /**
+     * @param array $data
+     * @return Collection
+     */
     function coll($data = [])
     {
         $data = arrayable($data) ? $data->toArray() : $data;
@@ -1428,11 +1474,21 @@
         return new Collection($data);
     }
 
+    /**
+     * @param string|null $ns
+     * @param string|null $dir
+     * @return Cache
+     */
     function kh($ns = null, $dir = null)
     {
         return fmr($ns, $dir);
     }
 
+    /**
+     * @param string|null $ns
+     * @param string|null $dir
+     * @return Cache
+     */
     function fmr($ns = null, $dir = null)
     {
         if ($cache = conf($ns . '.fmr.instance')) {
@@ -1442,11 +1498,22 @@
         return new Cache($ns, $dir);
     }
 
+    /**
+     * @param string|null $ns
+     * @param array $data
+     * @return Now
+     */
     function stock($ns = null, $data = [])
     {
         return new Now($ns, $data);
     }
 
+    /**
+     * @param string $from
+     * @param string $to
+     * @param string $subject
+     * @return string
+     */
     function srf($from, $to, $subject)
     {
         return str_replace_first($from, $to, $subject);
@@ -1462,6 +1529,12 @@
         return new OctaliaMemory($ns, $dir);
     }
 
+    /**
+     * @param string $from
+     * @param string $to
+     * @param string $subject
+     * @return string
+     */
     function str_replace_first($from, $to, $subject)
     {
         $from = '/' . preg_quote($from, '/') . '/';
@@ -1530,6 +1603,12 @@
         return lib($lib, $args, true);
     }
 
+    /**
+     * @param string $lib
+     * @param array $args
+     * @param bool $singleton
+     * @return object
+     */
     function lib($lib, $args = [], $singleton = false)
     {
         try {
@@ -1549,11 +1628,17 @@
         }
     }
 
+    /**
+     * @return \Octo\Inflector
+     */
     function str()
     {
         return maker(Inflector::class);
     }
 
+    /**
+     * @return \Octo\Now
+     */
     function reg()
     {
         return maker(Now::class);
@@ -1636,6 +1721,10 @@
         return $factories;
     }
 
+    /**
+     * @param \Octo\Fast|null $context
+     * @return \Octo\Fast|null
+     */
     function fast($context = null)
     {
         if ($context && $context instanceof Fast) {
@@ -1645,6 +1734,12 @@
         return actual('fast');
     }
 
+    /**
+     * @param string $class
+     * @param int $count
+     * @param string $lng
+     * @return Object
+     */
     function factory($class, $count = 1, $lng = 'fr_FR')
     {
         if (!is_numeric($count) || $count < 1) {
