@@ -3,6 +3,7 @@
 
     use function call_user_func_array;
     use function get_class_methods;
+    use function is_null;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
         include_once __DIR__ . "/../vendor/autoload.php";
@@ -453,6 +454,27 @@
     function o(array $o = [])
     {
         return lib('object', [$o]);
+    }
+
+    /**
+     * @param string $name
+     * @param array $o
+     * @return \Octo\Object
+     */
+    function actualo($name, array $o = [])
+    {
+        $object = actual($name, null);
+
+        if (is_null($object)) {
+            /* @var \Octo\Object $object */
+            $object = lib('object', [$o]);
+
+            $object->fn('persist', function () use ($name, $object) {
+                actual($name, $object);
+            });
+        }
+
+        return $object;
     }
 
     function fo(array $o = [])
