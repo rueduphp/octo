@@ -1,6 +1,9 @@
 <?php
     namespace Octo;
 
+    use function call_user_func_array;
+    use function get_class_methods;
+
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
         include_once __DIR__ . "/../vendor/autoload.php";
     }
@@ -173,8 +176,10 @@
             return [];
         }
 
+        $m = null;
+
         call_user_func_array('preg_match_all', [
-            $pattern, $subject, & $m,
+            $pattern, $subject, &$m,
             ($flags & PREG_PATTERN_ORDER) ? $flags : ($flags | PREG_SET_ORDER),
             $offset,
         ]);
@@ -260,6 +265,13 @@
         return Strings::uncamelize(str_replace($method, '', $val));
     }
 
+    /**
+     * @param string $k
+     * @param callable $c
+     * @param int|null $maxAge
+     * @param array $args
+     * @return mixed
+     */
     function until($k, callable $c, $maxAge = null, $args = [])
     {
         return fmr('until')->until($k, $c, $maxAge, $args);
@@ -5218,6 +5230,34 @@
         return $callback(...$args);
     }
 
+    /**
+     * @param object|string $class
+     * @param array $data
+     * @return object
+     */
+    function hydrator($class, array $data)
+    {
+        $instance = !is_object($class) ? foundry($class) : $class;
+
+        $methods = get_class_methods($instance);
+
+        foreach ($data as $key => $value) {
+            $method = setter($key);
+
+            if (in_array($method, $methods)) {
+                $instance->$method($value);
+            } else {
+                $instance->{$key} = $value;
+            }
+        }
+
+        return $instance;
+    }
+
+    /**
+     * @param string $str
+     * @return string
+     */
     function hash($str)
     {
         if (function_exists('hash_algos')) {
@@ -5228,9 +5268,15 @@
             }
         }
 
-        return sha1($token_base);
+        return sha1($str);
     }
 
+    /**
+     * @param string $value
+     * @param int $flags
+     * @param string $encoding
+     * @return array|\ArrayAccess|\Iterator|string
+     */
     function e($value, $flags = ENT_QUOTES, $encoding = 'UTF-8')
     {
         static $cleaned = [];
@@ -5258,7 +5304,12 @@
         return $value;
     }
 
-    function model($type, $data = [])
+    /**
+     * @param string $type
+     * @param array $data
+     * @return mixed
+     */
+    function model($type, array $data = [])
     {
         $class = 'Octo\\' . Strings::camelize($type);
 
@@ -5660,6 +5711,13 @@
 
             return $fluent;
         }
+    }
+
+    function objectifier()
+    {
+        $value = call_user_func_array('\\Octo\\actual', func_get_args());
+
+        return o($value);
     }
 
     function actual()

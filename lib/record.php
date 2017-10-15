@@ -1,7 +1,10 @@
 <?php
     namespace Octo;
 
-    class Record extends \ArrayObject implements \ArrayAccess
+    use ArrayAccess;
+    use ArrayObject;
+
+    class Record extends ArrayObject implements ArrayAccess
     {
         use Notifiable;
 
@@ -417,7 +420,7 @@
 
             if ($this->initial != $this->data) {
                 foreach ($this->data as $k => $v) {
-                    if ($this->initial[$l] != $v) {
+                    if ($this->initial[$k] != $v) {
                         $dirty[$k] = $v;
                     }
                 }

@@ -1,6 +1,7 @@
 <?php
     require_once __DIR__ . '/classes.php';
 
+    use Illuminate\Database\Eloquent\Collection as CollectIll;
     use Octo\Orm;
     use Octo\Ormmodel;
     use Octo\Record;
@@ -8,7 +9,6 @@
     use Phinx\Migration\Manager;
     use Symfony\Component\Console\Input\StringInput;
     use Symfony\Component\Console\Output\NullOutput;
-    use Illuminate\Database\Eloquent\Collection as CollectIll;
     use Tests\Comment;
     use Tests\Post;
     use Tests\Postuser;
@@ -113,11 +113,6 @@
             $this->manager->seed('testing');
         }
 
-        public function tearDown()
-        {
-            parent::tearDown();
-        }
-
         /** @test */
         public function checkInsert()
         {
@@ -144,7 +139,7 @@
                 'updated_at'    => date('Y-m-d H:i:s'),
             ])->into('post');
 
-            $stmt = $q->run();
+            $q->run();
 
             $id = $this->db->lastId();
 
@@ -173,9 +168,9 @@
                 'content' => 'Lorem ipsum'
             ])->into('post');
 
-            $stmt = $q->run();
+            $q->run();
 
-            $update = $this->db->update([
+            $this->db->update([
                 'content' => 'Lorem ipsum 2'
             ])->table('post')
             ->where('id', 1)

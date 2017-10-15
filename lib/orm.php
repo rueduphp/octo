@@ -172,6 +172,8 @@
 
             context('app')->pdo = $this->pdo;
 
+            actual('orm.driver', $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+
             return $this;
         }
 
@@ -358,8 +360,6 @@
                 exception('orm', 'No table set.');
             }
 
-            $entity = $this->getEntity();
-
             if (startsWith($this->query, 'SELECT ')) {
                 $this->query .= implode(' , ', $this->columns());
                 $this->query .= ' FROM ' . $this->table;
@@ -412,26 +412,46 @@
             }
         }
 
+        /**
+         * @param string $key
+         * @return int
+         */
         public function count()
         {
             return $this->aggregate('count');
         }
 
+        /**
+         * @param string $key
+         * @return int
+         */
         public function sum($key)
         {
             return $this->aggregate('sum', $key);
         }
 
+        /**
+         * @param string $key
+         * @return float
+         */
         public function avg($key)
         {
             return $this->aggregate('avg', $key);
         }
 
+        /**
+         * @param string $key
+         * @return int
+         */
         public function min($key)
         {
             return $this->aggregate('min', $key);
         }
 
+        /**
+         * @param string $key
+         * @return int
+         */
         public function max($key)
         {
             return $this->aggregate('max', $key);
@@ -1507,7 +1527,7 @@
             if (!$entity) {
                 $entity = new Entity;
                 $entity->setTable($this->table);
-                actual("orm.entity.$this->table", $entity);
+                actual("orm.entity.{$this->table}", $entity);
             }
 
             return $entity;

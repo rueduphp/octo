@@ -1,9 +1,9 @@
 <?php
     namespace Octo;
 
+    use Closure;
     use Countable;
     use Iterator;
-    use Closure;
 
     class Ormiterator implements Countable, Iterator
     {
@@ -68,10 +68,12 @@
         public function next()
         {
             $this->cursor++;
-            $this->item = $this->statement->fetch();
+            
+            $this->item = $this->statement->fetch();                
+            
+            $hook = $this->hook;
 
-            if ($this->hook && $hook instanceof Closure) {
-                $hook = $this->hook;
+            if ($hook && $hook instanceof Closure) {
                 $this->item = $hook($this->item);
             }
         }
