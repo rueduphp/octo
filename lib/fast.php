@@ -16,7 +16,11 @@
     use Zend\Expressive\Router\Route as FastRoute;
     use function Http\Response\send as sendResponse;
 
-    class Fast extends ArrayObject implements ArrayAccess, DelegateInterface, ContainerInterface
+    class Fast extends ArrayObject implements
+        FastContainerInterface,
+        ArrayAccess,
+        DelegateInterface,
+        ContainerInterface
     {
         protected $app, $request, $router, $middlewares = [], $extensionsLoaded = [];
 
@@ -701,6 +705,7 @@
     }
 
     /* Interfaces */
+    interface FastContainerInterface {}
     interface FastSessionInterface {}
     interface FastCacheInterface {}
     interface FastFlashInterface {}
