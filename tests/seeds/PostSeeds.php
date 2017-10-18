@@ -1,12 +1,10 @@
 <?php
-    use Phinx\Seed\AbstractSeed;
     use Octo\Strings;
-    use Tests\Comment;
+    use Phinx\Seed\AbstractSeed;
     use Tests\Post;
     use Tests\User;
-    use Tests\Postuser;
-
     use function Octo\faker;
+
 
     class PostSeeds extends AbstractSeed
     {
@@ -16,14 +14,12 @@
 
             $orm = new Orm();
 
-            $data = [];
-
             $morph_type = User::class;
 
             for ($i = 0; $i < 10; $i++) {
                 $row = [
                     'content'   => $t = $faker->sentence,
-                    'user_id'   => $u = rand(1, 9),
+                    'user_id'   => $u = rand(1, 10),
                     'title'     => Strings::urlize($t)
                 ];
 

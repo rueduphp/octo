@@ -70,7 +70,6 @@
     {
         protected $pdo;
         protected $db;
-        protected $manager;
 
         public function setUp()
         {
@@ -98,19 +97,19 @@
                     'default_database'  => 'testing',
                     'testing'           => [
                         'name'          => 'testing',
+                        'adapter'       => 'pdo',
                         'connection'    => $this->pdo
                     ]
                 ]
             ]);
 
-            $input  = new StringInput(' ');
+            $input  = new StringInput('');
             $output = new NullOutput();
 
-            $this->manager = new Manager($config, $input, $output);
+            $manager = new Manager($config, $input, $output);
 
-            $this->manager->migrate('testing');
-
-            $this->manager->seed('testing');
+            $manager->migrate('testing');
+            $manager->seed('testing');
         }
 
         /** @test */
