@@ -709,6 +709,7 @@
     interface FastExceptionInterface {}
     interface FastSessionInterface {}
     interface FastCacheInterface {}
+    interface FastContainerInterface {}
     interface FastFlashInterface {}
     interface FastLogInterface {}
     interface FastDbInterface {}

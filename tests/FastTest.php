@@ -1,8 +1,8 @@
 <?php
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
-use Octo\FastRendererInterface;
-use Octo\FastUserOrmInterface;
+    use Octo\FastRendererInterface;
+    use Octo\FastUserOrmInterface;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ServerRequestInterface;
 

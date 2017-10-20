@@ -5,7 +5,7 @@ use function FastRoute\TestFixtures\empty_options_cached;
 
 class NodeData extends Object {}
 
-class Node
+class Node extends Fluent
 {
     /**
      * @var NodeData
@@ -44,7 +44,7 @@ class Node
     /**
      * @return NodeData
      */
-    public function get()
+    public function is()
     {
         return $this->definition;
     }
@@ -105,7 +105,7 @@ class Node
 
         $child = new Tree($node);
 
-        $this->children[] = $child;
+        $this->children[] = $node;
 
         return $this;
     }

@@ -18,7 +18,7 @@
          */
         public function __construct(Node $node)
         {
-            $this->node = node;
+            $this->node = $node;
 
             if ($this->node->hasParent()) {
                 $this->isRoot = false;
@@ -75,6 +75,12 @@
          */
         public function __call(string $method, array $params)
         {
-            return call_user_func_array([$this->node, $method], $params);
+            $methods = get_class_methods($this->node);
+
+            if (in_array($method, $methods)) {
+                return call_user_func_array([$this->node, $method], $params);
+            } else {
+                return $this->node->{$method} = !empty($params) ? current($params) : true;
+            }
         }
     }
