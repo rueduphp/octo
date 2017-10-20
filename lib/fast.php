@@ -3,6 +3,7 @@
 
     use ArrayAccess;
     use ArrayObject;
+    use Exception;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
     use Interop\Http\ServerMiddleware\DelegateInterface;
@@ -705,7 +706,7 @@
     }
 
     /* Interfaces */
-    interface FastContainerInterface {}
+    interface FastExceptionInterface {}
     interface FastSessionInterface {}
     interface FastCacheInterface {}
     interface FastFlashInterface {}
@@ -765,6 +766,8 @@
             return $fastRouter->generateUri($routeName, $params);
         }
     }
+
+    class FastException extends Exception implements FastExceptionInterface {}
 
     class FastObject
     extends Object
