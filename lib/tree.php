@@ -23,6 +23,8 @@
             if ($this->node->hasParent()) {
                 $this->isRoot = false;
             }
+
+            $node->setTree($this);
         }
 
         /**
@@ -41,8 +43,38 @@
             return $this->node;
         }
 
-        public function getChildren()
+        /**
+         * @return Node
+         */
+        public function node()
         {
-            return $this->node->getchildren();
+            return $this->node;
+        }
+
+        /**
+         * @return Tree[]
+         */
+        public function children()
+        {
+            return $this->node->getChildren();
+        }
+
+        /**
+         * @return Tree[]
+         */
+        public function nodes()
+        {
+            return $this->node->getChildren();
+        }
+
+        /**
+         * @param string $method
+         * @param array $params
+         *
+         * @return mixed
+         */
+        public function __call(string $method, array $params)
+        {
+            return call_user_func_array([$this->node, $method], $params);
         }
     }
