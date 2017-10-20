@@ -448,6 +448,7 @@
 
     /**
      * @param array $o
+     *
      * @return \Octo\Object
      */
     function o(array $o = [])
@@ -456,8 +457,33 @@
     }
 
     /**
+     * @param array $o
+     *
+     * @return \Octo\Node
+     */
+    function node(array $o = [])
+    {
+        require_once __DIR__ . DS . 'node.php';
+
+        $data = new NodeData($o);
+
+        return new Node($data);
+    }
+
+    /**
+     * @param Node $node
+     *
+     * @return Tree
+     */
+    function tree(Node $node)
+    {
+        return new Tree($node);
+    }
+
+    /**
      * @param string $name
      * @param array $o
+     *
      * @return \Octo\Object
      */
     function actualo($name, array $o = [])
@@ -476,9 +502,14 @@
         return $object;
     }
 
+    /**
+     * @param array $o
+     *
+     * @return FastObject
+     */
     function fo(array $o = [])
     {
-        return lib('fastobject', [$o]);
+        return new FastObject($o);
     }
 
     function exif($file)

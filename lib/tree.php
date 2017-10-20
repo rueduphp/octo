@@ -3,17 +3,46 @@
 
     class Tree
     {
-        protected $root;
+        /**
+         * @var bool
+         */
+        protected $isRoot = true;
 
-        public function setRoot(Node $node)
+        /**
+         * @var Node
+         */
+        protected $node;
+
+        /**
+         * @param Node $node
+         */
+        public function __construct(Node $node)
         {
-            $this->root = $node;
+            $this->node = node;
 
-            return $this;
+            if ($this->node->hasParent()) {
+                $this->isRoot = false;
+            }
         }
 
-        public function getRoot()
+        /**
+         * @return bool
+         */
+        public function isRoot()
         {
-            return $this->root;
+            return $this->isRoot;
+        }
+
+        /**
+         * @return Node
+         */
+        public function get()
+        {
+            return $this->node;
+        }
+
+        public function getChildren()
+        {
+            return $this->node->getchildren();
         }
     }
