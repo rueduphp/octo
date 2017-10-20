@@ -12,5 +12,11 @@ class TreeTest extends TestCase
         $node = $tree->node();
 
         $this->assertNull($node->getParent());
+
+        $child = $this->node(['name' => 'test2'], false);
+
+        $child = $node->addChild($child);
+
+        $this->assertEquals('test', $child->getParent()->reveal()->getName());
     }
 }

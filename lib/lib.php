@@ -461,13 +461,13 @@
      *
      * @return \Octo\Node
      */
-    function node(array $o = [])
+    function node(array $o = [], $node = true)
     {
         require_once __DIR__ . DS . 'node.php';
 
         $data = new NodeData($o);
 
-        return new Node($data);
+        return true === $node ? new Node($data) : $data;
     }
 
     /**

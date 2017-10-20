@@ -40,11 +40,18 @@ class Node extends Fluent
         }
     }
 
-
     /**
      * @return NodeData
      */
     public function is()
+    {
+        return $this->definition;
+    }
+
+    /**
+     * @return NodeData
+     */
+    public function reveal()
     {
         return $this->definition;
     }
@@ -95,7 +102,7 @@ class Node extends Fluent
     /**
      * @param NodeData $definition
      *
-     * @return $this
+     * @return Node
      */
     public function addChild(NodeData $definition)
     {
@@ -107,7 +114,7 @@ class Node extends Fluent
 
         $this->children[] = $node;
 
-        return $this;
+        return $node;
     }
 
     /**
