@@ -1,11 +1,12 @@
 <?php
 namespace Octo;
 
-use function FastRoute\TestFixtures\empty_options_cached;
+use function array_key_exists;
+use const JSON_PRETTY_PRINT;
 
 class NodeData extends Object {}
 
-class Node extends Fluent
+class Node
 {
     /**
      * @var NodeData
@@ -23,17 +24,17 @@ class Node extends Fluent
     protected $tree;
 
     /**
-     * @var Tree[]
+     * @var Node[]
      */
     protected $children = [];
 
     /**
-     * @param NodeData $definition
-     * @param NodeData[] $children
+     * @param NodeData|null $definition
+     * @param array $children
      */
-    public function __construct(NodeData $definition, array $children = [])
+    public function __construct(NodeData $definition = null, array $children = [])
     {
-        $this->definition = $definition;
+        $this->definition = is_null($definition) ? new NodeData() : $definition;
 
         if (!empty($children)) {
             $this->setChildren($children);
@@ -54,6 +55,22 @@ class Node extends Fluent
     public function reveal()
     {
         return $this->definition;
+    }
+
+    /**
+     * @return NodeData
+     */
+    public function data()
+    {
+        return $this->reveal();
+    }
+
+    /**
+     * @return NodeData
+     */
+    public function getData()
+    {
+        return $this->reveal();
     }
 
     /**
@@ -92,7 +109,7 @@ class Node extends Fluent
     }
 
     /**
-     * @return Tree[]
+     * @return Node[]
      */
     public function getChildren()
     {
@@ -100,17 +117,19 @@ class Node extends Fluent
     }
 
     /**
-     * @param NodeData $definition
+     * @param NodeData|Node $concern
      *
      * @return Node
      */
-    public function addChild(NodeData $definition)
+    public function addChild($concern)
     {
-        $node = new self($definition);
+        if ($concern instanceof NodeData) {
+            $node = new self($concern);
+        } else {
+            $node = $concern;
+        }
 
         $node->setParent($this);
-
-        $child = new Tree($node);
 
         $this->children[] = $node;
 
@@ -139,7 +158,7 @@ class Node extends Fluent
     public function removeChild(Node $child)
     {
         foreach ($this->children as $key => $myChild) {
-            if ($child == $myChild->node()) {
+            if ($child == $myChild) {
                 unset($this->children[$key]);
             }
         }
@@ -219,7 +238,7 @@ class Node extends Fluent
         return array_values(
             array_filter(
                 $neighbors,
-                function ($item) use ($current) {
+                function (Node $item) use ($current) {
                     return $item != $current;
                 }
             )
@@ -227,7 +246,7 @@ class Node extends Fluent
     }
 
     /**
-     * @return Tree[]
+     * @return Node[]
      */
     public function getNeighborsAndSelf()
     {
@@ -239,7 +258,7 @@ class Node extends Fluent
      */
     public function isLeaf()
     {
-        return count($this->children) === 0;
+        return empty($this->children);
     }
 
     /**
@@ -275,6 +294,30 @@ class Node extends Fluent
     }
 
     /**
+     * @param int $nth
+     *
+     * @return Node
+     */
+    public function nth(int $nth)
+    {
+        $node = $this;
+
+        $i = 0;
+
+        while ($parent = $node->getParent()) {
+            if ($i < $nth) {
+                $node = $parent;
+
+                $i++;
+            } else {
+                break;
+            }
+        }
+
+        return $node;
+    }
+
+    /**
      * Return the number of nodes in a tree
      *
      * @return int
@@ -282,8 +325,9 @@ class Node extends Fluent
     public function getSize()
     {
         $size = 1;
+
         foreach ($this->getChildren() as $child) {
-            $size += $child->node()->getSize();
+            $size += $child->getSize();
         }
 
         return $size;
@@ -319,19 +363,81 @@ class Node extends Fluent
         $heights = [];
 
         foreach ($this->getChildren() as $child) {
-            $heights[] = $child->node()->getHeight();
+            $heights[] = $child->getHeight();
         }
 
         return max($heights) + 1;
     }
 
     /**
+     * @return Node
+     */
+    public function getFamily()
+    {
+        return $this->isChild() ? $this->root() :$this;
+    }
+
+    /**
+     * @param array $data
+     * @return array
+     */
+    public function toArray($data =  [])
+    {
+        $row = [];
+
+        if ($this->isRoot() && !$this->isLeaf()) {
+            $row = [
+                'type' => 'root',
+                'data' => $this->getData()->toArray(),
+                'children' => []
+            ];
+        } elseif ($this->isLeaf()) {
+            $row = [
+                'type' => 'leaf',
+                'data' => $this->getData()->toArray()
+            ];
+        } elseif (!$this->isRoot() && !$this->isLeaf()) {
+            $row = [
+                'type' => 'child',
+                'data' => $this->getData()->toArray(),
+                'children' => []
+            ];
+        }
+
+        if (array_key_exists('children', $row)) {
+            foreach ($this->getChildren() as $child) {
+                $row['children'][] = $child->toArray();
+            }
+        }
+
+        $data[] = $row;
+
+        return $data;
+    }
+
+    public function toJson()
+    {
+        return json_encode($this->toArray(), JSON_PRETTY_PRINT);
+    }
+
+    /**
      * @return void
      */
-    private function removeParentFromChildren()
+    protected function removeParentFromChildren()
     {
         foreach ($this->getChildren() as $child) {
-            $child->node()->setParent(null);
+            $child->setParent(null);
         }
+    }
+
+    /**
+     * @param string $method
+     * @param array $params
+     *
+     * @return mixed
+     */
+    public function __call(string $method, array $params)
+    {
+        return call_user_func_array([$this->definition, $method], $params);
     }
 }

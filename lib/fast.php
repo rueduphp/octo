@@ -3,7 +3,7 @@
 
     use ArrayAccess;
     use ArrayObject;
-    use Exception;
+    use Exception as NativeException;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
     use Interop\Http\ServerMiddleware\DelegateInterface;
@@ -768,7 +768,7 @@
         }
     }
 
-    class FastException extends Exception implements FastExceptionInterface {}
+    class FastException extends NativeException implements FastExceptionInterface {}
 
     class FastObject
     extends Object

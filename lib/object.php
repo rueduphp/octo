@@ -732,7 +732,7 @@
             return $this;
         }
 
-        public function adjust($field, $cb = null)
+        public function adjust($field, callable $cb = null)
         {
             $key = $field ?: $cb();
 
@@ -962,7 +962,7 @@
 
         public function pivots($em)
         {
-            if ($this->hasModel() && $this->exists() && $model->hasModel() && $model->exists()) {
+            if ($this->hasModel() && $this->exists() && $em->hasModel() && $em->exists()) {
                 return Pivot::pivoted($this, $em);
             }
         }
@@ -998,7 +998,7 @@
 
             if ($this->initial != $this->data) {
                 foreach ($this->data as $k => $v) {
-                    if ($this->initial[$l] != $v) {
+                    if ($this->initial[$k] != $v) {
                         $dirty[$k] = $v;
                     }
                 }
