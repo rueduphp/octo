@@ -6174,6 +6174,10 @@
         return $result;
     }
 
+    /**
+     * @param null $ns
+     * @return \Predis\Client
+     */
     function redis($ns = null)
     {
         static $kh = [];

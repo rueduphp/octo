@@ -1,5 +1,6 @@
 <?php
     use Octo\Config;
+    use Octo\ActiveRecord as AR;
 
     class PostEntity extends Octo\Octal {}
     class UserEntity extends Octo\Octal
@@ -45,6 +46,9 @@
         /** @test */
         public function entity()
         {
+            /**
+             * @var AR $user
+             */
             $user = $this->addUser();
 
             $this->assertEquals('123456', $user->password);
@@ -98,6 +102,9 @@
             $this->addPosts(20);
 
             $this->assertEquals(20, UserEntity::count());
+            $this->assertSame(1, UserEntity::min("id"));
+            $this->assertSame(20, UserEntity::max("id"));
+            $this->assertSame(10.5, UserEntity::avg("id"));
             $this->assertSame(1, UserEntity::first()->getId());
             $this->assertSame(20, UserEntity::last()->getId());
 
@@ -125,7 +132,7 @@
 
             for ($i = 1; $i <= $times; $i++) {
                 $user = [
-                    'email'     => $faker->email
+                    'email' => $faker->email
                 ];
 
                 $this->addUser($user);

@@ -19,6 +19,7 @@
          * Create a new fluent container instance.
          *
          * @param  array  $attributes
+         *
          * @return void
          */
         public function __construct($attributes = [])
@@ -35,6 +36,7 @@
          *
          * @param  string  $key
          * @param  mixed   $default
+         *
          * @return mixed
          */
         public function get($key, $default = null)
@@ -70,6 +72,7 @@
          * Convert the Fluent instance to JSON.
          *
          * @param  int  $options
+         *
          * @return string
          */
         public function toJson($options = 0)
@@ -81,6 +84,7 @@
          * Determine if the given offset exists.
          *
          * @param  string  $offset
+         *
          * @return bool
          */
         public function offsetExists($offset)
@@ -92,6 +96,7 @@
          * Get the value for a given offset.
          *
          * @param  string  $offset
+         *
          * @return mixed
          */
         public function offsetGet($offset)
@@ -104,6 +109,7 @@
          *
          * @param  string  $offset
          * @param  mixed   $value
+         *
          * @return void
          */
         public function offsetSet($offset, $value)
@@ -115,6 +121,7 @@
          * Unset the value at the given offset.
          *
          * @param  string  $offset
+         *
          * @return void
          */
         public function offsetUnset($offset)
@@ -127,6 +134,7 @@
          *
          * @param  string  $method
          * @param  array   $parameters
+         *
          * @return Fluent
          */
         public function __call($method, $parameters)
@@ -156,6 +164,7 @@
          * Dynamically retrieve the value of an attribute.
          *
          * @param  string  $key
+         *
          * @return mixed
          */
         public function __get($key)
@@ -168,6 +177,7 @@
          *
          * @param  string  $key
          * @param  mixed   $value
+         *
          * @return void
          */
         public function __set($key, $value)
@@ -179,6 +189,7 @@
          * Dynamically check if an attribute is set.
          *
          * @param  string  $key
+         *
          * @return void
          */
         public function __isset($key)
@@ -197,6 +208,10 @@
             unset($this->attributes[$key]);
         }
 
+        /**
+         * @param null $key
+         * @return mixed|null|Object
+         */
         public function __invoke($key = null)
         {
             if ($key) {
@@ -206,11 +221,17 @@
             }
         }
 
+        /**
+         * @return Object
+         */
         public function toObject()
         {
             return o($this->attributes);
         }
 
+        /**
+         * @return Collection
+         */
         public function toCollection()
         {
             return coll($this->attributes);

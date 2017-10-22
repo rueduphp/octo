@@ -341,6 +341,11 @@
             }
         }
 
+        /**
+         * @param string $pattern
+         *
+         * @return int
+         */
         public function flush($pattern = '*')
         {
             $motor  = redis()->pipeline();

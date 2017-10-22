@@ -1,6 +1,18 @@
 <?php
     namespace Octo;
 
+    /**
+     * @method static Octal all()
+     * @method static Octal get()
+     * @method static Octal count()
+     * @method static Octal find($id)
+     * @method static Octal min($field)
+     * @method static Octal max($field)
+     * @method static Octal avg($field)
+     * @method static Octal first()
+     * @method static Octal last()
+     * @method static Octal where($concern, $op = null, $value = null)
+     */
     class Octal
     {
         protected $entity;
@@ -149,6 +161,9 @@
             }
         }
 
+        /**
+         * @return Octalia
+         */
         public function orm()
         {
             return em($this->entity)->octal($this);
@@ -157,7 +172,7 @@
         public function setEntityField($field)
         {
             if (!in_array($field, $this->entityFields)) {
-                $this->entityFields[] = $fields;
+                $this->entityFields[] = $field;
             }
 
             return $this;
