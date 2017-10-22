@@ -1,6 +1,7 @@
 <?php
     use Octo\Config;
 
+    class PostEntity extends Octo\Octal {}
     class UserEntity extends Octo\Octal
     {
         public function setAttributeTest($value, $record)
@@ -69,7 +70,10 @@
             $user = $this->addUser();
 
             $this->assertEquals(1, UserEntity::test(0)->count());
-            $this->assertEquals(UserEntity::where('id', '>', 1)->count(), UserEntity::test(1)->count());
+            $this->assertEquals(
+                UserEntity::where('id', '>', 1)->count(),
+                UserEntity::test(1)->count()
+            );
         }
 
         /** @test */
@@ -86,6 +90,19 @@
             $this->assertEquals(10, $user->test);
         }
 
+        public function testRelations()
+        {
+            $this->addUsers(20);
+            $this->addPosts(20);
+
+            $this->assertEquals(20, UserEntity::count());
+            $this->assertSame(1, UserEntity::first()->getId());
+            $this->assertSame(20, UserEntity::last()->getId());
+
+            $this->assertEquals(PostEntity::first()->user(), UserEntity::find(20));
+            $this->assertEquals(PostEntity::first(), UserEntity::find(20)->posts()->first());
+        }
+
         private function addUser(array $data = [])
         {
             if (empty($data)) {
@@ -98,5 +115,32 @@
             }
 
             return UserEntity::store($data);
+        }
+
+        private function addUsers($times = 2)
+        {
+            $faker = $this->faker();
+
+            for ($i = 1; $i <= $times; $i++) {
+                $user = [
+                    'email'     => $faker->email
+                ];
+
+                $this->addUser($user);
+            }
+        }
+
+        private function addPosts($times = 2)
+        {
+            $faker = $this->faker();
+
+            for ($i = 1; $i <= $times; $i++) {
+                $post = [
+                    'user_id' => ($times + 1) - $i,
+                    'slug'    => $faker->slug
+                ];
+
+                PostEntity::store($post);
+            }
         }
     }

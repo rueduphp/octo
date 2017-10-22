@@ -254,9 +254,9 @@
 
         public function age($k)
         {
-            $file = $this->getPath($k);
-
             if ($this->has($k)) {
+                $file = $this->getPath($k);
+
                 return redis()->get($file . '.u');
             }
 
@@ -265,9 +265,9 @@
 
         public function delete($k)
         {
-            $file = $this->getPath($k);
-
             if ($this->has($k)) {
+                $file = $this->getPath($k);
+
                 redis()->del($file);
                 redis()->del($file . '.c');
                 redis()->del($file . '.u');
@@ -387,12 +387,12 @@
 
         public function getSize($key)
         {
-            return strlen($this->get($key));
+            return $this->has($key) ? strlen($this->get($key)) : 0;
         }
 
         public function length($key)
         {
-            return strlen($this->get($key));
+            return $this->has($key) ? strlen($this->get($key)) : 0;
         }
 
         public function hset($hash, $key, $value)

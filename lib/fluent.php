@@ -205,4 +205,14 @@
                 return o($this->attributes);
             }
         }
+
+        public function toObject()
+        {
+            return o($this->attributes);
+        }
+
+        public function toCollection()
+        {
+            return coll($this->attributes);
+        }
     }
