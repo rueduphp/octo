@@ -343,14 +343,17 @@
 
         public function flush($pattern = '*')
         {
-            $keys = redis()->keys($this->dir . '.' . $pattern);
+            $motor  = redis()->pipeline();
+            $keys   = redis()->keys($this->dir . '.' . $pattern);
 
             $affected = 0;
 
             foreach ($keys as $key) {
-                redis()->del($key);
+                $motor->del($key);
                 $affected++;
             }
+
+            $motor->execute();
 
             return $affected;
         }
@@ -546,15 +549,19 @@
 
         public function hremove($hash)
         {
+            $motor = redis()->pipeline();
+
             $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
 
             $affected = 0;
 
             foreach ($keys as $row) {
-                redis()->del($row);
+                $motor->del($row);
 
                 $affected++;
             }
+
+            $motor->execute();
 
             return $affected;
         }

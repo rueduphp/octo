@@ -30,7 +30,9 @@
 
             $this->engine = Octo\conf('octalia.engine');
             Config::set('octalia.engine', 'ndb');
+
             UserEntity::drop();
+            PostEntity::drop();
         }
 
         public function tearDown()
