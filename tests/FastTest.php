@@ -53,7 +53,6 @@
         public function config(ContainerInterface $app)
         {
             $this->twig(__DIR__ . DIRECTORY_SEPARATOR . 'twig');
-//            $this->blade(__DIR__ . DIRECTORY_SEPARATOR . 'blade');
         }
 
         /**
@@ -136,20 +135,7 @@
                 ->register(Octo\FastRendererInterface::class, function () {
                     return $this->actual("fast")->getRenderer();
                 })
-                ->addMiddleware(Octo\Fastmiddlewaretrailingslash::class)
-                ->addMiddleware(Octo\Fastmiddlewarecsrf::class)
-                ->addMiddleware(Octo\Fastmiddlewaregeo::class)
-                ->addMiddleware(TestMiddleware::class)
-                ->addMiddleware(Octo\Fastmiddlewareacl::class)
-                ->addMiddleware(function (Octo\Fast $app) {
-                    $request = $app->getRequest();
-
-                    $path = $request->getUri()->getPath();
-
-                    if (!fnmatch('/admin*', $path)) {
-                        return Octo\FastMiddleware::class;
-                    }
-
+                ->register(Octo\FastAuthInterface::class, function () {
                     /**
                      * @var Octo\Object $auth
                      */
@@ -171,10 +157,14 @@
                         return $this->actual('fast')->getSession();
                     });
 
-                    $app->setAuth($auth);
-
-                    return Octo\Fastmiddlewareauth::class;
+                    return $auth;
                 })
+                ->addMiddleware(Octo\Fastmiddlewaretrailingslash::class)
+                ->addMiddleware(Octo\Fastmiddlewarecsrf::class)
+                ->addMiddleware(Octo\Fastmiddlewaregeo::class)
+                ->addMiddleware(TestMiddleware::class)
+                ->addMiddleware(Octo\Fastmiddlewareacl::class)
+                ->addMiddleware(Octo\Fastmiddlewaremustbeauthorized::class)
                 ->addMiddleware(Octo\Fastmiddlewarerouter::class)
                 ->addMiddleware(Octo\Fastmiddlewaredispatch::class)
                 ->addMiddleware(Octo\Fastmiddlewarenotfound::class)

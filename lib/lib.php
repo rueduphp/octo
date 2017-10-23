@@ -116,12 +116,13 @@
         }
     }
 
-    function twig($folder = null,  array $config = [])
+    function twig($folder = null, array $config = [])
     {
         $folder = is_null($folder) ? actual('fast.twig.path') : $folder;
 
         if (is_dir($folder)) {
             actual('fast.twig.path', $folder);
+
             $loader = new \Twig_Loader_Filesystem($folder);
 
             $renderer = new FastTwigRenderer($loader, $config);
@@ -5866,6 +5867,15 @@
         $value = call_user_func_array('\\Octo\\actual', func_get_args());
 
         return o($value);
+    }
+
+    function orm($orm = null)
+    {
+        if (is_object($orm)) {
+            return actual('core.orm', $orm);
+        }
+
+        return actual('core.orm');
     }
 
     function actual()

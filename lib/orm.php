@@ -28,6 +28,8 @@
             } else {
                 $this->setPdo($pdo);
             }
+
+            orm($this);
         }
 
         protected function connect()

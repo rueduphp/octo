@@ -35,6 +35,8 @@
             $this->_events();
 
             actual('octalia_driver', $driver);
+
+            orm($this);
         }
 
         public function validator()

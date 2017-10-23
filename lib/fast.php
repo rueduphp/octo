@@ -12,6 +12,7 @@
     use Psr\Http\Message\ResponseInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use Twig_Extension;
+    use Twig_Filter;
     use Twig_SimpleFunction;
     use Zend\Expressive\Router\FastRouteRouter as FastRouter;
     use Zend\Expressive\Router\Route as FastRoute;
@@ -41,7 +42,7 @@
 
             $this->request = $this->fromGlobals();
 
-            $this->add('twig_extensions', FastRouterTwigExtension::class);
+            $this->add('twig_extensions', FastTwigExtension::class);
 
             actual('fast', $this);
         }
@@ -385,6 +386,17 @@
         }
 
         /**
+         * @param string $class
+         * @param bool $singleton
+         *
+         * @return mixed|object
+         */
+        public function resolve($class, $singleton = true)
+        {
+            return $singleton ? maker($class) : foundry($class);
+        }
+
+        /**
          * @return Psr7Response
          */
         public function response()
@@ -538,7 +550,13 @@
                 callMethod($module, 'di', $this);
             }
 
-            callMethod($module, 'routes', $this->router(), $this);
+            if (in_array('routes', $methods)) {
+                callMethod($module, 'routes', $this->router(), $this);
+            }
+
+            if (in_array('twig', $methods)) {
+                callMethod($module, 'twig', $this);
+            }
 
             return $this;
         }
@@ -719,6 +737,7 @@
     interface FastRouterInterface {}
     interface FastRouteInterface {}
     interface FastRendererInterface {}
+    interface FastAuthInterface {}
 
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
@@ -748,12 +767,21 @@
         }
     }
 
-    class FastRouterTwigExtension extends Twig_Extension
+    class FastTwigExtension extends Twig_Extension
     {
         public function getFunctions()
         {
             return [
                 new Twig_SimpleFunction('path', [$this, 'path'])
+            ];
+        }
+
+        public function getFilters()
+        {
+            return [
+                new Twig_Filter('camelize', ['Octo\Inflector', 'camelize']),
+                new Twig_Filter('uncamelize', ['Octo\Inflector', 'uncamelize']),
+                new Twig_Filter('strlen', ['Octo\Inflector', 'length']),
             ];
         }
 
