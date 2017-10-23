@@ -3285,15 +3285,20 @@
         }
     }
 
+    /**
+     * @param string $tokenName
+     * @param string $sessionKey
+     *
+     * @return string
+     */
     function csrf($tokenName = '_csrf', $sessionKey = 'csrf.tokens')
     {
-        $session                = maker(FastSessionInterface::class);
-        $token                  = token();
-        $session[$sessionKey]   = $token;
+        $session                        = maker(FastSessionInterface::class);
+        $token                          = token();
+        $session['old.' . $sessionKey]  = $session[$sessionKey];
+        $session[$sessionKey]           = $token;
 
-        $field = '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
-
-        return $field;
+        return '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
     }
 
     function csrf_make()

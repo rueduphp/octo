@@ -772,6 +772,7 @@
         public function getFunctions()
         {
             return [
+                new Twig_SimpleFunction('dump', [$this, 'dump'], ['is_safe' => array('html')]),
                 new Twig_SimpleFunction('path', [$this, 'path']),
                 new Twig_SimpleFunction('logout', [$this, 'logout']),
                 new Twig_SimpleFunction('login', [$this, 'login']),
@@ -821,6 +822,15 @@
         public function csrf($tokenName = '_csrf', $sessionKey = 'csrf.tokens')
         {
             return csrf($tokenName, $sessionKey);
+        }
+
+        public function dump($context)
+        {
+            $dump = fopen('php://memory', 'r+b');
+
+            lvd($context);
+
+            return stream_get_contents($dump, -1, 0);
         }
     }
 
