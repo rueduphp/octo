@@ -772,7 +772,10 @@
         public function getFunctions()
         {
             return [
-                new Twig_SimpleFunction('path', [$this, 'path'])
+                new Twig_SimpleFunction('path', [$this, 'path']),
+                new Twig_SimpleFunction('logout', [$this, 'logout']),
+                new Twig_SimpleFunction('login', [$this, 'login']),
+                new Twig_SimpleFunction('csrf', [$this, 'csrf'])
             ];
         }
 
@@ -793,6 +796,31 @@
             $fastRouter = actual('fast.router');
 
             return $fastRouter->generateUri($routeName, $params);
+        }
+
+        public function logout()
+        {
+            /**
+             * @var $fastRouter FastRouter
+             */
+            $fastRouter = actual('fast.router');
+
+            return $fastRouter->generateUri('logout');
+        }
+
+        public function login()
+        {
+            /**
+             * @var $fastRouter FastRouter
+             */
+            $fastRouter = actual('fast.router');
+
+            return $fastRouter->generateUri('login');
+        }
+
+        public function csrf($tokenName = '_csrf', $sessionKey = 'csrf.tokens')
+        {
+            return csrf($tokenName, $sessionKey);
         }
     }
 

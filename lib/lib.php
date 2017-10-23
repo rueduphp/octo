@@ -3285,6 +3285,17 @@
         }
     }
 
+    function csrf($tokenName = '_csrf', $sessionKey = 'csrf.tokens')
+    {
+        $session                = maker(FastSessionInterface::class);
+        $token                  = token();
+        $session[$sessionKey]   = $token;
+
+        $field = '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
+
+        return $field;
+    }
+
     function csrf_make()
     {
         $token = token();
