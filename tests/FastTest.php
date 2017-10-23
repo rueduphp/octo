@@ -126,6 +126,9 @@
                 ->register(Octo\FastSessionInterface::class, function () {
                     return new Octo\Sessionarray;
                 })
+                ->register(Octo\FastCacheInterface::class, function () {
+                    return new Octo\Now;
+                })
                 ->register(Octo\FastUserOrmInterface::class, function () {
                     return $this->fo();
                 })
@@ -297,5 +300,22 @@
             $app->isDummy(1);
             $this->assertEquals(1, $app->isDummy());
             $this->assertEquals(1, $app->is_dummy);
+        }
+
+        function testCache()
+        {
+            $cache = $this->actual('fast')->resolve(Octo\FastCacheInterface::class);
+
+            $cache->set('foo', 'bar');
+
+            $this->assertSame('bar', $cache->get('foo'));
+
+            $number = 1;
+
+            $cache->set('number', $number);
+
+            $cache->incr('number', 9);
+
+            $this->assertSame(10, $cache->get('number'));
         }
     }
