@@ -15,13 +15,24 @@ class Fastmiddlewaredispatch extends FastMiddleware
         if (!is_null($route)) {
             $action = Arrays::last(explode('.', $route->getName()));
 
-            $module = $this->maker($route->getMiddleware());
+            $middleware = $route->getMiddleware();
+
+            if (is_array($middleware)) {
+                $module = $middleware[0];
+                $action = $middleware[1];
+//                $callable = $middleware;
+
+//                $response = call_user_func_array($callable, [$request, $app]);
+                $response = callMethod($module, $action, $request, $app);
+            } else {
+                $module = $this->maker($middleware);
+
+                $callable = [$module, 'run'];
+
+                $response = call_user_func_array($callable, [$action, $request, $app]);
+            }
 
             actual('fast.module', $module);
-
-            $callable = [$module, 'run'];
-
-            $response = call_user_func_array($callable, [$action, $request, $app]);
 
             if (is_string($response) || is_numeric($response)) {
                 return $app->response(200, [], $response);

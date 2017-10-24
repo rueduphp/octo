@@ -1,7 +1,8 @@
 <?php
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
-    use Octo\FastRendererInterface;
+use Octo\Fast;
+use Octo\FastRendererInterface;
     use Octo\FastUserOrmInterface;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ServerRequestInterface;
@@ -45,7 +46,7 @@
         public function routes($router)
         {
             $router
-                ->addRoute('GET', '/demo', static::class, 'demo')
+                ->addRoute('GET', '/demo', [$this, 'demo'])
             ;
         }
 
@@ -96,10 +97,10 @@
         public function routes($router)
         {
             $router
-                ->addRoute('GET', '/test', static::class, 'test')
-                ->addRoute('GET', '/slug/{slug}', static::class, 'slug')
-                ->addRoute('GET', '/hello', static::class, 'hello')
-                ->addRoute('GET', '/admin/foo', static::class, 'admin')
+                ->addRoute('GET', '/test', [$this, 'test'])
+                ->addRoute('GET', '/slug/{slug}', [$this, 'slug'])
+                ->addRoute('GET', '/hello', [$this, 'hello'])
+                ->addRoute('GET', '/admin/foo', [$this, 'admin'])
             ;
         }
 
@@ -380,5 +381,7 @@
 
             $this->assertEquals($container, $this->getContainer());
             $this->assertEquals($container, $container->getContainer()->getContainer());
+
+            $this->assertInstanceOf(Fast::class, $this->getContainer()->self('fast'));
         }
     }

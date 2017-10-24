@@ -200,7 +200,7 @@ class Fastcontainer implements FastContainerInterface
 
     public function getApp()
     {
-        return actual('fast');
+        return $this->self('fast');
     }
 
     /**

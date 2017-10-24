@@ -587,7 +587,11 @@
                 $router = fo();
 
                 $router->macro(
-                    'addRoute', function ($method, $path, $middleware, $name) {
+                    'addRoute', function ($method, $path, $middleware, $name = null) {
+                        if (is_array($middleware) && is_object($name)) {
+                            $name = $middleware[1];
+                        }
+
                         $method = empty($method)
                         ? FastRoute::HTTP_METHOD_ANY :
                         !is_array($method) ? [Inflector::upper($method)] : $method;
@@ -823,6 +827,23 @@
             }
 
             return $this->vue($file, $context)->inline();
+        }
+
+        /**
+         * @param string $key
+         * @param mixed $value
+         *
+         * @return $this
+         */
+        public function addGlobal($key, $value)
+        {
+            $data = Registry::get('core.globals.view', []);
+
+            $data[$key] = $value;
+
+            Registry::set('core.globals.view', $data);
+
+            return $this;
         }
     }
 

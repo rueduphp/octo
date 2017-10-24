@@ -2,6 +2,7 @@
     namespace Octo;
 
     use function call_user_func_array;
+    use function func_get_args;
     use function get_class_methods;
     use function is_null;
     use Zend\Expressive\Router\FastRouteRouter;
@@ -5926,6 +5927,18 @@
         return actual('core.orm');
     }
 
+    /**
+     * @param string $name
+     * @param array $o
+     *
+     * @return \Octo\Object
+     */
+    function self()
+    {
+        $args = func_get_args();
+        return actual(... $args);
+    }
+
     function actual()
     {
         $args   = func_get_args();
@@ -6990,12 +7003,13 @@
 
         ob_start();
 
+        extract(Registry::get('core.globals.view', []));
         extract($args);
 
-        $self = actual('fast.module');
+        $module = $self = actual('fast.module');
 
         try {
-            include $path;
+            include ($path);
         } catch (\Exception $e) {
             while (ob_get_level() > $ob_get_level) {
                 ob_end_clean();
