@@ -32,7 +32,7 @@
 
             $config = arrayable($config) ? $config->toArray() : $config;
 
-            $this->app = superdi();
+            $this->app = $this->maker(Fastcontainer::class);
 
             if ($config && is_array($config)) {
                 foreach ($config as $key => $value) {
@@ -124,8 +124,12 @@
 
             foreach ($extensions as $extension) {
                 if (!in_array($extension, $this->extensionsLoaded)) {
-                    $this->extensionsLoaded[] = $extension;
-                    $twig->addExtension(maker($extension));
+                    try {
+                        $this->extensionsLoaded[] = $extension;
+                        $twig->addExtension(maker($extension));
+                    } catch (\Exception $e) {
+                        $this->extensionsLoaded[] = $extension;
+                    }
                 }
             }
         }
@@ -397,6 +401,14 @@
         }
 
         /**
+         * @return Object
+         */
+        public function getContainer()
+        {
+            return $this->app;
+        }
+
+        /**
          * @return Psr7Response
          */
         public function response()
@@ -427,7 +439,9 @@
          */
         public function run($request = null)
         {
-            $this->applyTwigExtensions();
+            if ($this->getRenderer() instanceof FastTwigRenderer) {
+                $this->applyTwigExtensions();
+            }
 
             if (!is_null($request)) {
                 $this->request = $request;
@@ -563,8 +577,13 @@
 
         public function router()
         {
-            if (!isset($this->router)) {
+            if ($router = $this->define('router')) {
+                $this->define('router', $router);
+            } else {
                 $this->define('router', new FastRouter);
+            }
+
+            if (!isset($this->router)) {
                 $router = fo();
 
                 $router->macro(
@@ -573,14 +592,23 @@
                         ? FastRoute::HTTP_METHOD_ANY :
                         !is_array($method) ? [Inflector::upper($method)] : $method;
 
-                        /**
-                         * @var $fastRouter FastRouter
-                         */
-                        $fastRouter = $this->define('router');
+                        $routes = Registry::get('fast.routes', []);
+                        $key = $path . ':' . serialize($method);
 
-                        $fastRouter->addRoute(
-                            new FastRoute($path, $middleware, $method, $name)
-                        );
+                        if (!in_array($key, $routes)) {
+                            /**
+                             * @var $fastRouter FastRouter
+                             */
+                            $fastRouter = $this->define('router');
+
+                            $fastRouter->addRoute(
+                                new FastRoute($path, $middleware, $method, $name)
+                            );
+
+                            $routes[] = $key;
+
+                            Registry::set('fast.routes', $routes);
+                        }
 
                         return $this->router();
                     }
@@ -698,7 +726,7 @@
 
         public function __call(string $method, array $args)
         {
-            $fn = '\\Octo\\' . $method;
+            $fn = 'Octo\\' . $method;
 
             if (function_exists($fn)) {
                 return call_user_func_array($fn, $args);
@@ -727,7 +755,6 @@
     interface FastExceptionInterface {}
     interface FastSessionInterface {}
     interface FastCacheInterface {}
-    interface FastContainerInterface {}
     interface FastFlashInterface {}
     interface FastLogInterface {}
     interface FastDbInterface {}
@@ -738,25 +765,28 @@
     interface FastRouteInterface {}
     interface FastRendererInterface {}
     interface FastAuthInterface {}
+    interface FastContainerInterface
+    {
+        public function get($key, $singleton = false);
+        public function has($key);
+    }
 
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
 
-    class FastTwigRenderer extends \Twig_Environment implements FastRendererInterface
+    class FastTwigExtensions extends Twig_Extension
     {
-        public function render($name, array $context = [])
-        {
-            return parent::render($name . '.twig', $context);
-        }
+        use FastTrait;
     }
 
-    class FastMiddleware implements MiddlewareInterface
+    trait FastTrait
     {
-        public function process(ServerRequestInterface $request, DelegateInterface $next)
-        {
-            return $next->process($request);
-        }
-
+        /**
+         * @param string $m
+         * @param array $a
+         *
+         * @return mixed
+         */
         public function __call($m, $a)
         {
             $method = '\\Octo\\' . $m;
@@ -765,14 +795,69 @@
                 return call_user_func_array($method, $a);
             }
         }
+
     }
 
-    class FastTwigExtension extends Twig_Extension
+    class FastPhpRenderer implements FastRendererInterface
+    {
+        use FastTrait;
+
+        /**
+         * @param string $name
+         * @param array $context
+         *
+         * @return string
+         */
+        public function render($name, array $context = [])
+        {
+            if (!File::exists($name)) {
+                $viewPath = actual('fast')->define('view.path');
+
+                if (is_null($viewPath)) {
+                    exception('FastPhpRenderer', 'Please provide a view path.');
+                }
+
+                $file = $viewPath . DS . $name . '.phtml';
+            } else {
+                $file = $name;
+            }
+
+            return $this->vue($file, $context)->inline();
+        }
+    }
+
+    class FastTwigRenderer extends \Twig_Environment implements FastRendererInterface
+    {
+        use FastTrait;
+
+        /**
+         * @param string $name
+         * @param array $context
+         *
+         * @return string
+         */
+        public function render($name, array $context = [])
+        {
+            return parent::render($name . '.twig', $context);
+        }
+    }
+
+    class FastMiddleware implements MiddlewareInterface
+    {
+        use FastTrait;
+
+        public function process(ServerRequestInterface $request, DelegateInterface $next)
+        {
+            return $next->process($request);
+        }
+    }
+
+    class FastTwigExtension extends FastTwigExtensions
     {
         public function getFunctions()
         {
             return [
-                new Twig_SimpleFunction('dump', [$this, 'dump'], ['is_safe' => array('html')]),
+                new Twig_SimpleFunction('dump', [$this, 'dump'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('path', [$this, 'path']),
                 new Twig_SimpleFunction('logout', [$this, 'logout']),
                 new Twig_SimpleFunction('login', [$this, 'login']),

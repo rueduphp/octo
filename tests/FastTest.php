@@ -5,6 +5,7 @@
     use Octo\FastUserOrmInterface;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ServerRequestInterface;
+    use Zend\Expressive\Router\FastRouteRouter;
 
     class TestMiddleware implements MiddlewareInterface
     {
@@ -24,6 +25,33 @@
         {
             $this->object = $object;
             $this->object->pdo = $pdo;
+        }
+    }
+
+    class ModulePhp extends Octo\Module
+    {
+        /**
+         * @var FastRendererInterface
+         */
+        private $renderer;
+
+        public function config(ContainerInterface $app)
+        {
+            $app->phpRenderer(__DIR__ . DIRECTORY_SEPARATOR . 'views');
+
+            $this->renderer = $app->getRenderer();
+        }
+
+        public function routes($router)
+        {
+            $router
+                ->addRoute('GET', '/demo', static::class, 'demo')
+            ;
+        }
+
+        public function demo()
+        {
+            return $this->renderer->render('demo', ['name' => 'test']);
         }
     }
 
@@ -52,7 +80,7 @@
 
         public function config(ContainerInterface $app)
         {
-            $this->twig(__DIR__ . DIRECTORY_SEPARATOR . 'twig');
+            $app->twigRenderer(__DIR__ . DIRECTORY_SEPARATOR . 'twig');
         }
 
         /**
@@ -114,6 +142,9 @@
             $this->session = new Octo\Sessionarray;
 
             $this->app
+                ->register(Octo\FastContainerInterface::class, function () {
+                    return $this->maker(Octo\Fastcontainer::class);
+                })
                 ->register(PDODummy::class, function () {
                     return new PDODummy('sqlite::memory:');
                 })
@@ -292,6 +323,17 @@
             $this->assertEquals('<h1>Hello test <a href="/slug/foo">link</a></h1>', (string) $response->getBody());
         }
 
+        public function testPhpRenderer()
+        {
+            $_SERVER['REQUEST_URI'] = '/demo';
+            $request = $this->app->fromGlobals();
+            $this->app->addModule(ModulePhp::class);
+            $response = $this->app->run($request);
+//
+            $this->assertEquals(200, $response->getStatusCode());
+            $this->assertEquals('<h1>Hello test</h1>', (string) $response->getBody());
+        }
+
         public function testDirectAssignations()
         {
             $app = $this->app->dummy(1);
@@ -304,7 +346,7 @@
 
         function testCache()
         {
-            $cache = $this->actual('fast')->resolve(Octo\FastCacheInterface::class);
+            $cache = $this->getContainer()->get(Octo\FastCacheInterface::class);
 
             $cache->set('foo', 'bar');
 
@@ -317,5 +359,26 @@
             $cache->incr('number', 9);
 
             $this->assertSame(10, $cache->get('number'));
+        }
+
+        public function testContainer()
+        {
+            /** @var Octo\FastContainerInterface $container */
+            $container = $this->getContainer();
+
+            $this->assertTrue($container->has(Octo\FastContainerInterface::class));
+
+            $this->assertInstanceOf(
+                Octo\FastContainerInterface::class,
+                $container->get(Octo\FastContainerInterface::class)
+            );
+
+            $this->assertInstanceOf(
+                FastRouteRouter::class,
+                $this->getRouter()
+            );
+
+            $this->assertEquals($container, $this->getContainer());
+            $this->assertEquals($container, $container->getContainer()->getContainer());
         }
     }

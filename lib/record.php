@@ -226,6 +226,12 @@
 
                     return $this->set($m, $concern);
                 }
+
+                $method = '\\Octo\\' . $m;
+
+                if (function_exists($method)) {
+                    return call_user_func_array($method, $a);
+                }
             }
         }
 

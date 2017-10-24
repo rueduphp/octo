@@ -4,6 +4,7 @@
     use function call_user_func_array;
     use function get_class_methods;
     use function is_null;
+    use Zend\Expressive\Router\FastRouteRouter;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
         include_once __DIR__ . "/../vendor/autoload.php";
@@ -116,12 +117,29 @@
         }
     }
 
-    function twig($folder = null, array $config = [])
+    function phpRenderer($folder = null)
     {
-        $folder = is_null($folder) ? actual('fast.twig.path') : $folder;
+        $folder = is_null($folder) ? actual('fast.view.path') : $folder;
 
         if (is_dir($folder)) {
-            actual('fast.twig.path', $folder);
+            actual('fast.view.path', $folder);
+
+            $renderer = maker(FastPhpRenderer::class);
+
+            actual('fast.renderer', $renderer);
+
+            return $renderer;
+        }
+
+        exception("FastPhpRenderer", "The folder $folder does not exist.");
+    }
+
+    function twigRenderer($folder = null, array $config = [])
+    {
+        $folder = is_null($folder) ? actual('fast.view.path') : $folder;
+
+        if (is_dir($folder)) {
+            actual('fast.view.path', $folder);
 
             $loader = new \Twig_Loader_Filesystem($folder);
 
@@ -1956,23 +1974,21 @@
         });
 
         $vue->macro('inline', function () use ($vue) {
+            $session = maker(FastSessionInterface::class);
             $withs = $vue->withs;
 
             if (!empty($withs)) {
                 foreach ($withs as $k => $v) {
-                    $setter = setter($k);
-                    session()->$setter($v);
+                    $session[$k] = $v;
                 }
             }
 
             $args = array_merge(['tpl' => $vue], $vue->getArgs());
 
-            $html = evaluate(
+            return evaluateInline(
                 $vue->getPath(),
                 $args
             );
-
-            return $html;
         });
 
         $vue->macro('layout', function ($page, $sections) use ($vue) {
@@ -3456,6 +3472,22 @@
         }
 
         return $callable;
+    }
+
+    /**
+     * @return FastContainer
+     */
+    function getContainer()
+    {
+        return maker(FastContainerInterface::class);
+    }
+
+    /**
+     * @return FastRouteRouter
+     */
+    function getRouter()
+    {
+        return actual('fast.router');
     }
 
     function superdi()
@@ -6932,6 +6964,35 @@
         extract($args);
 
         $self = actual('controller');
+
+        try {
+            include $path;
+        } catch (\Exception $e) {
+            while (ob_get_level() > $ob_get_level) {
+                ob_end_clean();
+            }
+
+            view('<h1>An error occured !</h1><p>' . $e->getMessage() . '</p>', 500, 'An error occured');
+        } catch (\Throwable $e) {
+            while (ob_get_level() > $ob_get_level) {
+                ob_end_clean();
+            }
+
+            view('<h1>An error occured !</h1><p>' . $e->getMessage() . '</p>', 500, 'An error occured');
+        }
+
+        return ltrim(ob_get_clean());
+    }
+
+    function evaluateInline($path, $args = [])
+    {
+        $ob_get_level = ob_get_level();
+
+        ob_start();
+
+        extract($args);
+
+        $self = actual('fast.module');
 
         try {
             include $path;

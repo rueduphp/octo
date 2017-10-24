@@ -255,7 +255,10 @@
                             $driver     = isAke($this->callbacks, "driver",     null);
 
                             if ($adapter) {
-                                return lib('eav', [$this->db(), $fktable, $this->adapter()])->find((int) $this->get($fktable . '_id'), $o);
+                                return lib(
+                                    'eav',
+                                    [$this->db(), $fktable, $this->adapter()]
+                                )->find((int) $this->get($fktable . '_id'), $o);
                             }
 
                             if ($driver) {
@@ -311,11 +314,17 @@
                     }
                 }
             }
+
+            $method = '\\Octo\\' . $m;
+
+            if (function_exists($method)) {
+                return call_user_func_array($method, $a);
+            }
         }
 
         /**
          * Return fresh object from database
-         * @return Octo\Object
+         * @return Object
          */
         public function fresh()
         {
