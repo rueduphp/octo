@@ -586,4 +586,27 @@
         {
             return upload($field);
         }
+
+        public static function hash($path)
+        {
+            return md5_file($path);
+        }
+
+        public static function prepend($path, $data)
+        {
+            if (static::exists($path)) {
+                return static::put($path, $data . static::read($path));
+            }
+
+            return static::put($path, $data);
+        }
+
+        public static function chmod($path, $mode = null)
+        {
+            if ($mode) {
+                return chmod($path, $mode);
+            }
+
+            return substr(sprintf('%o', fileperms($path)), -4);
+        }
     }

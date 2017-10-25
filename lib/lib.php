@@ -4,6 +4,7 @@
     use function call_user_func_array;
     use function func_get_args;
     use function get_class_methods;
+    use Illuminate\Support\Debug\Dumper;
     use function is_null;
     use Zend\Expressive\Router\FastRouteRouter;
 
@@ -1151,6 +1152,108 @@
         return $data;
     }
 
+    function transform($value, callable $callback, $default = null)
+    {
+        if (filled($value)) {
+            return $callback($value);
+        }
+
+        if (is_callable($default)) {
+            return $default($value);
+        }
+
+        return $default;
+    }
+
+    function byRef()
+    {
+        $args = func_get_args();
+
+        return tap(...$args);
+    }
+
+    function tap($value, callable $callback = null)
+    {
+        if (is_null($callback)) {
+            return new Tap($value);
+        }
+
+        $callback($value);
+
+        return $value;
+    }
+
+    function adapt($value, callable $callback = null)
+    {
+        return is_null($callback) ? $value : $callback($value);
+    }
+
+    function catchRollback($value, callable $callback)
+    {
+        try {
+            return $callback($value);
+        } catch (\Exception $e) {
+            return $value;
+        }
+    }
+
+    function catchIt($value, callable $callback)
+    {
+        try {
+            return $callback($value);
+        } catch (\Exception $e) {
+            return $e;
+        }
+    }
+
+    function times($times, callable $callback, $sleep = 0)
+    {
+        $times--;
+
+        beginning:
+        try {
+            return $callback();
+        } catch (\Exception $e) {
+            if (!$times) {
+                throw $e;
+            }
+
+            $times--;
+
+            if ($sleep) {
+                usleep($sleep * 1000);
+            }
+
+            goto beginning;
+        }
+    }
+
+    function blank($value)
+    {
+        if (is_null($value)) {
+            return true;
+        }
+
+        if (is_string($value)) {
+            return trim($value) === '';
+        }
+
+        if (is_numeric($value) || is_bool($value)) {
+            return false;
+        }
+
+        if ($value instanceof \Countable) {
+            return count($value) === 0;
+        }
+
+        return empty($value);
+    }
+
+    function filled($value)
+    {
+        return !blank($value);
+    }
+
     function ldd()
     {
         call_user_func_array('\\dd', func_get_args());
@@ -1159,7 +1262,7 @@
     function lvd()
     {
         array_map(function ($x) {
-            (new \Illuminate\Support\Debug\Dumper)->dump($x);
+            (new Dumper)->dump($x);
         }, func_get_args());
     }
 
