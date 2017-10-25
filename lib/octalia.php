@@ -635,7 +635,7 @@
 
             $row = arrayable($row) ? $row->toArray() : $row;
 
-            $model  = lib('activerecord', [$row]);
+            $model  = lib('activerecord', [$row, $this->entity()]);
             $self   = $this;
 
             $model->fn('save', function ($event = null) use ($model) {

@@ -41,6 +41,23 @@
             }
 
             $entity->fire('model', $this);
+
+            $this->proxy();
+        }
+
+        public function proxy()
+        {
+            if (is_object($this->entity)) {
+                $class = str_replace('\\', '_', get_class($this->entity)) . 'Proxy';
+
+                actual('orm.proxy.' . $class, $this->entity);
+
+                if (!class_exists($class)) {
+                    $code = 'namespace Octo; class ' . $class . ' extends Record {}';
+
+                    eval($code);
+                }
+            }
         }
 
         public function entity()

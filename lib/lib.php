@@ -6,6 +6,7 @@
     use function get_class_methods;
     use Illuminate\Support\Debug\Dumper;
     use function is_null;
+    use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
@@ -3846,7 +3847,12 @@
                         try {
                             $p = $param->getDefaultValue();
                         } catch (\Exception $e) {
-                            exception('Dic', $param->getName() . " parameter has no default value.");
+                            if ($fnParams[0] instanceof ServerRequestInterface) {
+                                $var = $param->getName();
+                                $p = $fnParams[0]->getAttribute($var);
+                            } else {
+                                exception('Dic', $param->getName() . " parameter has no default value.");
+                            }
                         }
                     }
 

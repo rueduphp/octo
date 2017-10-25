@@ -1,12 +1,16 @@
 <?php
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
-use Octo\Fast;
-use Octo\FastRendererInterface;
+    use Octo\Config;
+    use Octo\Fast;
+    use Octo\FastRendererInterface;
     use Octo\FastUserOrmInterface;
+    use Octo\Octal;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
+
+    class DataEntity extends Octal {}
 
     class TestMiddleware implements MiddlewareInterface
     {
@@ -99,6 +103,7 @@ use Octo\FastRendererInterface;
             $router
                 ->addRoute('GET', '/test', [$this, 'test'])
                 ->addRoute('GET', '/slug/{slug}', [$this, 'slug'])
+                ->addRoute('GET', '/data/{id:\d+}', [$this, 'data'])
                 ->addRoute('GET', '/hello', [$this, 'hello'])
                 ->addRoute('GET', '/admin/foo', [$this, 'admin'])
             ;
@@ -117,9 +122,19 @@ use Octo\FastRendererInterface;
          public function slug(
             ServerRequestInterface $request,
             ContainerInterface $app,
+            string $slug,
             FastUserOrmInterface $user) {
-            return $request->getAttribute('slug');
-        }
+            return $slug;
+         }
+
+         public function data(
+            ServerRequestInterface $request,
+            ContainerInterface $app,
+            int $id) {
+            $post = DataEntity::find($id);
+
+            return $post->name;
+         }
 
         public function hello()
         {
@@ -133,6 +148,7 @@ use Octo\FastRendererInterface;
          * @var Octo\Fast $app
          */
         protected $app;
+        protected $engine;
 
         public function setUp()
         {
@@ -204,6 +220,16 @@ use Octo\FastRendererInterface;
                 ->addMiddleware(Octo\Fastmiddlewaredispatch::class)
                 ->addMiddleware(Octo\Fastmiddlewarenotfound::class)
             ;
+
+            $this->engine = Octo\conf('octalia.engine');
+            Config::set('octalia.engine', 'ndb');
+        }
+
+        public function tearDown()
+        {
+            parent::tearDown();
+
+            Config::set('octalia.engine', $this->engine);
         }
 
         public function testRequest()
@@ -311,6 +337,18 @@ use Octo\FastRendererInterface;
 
             $this->assertEquals(200, $response->getStatusCode());
             $this->assertEquals('foo', (string) $response->getBody());
+        }
+
+        public function testData()
+        {
+            DataEntity::store(['name' => 'test']);
+            $_SERVER['REQUEST_URI'] = '/data/1';
+            $request = $this->app->fromGlobals();
+            $this->app->addModule(Module::class);
+            $response = $this->app->run($request);
+
+            $this->assertEquals(200, $response->getStatusCode());
+            $this->assertEquals('test', (string) $response->getBody());
         }
 
         public function testTwig()
