@@ -182,7 +182,7 @@
             $this->assertContains('<h1>This is a mail view !!</h1>', $message->getBody());
             $this->assertContains('<h2>For John Doe</h2>', $message->getBody());
 
-            $send = isAke($_SERVER, 'HOME', null) !== '/home/gerald';
+            $send = isAke($_SERVER, 'HOME', null) === '/home/octo';
 
             if ($send) {
                 Config::set('MAILER_DRIVER', 'smtp');
