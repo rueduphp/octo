@@ -250,7 +250,7 @@
 
         public function optimize()
         {
-            $cb = function ($database, $table) {
+            $cb = function () {
                 $db = $this->newQuery();
 
                 foreach ($db->fields() as $field) {
@@ -369,7 +369,7 @@
 
         public function store($data = [])
         {
-            $data = is_object($data) ? $data->toArray() : $data;
+            $data = arrayable($data) ? $data->toArray() : $data;
 
             $row = $this->model($data)->save();
 
@@ -383,7 +383,7 @@
 
         public function createIfNotExists(array $data = [])
         {
-            $data = is_object($data) ? $data->toArray() : $data;
+            $data = arrayable($data) ? $data->toArray() : $data;
 
             return $this->firstOrCreate($data);
         }
@@ -391,7 +391,7 @@
         public function multiStore(array $rows)
         {
             foreach ($rows as $data) {
-                $data = is_object($data) ? $data->toArray() : $data;
+                $data = arrayable($data) ? $data->toArray() : $data;
 
                 $data['id']         = $this->makeId();
                 $data['created_at'] = $data['updated_at'] = time();
@@ -404,7 +404,7 @@
 
         public function speedStore($data)
         {
-            $data = is_object($data) ? $data->toArray() : $data;
+            $data = arrayable($data) ? $data->toArray() : $data;
 
             $data = $this->fire('saving', $data, true);
 
@@ -444,7 +444,7 @@
 
         public function save($data, $model = true)
         {
-            $data = is_object($data) ? $data->toArray() : $data;
+            $data = arrayable($data) ? $data->toArray() : $data;
 
             $this->reset();
 
@@ -459,6 +459,12 @@
                     $this->guarded($data, $octal->guard());
                 } elseif (in_array('fill', $methods)) {
                     $this->fillable($data, $octal->fill());
+                }
+
+                if (in_array('validate', $methods)) {
+                    $check = $octal->validate();
+
+                    if ($check !== true) exception("octalia", $check);
                 }
             }
 

@@ -245,7 +245,11 @@
 
             $result = call_user_func_array([$instance, $m], $a);
 
-            if ($m != 'lastId' && !fnmatch('*ith*', $m) && (startsWith($m, 'find') || startsWith($m, 'first') || fnmatch('last*', $m))) {
+            if (
+                $m != 'lastId'
+                && !fnmatch('*ith*', $m)
+                && (startsWith($m, 'find') || startsWith($m, 'first') || fnmatch('last*', $m))
+            ) {
                 return $result ? static::model($result) : null;
             }
 
@@ -262,7 +266,11 @@
 
             $result = call_user_func_array([$instance, $m], $a);
 
-            if ($m != 'lastId' && !fnmatch('*ith*', $m) && (startsWith($m, 'find') || startsWith($m, 'first') || fnmatch('last*', $m))) {
+            if (
+                $m != 'lastId'
+                && !fnmatch('*ith*', $m)
+                && (startsWith($m, 'find') || startsWith($m, 'first') || fnmatch('last*', $m))
+            ) {
                 return $result ? static::model($result) : null;
             }
 

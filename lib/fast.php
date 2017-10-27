@@ -753,6 +753,22 @@
 
             return actual($keyDefine, $value);
         }
+
+        /**
+         * @param string $routeName
+         * @param array $params
+         *
+         * @return string
+         */
+        public function path(string $routeName, array $params)
+        {
+            /**
+             * @var $fastRouter FastRouter
+             */
+            $fastRouter = actual('fast.router');
+
+            return $fastRouter->generateUri($routeName, $params);
+        }
     }
 
     /* Interfaces */
@@ -769,6 +785,7 @@
     interface FastRouteInterface {}
     interface FastRendererInterface {}
     interface FastAuthInterface {}
+    interface FastStorageInterface {}
     interface FastContainerInterface
     {
         public function get($key, $singleton = false);
@@ -777,6 +794,10 @@
 
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
+
+    class FastRedis extends Cacheredis implements FastStorageInterface {}
+    class FastCache extends Cache implements FastStorageInterface {}
+    class FastNow extends Now implements FastStorageInterface {}
 
     class FastTwigExtensions extends Twig_Extension
     {

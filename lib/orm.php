@@ -1,13 +1,18 @@
 <?php
     namespace Octo;
 
+    use Illuminate\Database\Connection;
+    use Illuminate\Database\ConnectionResolver as Resolver;
+    use Illuminate\Database\Eloquent\Builder as Builderer;
+    use Illuminate\Database\Query\Builder;
+    use Illuminate\Database\Schema\Grammars\MySqlGrammar;
+    use Illuminate\Database\Schema\Grammars\SQLiteGrammar;
     use PDO;
     use PDOException;
 
     class Orm
     {
         protected $pdo;
-        protected $hook         = null;
         protected $table;
         protected $wheres       = [];
         protected $columns      = [];
@@ -20,6 +25,7 @@
         protected $limit        = null;
         protected $offset       = null;
         protected $query        = null;
+        protected $hook         = null;
 
         public function __construct($pdo = null)
         {
@@ -193,10 +199,10 @@
 
             $model      = is_string($class) ? foundry($class) : $class;
 
-            $connection = foundry(\Illuminate\Database\Connection::class, $this->pdo);
+            $connection = foundry(Connection::class, $this->pdo);
 
             $resolver   = foundry(
-                \Illuminate\Database\ConnectionResolver::class,
+                Resolver::class,
                 ['octoconnection' => $connection]
             );
 
@@ -204,21 +210,41 @@
 
             $model->setConnectionResolver($resolver);
 
-            $builder    = foundry(\Illuminate\Database\Query\Builder::class, $connection);
-            $eloquent   = foundry(\Illuminate\Database\Eloquent\Builder::class, $builder);
+            $builder    = foundry(Builder::class, $connection);
+            $eloquent   = foundry(Builderer::class, $builder);
 
             return $eloquent->setModel($model);
         }
 
-        /**
-         * @return \Illuminate\Database\Query\Builder
-         */
-        public function builder(): \Illuminate\Database\Query\Builder
+        public function schema()
         {
             $this->connect();
 
-            $connection = foundry(\Illuminate\Database\Connection::class, $this->pdo);
-            $builder    = foundry(\Illuminate\Database\Query\Builder::class, $connection);
+            $connection = foundry(Connection::class, $this->pdo);
+
+            $driver = actual('orm.driver');
+
+            switch ($driver) {
+                case 'mysql':
+                    $connection->setSchemaGrammar(new MySqlGrammar());
+                    break;
+                case 'sqlite':
+                    $connection->setSchemaGrammar(new SQLiteGrammar());
+                    break;
+            }
+
+            return $connection->getSchemaBuilder();
+        }
+
+        /**
+         * @return Builder
+         */
+        public function builder(): Builder
+        {
+            $this->connect();
+
+            $connection = foundry(Connection::class, $this->pdo);
+            $builder    = foundry(Builder::class, $connection);
 
             $builder->macro('all', function () use ($builder) {
                 return $builder->get();

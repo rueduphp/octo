@@ -5,11 +5,8 @@
     use Octo\Orm;
     use Octo\Ormmodel;
     use Octo\Record;
-    use Phinx\Config\Config;
-    use Phinx\Migration\Manager;
-    use Symfony\Component\Console\Input\StringInput;
-    use Symfony\Component\Console\Output\NullOutput;
     use Tests\Comment;
+    use Tests\Migrations;
     use Tests\Post;
     use Tests\Postuser;
     use Tests\User;
@@ -88,28 +85,8 @@
 
             $this->db = new Orm($this->pdo);
 
-            $config = new Config([
-                'paths'                 => [
-                    'migrations'        => __DIR__ . '/migrations',
-                    'seeds'             => __DIR__ . '/seeds'
-                ],
-                'environments'          => [
-                    'default_database'  => 'testing',
-                    'testing'           => [
-                        'name'          => 'testing',
-                        'adapter'       => 'pdo',
-                        'connection'    => $this->pdo
-                    ]
-                ]
-            ]);
-
-            $input  = new StringInput('');
-            $output = new NullOutput();
-
-            $manager = new Manager($config, $input, $output);
-
-            $manager->migrate('testing');
-            $manager->seed('testing');
+            Migrations::migrate($this->db->schema());
+            Migrations::seeds($this->db);
         }
 
         /** @test */

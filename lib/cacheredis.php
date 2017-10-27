@@ -30,14 +30,14 @@
             $this->id = sha1('redis' . $ns);
         }
 
-        public static function instance($ns = 'core', $dir = null)
+        public static function instance($ns = 'core')
         {
             $key = sha1(serialize(func_get_args()));
 
             $instance = isAke(static::$instances, $key, null);
 
             if (!$instance) {
-                $instance = new static($ns, $dir);
+                $instance = new static($ns);
 
                 static::$instances[$key] = $instance;
             }

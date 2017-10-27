@@ -10,7 +10,7 @@
 
         protected $entity = null, $data = [], $initial = [], $callbacks = [];
 
-        public function __construct(array $data = [], $entity)
+        public function __construct(array $data = [], $entity, $isProxy = false)
         {
             $this->data     = $data;
             $this->initial  = $data;
@@ -42,22 +42,22 @@
 
             $entity->fire('model', $this);
 
-            $this->proxy();
+            if (is_object($this->entity) && false === $isProxy) {
+                $this->proxy($data);
+            }
         }
 
-        public function proxy()
+        public function proxy($data)
         {
-            if (is_object($this->entity)) {
-                $class = str_replace('\\', '_', get_class($this->entity)) . 'Proxy';
+            $class = str_replace('\\', '_', get_class($this->entity)) . 'Record';
 
-                actual('orm.proxy.' . $class, $this->entity);
+            if (!class_exists($class)) {
+                $code = 'namespace Octo; class ' . $class . ' extends Record {}';
 
-                if (!class_exists($class)) {
-                    $code = 'namespace Octo; class ' . $class . ' extends Record {}';
-
-                    eval($code);
-                }
+                eval($code);
             }
+
+            actual('orm.proxy.' . $class, foundry('Octo\\' . $class, $data, $this->entity, true));
         }
 
         public function entity()
@@ -166,7 +166,11 @@
                     return $this->del($field);
                 }
 
-                if ('octodummy' == isAke($this->data, $m, 'octodummy') && 'octodummy' == isAke($this->callbacks, $m, 'octodummy') && $this->exists()) {
+                if (
+                    'octodummy' == isAke($this->data, $m, 'octodummy')
+                    && 'octodummy' == isAke($this->callbacks, $m, 'octodummy')
+                    && $this->exists()
+                ) {
                     $methods = get_class_methods($this->entity);
 
                     if (fnmatch('*s', $m) && in_array($m, $methods)) {
@@ -307,17 +311,21 @@
 
         public function get($k, $d = null)
         {
+            $methods = get_class_methods($this->entity);
+
             if ('octodummy' == isAke($this->data, $k, 'octodummy')) {
                 $attrMethod = lcfirst(Strings::camelize('get_attribute_' . $k));
-                $methods    = get_class_methods($this->entity);
 
                 if (in_array($attrMethod, $methods)) {
                     return call_user_func_array([$this->entity, $attrMethod], [$this]);
                 }
             }
 
-            if ('octodummy' == isAke($this->data, $k, 'octodummy') && 'octodummy' == isAke($this->callbacks, $k, 'octodummy') && $this->exists()) {
-
+            if (
+                'octodummy' == isAke($this->data, $k, 'octodummy')
+                && 'octodummy' == isAke($this->callbacks, $k, 'octodummy')
+                && $this->exists()
+            ) {
                 if (fnmatch('*s', $k) && in_array($k, $methods)) {
                     $class = $this->entity->$k();
 

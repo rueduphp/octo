@@ -973,6 +973,44 @@
             return $collection;
         }
 
+        /**
+         * @param $value
+         * @param bool $allowEmpty
+         *
+         * @return bool
+         */
+        public static function hasNumericKeys($value, $allowEmpty = false)
+        {
+            if (!is_array($value)) {
+                return false;
+            }
+
+            if (!$value) {
+                return $allowEmpty;
+            }
+
+            return count(array_filter(array_keys($value), 'is_numeric')) > 0;
+        }
+
+        /**
+         * @param $value
+         * @param bool $allowEmpty
+         *
+         * @return bool
+         */
+        public static function isList($value, $allowEmpty = false)
+        {
+            if (!is_array($value)) {
+                return false;
+            }
+
+            if (!$value) {
+                return $allowEmpty;
+            }
+
+            return array_values($value) === $value;
+        }
+
         public static function chunk_fixed(\SplFixedArray $arr, $size)
         {
             $chunks = new \SplFixedArray(ceil(count($arr) / $size));

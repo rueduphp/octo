@@ -35,7 +35,8 @@
         "zendframework/zend-expressive-fastroute": "^2.1",
         "http-interop/http-middleware": "^0.4",
         "middlewares/utils": "@stable",
-        "willdurand/geocoder": "^3.3"
+        "willdurand/geocoder": "^3.3",
+        "doctrine/dbal": "^2.6"
     },
     "require-dev": {
         "phpunit/phpunit": "@stable"
@@ -48,7 +49,10 @@
     "autoload-dev": {
         "classmap": [
             "tests/TestCase.php"
-        ]
+        ],
+        "psr-4": {
+          "Tests\\": "tests/"
+        }
     },
     "config": {
         "preferred-install": "dist"
