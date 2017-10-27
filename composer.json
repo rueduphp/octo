@@ -47,6 +47,9 @@
         ]
     },
     "autoload-dev": {
+        "files": [
+          "lib/lib.php"
+        ],
         "classmap": [
             "tests/TestCase.php"
         ],
