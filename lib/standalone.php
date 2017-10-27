@@ -1,6 +1,8 @@
 <?php
     namespace Octo;
 
+    require_once __DIR__ . '/../vendor/autoload.php';
+
     call_user_func(function () {
         session_start();
 
