@@ -1,6 +1,8 @@
 <?php
     namespace Octo;
 
+    use function str_replace;
+
     class Cacheredis
     {
         use Notifiable;
@@ -245,6 +247,10 @@
             return $this->until($k, $c, $a);
         }
 
+        /**
+         * @param $k
+         * @return int
+         */
         public function has($k)
         {
             $file = $this->getPath($k);
@@ -334,7 +340,7 @@
 
             foreach ($keys as $key) {
                 if (!fnmatch('*.c', $key) && !fnmatch('*.u', $key)) {
-                    $key = Arrays::last(explode('.', $key));
+                    $key = str_replace('core.' . $this->dir . '.', '', $key);
 
                     yield $key;
                 }

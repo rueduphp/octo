@@ -642,7 +642,6 @@
             $row = arrayable($row) ? $row->toArray() : $row;
 
             $model  = lib('activerecord', [$row, $this->entity()]);
-            $self   = $this;
 
             $model->fn('save', function ($event = null) use ($model) {
                 if ($model->exists() && !$model->isDirty()) {
@@ -757,7 +756,7 @@
             })->fn('savePost', function ($data = null) use ($model) {
                 $data = is_null($data) ? $_POST : $data;
 
-                foreach ($_POST as $k => $v) {
+                foreach ($data as $k => $v) {
                     $setter = setter($k);
                     $model->$setter($v);
                 }
@@ -1553,7 +1552,7 @@
                     $operator = str_replace(['=i', 'like i'], ['=', 'like'], $operator);
                 }
 
-                if ($key == 'id' || fnmatch('*_id', $key) && is_numeric($actual)) {
+                if (($key == 'id' || fnmatch('*_id', $key)) && is_numeric($actual)) {
                     $actual = (int) $actual;
                 }
 
@@ -1693,8 +1692,6 @@
             }
 
             $operator = Strings::lower($operator);
-
-            $liteTable = str_replace('.', '', $this->path);
 
             $this->query[] = [$key, $operator, $value];
 

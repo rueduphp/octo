@@ -126,6 +126,10 @@
             return $this;
         }
 
+        /**
+         * @param string $key
+         * @return Collection
+         */
         public function fetch($key)
         {
             return $this->new(Arrays::fetchOne($this->items, $key));
