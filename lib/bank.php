@@ -5,6 +5,7 @@ namespace Octo;
 use function call_user_func_array;
 use function is_null;
 use function retry;
+use function str_replace;
 
 class Bank
 {
@@ -856,6 +857,12 @@ class Bank
 
         if ($name == 'list') {
             return call_user_func_array(coll($this->fetchAll()), pluck, $arguments);
+        }
+
+        if (fnmatch('*Hydrate', $name) && strlen($name) > 7) {
+            $method = str_replace('Hydrate', '', $name);
+
+            return $this->hydrator($this->{$method}(...$arguments));
         }
 
         if (fnmatch('findBy*', $name) && strlen($name) > 6) {

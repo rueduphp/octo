@@ -82,6 +82,10 @@ class BankTest extends TestCase
 
             $this->assertSame($row, $row->save());
         }
+
+        $row = $this->db->findHydrate(1);
+
+        dd($row);
     }
 
     public function testWhere()
