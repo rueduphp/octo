@@ -917,6 +917,25 @@ class Bank
             return $this->where($field, $value);
         }
 
+        if (fnmatch('like*', $name) && strlen($name) > 4) {
+            $field = callField($name, 'like');
+            $value = array_shift($arguments);
+
+            return $this->like($field, $value);
+        }
+
+        if (fnmatch('notLike*', $name) && strlen($name) > 47) {
+            $field = callField($name, 'notLike');
+
+            return $this->notLike($field, array_shift($arguments));
+        }
+
+        if (fnmatch('between*', $name) && strlen($name) > 7) {
+            $field = callField($name, 'between');
+
+            return $this->between($field, current($arguments), end($arguments));
+        }
+
         if (fnmatch('sortWith*', $name)) {
             $field = callField($name, 'sortWith');
 

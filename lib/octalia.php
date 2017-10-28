@@ -1043,6 +1043,13 @@
                 return $this;
             }
 
+            if (fnmatch('like*', $m) && strlen($m) > 4) {
+                $field = callField($m, 'like');
+                $value = array_shift($a);
+
+                return $this->like($field, $value);
+            }
+
             if ($m == 'list') {
                 $field = array_shift($a);
 
@@ -1155,6 +1162,18 @@
                 }
 
                 return $this->firstBy($field, $value, $model);
+            }
+
+            if (fnmatch('notLike*', $m) && strlen($m) > 47) {
+                $field = callField($m, 'notLike');
+
+                return $this->notLike($field, array_shift($a));
+            }
+
+            if (fnmatch('between*', $m) && strlen($m) > 7) {
+                $field = callField($m, 'between');
+
+                return $this->between($field, current($a), end($a));
             }
 
             if (fnmatch('lastBy*', $m) && strlen($m) > 6) {

@@ -2,7 +2,9 @@
 
 use Octo\Bank;
 use Octo\FastRedis;
+use Octo\FastNow;
 use Octo\Object;
+use Octo\Time;
 
 class BankTest extends TestCase
 {
@@ -15,17 +17,23 @@ class BankTest extends TestCase
     {
         parent::setUp();
 
-        $this->db = new Bank('test', 'test', new FastRedis('bank'));
+        $this->db = new Bank('test', 'test', new FastNow('bank'));
 
-        $this->db->store([
-            'price' => 120,
-            'name' => 'test'
-        ]);
+        $faker = $this->faker();
 
-        $this->db->store([
-            'price' => 500,
-            'name' => 'test2'
-        ]);
+        for ($i = 0; $i < 1000; ++$i) {
+            if ($i < 1) {
+                $name = 'test';
+            } else {
+                $name = 'test' . ($i + 1);
+            }
+
+            $this->db->store([
+                'price' => ($i + 1) * 100,
+                'name' => $name,
+                'slug' => $faker->slug
+            ]);
+        }
     }
 
     public function tearDown()
@@ -62,9 +70,11 @@ class BankTest extends TestCase
     {
         $results = $this->db->select('name');
 
-        $this->assertCount(2, $results);
-        $this->assertEquals('test', $results[1]['name']);
-        $this->assertEquals('test2', $results[2]['name']);
+        $this->assertCount(1000,        $results);
+        $this->assertEquals('test',     $results[1]['name']);
+        $this->assertEquals('test2',    $results[2]['name']);
+        $this->assertEquals('test3',    $results[3]['name']);
+        $this->assertEquals('test103',  $results[103]['name']);
     }
 
     public function testHydrator()
@@ -75,9 +85,9 @@ class BankTest extends TestCase
             $this->assertInstanceOf(Object::class, $row);
 
             if ($row->getId() === 1) {
-                $this->assertSame('test', $row->getName());
+                $this->assertSame('test',   $row->getName());
             } elseif ($row->getId() === 2) {
-                $this->assertSame('test2', $row->getName());
+                $this->assertSame('test2',  $row->getName());
             }
 
             $this->assertSame($row, $row->save());
@@ -85,15 +95,46 @@ class BankTest extends TestCase
 
         $row = $this->db->findHydrate(1);
 
-        dd($row);
+        $this->assertInstanceOf(Time::class, $row->getCreatedAt());
     }
 
     public function testWhere()
     {
+        $count = $this->db->where('price', '<', 100)->count();
+        $this->assertEquals(0, $count);
+
         $count = $this->db->where('price', '>', 100)->count();
-        $this->assertEquals(2, $count);
+        $this->assertEquals(999, $count);
 
         $count = $this->db->where('price', '>', 200)->count();
-        $this->assertEquals(1, $count);
+        $this->assertEquals(998, $count);
+    }
+
+    public function testFindBy()
+    {
+        $row = $this->db->findByName('test105')->firstHydrate();
+        $this->assertEquals(105, $row->getId());
+        $this->assertEquals(105, $row['id']);
+    }
+
+    public function testIn()
+    {
+        $count = $this->db->in(
+            'id',
+            [105, 555, 888]
+        )->count();
+
+        $this->assertEquals(3, $count);
+    }
+
+    public function testLike()
+    {
+        $count = $this->db->like('slug', '*e*')->count();
+
+        $this->assertGreaterThan(0, $count);
+
+        $count = $this->db->likeSlug('*e*')->count();
+
+        $this->assertGreaterThan(0, $count);
     }
 }
