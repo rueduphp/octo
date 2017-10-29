@@ -2,12 +2,9 @@
 
 namespace Octo;
 
-use function call_user_func_array;
-use function is_null;
-use function retry;
-use function str_replace;
+use function serialize;
 
-class Bank
+class Bank implements FastOrmInterface
 {
     /**
      * @var string
@@ -862,7 +859,25 @@ class Bank
         if (fnmatch('*Hydrate', $name) && strlen($name) > 7) {
             $method = str_replace('Hydrate', '', $name);
 
-            return $this->hydrator($this->{$method}(...$arguments));
+            $results = $this->{$method}(...$arguments);
+
+            return !is_null($results) ? $this->hydrator($results) : $results;
+        }
+
+        if (fnmatch('*Cache', $name) && strlen($name) > 5) {
+            $method = str_replace('Cache', '', $name);
+
+            $keyCache = sha1(
+                $method .
+                serialize($this->computed) .
+                $this->database .
+                $this->table .
+                serialize($arguments)
+            );
+
+            return $this->engine->until($keyCache, function () use ($method, $arguments) {
+                return $this->{$method}(...$arguments);
+            }, $this->age());
         }
 
         if (fnmatch('findBy*', $name) && strlen($name) > 6) {
@@ -1525,13 +1540,11 @@ class Bank
             }
 
             return sha1(serialize($model->toArray()));
-        })->fn('delete', function () use ($row, $model) {
-            if (isset($row['id'])) {
-                if ($model) {
-                    $status = $this->delete($row['id']);
+        })->fn('delete', function () use ($model) {
+            if ($model->exists()) {
+                $status = $this->delete($model->getId());
 
-                    return $status;
-                }
+                return $status;
             }
 
             return false;

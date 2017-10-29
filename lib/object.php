@@ -253,12 +253,53 @@
 
                             $adapter    = isAke($this->callbacks, "adapter",    null);
                             $driver     = isAke($this->callbacks, "driver",     null);
+                            $bank     = isAke($this->callbacks, "bank",     null);
 
                             if ($adapter) {
                                 return lib(
                                     'eav',
                                     [$this->db(), $fktable, $this->adapter()]
                                 )->find((int) $this->get($fktable . '_id'), $o);
+                            }
+
+                            if ($bank) {
+                                if (fnmatch('*s', $fktable)) {
+                                    $fk = $this->table() . '_id';
+                                    $fkParent = substr($fktable, 0, -1);
+
+                                    if (is_null($model)) {
+                                        $model = true;
+                                    } else {
+                                        if (true !== $model) {
+                                            $model = false;
+                                        }
+                                    }
+
+                                    return (new Bank($this->db(), $fkParent, $this->engine()))
+                                    ->where($fk, (int) $this->get('id'));
+                                } else {
+                                    $id = isAke($this->data, $fktable . '_id', 'octodummy');
+
+                                    if (is_numeric($id)) {
+                                        return (
+                                            new Bank($this->db(), $fktable, $this->engine())
+                                        )->find((int) $id, $o);
+                                    } else {
+                                        $fk = $this->table() . '_id';
+
+                                        if (is_null($model)) {
+                                            $model = true;
+                                        } else {
+                                            if (true !== $model) {
+                                                $model = false;
+                                            }
+                                        }
+
+                                        return (new Bank($this->db(), $fktable, $this->engine()))
+                                        ->where($fk, (int) $this->get('id'))
+                                        ->first($model);
+                                    }
+                                }
                             }
 
                             if ($driver) {
@@ -451,7 +492,38 @@
 
         public function get($k, $d = null)
         {
+            $bank = isAke($this->callbacks, "bank", null);
             $driver = isAke($this->callbacks, "driver", null);
+
+            if ($bank && !isset($this->data[$k])) {
+                if (fnmatch('*s', $k)) {
+                    $fk = $this->table() . '_id';
+                    $fkParent = substr($k, 0, -1);
+
+                    $query = (new Bank($this->db(), $fkParent, $this->engine()))
+                        ->where($fk, (int) $this->get('id'));
+
+                    if ($query->count() > 0) {
+                        return $query;
+                    }
+                } else {
+                    $id = isAke($this->data, $k . '_id', 'octodummy');
+
+                    if (is_numeric($id)) {
+                        return (new Bank($this->db(), $k, $this->engine()))
+                            ->find((int) $this->get($k . '_id'));
+                    } else {
+                        $fk = $this->table() . '_id';
+
+                        $query = (new Bank($this->db(), $k, $this->engine()))
+                            ->where($fk, (int) $this->get('id'));
+
+                        if ($query->count() > 0) {
+                            return $query->first();
+                        }
+                    }
+                }
+            }
 
             if ($driver && !isset($this->data[$k])) {
                 $entity = $this->instance()->entity();

@@ -3,7 +3,7 @@
 
     use SplFixedArray;
 
-    class Octalia
+    class Octalia implements FastOrmInterface
     {
         use Notifiable;
 

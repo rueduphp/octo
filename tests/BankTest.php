@@ -1,8 +1,8 @@
 <?php
 
 use Octo\Bank;
-use Octo\FastRedis;
 use Octo\FastNow;
+use Octo\FastRedis;
 use Octo\Object;
 use Octo\Time;
 
@@ -18,8 +18,15 @@ class BankTest extends TestCase
         parent::setUp();
 
         $this->db = new Bank('test', 'test', new FastNow('bank'));
+        $udb = new Bank('test', 'user', new FastNow('bank'));
 
         $faker = $this->faker();
+
+        for ($i = 0; $i < 10; ++$i) {
+            $udb->store([
+                'name' => $faker->name
+            ]);
+        }
 
         for ($i = 0; $i < 1000; ++$i) {
             if ($i < 1) {
@@ -29,6 +36,7 @@ class BankTest extends TestCase
             }
 
             $this->db->store([
+                'user_id' => rand(1, 10),
                 'price' => ($i + 1) * 100,
                 'name' => $name,
                 'slug' => $faker->slug
@@ -108,13 +116,22 @@ class BankTest extends TestCase
 
         $count = $this->db->where('price', '>', 200)->count();
         $this->assertEquals(998, $count);
+
+        $this->assertEquals(100000, $this->db->max('price'));
+        $this->assertEquals(100, $this->db->min('price'));
+        $this->assertEquals(50050, $this->db->avg('price'));
     }
 
     public function testFindBy()
     {
+        /** @var Object $row */
         $row = $this->db->findByName('test105')->firstHydrate();
+
         $this->assertEquals(105, $row->getId());
         $this->assertEquals(105, $row['id']);
+
+        $row->delete();
+        $this->assertNull($this->db->findHydrate(105));
     }
 
     public function testIn()

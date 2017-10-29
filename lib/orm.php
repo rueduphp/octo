@@ -10,7 +10,7 @@
     use PDO;
     use PDOException;
 
-    class Orm
+    class Orm implements FastOrmInterface
     {
         protected $pdo;
         protected $table;

@@ -11,6 +11,7 @@
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ResponseInterface;
     use Psr\Http\Message\ServerRequestInterface;
+    use Twig_Environment;
     use Twig_Extension;
     use Twig_Filter;
     use Twig_SimpleFunction;
@@ -772,6 +773,7 @@
     }
 
     /* Interfaces */
+    interface FastOrmInterface {}
     interface FastExceptionInterface {}
     interface FastSessionInterface {}
     interface FastCacheInterface {}
@@ -795,9 +797,9 @@
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
 
-    class FastRedis extends Cacheredis implements FastStorageInterface {}
-    class FastCache extends Cache implements FastStorageInterface {}
-    class FastNow extends Now implements FastStorageInterface {}
+    class FastRedis extends Cacheredis  implements FastStorageInterface {}
+    class FastCache extends Cache       implements FastStorageInterface {}
+    class FastNow   extends Now         implements FastStorageInterface {}
 
     class FastTwigExtensions extends Twig_Extension
     {
@@ -807,17 +809,17 @@
     trait FastTrait
     {
         /**
-         * @param string $m
-         * @param array $a
+         * @param string $method
+         * @param array $args
          *
          * @return mixed
          */
-        public function __call($m, $a)
+        public function __call($method, $args)
         {
-            $method = '\\Octo\\' . $m;
+            $method = '\\Octo\\' . $method;
 
             if (function_exists($method)) {
-                return call_user_func_array($method, $a);
+                return call_user_func_array($method, $args);
             }
         }
 
@@ -868,7 +870,7 @@
         }
     }
 
-    class FastTwigRenderer extends \Twig_Environment implements FastRendererInterface
+    class FastTwigRenderer extends Twig_Environment implements FastRendererInterface
     {
         use FastTrait;
 
