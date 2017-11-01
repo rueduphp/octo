@@ -2,6 +2,7 @@
 
 namespace Octo;
 
+use function class_exists;
 use function func_get_args;
 
 class Fastcontainer implements FastContainerInterface
@@ -111,13 +112,17 @@ class Fastcontainer implements FastContainerInterface
 
     /**
      * @param string $concern
-     * @param bool $singleton
+     * @param null $singleton
      *
-     * @return mixed|object
+     * @return mixed
      */
-    public function get($concern, $singleton = false)
+    public function get($concern, $singleton = null)
     {
-        return $singleton ? maker($concern) : foundry($concern);
+        if (class_exists($concern) || interface_exists($concern) || fnmatch('*\\*', $concern)) {
+            return $singleton ? maker($concern) : foundry($concern);
+        }
+
+        return $this->dataget($concern, $singleton);
     }
 
     /**
@@ -127,9 +132,12 @@ class Fastcontainer implements FastContainerInterface
      */
     public function has($key)
     {
-        return array_key_exists($key, Registry::get('core.Fastcontainer.registered'))
+        return
+            array_key_exists($key, Registry::get('core.Fastcontainer.registered'))
         ||
-        $this->datahas($key);
+            class_exists($key) || interface_exists($key) || fnmatch('*\\*', $key)
+        ||
+            $this->datahas($key);
     }
 
     /**

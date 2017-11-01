@@ -1,9 +1,7 @@
 <?php
     namespace Octo;
 
-    use function call_user_func_array;
     use function func_get_args;
-    use function get_class_methods;
     use Illuminate\Support\Debug\Dumper;
     use function is_null;
     use Psr\Http\Message\ServerRequestInterface;
@@ -120,6 +118,20 @@
         }
     }
 
+    /**
+     * @return Instanciator
+     */
+    function instanciator()
+    {
+        static $instanciator = null;
+
+        if (is_null($instanciator)) {
+            $instanciator = new Instanciator;
+        }
+
+        return $instanciator;
+    }
+
     function phpRenderer($folder = null)
     {
         $folder = is_null($folder) ? actual('fast.view.path') : $folder;
@@ -204,7 +216,7 @@
         call_user_func_array('preg_match_all', [
             $pattern, $subject, &$m,
             ($flags & PREG_PATTERN_ORDER) ? $flags : ($flags | PREG_SET_ORDER),
-            $offset,
+            $offset
         ]);
 
         return $m;
@@ -388,7 +400,7 @@
             case 5:
                 return new $class($params[0], $params[1], $params[2], $params[3], $params[4]);
             default:
-                $refClass = new \ReflectionClass($class);
+                $refClass = new Reflector($class);
 
                 return $refClass->newInstanceArgs($params);
         }
@@ -854,6 +866,18 @@
     function dyn($class = null)
     {
         return lib('dyn', [$class]);
+    }
+
+    /**
+     * @param string $table
+     * @return Bank
+     */
+    function bank($table)
+    {
+        /** @var Fast $app */
+        $app = actual("fast");
+
+        return new Bank('core', $table, $app->get(FastStorageInterface::class));
     }
 
     function async($cmd)
@@ -3513,70 +3537,38 @@
 
     function caller(array $args)
     {
-        return call_user_func_array('Octo\foundry', $args);
+        return instanciator()->factory(...$args);
     }
 
     function foundry()
     {
         $args   = func_get_args();
 
-        $class  = array_shift($args);
-
-        return maker($class, $args, false);
+        return instanciator()->factory(...$args);
     }
 
     function single()
     {
         $args   = func_get_args();
 
-        $class  = array_shift($args);
-
-        return maker($class, $args, true);
+        return instanciator()->singleton(...$args);
     }
 
     function singleton()
     {
         $args   = func_get_args();
 
-        $class  = array_shift($args);
-
-        return maker($class, $args, true);
+        return instanciator()->singleton(...$args);
     }
 
     function wire($concern, $callable)
     {
-        if (!is_callable($callable)) {
-            $callable = function () use ($callable) { return $callable; };
-        }
-
-        $wires = Registry::get('core.wires', []);
-
-        $wires[$concern] = $callable;
-
-        Registry::set('core.wires', $wires);
-    }
-
-    function wiring($file)
-    {
-        if (is_file($file)) {
-            $wires = include $file;
-
-            foreach ($wires as $concern => $callable) {
-                wire($concern, $callable);
-            }
-        }
+        return instanciator()->wire($concern, $callable);
     }
 
     function autowire($concern, $raw = false)
     {
-        $wires      = Registry::get('core.wires', []);
-        $callable   = isAke($wires, $concern, null);
-
-        if (!$raw && $callable && is_callable($callable)) {
-            return $callable();
-        }
-
-        return $callable;
+        return instanciator()->autowire($concern, $raw);
     }
 
     /**
@@ -3584,7 +3576,7 @@
      */
     function getContainer()
     {
-        return maker(FastContainerInterface::class);
+        return instanciator()->singleton(FastContainerInterface::class);
     }
 
     /**
@@ -3716,154 +3708,18 @@
         return $superdi;
     }
 
-    function binds($concern = null)
+    function maker()
     {
-        $binds = Registry::get('core.all.binds', []);
+        $args = func_get_args();
 
-        if (is_array($concern)) {
-            Registry::set('core.all.binds', $concern);
-        } else {
-            return $binds;
-        }
-    }
-
-    function maker($make, $args = [], $singleton = true)
-    {
-        $binds = binds();
-
-        $args       = arrayable($args) ? $args->toArray() : $args;
-        $callable   = isAke($binds, $make, null);
-
-        if ($callable && is_callable($callable) && $singleton) {
-            return call_user_func_array($callable, $args);
-        }
-
-        if ($i = autowire($make)) {
-            $binds[$make] = resolver($i);
-
-            binds($binds);
-
-            return $i;
-        }
-
-        $ref                = new \ReflectionClass($make);
-        $canMakeInstance    = $ref->isInstantiable();
-
-        if ($canMakeInstance) {
-            $maker = $ref->getConstructor();
-
-            if ($maker) {
-                $params = $maker->getParameters();
-
-                if (empty($args) || count($args) != count($params)) {
-                    $instanceParams = [];
-
-                    foreach ($params as $param) {
-                        if (!empty($args)) {
-                            $p = array_shift($args);
-
-                            if (is_null($p)) {
-                                try {
-                                    $p = $param->getDefaultValue();
-                                } catch (\Exception $e) {
-                                    $p = null;
-                                }
-                            }
-                        } else {
-                            $classParam = $param->getClass();
-
-                            if ($classParam) {
-                                $p = maker($classParam->getName());
-                            } else {
-                                try {
-                                    $p = $param->getDefaultValue();
-                                } catch (\Exception $e) {
-                                    exception('Dic', $param->getName() . " parameter has no default value.");
-                                }
-                            }
-                        }
-
-                        $instanceParams[] = $p;
-                    }
-
-                    if (!empty($instanceParams)) {
-                        $i = $ref->newInstanceArgs($instanceParams);
-                    } else {
-                        $i = $ref->newInstance();
-                    }
-                } else {
-                    $i = $ref->newInstanceArgs($args);
-                }
-
-                $binds[$make] = resolver($i);
-
-                binds($binds);
-
-                return $i;
-            } else {
-                $i = $ref->newInstance();
-
-                $binds[$make] = resolver($i);
-
-                binds($binds);
-
-                return $i;
-            }
-        } else {
-            exception('Dic', "The class $make is not intantiable.");
-        }
-
-        exception('Dic', "The class $make is not set.");
+        return instanciator()->make(...$args);
     }
 
     function callMethod()
     {
-        $args       = func_get_args();
-        $object     = array_shift($args);
-        $method     = array_shift($args);
-        $fnParams   = $args;
-        $reflection = new \ReflectionClass(get_class($object));
-        $ref        = $reflection->getMethod($method);
-        $params     = $ref->getParameters();
+        $args = func_get_args();
 
-        if (empty($args) || count($args) != count($params)) {
-            foreach ($params as $param) {
-                if (!empty($args)) {
-                    $p = array_shift($args);
-
-                    if (is_null($p)) {
-                        try {
-                            $p = $param->getDefaultValue();
-                        } catch (\Exception $e) {
-                            $p = null;
-                        }
-                    }
-                } else {
-                    $classParam = $param->getClass();
-
-                    if ($classParam) {
-                        $p = maker($classParam->getName());
-                    } else {
-                        try {
-                            $p = $param->getDefaultValue();
-                        } catch (\Exception $e) {
-                            if ($fnParams[0] instanceof ServerRequestInterface) {
-                                $var = $param->getName();
-                                $p = $fnParams[0]->getAttribute($var);
-                            } else {
-                                exception('Dic', $param->getName() . " parameter has no default value.");
-                            }
-                        }
-                    }
-
-                    $fnParams[] = $p;
-                }
-            }
-        }
-
-        $closure = $ref->getClosure($object);
-
-        return call_user_func_array($closure, $fnParams);
+        return instanciator()->call(...$args);
     }
 
     function loadFiles($pattern)
@@ -3877,17 +3733,7 @@
 
     function resolver($object)
     {
-        if (is_callable($object)) {
-            $object = $object();
-        }
-
-        if (is_string($object)) {
-            $object = maker($object);
-        }
-
-        return function () use ($object) {
-            return $object;
-        };
+        return instanciator()->resolver($object);
     }
 
     function makeOnce(\Closure $callable)
@@ -5118,7 +4964,7 @@
 
         spl_autoload_register(function ($class) {
             if (!class_exists($class) && class_exists('Octo\\' . $class)) {
-                $ref = new \ReflectionClass('Octo\\' . $class);
+                $ref = new Reflector('Octo\\' . $class);
                 $fileName = $ref->getFileName();
 
                 $classCode = File::read($fileName);
@@ -5156,7 +5002,7 @@
 
         spl_autoload_register(function ($class) use ($from, $to) {
             if (!class_exists($class) && class_exists($to . '\\' . $class)) {
-                $ref = new \ReflectionClass($to . '\\' . $class);
+                $ref = new Reflector($to . '\\' . $class);
                 $fileName = $ref->getFileName();
 
                 $classCode = File::read($fileName);
@@ -6684,10 +6530,10 @@
 
                 break;
             case 'php':
-            default:
+            case 'memory':
                 $transport = \Swift_MailTransport::newInstance();
 
-                break;
+            break;
         }
 
         return \Swift_Mailer::newInstance($transport);

@@ -711,6 +711,29 @@ class Bank implements FastOrmInterface
         }
     }
 
+    public function instanciate($db = null, $table = null, $driver = null)
+    {
+        $db     = is_null($db)      ? $this->database : $db;
+        $table  = is_null($table)   ? $this->table    : $table;
+        $driver = is_null($driver)  ? $this->engine   : $driver;
+
+        return new self($db, $table, $driver);
+    }
+
+    public function step(callable $callback)
+    {
+        $callback($this->instanciate()->computed($this->computed));
+
+        return $this;
+    }
+
+    public function computed(array $ids)
+    {
+        $this->computed = $ids;
+
+        return $this;
+    }
+
     /**
      * @param array $criteria
      * @return int
@@ -984,9 +1007,17 @@ class Bank implements FastOrmInterface
         }
     }
 
+    protected function ids()
+    {
+        return is_null($this->computed) ?
+            array_values(coll($this->all())->fetch('id')->toArray()) :
+            $this->computed
+        ;
+    }
+
     public function splice($offset, $length = null, $replacement = [])
     {
-        $ids = is_null($this->computed) ? coll($this->all())->fetch('id')->toArray() : $this->computed;
+        $ids = $this->ids();
 
         if (func_num_args() == 1) {
             return $this->new(
@@ -1111,7 +1142,7 @@ class Bank implements FastOrmInterface
 
     public function rand($default = null)
     {
-        $ids = is_null($this->computed) ? coll($this->all())->fetch('id')->toArray() : $this->computed;
+        $ids = $this->ids();
 
         if (!empty($ids)) {
             shuffle($ids);
@@ -1463,7 +1494,8 @@ class Bank implements FastOrmInterface
 
     public function first()
     {
-        $ids = is_null($this->computed) ? coll($this->all())->fetch('id')->toArray() : $this->computed;
+        $ids = $this->ids();
+
         $id = current($ids);
 
         $this->reset();
@@ -1475,7 +1507,7 @@ class Bank implements FastOrmInterface
 
     public function last()
     {
-        $ids = is_null($this->computed) ? coll($this->all())->fetch('id')->toArray() : $this->computed;
+        $ids = $this->ids();
         $id = end($ids);
 
         $this->reset();
@@ -1497,7 +1529,7 @@ class Bank implements FastOrmInterface
 
     public function slice($offset, $length = null)
     {
-        $ids = is_null($this->computed) ? coll($this->all())->fetch('id')->toArray() : $this->computed;
+        $ids = $this->ids();
 
         $this->computed = array_values(
             array_slice(

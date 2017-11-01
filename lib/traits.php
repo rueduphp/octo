@@ -4,8 +4,11 @@
     /* Traits */
 
     use BadMethodCallException;
+    use Exception as PHPException;
+    use const JSON_PRETTY_PRINT;
     use ReflectionClass;
     use ReflectionMethod;
+    use SplFixedArray as FA;
 
     trait Tractor
     {
@@ -20,7 +23,7 @@
 
                 try {
                     self::$function();
-                } catch (\Exception $e) {}
+                } catch (PHPException $e) {}
             }
         }
     }
@@ -59,7 +62,7 @@
             $class = get_called_class();
 
             if (!Registry::exists('instances.' . $class)) {
-                $ref    = new \Reflectionclass($class);
+                $ref    = new Reflectionclass($class);
                 $args   = func_get_args();
                 Registry::set('instances.' . $class, $args ? $ref->newinstanceargs($args) : new $class);
             }
@@ -234,7 +237,7 @@
             $cursor = Arrays::makeFromResource($this->_resource);
             $cursor = is_array($cursor) ? $cursor : iterator_to_array($cursor);
 
-            return \SplFixedArray::fromArray($cursor);
+            return FA::fromArray($cursor);
         }
 
         public function each(callable $closure)
@@ -254,6 +257,11 @@
         protected static $macros = [];
 
         public static function macro($name, callable $macro)
+        {
+            static::$macros[$name] = $macro;
+        }
+
+        public static function fn($name, callable $macro)
         {
             static::$macros[$name] = $macro;
         }
@@ -518,5 +526,64 @@
             lib('event')->set('lockout_' . sha1(get_called_class()), $cb);
 
             return $this;
+        }
+    }
+
+    trait HasDataTrait
+    {
+        /** @var array */
+        private $data = [];
+
+        public function getIterator()
+        {
+            return new \ArrayIterator($this->data);
+        }
+
+        /**
+         * This method returns a reference to the variable to allow for indirect
+         * array modification (e.g., $foo['bar']['baz'] = 'qux').
+         *
+         * @param $offset
+         *
+         * @return mixed|null
+         */
+        public function & offsetGet($offset)
+        {
+            if (isset($this->data[$offset])) {
+                return $this->data[$offset];
+            }
+
+            $value = null;
+            return $value;
+        }
+
+        public function offsetSet($offset, $value)
+        {
+            $this->data[$offset] = $value;
+        }
+
+        public function offsetExists($offset)
+        {
+            return isset($this->data[$offset]);
+        }
+
+        public function offsetUnset($offset)
+        {
+            unset($this->data[$offset]);
+        }
+
+        public function toArray()
+        {
+            return $this->data;
+        }
+
+        public function toJson()
+        {
+            return json_encode($this->data, JSON_PRETTY_PRINT);
+        }
+
+        public function count()
+        {
+            return count($this->data);
         }
     }

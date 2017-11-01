@@ -253,7 +253,7 @@
 
                             $adapter    = isAke($this->callbacks, "adapter",    null);
                             $driver     = isAke($this->callbacks, "driver",     null);
-                            $bank     = isAke($this->callbacks, "bank",     null);
+                            $bank       = isAke($this->callbacks, "bank",     null);
 
                             if ($adapter) {
                                 return lib(
@@ -267,14 +267,6 @@
                                     $fk = $this->table() . '_id';
                                     $fkParent = substr($fktable, 0, -1);
 
-                                    if (is_null($model)) {
-                                        $model = true;
-                                    } else {
-                                        if (true !== $model) {
-                                            $model = false;
-                                        }
-                                    }
-
                                     return (new Bank($this->db(), $fkParent, $this->engine()))
                                     ->where($fk, (int) $this->get('id'));
                                 } else {
@@ -283,21 +275,13 @@
                                     if (is_numeric($id)) {
                                         return (
                                             new Bank($this->db(), $fktable, $this->engine())
-                                        )->find((int) $id, $o);
+                                        )->findHydrate((int) $id, $o);
                                     } else {
                                         $fk = $this->table() . '_id';
 
-                                        if (is_null($model)) {
-                                            $model = true;
-                                        } else {
-                                            if (true !== $model) {
-                                                $model = false;
-                                            }
-                                        }
-
                                         return (new Bank($this->db(), $fktable, $this->engine()))
                                         ->where($fk, (int) $this->get('id'))
-                                        ->first($model);
+                                        ->firstHydrate();
                                     }
                                 }
                             }

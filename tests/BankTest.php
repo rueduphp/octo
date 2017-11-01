@@ -12,18 +12,23 @@ class BankTest extends TestCase
      * @var Bank $db;
      */
     private $db;
+    /**
+     * @var Bank $udb;
+     */
+    private $udb;
 
     public function setUp()
     {
         parent::setUp();
 
         $this->db = new Bank('test', 'test', new FastNow('bank'));
-        $udb = new Bank('test', 'user', new FastNow('bank'));
+        $this->udb = $udb = new Bank('test', 'user', new FastNow('bank'));
 
         $faker = $this->faker();
 
         for ($i = 0; $i < 10; ++$i) {
             $udb->store([
+                'age' => ($i + 1) * 5,
                 'name' => $faker->name
             ]);
         }
@@ -132,6 +137,7 @@ class BankTest extends TestCase
 
         $row->delete();
         $this->assertNull($this->db->findHydrate(105));
+        $this->assertNull($this->db->find(105));
     }
 
     public function testIn()
@@ -142,6 +148,22 @@ class BankTest extends TestCase
         )->count();
 
         $this->assertEquals(3, $count);
+    }
+
+    public function testFirstLast()
+    {
+        $this->assertSame(1, $this->db->firstCache()['id']);
+        $this->assertSame(1, $this->udb->firstCache()['id']);
+
+        $this->assertTrue(is_array($this->db->firstCacheHydrate()->user));
+        $this->assertFalse(is_array($this->db->firstCacheHydrate()->user()));
+
+        $this->assertGreaterThan(0, $this->udb->firstCacheHydrate()->tests()->count());
+
+        $this->assertSame(1000, $this->db->lastCache()['id']);
+        $this->assertSame(10, $this->udb->lastCache()['id']);
+
+        $this->assertSame(6, $this->udb->between('age', 5, 30)->count());
     }
 
     public function testLike()

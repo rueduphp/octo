@@ -56,16 +56,25 @@
             return null;
         }
 
+        /**
+         * @return Collection
+         */
         public static function make($items = null)
         {
             return new static($items);
         }
 
+        /**
+         * @return array
+         */
         public function all()
         {
             return $this->items;
         }
 
+        /**
+         * @return Collection
+         */
         public function collapse()
         {
             $results = [];
@@ -79,6 +88,11 @@
             return $this->new($results);
         }
 
+        /**
+         * @param $key
+         * @param null $value
+         * @return bool
+         */
         public function contains($key, $value = null)
         {
             if (func_num_args() == 2) {
@@ -94,6 +108,11 @@
             return in_array($key, $this->items);
         }
 
+        /**
+         * @param $key
+         * @param null $value
+         * @return bool
+         */
         public function containsStrict($key, $value = null)
         {
             if (func_num_args() == 2) {
@@ -109,16 +128,25 @@
             return in_array($key, $this->items, true);
         }
 
+        /**
+         * @return Collection
+         */
         public function diff($items)
         {
             return $this->new(array_diff($this->items, $this->getArrays($items)));
         }
 
+        /**
+         * @return Collection
+         */
         public function diffKeys($items)
         {
             return $this->new(array_diff_key($this->items, $this->getArrays($items)));
         }
 
+        /**
+         * @return Collection
+         */
         public function each(callable $callback)
         {
             array_map($callback, $this->items);
@@ -135,6 +163,9 @@
             return $this->new(Arrays::fetchOne($this->items, $key));
         }
 
+        /**
+         * @return Collection
+         */
         public function every($step, $offset = 0)
         {
             $new = [];
@@ -152,6 +183,9 @@
             return $this->new($new);
         }
 
+        /**
+         * @return Collection
+         */
         public function except($keys)
         {
             $keys = is_array($keys) ? $keys : func_get_args();
@@ -159,16 +193,30 @@
             return $this->new(Arrays::except($this->items, $keys));
         }
 
+        /**
+         * @return Collection
+         */
         public function filter(callable $callback)
         {
             return new static(array_filter($this->items, $callback));
         }
 
+        /**
+         * @param $key
+         * @param $value
+         * @return Collection
+         */
         public function whereLoose($key, $value)
         {
             return $this->where($key, $value, false);
         }
 
+        /**
+         * @param $key
+         * @param $values
+         * @param bool $strict
+         * @return Collection
+         */
         public function whereIn($key, $values, $strict = false)
         {
             $values = $this->getArrays($values);
@@ -178,6 +226,11 @@
             });
         }
 
+        /**
+         * @param $key
+         * @param $values
+         * @return Collection
+         */
         public function whereInStrict($key, $values)
         {
             return $this->whereIn($key, $values, true);
@@ -192,11 +245,17 @@
             return Arrays::firstOne($this->items, $callback, $default);
         }
 
+        /**
+         * @return Collection
+         */
         public function flatten()
         {
             return $this->new(Arrays::flatten($this->items));
         }
 
+        /**
+         * @return Collection
+         */
         public function flip()
         {
             return $this->new(array_flip($this->items));
@@ -216,9 +275,12 @@
             return value($default);
         }
 
+        /**
+         * @return Collection
+         */
         public function groupBy($groupBy)
         {
-            if ( ! $this->isClosure($groupBy)) {
+            if (!$this->isClosure($groupBy)) {
                 return $this->groupBy($this->makeClosure($groupBy));
             }
 
@@ -251,6 +313,9 @@
             return isAke($row, $field, 0);
         }
 
+        /**
+         * @return Collection
+         */
         public function keyBy($keyBy)
         {
             if (!$this->isClosure($keyBy)) {
@@ -266,6 +331,9 @@
             return $this->new($results);
         }
 
+        /**
+         * @return Collection
+         */
         public function between($field = 'id', $min = 0, $max = 0)
         {
             if (!$this->isClosure($field)) {
@@ -285,11 +353,20 @@
             return $this->new($results);
         }
 
+        /**
+         * @param $key
+         * @return bool
+         */
         public function has($key)
         {
             return $this->offsetExists($key);
         }
 
+        /**
+         * @param $value
+         * @param null $glue
+         * @return string
+         */
         public function implode($value, $glue = null)
         {
             $first = $this->first();
@@ -301,26 +378,42 @@
             return implode($value, $this->items);
         }
 
+        /**
+         * @return Collection
+         */
         public function intersect($items)
         {
             return $this->new(array_intersect($this->items, $this->getArrays($items)));
         }
 
+        /**
+         * @return bool
+         */
         public function isEmpty()
         {
             return empty($this->items);
         }
 
+        /**
+         * @param $value
+         * @return bool
+         */
         protected function isClosure($value)
         {
             return !is_string($value) && is_callable($value);
         }
 
+        /**
+         * @return Collection
+         */
         public function union($items)
         {
             return $this->new($this->items + $this->getArrays($items));
         }
 
+        /**
+         * @return Collection
+         */
         public function keys()
         {
             return $this->new(array_keys($this->items));
@@ -331,31 +424,53 @@
             return !empty($this->items) ? end($this->items) : $default;
         }
 
+        /**
+         * @param $value
+         * @param null $key
+         * @return array
+         */
         public function lists($value, $key = null)
         {
             return Arrays::pluck($this->items, $value, $key);
         }
 
+        /**
+         * @param $value
+         * @param null $key
+         * @return array
+         */
         public function pluck($value, $key = null)
         {
             return Arrays::pluck($this->items, $value, $key);
         }
 
+        /**
+         * @return Collection
+         */
         public function map(callable $callback)
         {
             return $this->new(array_map($callback, $this->items, array_keys($this->items)));
         }
 
+        /**
+         * @return Collection
+         */
         public function mapWithKeys(callable $callback)
         {
             return $this->flatMap($callback);
         }
 
+        /**
+         * @return Collection
+         */
         public function flatMap(callable $callback)
         {
             return $this->map($callback)->collapse();
         }
 
+        /**
+         * @return Collection
+         */
         public function only($keys)
         {
             if (is_null($keys)) {
@@ -367,11 +482,18 @@
             return $this->new(Arrays::only($this->items, $keys));
         }
 
+        /**
+         * @param $items
+         * @return Collection
+         */
         public function merge($items)
         {
             return $this->new(array_merge($this->items, $this->getArrays($items)));
         }
 
+        /**
+         * @return Collection
+         */
         public function forPage($page, $perPage)
         {
             return $this->new(array_slice($this->items, ($page - 1) * $perPage, $perPage));
@@ -433,6 +555,9 @@
             });
         }
 
+        /**
+         * @return Collection
+         */
         public function reverse()
         {
             return $this->new(array_reverse($this->items, true));
@@ -458,6 +583,9 @@
             return array_shift($this->items);
         }
 
+        /**
+         * @return Collection
+         */
         public function shuffle()
         {
             $items = $this->items;
@@ -467,6 +595,9 @@
             return $this->new($items);
         }
 
+        /**
+         * @return Collection
+         */
         public function sortByRand()
         {
             $items = $this->items;
@@ -476,11 +607,17 @@
             return $this->new($items);
         }
 
+        /**
+         * @return Collection
+         */
         public function slice($offset, $length = null)
         {
             return $this->new(array_slice($this->items, $offset, $length, true));
         }
 
+        /**
+         * @return Collection
+         */
         public function chunk($size)
         {
             $chunks = [];
@@ -492,6 +629,9 @@
             return $this->new($chunks);
         }
 
+        /**
+         * @return Collection
+         */
         public function sort(callable $callback = null)
         {
             $items = $this->items;
@@ -1081,6 +1221,10 @@
             return isAke($this->items, $key, null);
         }
 
+        /**
+         * @param array $items
+         * @return $this
+         */
         public function replace(array $items)
         {
             foreach ($items as $key => $value) {
@@ -1095,16 +1239,54 @@
             return aget($this->items, $index, $d);
         }
 
+        /**
+         * @return array
+         */
         public function native()
         {
             return array_values($this->toArray());
         }
 
+        /**
+         * @return Collection
+         */
         public function toBase()
         {
             return is_subclass_of($this, self::class) ? new self($this) : $this;
         }
 
+        /**
+         * @param callable $callback
+         * @return mixed
+         */
+        public function pipe(callable $callback)
+        {
+            return $callback($this);
+        }
+
+        /**
+         * @param callable $callback
+         * @return Collection
+         */
+        public function step(callable $callback)
+        {
+            return $this->tap($callback);
+        }
+
+        /**
+         * @param callable $callback
+         * @return $this
+         */
+        public function tap(callable $callback)
+        {
+            $callback(new static($this->items));
+
+            return $this;
+        }
+
+        /**
+         * @return Collection
+         */
         public function paired()
         {
             $res    = [];

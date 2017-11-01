@@ -25,7 +25,12 @@
         DelegateInterface,
         ContainerInterface
     {
-        protected $app, $request, $router, $middlewares = [], $extensionsLoaded = [];
+        /**
+         * @var Fastcontainer
+         */
+        protected $app;
+
+        protected $request, $router, $middlewares = [], $extensionsLoaded = [];
 
         public function __construct($config = null)
         {
@@ -59,11 +64,18 @@
             $this->app->dataset($concern, $new);
         }
 
+        /**
+         * @return ServerRequestInterface
+         */
         public function fromGlobals()
         {
             return Psr7Request::fromGlobals();
         }
 
+        /**
+         * @param ServerRequestInterface $request
+         * @return $this
+         */
         public function setRequest(ServerRequestInterface $request)
         {
             $this->request = $request;
@@ -83,10 +95,14 @@
             return $this->define('user');
         }
 
+        /**
+         * @param $session
+         * @throws \TypeError
+         */
         private function testSession($session)
         {
             if (!is_array($session) && !$session instanceof ArrayAccess) {
-                throw new \TypeError('session is not an array');
+                throw new \TypeError('session is not valid');
             }
         }
 
@@ -102,9 +118,15 @@
         {
             $session = $this->define('session');
 
+            $this->testSession($session);
+
             return $session ?: [];
         }
 
+        /**
+         * @param FastRendererInterface $renderer
+         * @return $this
+         */
         public function setRenderer(FastRendererInterface $renderer)
         {
             $this->define('renderer', $renderer);
@@ -152,9 +174,9 @@
             return $this->request;
         }
 
-        public function get($concern, $default = null)
+        public function get($concern, $sinleton = null)
         {
-            return $this->app->dataget($concern, $default);
+            return $this->app->get($concern, $sinleton);
         }
 
         public function set($concern, $value)
@@ -227,7 +249,7 @@
 
         public function __get($key)
         {
-            return $this->get($key);
+            return $this->app->dataget($key);
         }
 
         public function __set($key, $value)
@@ -262,7 +284,7 @@
 
         public function offsetGet($key)
         {
-            return $this->get($key);
+            return $this->app->dataget($key);
         }
 
         public function trigger()
@@ -740,7 +762,7 @@
             if (!empty($args)) {
                 return $this->set(Strings::uncamelize($method), current($args));
             } else {
-                return $this->get(Strings::uncamelize($method));
+                return $this->app->dataget(Strings::uncamelize($method));
             }
         }
 

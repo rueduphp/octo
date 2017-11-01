@@ -35,7 +35,12 @@
 
         public function __toString()
         {
-            echo $this->getgetSubject();
+            return $this->getSubject();
+        }
+
+        public function __invoke()
+        {
+            echo $this->getSubject();
         }
 
         public function setFrom($email, $name = null)
@@ -64,6 +69,9 @@
             return $this;
         }
 
+        /**
+         * @return string
+         */
         public function getSubject()
         {
             return $this->getHeader('Subject');
@@ -102,6 +110,7 @@
         public function setReturnPath($email)
         {
             $this->setHeader('Return-Path', $email);
+
             return $this;
         }
 
@@ -113,6 +122,7 @@
         public function setPriority($priority)
         {
             $this->setHeader('X-Priority', (int) $priority);
+
             return $this;
         }
 
@@ -179,8 +189,16 @@
 
         public function addEmbeddedFile($file, $content = null, $contentType = null)
         {
-            return $this->inlines[$file] = $this->createAttachment($file, $content, $contentType, 'inline')
-            ->setHeader('Content-ID', $this->getRandomId());
+            return $this->inlines[$file] =
+                $this->createAttachment(
+                    $file,
+                    $content,
+                    $contentType,
+                    'inline'
+                )->setHeader(
+                    'Content-ID',
+                    $this->getRandomId()
+                );
         }
 
         public function addInlinePart(MimePart $part)
@@ -192,7 +210,12 @@
 
         public function addAttachment($file, $content = null, $contentType = null)
         {
-            return $this->attachments[] = $this->createAttachment($file, $content, $contentType, 'attachment');
+            return $this->attachments[] = $this->createAttachment(
+                $file,
+                $content,
+                $contentType,
+                'attachment'
+            );
         }
 
         public function getAttachments()
@@ -338,7 +361,7 @@
 
         public function invokeSafe($function, array $args, $onError)
         {
-            $prev = set_error_handler(function ($severity, $message, $file) use ($onError, & $prev, $function) {
+            set_error_handler(function ($severity, $message, $file) use ($onError, & $prev, $function) {
                 if ($file === '' && defined('HHVM_VERSION')) {
                     $file = func_get_arg(5)[1]['file'];
                 }
