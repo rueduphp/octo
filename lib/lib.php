@@ -2470,7 +2470,7 @@
             $app[$alias]    = $instance;
         });
 
-        $app->deploy(function (callable $callable) {
+        $app->apply(function (callable $callable) {
             $callable();
         });
 
