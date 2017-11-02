@@ -48,7 +48,7 @@ class Fastcontainer implements FastContainerInterface
      */
     public function datahas($key)
     {
-        return array_key_exists($key, Registry::get('core.Fastcontainer.data'));
+        return array_key_exists($key, Registry::get('core.Fastcontainer.data', []));
     }
 
     /**
@@ -124,7 +124,19 @@ class Fastcontainer implements FastContainerInterface
             interface_exists($concern) ||
             fnmatch('*\\*', $concern))
         ) {
+            if ($this->datahas($concern)) {
+                $this->datadel($concern);
+            }
+
             return $this->register($concern, $value);
+        }
+
+        $wires = Registry::get('core.Fastcontainer.registered', []);
+
+        if (array_key_exists($concern, $wires)) {
+            unset($wires[$concern]);
+
+            Registry::set('core.Fastcontainer.registered', $wires);
         }
 
         return $this->dataset($concern, $value);
@@ -139,9 +151,10 @@ class Fastcontainer implements FastContainerInterface
     public function get($concern, $singleton = null)
     {
         if (
-            class_exists($concern) ||
+            !$this->datahas($concern) &&
+            (class_exists($concern) ||
             interface_exists($concern) ||
-            fnmatch('*\\*', $concern)
+            fnmatch('*\\*', $concern))
         ) {
             return $singleton ?
                 instanciator()->singleton($concern) :
@@ -157,14 +170,18 @@ class Fastcontainer implements FastContainerInterface
      *
      * @return bool
      */
-    public function has($key)
+    public function has($concern)
     {
-        return
-            array_key_exists($key, Registry::get('core.Fastcontainer.registered'))
-        ||
-            class_exists($key) || interface_exists($key) || fnmatch('*\\*', $key)
-        ||
-            $this->datahas($key);
+        if (
+            !$this->datahas($concern) &&
+            (class_exists($concern) ||
+             interface_exists($concern) ||
+             fnmatch('*\\*', $concern))
+        ) {
+            return array_key_exists($concern, Registry::get('core.Fastcontainer.registered', []));
+        }
+
+        return $this->datahas($concern);
     }
 
     /**

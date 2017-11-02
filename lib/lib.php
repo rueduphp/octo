@@ -2470,6 +2470,10 @@
             $app[$alias]    = $instance;
         });
 
+        $app->deploy(function (callable $callable) {
+            $callable();
+        });
+
         $app->run(function ($namespace = 'App', $cli = false) {
             if (is_object($namespace)) {
                 $namespace = 'App';

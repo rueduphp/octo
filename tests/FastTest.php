@@ -1,6 +1,7 @@
 <?php
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
+    use Octo\App;
     use Octo\Config;
     use Octo\Fast;
     use Octo\FastRendererInterface;
@@ -154,39 +155,39 @@
         {
             parent::setUp();
 
-            $this->app = $this->foundry('fast');
-
             $this->session = new Octo\Sessionarray;
 
+            $this->app = App::create();
+
             $this->app
-                ->register(Octo\FastContainerInterface::class, function () {
-                    return $this->maker(Octo\Fastcontainer::class);
+                ->set(Octo\FastContainerInterface::class, function () {
+                    return $this->instanciator()->singleton(Octo\Fastcontainer::class);
                 })
-                ->register(PDODummy::class, function () {
+                ->set(PDODummy::class, function () {
                     return new PDODummy('sqlite::memory:');
                 })
-                ->register(Octo\Fastmiddlewarecsrf::class, function () {
+                ->set(Octo\Fastmiddlewarecsrf::class, function () {
                     return new Octo\Fastmiddlewarecsrf($this->session);
                 })
-                ->register(Geocoder\Geocoder::class, function () {
+                ->set(Geocoder\Geocoder::class, function () {
                     return Octo\Fastmiddlewaregeo::createGeocoder();
                 })
-                ->register(Octo\FastSessionInterface::class, function () {
+                ->set(Octo\FastSessionInterface::class, function () {
                     return new Octo\Sessionarray;
                 })
-                ->register(Octo\FastCacheInterface::class, function () {
+                ->set(Octo\FastCacheInterface::class, function () {
                     return new Octo\Now;
                 })
-                ->register(Octo\FastUserOrmInterface::class, function () {
+                ->set(Octo\FastUserOrmInterface::class, function () {
                     return $this->fo();
                 })
-                ->register(Octo\FastRouterInterface::class, function () {
+                ->set(Octo\FastRouterInterface::class, function () {
                     return $this->actual("fast")->router();
                 })
-                ->register(Octo\FastRendererInterface::class, function () {
+                ->set(Octo\FastRendererInterface::class, function () {
                     return $this->actual("fast")->getRenderer();
                 })
-                ->register(Octo\FastAuthInterface::class, function () {
+                ->set(Octo\FastAuthInterface::class, function () {
                     /**
                      * @var Octo\Object $auth
                      */
@@ -259,6 +260,11 @@
             $this->app->delete('test');
             $this->assertNull($this->app['test']);
             $this->assertNull($this->app->test);
+
+            $this->app->set('test', 128);
+            $this->assertEquals(128, $this->app->test);
+            $this->assertEquals(128, $this->app['test']);
+            $this->assertEquals(128, $this->app->get('test'));
 
             $this->app['test'] = 123;
         }

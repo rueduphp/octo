@@ -46,7 +46,7 @@
                 exception('Factory', 'You must create at least one row.');
             }
 
-            $model = maker($class, [], false);
+            $model = instanciator()->factory($class);
             $faker = faker($lng);
 
             $entity = $this->em(
