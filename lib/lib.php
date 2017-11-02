@@ -3563,7 +3563,7 @@
 
     function wire($concern, $callable)
     {
-        return instanciator()->wire($concern, $callable);
+        instanciator()->wire($concern, $callable);
     }
 
     function autowire($concern, $raw = false)

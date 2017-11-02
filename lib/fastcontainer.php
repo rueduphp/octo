@@ -112,14 +112,41 @@ class Fastcontainer implements FastContainerInterface
 
     /**
      * @param string $concern
+     * @param mixed $value
+     *
+     * @return Fastcontainer
+     */
+    public function set($concern, $value)
+    {
+        if (
+            is_callable($value) &&
+            (class_exists($concern) ||
+            interface_exists($concern) ||
+            fnmatch('*\\*', $concern))
+        ) {
+            return $this->register($concern, $value);
+        }
+
+        return $this->dataset($concern, $value);
+    }
+
+    /**
+     * @param string $concern
      * @param null $singleton
      *
      * @return mixed
      */
     public function get($concern, $singleton = null)
     {
-        if (class_exists($concern) || interface_exists($concern) || fnmatch('*\\*', $concern)) {
-            return $singleton ? maker($concern) : foundry($concern);
+        if (
+            class_exists($concern) ||
+            interface_exists($concern) ||
+            fnmatch('*\\*', $concern)
+        ) {
+            return $singleton ?
+                instanciator()->singleton($concern) :
+                instanciator()->factory($concern)
+            ;
         }
 
         return $this->dataget($concern, $singleton);
@@ -163,7 +190,7 @@ class Fastcontainer implements FastContainerInterface
 
         Registry::set('core.Fastcontainer.registered', $data);
 
-        wire($concern, $callable);
+        instanciator()->wire($concern, $callable);
 
         if ($c) {
             $c->set($concern, true);
@@ -179,17 +206,6 @@ class Fastcontainer implements FastContainerInterface
      * @return Fastcontainer
      */
     public function define($concern, callable $callable)
-    {
-        return $this->register($concern, $callable);
-    }
-
-    /**
-     * @param string $concern
-     * @param callable $callable
-     *
-     * @return Fastcontainer
-     */
-    public function set($concern, callable $callable)
     {
         return $this->register($concern, $callable);
     }

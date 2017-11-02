@@ -48,8 +48,6 @@
 
             $this->request = $this->fromGlobals();
 
-            $this->add('twig_extensions', FastTwigExtension::class);
-
             actual('fast', $this);
         }
 
@@ -181,7 +179,7 @@
 
         public function set($concern, $value)
         {
-            $this->app->dataset($concern, $value);
+            $this->app->set($concern, $value);
 
             return $this;
         }
@@ -463,6 +461,7 @@
         public function run($request = null)
         {
             if ($this->getRenderer() instanceof FastTwigRenderer) {
+                $this->add('twig_extensions', FastTwigExtension::class);
                 $this->applyTwigExtensions();
             }
 

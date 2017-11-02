@@ -27,7 +27,16 @@
 
         public function when($real)
         {
-            return new Contextual($this, $real);
+            return instanciator()->factory(Contextual::class, $this, $real);
+        }
+
+        /**
+         * @param array $config
+         * @return Fast
+         */
+        public static function create($config = [])
+        {
+            return instanciator()->factory(Fast::class, $config);
         }
 
         protected function resolvable($toResolve)
@@ -37,7 +46,10 @@
 
         public function bound($toResolve)
         {
-            return isset($this->bindings[$toResolve]) || isset($this->instances[$toResolve]) || $this->isAlias($toResolve);
+            return isset($this->bindings[$toResolve])
+                || isset($this->instances[$toResolve])
+                || $this->isAlias($toResolve)
+            ;
         }
 
         public function resolved($toResolve)
