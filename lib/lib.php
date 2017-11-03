@@ -2480,8 +2480,6 @@
             path("app",        realpath($root . '/app'));
             path('public',     realpath($dir));
 
-            systemBoot($dir);
-
             $errors = [];
 
             if (!is_writable($dir  . '/../app/storage/data')) {
