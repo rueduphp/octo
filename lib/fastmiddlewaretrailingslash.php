@@ -13,7 +13,7 @@
 
             $uri = $request->getUri()->getPath();
 
-            if (!empty($uri) && fnmatch('*/', $uri)) {
+            if (!empty($uri) && '/' !== $uri && fnmatch('*/', $uri)) {
                 return $app->redirectResponse(substr($uri, 0, -1));
             }
 

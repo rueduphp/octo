@@ -599,9 +599,7 @@
 
         public function router()
         {
-            if ($router = $this->define('router')) {
-                $this->define('router', $router);
-            } else {
+            if (!$this->define('router')) {
                 $this->define('router', new FastRouter);
             }
 

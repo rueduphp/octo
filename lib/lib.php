@@ -1,10 +1,7 @@
 <?php
     namespace Octo;
 
-    use function call_user_func_array;
-    use function func_get_args;
     use Illuminate\Support\Debug\Dumper;
-    use function is_null;
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
 
