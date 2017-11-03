@@ -1,6 +1,7 @@
 <?php
     namespace Octo;
 
+    use function call_user_func_array;
     use function func_get_args;
     use Illuminate\Support\Debug\Dumper;
     use function is_null;
@@ -2461,17 +2462,68 @@
             return call_user_func_array('\\Octo\\maker', $args);
         });
 
-        $app->register(function ($alias, $class, $args = []) use ($app) {
+        $app->init(function ($dir) {
+            $ini = parse_ini_file($dir . '/../.env');
+
+            defined('APPLICATION_ENV') || define('APPLICATION_ENV', isset($ini['APPLICATION_ENV']) ? $ini['APPLICATION_ENV'] : 'production');
+            defined('SITE_NAME') || define('SITE_NAME', isset($ini['SITE_NAME']) ? $ini['SITE_NAME']         : 'project');
+
+            $root = realpath($dir . '/../');
+
+            $nameDir = Arrays::last(explode(DS, $root));
+
+            if (fnmatch('/' . $nameDir . '/*', $_SERVER['REQUEST_URI'])) {
+                define('FROM_ROOT', $nameDir);
+            }
+
+            path("base",       $root);
+            path("app",        realpath($root . '/app'));
+            path('public',     realpath($dir));
+
+            systemBoot($dir);
+
+            $errors = [];
+
+            if (!is_writable($dir  . '/../app/storage/data')) {
+                $errors[] = $dir  . '/../app/storage/data';
+            }
+
+            if (!is_writable($dir  . '/../app/storage/cache')) {
+                $errors[] = $dir  . '/../app/storage/cache';
+            }
+
+            if (!is_writable($dir  . '/../app/storage/tmp')) {
+                $errors[] = $dir  . '/../app/storage/tmp';
+            }
+
+            if (!empty($errors)) {
+                $html = "<h1><i class='fa fa-warning fa-2x'></i> Some errors occured</h1>";
+                $html .= "<h3>Please chmod 0777 these directories :</h3>";
+                $html .= "<ul>";
+
+                foreach ($errors as $error) {
+                    $html .= "<li>" . realpath($error) . "</li>";
+                }
+
+                $html .= "</ul>";
+
+                view($html, 500, 'Octo Error Report');
+            }
+        });
+
+        $app->register(function ($class, $args = []) use ($app) {
             if (is_object($args)) {
                 $args = [];
             }
 
             $instance       = maker($class, $args);
-            $app[$alias]    = $instance;
+            $app[$class]    = $instance;
         });
 
         $app->apply(function (callable $callable) {
-            $callable();
+            $app = App::create();
+
+            return call_user_func_array($callable, [$app]);
         });
 
         $app->run(function ($namespace = 'App', $cli = false) {
