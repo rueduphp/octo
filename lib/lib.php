@@ -3817,6 +3817,12 @@
 
     function appenv($key, $default = null)
     {
+        $env = getenv($key);
+
+        if (false !== $env) {
+            return $env;
+        }
+
         $env = path('base') . '/.env';
 
         if (File::exists($env)) {
