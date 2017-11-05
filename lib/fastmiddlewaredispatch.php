@@ -9,7 +9,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
 {
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {
-        $app    = $this->fast();
+        $app    = $this->getContainer();
         $route  = $app->define('route');
 
         if (!is_null($route)) {
@@ -20,16 +20,11 @@ class Fastmiddlewaredispatch extends FastMiddleware
             if (is_array($middleware)) {
                 $module = $middleware[0];
                 $action = $middleware[1];
-//                $callable = $middleware;
-
-//                $response = call_user_func_array($callable, [$request, $app]);
                 $response = callMethod($module, $action, $request, $app);
             } else {
-                $module = $this->maker($middleware);
-
-                $callable = [$module, 'run'];
-
-                $response = call_user_func_array($callable, [$action, $request, $app]);
+                $module     = $this->maker($middleware);
+                $callable   = [$module, 'run'];
+                $response   = call_user_func_array($callable, [$action, $request, $app]);
             }
 
             actual('fast.module', $module);

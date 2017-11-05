@@ -8,7 +8,7 @@ class Fastmiddlewarerouter extends FastMiddleware
 {
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {
-        $app = actual('fast');
+        $app = $this->getContainer();
 
         /**
          * @var $route FastRouteInterface

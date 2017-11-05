@@ -408,8 +408,8 @@
 
         public function testContainer()
         {
-            /** @var Octo\FastContainerInterface $container */
-            $container = $this->getContainer();
+            /** @var Octo\FastContainer $container */
+            $container = $this->getDI();
 
             $this->assertTrue($container->has(Octo\FastContainerInterface::class));
 
@@ -423,8 +423,8 @@
                 $this->getRouter()
             );
 
-            $this->assertEquals($container, $this->getContainer());
-            $this->assertEquals($container, $container->getContainer()->getContainer());
+            $this->assertEquals($container, $this->getDI());
+            $this->assertEquals($container, $container->getDI()->getDI());
 
             $this->assertInstanceOf(Fast::class, $this->getContainer()->self('fast'));
         }

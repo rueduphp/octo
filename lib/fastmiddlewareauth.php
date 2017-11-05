@@ -8,7 +8,8 @@
     {
         public function process(ServerRequestInterface $request, DelegateInterface $next)
         {
-            $app    = $this->fast();
+            /** @var Fast $app */
+            $app    = $this->getContainer();
             $auth   = $app->getAuth();
 
             if ($auth) {

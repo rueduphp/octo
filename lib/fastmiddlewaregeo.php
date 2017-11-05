@@ -66,7 +66,7 @@ class Fastmiddlewaregeo extends FastMiddleware
      * Process a server request and return a response.
      *
      * @param ServerRequestInterface  $request
-     * @param RequestHandlerInterface $handler
+     * @param DelegateInterface $next
      *
      * @return ResponseInterface
      */

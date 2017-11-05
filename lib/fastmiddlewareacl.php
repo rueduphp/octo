@@ -12,7 +12,7 @@
                 $response = $next->process($request);
             } catch (\Exception $e) {
                 if ($e instanceof AuthmiddlewareException) {
-                    $app = $this->fast();
+                    $app = $this->getContainer();
 
                     return $app->redirectResponse($app->getAuth()->getLoginPath());
                 } else {

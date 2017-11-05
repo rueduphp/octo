@@ -5,6 +5,8 @@
 
     abstract class TestCase extends PTC
     {
+        use FastTrait;
+
         protected $app;
 
         abstract public function makeApplication();
@@ -213,25 +215,5 @@
             $instance   = maker($native, $args);
 
             return maker(Mock::class, [$instance]);
-        }
-
-        public function __call($m, $a)
-        {
-            $method = '\\Octo\\' . $m;
-
-            if (function_exists($method)) {
-                return call_user_func_array($method, $a);
-            }
-
-            return $this;
-        }
-
-        public static function __callStatic($m, $a)
-        {
-            $method = '\\Octo\\' . $m;
-
-            if (function_exists($method)) {
-                return call_user_func_array($method, $a);
-            }
         }
     }

@@ -2,10 +2,9 @@
     namespace Octo;
 
     use Interop\Http\ServerMiddleware\DelegateInterface;
-    use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Psr\Http\Message\ServerRequestInterface;
 
-    class Fastmiddlewarenext implements MiddlewareInterface
+    class Fastmiddlewarenext extends FastMiddleware
     {
         public function process(ServerRequestInterface $request, DelegateInterface $next)
         {

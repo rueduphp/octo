@@ -2,14 +2,13 @@
     namespace Octo;
 
     use Interop\Http\ServerMiddleware\DelegateInterface;
-    use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Psr\Http\Message\ServerRequestInterface;
 
-    class Fastmiddlewaretrailingslash implements MiddlewareInterface
+    class Fastmiddlewaretrailingslash extends FastMiddleware
     {
         public function process(ServerRequestInterface $request, DelegateInterface $next)
         {
-            $app = actual('fast');
+            $app = $this->getContainer();
 
             $uri = $request->getUri()->getPath();
 

@@ -7,6 +7,8 @@ use function func_get_args;
 
 class Fastcontainer implements FastContainerInterface
 {
+    use FastTrait;
+    
     /**
      * @param string $key
      * @param mixed $value
@@ -242,21 +244,5 @@ class Fastcontainer implements FastContainerInterface
     public function getApp()
     {
         return $this->self('fast');
-    }
-
-    /**
-     * @param string $m
-     * @param array $a
-     *
-     * @return mixed
-     */
-
-    public function __call($m, $a)
-    {
-        $method = '\\Octo\\' . $m;
-
-        if (function_exists($method)) {
-            return call_user_func_array($method, $a);
-        }
     }
 }

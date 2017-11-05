@@ -2,7 +2,6 @@
     namespace Octo;
 
     use Illuminate\Support\Debug\Dumper;
-    use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
@@ -1899,8 +1898,8 @@
     }
 
     /**
-     * @param \Octo\Fast|null $context
-     * @return \Octo\Fast|null
+     * @param Fast|null $context
+     * @return Fast|null
      */
     function fast($context = null)
     {
@@ -3623,11 +3622,11 @@
     }
 
     /**
-     * @return FastContainer
+     * @return null|Fast
      */
     function getContainer()
     {
-        return instanciator()->singleton(FastContainerInterface::class);
+        return fast();
     }
 
     /**
@@ -3813,6 +3812,15 @@
     function conf($key, $default = null)
     {
         return Config::get($key, appenv($key, $default));
+    }
+
+    function replace(array $replace, $buffer)
+    {
+        return preg_replace(
+            array_keys($replace),
+            array_values($replace),
+            $buffer
+        );
     }
 
     function appenv($key, $default = null)
@@ -5940,17 +5948,18 @@
     }
 
     /**
-     * @param string $name
-     * @param array $o
-     *
-     * @return \Octo\Object
+     * @return mixed|null
      */
     function self()
     {
         $args = func_get_args();
-        return actual(... $args);
+
+        return actual(...$args);
     }
 
+    /**
+     * @return mixed|null
+     */
     function actual()
     {
         $args   = func_get_args();
@@ -5977,11 +5986,24 @@
         return $value;
     }
 
+    /**
+     * @param $event
+     * @param array $args
+     *
+     * @return array|Object
+     */
     function fire($event, array $args = [])
     {
         return event($event, null, $args);
     }
 
+    /**
+     * @param $event
+     * @param null $concern
+     * @param bool $return
+     *
+     * @return array|null
+     */
     function listening($event, $concern = null, $return = false)
     {
         if (Fly::has($event)) {
@@ -5995,6 +6017,13 @@
         return $concern;
     }
 
+    /**
+     * @param $event
+     * @param callable $callable
+     * @param null $back
+     *
+     * @return mixed|null
+     */
     function subscribe($event, callable $callable, $back = null)
     {
        Fly::on($event, $callable);
@@ -6002,6 +6031,10 @@
        return $back;
     }
 
+    /**
+     * @param $name
+     * @return mixed|Object
+     */
     function validator($name)
     {
         $validators = Registry::get('core.validators', []);
@@ -6130,6 +6163,12 @@
         laravel5(laravel());
     }
 
+    /**
+     * @param Octalia $model
+     * @param array $fields
+     *
+     * @return bool
+     */
     function createModel(Octalia $model, array $fields = [])
     {
         if ($model->count() == 0) {
@@ -6183,12 +6222,18 @@
         }
     }
 
+    /**
+     * @param null $default
+     * @return mixed|null
+     */
     function cache_start($default = null)
     {
         $bt = debug_backtrace();
+
         array_shift($bt);
-        $last = array_shift($bt);
-        $key = sha1(serialize($last) . File::read($last['file']) . filemtime($last['file']));
+
+        $last   = array_shift($bt);
+        $key    = sha1(serialize($last) . File::read($last['file']) . filemtime($last['file']));
 
         return fmr()->start($key, $default);
     }
@@ -6209,9 +6254,15 @@
         return $method ? call_user_func_array([$input, $method], $args) : $input;
     }
 
+    /**
+     * @param array $data
+     * @param array $options
+     *
+     * @return array
+     */
     function multiCurl($data, $options = [])
     {
-        $curly = [];
+        $curly  = [];
         $result = [];
 
         $mh = curl_multi_init();
@@ -6258,7 +6309,7 @@
     }
 
     /**
-     * @param null $ns
+     * @param string|null $ns
      * @return \Predis\Client
      */
     function redis($ns = null)

@@ -38,7 +38,7 @@
 
             $config = arrayable($config) ? $config->toArray() : $config;
 
-            $this->app = $this->maker(Fastcontainer::class);
+            $this->app = instanciator()->singleton(Fastcontainer::class);
 
             if ($config && is_array($config)) {
                 foreach ($config as $key => $value) {
@@ -147,7 +147,9 @@
                 if (!in_array($extension, $this->extensionsLoaded)) {
                     try {
                         $this->extensionsLoaded[] = $extension;
-                        $twig->addExtension(maker($extension));
+                        $twig->addExtension(
+                            instanciator()->singleton($extension)
+                        );
                     } catch (\Exception $e) {
                         $this->extensionsLoaded[] = $extension;
                     }
@@ -155,6 +157,11 @@
             }
         }
 
+        /**
+         * @param mixed $auth
+         * 
+         * @return $this
+         */
         public function setAuth($auth)
         {
             $this->define('auth', $auth);
@@ -162,6 +169,9 @@
             return $this;
         }
 
+        /**
+         * @return FastAuthInterface
+         */
         public function getAuth()
         {
             return $this->define('auth');
@@ -418,7 +428,7 @@
          */
         public function resolve($class, $singleton = true)
         {
-            return $singleton ? maker($class) : foundry($class);
+            return $singleton ? instanciator()->singleton($class) : instanciator()->factory($class);
         }
 
         /**
@@ -546,12 +556,12 @@
             $this->middlewares = $middlewares;
 
             if (is_string($middleware)) {
-                return maker($middleware);
+                return instanciator()->singleton($middleware);
             } elseif (is_callable($middleware)) {
                 $middleware = call_user_func_array($middleware, [$this]);
 
                 if (is_string($middleware)) {
-                    return maker($middleware);
+                    return makinstanciator()->singletoner($middleware);
                 } else {
                     return $middleware;
                 }
@@ -566,7 +576,7 @@
          */
         public function addModule($moduleClass)
         {
-            $module = maker($moduleClass);
+            $module = instanciator()->singleton($moduleClass);
 
             $methods = get_class_methods($module);
 
@@ -789,6 +799,29 @@
 
             return $fastRouter->generateUri($routeName, $params);
         }
+
+        /**
+         * @param array $context
+         * @return array
+         */
+        function beforeRender($context = [])
+        {
+            $session = $this->getSession();
+
+            if (isset($session['flash'])) {
+                $context['flash'] = $session['flash'];
+            }
+
+            return $context;
+        }
+
+        /**
+         * @return Fastcontainer
+         */
+        public function getApp(): Fastcontainer
+        {
+            return $this->app;
+        }
     }
 
     /* Interfaces */
@@ -820,6 +853,7 @@
     class FastCache extends Cache       implements FastStorageInterface {}
     class FastNow   extends Now         implements FastStorageInterface {}
 
+    class AuthmiddlewareException extends NativeException {}
     class FastTwigExtensions extends Twig_Extension
     {
         use FastTrait;
@@ -842,6 +876,21 @@
             }
         }
 
+        /**
+         * @return Fast
+         */
+        public function getContainer()
+        {
+            return getContainer();
+        }
+
+        /**
+         * @return Fastcontainer
+         */
+        public function getDI()
+        {
+            return getContainer()->getApp();
+        }
     }
 
     class FastPhpRenderer implements FastRendererInterface
@@ -867,6 +916,8 @@
             } else {
                 $file = $name;
             }
+
+            $context = $this->getContainer()->beforeRender($context);
 
             return $this->vue($file, $context)->inline();
         }
@@ -901,6 +952,8 @@
          */
         public function render($name, array $context = [])
         {
+            $context = $this->getContainer()->beforeRender($context);
+
             return parent::render($name . '.twig', $context);
         }
     }

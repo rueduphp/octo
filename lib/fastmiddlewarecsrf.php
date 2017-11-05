@@ -2,10 +2,9 @@
 namespace Octo;
 
 use Interop\Http\ServerMiddleware\DelegateInterface;
-use Interop\Http\ServerMiddleware\MiddlewareInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-class Fastmiddlewarecsrf implements MiddlewareInterface
+class Fastmiddlewarecsrf extends FastMiddleware
 {
     /**
      * @var array|\ArrayAccess
@@ -41,7 +40,7 @@ class Fastmiddlewarecsrf implements MiddlewareInterface
         $sessionKey = 'csrf.tokens',
         $formKey = '_csrf'
     ) {
-        $app = actual('fast');
+        $app = $this->getContainer();
         $app->setSession($session);
 
         $this->session      = &$session;
