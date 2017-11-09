@@ -4,6 +4,7 @@
     use ArrayAccess;
     use ArrayObject;
     use Exception as NativeException;
+    use GuzzleHttp\Psr7\MessageTrait;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
     use Interop\Http\ServerMiddleware\DelegateInterface;
@@ -30,7 +31,7 @@
          */
         protected $app;
 
-        protected $request, $router, $middlewares = [], $extensionsLoaded = [];
+        protected $response, $request, $router, $middlewares = [], $extensionsLoaded = [];
 
         public function __construct($config = null)
         {
@@ -362,6 +363,7 @@
          * @param $event
          * @param callable $callable
          * @param int $priority
+         *
          * @return Listener
          */
         public function attach($event, callable $callable, $priority = 0)
@@ -450,11 +452,18 @@
             );
         }
 
+        /**
+         * @param $uri
+         * @return MessageTrait|static
+         */
         public function redirectResponse($uri)
         {
-            return $this->response()
+            $this->response = $this->response()
                 ->withStatus(301)
-                ->withHeader('Location', $uri);
+                ->withHeader('Location', $uri)
+            ;
+
+            return $this->response;
         }
 
         public function redirectRouteResponse($route)
@@ -466,6 +475,7 @@
 
         /**
          * @param null $request
+         *
          * @return ResponseInterface
          */
         public function run($request = null)
@@ -492,19 +502,22 @@
                 $methods = get_class_methods($middleware);
 
                 if (in_array('process', $methods)) {
-                    return callMethod($middleware, 'process', $request, $this);
+                    $this->response = callMethod($middleware, 'process', $request, $this);
                 }
 
                 if (in_array('handle', $methods)) {
-                    return callMethod($middleware, 'handle', $request, $this);
+                    $this->response = callMethod($middleware, 'handle', $request, $this);
                 }
             } elseif (is_callable($middleware)) {
-                return call_user_func_array($middleware, [$request, [$this, 'process']]);
+                $this->response = call_user_func_array($middleware, [$request, [$this, 'process']]);
             }
+
+            return $this->response;
         }
 
         /**
          * @param $middlewareClass
+         *
          * @return Fast
          */
         public function addMiddleware($middlewareClass)
@@ -561,7 +574,7 @@
                 $middleware = call_user_func_array($middleware, [$this]);
 
                 if (is_string($middleware)) {
-                    return makinstanciator()->singletoner($middleware);
+                    return instanciator()->singletoner($middleware);
                 } else {
                     return $middleware;
                 }
@@ -572,6 +585,7 @@
 
         /**
          * @param $moduleClass
+         *
          * @return Fast
          */
         public function addModule($moduleClass)
@@ -795,7 +809,7 @@
             /**
              * @var $fastRouter FastRouter
              */
-            $fastRouter = actual('fast.router');
+            $fastRouter = $this->define("router");
 
             return $fastRouter->generateUri($routeName, $params);
         }
@@ -812,6 +826,8 @@
                 $context['flash'] = $session['flash'];
             }
 
+            unset($session['flash']);
+
             return $context;
         }
 
@@ -821,6 +837,114 @@
         public function getApp(): Fastcontainer
         {
             return $this->app;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isInvalid()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return $statusCode < 100 || $statusCode >= 600;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isInformational()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return $statusCode >= 100 && $statusCode < 200;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isSuccessful()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return $statusCode >= 200 && $statusCode < 300;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isRedirection()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return $statusCode >= 300 && $statusCode < 400;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isClientError()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return $statusCode >= 400 && $statusCode < 500;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isServerError()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return $statusCode >= 500 && $statusCode < 600;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isOk()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return 200 === $statusCode;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isForbidden()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return 403 === $statusCode;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isNotFound()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return 404 === $statusCode;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isEmpty()
+        {
+            $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
+
+            return in_array($statusCode, [204, 304]);
+        }
+
+        /**
+         * @return Psr7Response
+         */
+        public function getResponse()
+        {
+            return isset($this->response) ? $this->response : $this->response();
         }
     }
 
@@ -890,6 +1014,11 @@
         public function getDI()
         {
             return getContainer()->getApp();
+        }
+
+        public function dbg()
+        {
+            lvd(...func_get_args());
         }
     }
 
@@ -975,10 +1104,23 @@
             return [
                 new Twig_SimpleFunction('dump', [$this, 'dump'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('path', [$this, 'path']),
+                new Twig_SimpleFunction('flash', [$this, 'flash']),
                 new Twig_SimpleFunction('logout', [$this, 'logout']),
                 new Twig_SimpleFunction('login', [$this, 'login']),
-                new Twig_SimpleFunction('csrf', [$this, 'csrf'])
+                new Twig_SimpleFunction('input_csrf', [$this, 'csrf'], ['is_safe' => ['html']])
             ];
+        }
+
+        public function flash($key = null, $default = null)
+        {
+            /** @var Flash $flash */
+            $flash = $this->getContainer()->resolve(Flash::class);
+
+            if (null !== $key) {
+                return $flash->get($key, $default);
+            }
+
+            return $flash->all();
         }
 
         public function getFilters()
@@ -995,7 +1137,7 @@
             /**
              * @var $fastRouter FastRouter
              */
-            $fastRouter = actual('fast.router');
+            $fastRouter = $this->getContainer()->define("router");
 
             return $fastRouter->generateUri($routeName, $params);
         }
@@ -1005,7 +1147,7 @@
             /**
              * @var $fastRouter FastRouter
              */
-            $fastRouter = actual('fast.router');
+            $fastRouter = $this->getContainer()->define("router");
 
             return $fastRouter->generateUri('logout');
         }
@@ -1015,21 +1157,21 @@
             /**
              * @var $fastRouter FastRouter
              */
-            $fastRouter = actual('fast.router');
+            $fastRouter = $this->getContainer()->define("router");
 
             return $fastRouter->generateUri('login');
         }
 
-        public function csrf($tokenName = '_csrf', $sessionKey = 'csrf.tokens')
+        public function csrf()
         {
-            return csrf($tokenName, $sessionKey);
+            return csrf();
         }
 
-        public function dump($context)
+        public function dump()
         {
             $dump = fopen('php://memory', 'r+b');
 
-            lvd($context);
+            $this->dbg(...func_get_args());
 
             return stream_get_contents($dump, -1, 0);
         }

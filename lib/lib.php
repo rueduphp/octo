@@ -1,7 +1,9 @@
 <?php
     namespace Octo;
 
+    use function getenv;
     use Illuminate\Support\Debug\Dumper;
+    use function is_callable;
     use Zend\Expressive\Router\FastRouteRouter;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
@@ -148,14 +150,26 @@
 
     function twigRenderer($folder = null, array $config = [])
     {
-        $folder = is_null($folder) ? actual('fast.view.path') : $folder;
+        $debug = 'production' !== appenv('APPLICATION_ENV', 'production');
+
+        $defaultConfig = [
+            'debug' => $debug,
+            'auto_reload' => $debug,
+            'cache' => $debug ? false : path('app') . '/storage/cache/views'
+        ];
+
+        $conf = array_merge($defaultConfig, $config);
+
+        $container = getContainer();
+
+        $folder = is_null($folder) ? $container->define('view.path') : $folder;
 
         if (is_dir($folder)) {
-            actual('fast.view.path', $folder);
+            $container->define('view.path', $folder);
 
             $loader = new \Twig_Loader_Filesystem($folder);
 
-            $renderer = new FastTwigRenderer($loader, $config);
+            $renderer = new FastTwigRenderer($loader, $conf);
 
             actual('fast.renderer', $renderer);
 
@@ -3486,12 +3500,12 @@
      *
      * @return string
      */
-    function csrf($tokenName = '_csrf', $sessionKey = 'csrf.tokens')
+    function csrf()
     {
-        $session                        = maker(FastSessionInterface::class);
-        $token                          = token();
-        $session['old.' . $sessionKey]  = $session[$sessionKey];
-        $session[$sessionKey]           = $token;
+        $session        = instanciator()->singleton(FastSessionInterface::class);
+        $middleware     = new Fastmiddlewarecsrf($session);
+        $token          = $middleware->generateToken();
+        $tokenName      = $middleware->getFormKey();
 
         return '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
     }
@@ -5420,6 +5434,22 @@
         });
 
         return $fn;
+    }
+
+    /**
+     * @param mixed $object
+     *
+     * @return Lazy
+     */
+    function lazy($object)
+    {
+        if (!is_callable($object)) {
+            $object = function () use ($object) {
+                return $object;
+            };
+        }
+
+        return new Lazy($object);
     }
 
     function call($callback, array $args)

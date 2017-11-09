@@ -1,6 +1,7 @@
 <?php
 namespace Octo;
 
+use Closure;
 use Exception as PHPException;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -33,21 +34,21 @@ class Instanciator
 
     public function make($make, $args = [], $singleton = true)
     {
-        $binds = $this->binds();
-
-        $args       = arrayable($args) ? $args->toArray() : $args;
-        $callable   = isAke($binds, $make, null);
-
-        if ($callable && is_callable($callable) && $singleton) {
-            return call_user_func_array($callable, $args);
-        }
-
         if ($i = $this->autowire($make)) {
             $binds[$make] = $this->resolver($i);
 
             $this->binds($binds);
 
             return $i;
+        }
+
+        $binds = $this->binds();
+
+        $args       = arrayable($args) ? $args->toArray() : $args;
+        $callable   = isAke($binds, $make, null);
+
+        if ($callable && is_callable($callable) && $singleton) {
+            return $callable();
         }
 
         $ref                = new Reflector($make);
@@ -148,7 +149,7 @@ class Instanciator
                     $classParam = $param->getClass();
 
                     if ($classParam) {
-                        $p = maker($classParam->getName());
+                        $p = $this->make($classParam->getName());
                     } else {
                         try {
                             $p = $param->getDefaultValue();
@@ -182,6 +183,16 @@ class Instanciator
         } else {
             return $binds;
         }
+    }
+
+    public function getBinds()
+    {
+        return $this->binds();
+    }
+
+    public function getWires()
+    {
+        return Registry::get('core.wires', []);
     }
 
     protected function registeredClasses(array $classes)
@@ -231,18 +242,44 @@ class Instanciator
         return $callable;
     }
 
+    /**
+     * @param $object
+     *
+     * @return Closure
+     */
     public function resolver($object)
     {
         if (is_callable($object)) {
-            $object = $object();
+            $object = $this->lazy($object);
         }
 
         if (is_string($object)) {
-            $object = maker($object);
+            $cb = function () use ($object) {
+                return $this->make($object);
+            };
+
+            $object = $this->lazy($cb);
         }
 
         return function () use ($object) {
+            if (is_callable($object)) {
+                return $object();
+            }
+
             return $object;
         };
+    }
+
+    /**
+     * @param mixed $callable
+     *
+     * @return Lazy
+     */
+    public function lazy($callable)
+    {
+        $params = func_get_args();
+        array_shift($params);
+
+        return new Lazy($callable, $params);
     }
 }

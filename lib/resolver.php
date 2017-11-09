@@ -83,4 +83,15 @@
                 }
             }
         }
+
+        /**
+         * @param string $name
+         * @param array $arguments
+         *
+         * @return mixed
+         */
+        public static function __callStatic(string $name, array $arguments)
+        {
+            return call_user_func_array([instanciator(), $name], $arguments);
+        }
     }

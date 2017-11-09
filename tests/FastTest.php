@@ -4,20 +4,24 @@
     use Octo\App;
     use Octo\Config;
     use Octo\Fast;
+    use Octo\FastMiddleware;
     use Octo\FastRendererInterface;
     use Octo\FastUserOrmInterface;
+    use Octo\Flash;
+    use Octo\Object;
     use Octo\Octal;
+    use Octo\Resolver;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
 
     class DataEntity extends Octal {}
 
-    class TestMiddleware implements MiddlewareInterface
+    class TestMiddleware extends FastMiddleware
     {
         public function process(ServerRequestInterface $request, DelegateInterface $next)
         {
-            Octo\actual('geoloc.test', $request->getAttribute('geolocation'));
+            $this->actual('geoloc.test', $request->getAttribute('geolocation'));
 
             return $next->process($request);
         }
@@ -27,7 +31,7 @@
 
     class stdClassDummy
     {
-        public function __construct(PDODummy $pdo, Octo\Object $object)
+        public function __construct(PDODummy $pdo, Object $object)
         {
             $this->object = $object;
             $this->object->pdo = $pdo;
@@ -124,14 +128,16 @@
             ServerRequestInterface $request,
             ContainerInterface $app,
             string $slug,
-            FastUserOrmInterface $user) {
+            FastUserOrmInterface $user
+         ) {
             return $slug;
          }
 
          public function data(
             ServerRequestInterface $request,
             ContainerInterface $app,
-            int $id) {
+            int $id
+         ) {
             $post = DataEntity::find($id);
 
             return $post->name;
@@ -150,6 +156,7 @@
          */
         protected $app;
         protected $engine;
+        protected $session;
 
         public function setUp()
         {
@@ -299,6 +306,7 @@
             $response = $this->app->run($request);
 
             $this->assertEquals(404, $response->getStatusCode());
+            $this->assertEquals(404, $this->app->getResponse()->getStatusCode());
         }
 
         public function testAuth()
@@ -309,6 +317,7 @@
             $response = $this->app->run($request);
 
             $this->assertEquals(301, $response->getStatusCode());
+            $this->assertEquals(301, $this->app->getResponse()->getStatusCode());
             $this->assertEquals('/admin/login', current($response->getHeader('Location')));
         }
 
@@ -320,6 +329,7 @@
             $response = $this->app->run($request);
 
             $this->assertEquals(301, $response->getStatusCode());
+            $this->assertEquals(301, $this->app->getResponse()->getStatusCode());
             $this->assertEquals('/slug/foo', current($response->getHeader('Location')));
         }
 
@@ -376,6 +386,7 @@
             $response = $this->app->run($request);
 //
             $this->assertEquals(200, $response->getStatusCode());
+            $this->assertTrue($this->app->isOk());
             $this->assertEquals('<h1>Hello test</h1>', (string) $response->getBody());
         }
 
@@ -427,5 +438,45 @@
             $this->assertEquals($container, $container->getDI()->getDI());
 
             $this->assertInstanceOf(Fast::class, $this->getContainer()->self('fast'));
+        }
+
+        public function testFlash()
+        {
+            $flash = $this->instanciator()->singleton(Flash::class);
+
+            $flash->success('whaou');
+            $flash->fail('oups');
+
+            $this->assertTrue($flash->hasSuccess());
+            $this->assertTrue($flash->hasFail());
+
+            $this->assertEquals('whaou', $flash->success());
+            $this->assertCount(1, $this->session[$flash->getStorageKey()]);
+
+            $this->assertEquals('oups', $flash->fail());
+            $this->assertEmpty($this->session[$flash->getStorageKey()]);
+
+            $this->assertTrue($flash->hasSuccess());
+            $this->assertTrue($flash->hasFail());
+
+            $this->assertEquals('whaou', $flash->success());
+            $this->assertEquals('oups', $flash->fail());
+        }
+
+        public function lazytest()
+        {
+            $this->incr('test', 8);
+        }
+
+        public function testResolver()
+        {
+            $lazy = $this->lazy([$this, 'lazytest']);
+
+            $this->assertEquals(1, $this->incr('test'));
+            $lazy();
+            $this->assertEquals(10, $this->incr('test'));
+
+            $this->assertInstanceOf(stdClass::class, Resolver::factory(stdClass::class));
+            $this->assertInstanceOf(stdClass::class, Resolver::lazy(stdClass::class)());
         }
     }

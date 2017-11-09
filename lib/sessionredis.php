@@ -1,12 +1,15 @@
 <?php
     namespace Octo;
 
+    use SessionHandlerInterface as SHI;
+
     require_once (__DIR__ . '/sessionadapter.php');
 
-    class SessionRedis extends SessionAdapter implements \SessionHandlerInterface
+    class SessionRedis extends SessionAdapter implements SHI
     {
         public function __construct($ttl = 1800)
         {
+            /** @var \Predis\Client handler */
             $this->handler = redis('sessions');
             $this->ttl = $ttl;
         }

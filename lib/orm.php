@@ -2,7 +2,7 @@
     namespace Octo;
 
     use Illuminate\Database\Connection;
-    use Illuminate\Database\ConnectionResolver as Resolver;
+    use Illuminate\Database\ConnectionResolver;
     use Illuminate\Database\Eloquent\Builder as Builderer;
     use Illuminate\Database\Query\Builder;
     use Illuminate\Database\Schema\Grammars\MySqlGrammar;
@@ -202,7 +202,7 @@
             $connection = foundry(Connection::class, $this->pdo);
 
             $resolver   = foundry(
-                Resolver::class,
+                ConnectionResolver::class,
                 ['octoconnection' => $connection]
             );
 

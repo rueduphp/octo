@@ -3,10 +3,19 @@
 
     abstract class SessionAdapter
     {
+        /**
+         * @var mixed|null
+         */
         protected $handler = null;
 
+        /**
+         * @var string
+         */
         protected $prefix = 'PHPSESSID:';
 
+        /**
+         * @var int
+         */
         protected $ttl = 1800;
 
         protected function prepareId($id)

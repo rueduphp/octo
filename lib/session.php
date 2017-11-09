@@ -1,8 +1,13 @@
 <?php
     namespace Octo;
 
-    class Session implements \ArrayAccess, FastSessionInterface
+    use ArrayAccess;
+
+    class Session implements ArrayAccess, FastSessionInterface
     {
+        /**
+         * @var string
+         */
         private $_name;
 
         public function __construct($name = null)
@@ -16,7 +21,7 @@
 
         private function check()
         {
-            if (!session_id()) {
+            if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
 
@@ -171,6 +176,7 @@
         public function flash($key, $val = 'octodummy')
         {
             $this->check();
+
             $key = "flash_{$key}";
 
             if ($val != 'octodummy') {
@@ -232,11 +238,11 @@
 
         public function erase($key = null)
         {
+            $this->check();
+
             if (isset($_SESSION['infos_' . session_id()][$this->_name])) {
                 $_SESSION['infos_' . session_id()][$this->_name]['end'] = time() + Config::get('session.duration', 3600);
             }
-
-            $this->check();
 
             if (!empty($key)) {
                 unset($_SESSION[$this->_name . '.' . $key]);
