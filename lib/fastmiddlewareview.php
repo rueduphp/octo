@@ -1,21 +1,33 @@
 <?php
 namespace Octo;
 
-use Interop\Http\ServerMiddleware\DelegateInterface;
-use Psr\Http\Message\ServerRequestInterface;
+use function Http\Response\send;
 
-use function Http\Response\send as go;
-
-class Ffastmiddlewareview extends FastMiddleware
+class Fastmiddlewareview
 {
-    public function process(ServerRequestInterface $request, DelegateInterface $next)
+    use FastTrait;
+
+    public function process()
     {
-        $container = $this->getContainer();
-        $renderer = $container->getRenderer();
+        $container  = $this->getContainer();
+        $route      = $container->define('route');
 
-        $page = $container->define('page');
-        $args = $container->define('args');
+        if ($route) {
+            $file = $container->define('views.routes.' . $route->getName());
 
-        return go($renderer->render($page, $args));
+            if ($file) {
+                $renderer = $container->getRenderer();
+
+                return $container->response(
+                    200,
+                    [],
+                    $renderer->render($file)
+                );
+            }
+        }
+
+        $request = $container->getRequest();
+
+        return $container->process($request);
     }
 }

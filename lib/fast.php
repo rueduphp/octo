@@ -133,7 +133,10 @@
             return $this;
         }
 
-        public function getRenderer(): FastRendererInterface
+        /**
+         * @return FastPhpRenderer|FastTwigRenderer
+         */
+        public function getRenderer()
         {
             return $this->define('renderer');
         }
@@ -631,6 +634,32 @@
                 $router = fo();
 
                 $router->macro(
+                    'view', function ($path, $file, $name) {
+                        $instance   = $this->resolve(Fastmiddlewareview::class);
+                        $middleware = [$instance, 'process'];
+                        $router     = $this->router();
+
+                        $router->addRoute('GET', $path, $middleware, $name);
+                        $this->define('views.routes.' . $name, $file);
+
+                        return $this->router();
+                    }
+                );
+
+                $router->macro(
+                    'redirect', function ($path, $url, $name) {
+                        $instance   = $this->resolve(Fastmiddlewareredirect::class);
+                        $middleware = [$instance, 'process'];
+                        $router     = $this->router();
+
+                        $router->addRoute('GET', $path, $middleware, $name);
+                        $this->define('redirects.routes.' . $name, $url);
+
+                        return $this->router();
+                    }
+                );
+
+                $router->macro(
                     'addRoute', function ($method, $path, $middleware, $name = null) {
                         if (is_array($middleware) && is_object($name)) {
                             $name = $middleware[1];
@@ -1035,18 +1064,16 @@
         public function render($name, array $context = [])
         {
             if (!File::exists($name)) {
-                $viewPath = actual('fast')->define('view.path');
+                $viewPath = $this->getContainer()->define('view.path');
 
                 if (is_null($viewPath)) {
-                    exception('FastPhpRenderer', 'Please provide a view path.');
+                    $this->exception('FastPhpRenderer', 'Please provide a view path.');
                 }
 
                 $file = $viewPath . DS . $name . '.phtml';
             } else {
                 $file = $name;
             }
-
-            $context = $this->getContainer()->beforeRender($context);
 
             return $this->vue($file, $context)->inline();
         }
@@ -1067,6 +1094,18 @@
 
             return $this;
         }
+
+        public function flash($key = null, $default = null)
+        {
+            /** @var Flash $flash */
+            $flash = $this->getContainer()->resolve(Flash::class);
+
+            if (null !== $key) {
+                return $flash->get($key, $default);
+            }
+
+            return $flash->all();
+        }
     }
 
     class FastTwigRenderer extends Twig_Environment implements FastRendererInterface
@@ -1081,8 +1120,6 @@
          */
         public function render($name, array $context = [])
         {
-            $context = $this->getContainer()->beforeRender($context);
-
             return parent::render($name . '.twig', $context);
         }
     }

@@ -2123,7 +2123,14 @@
                 }
             }
 
-            $args = array_merge(['tpl' => $vue], $vue->getArgs());
+            $renderer = getContainer()->getRenderer();
+
+            $args = array_merge([
+                    'renderer' => $renderer,
+                    'tpl' => $vue
+                ],
+                $vue->getArgs()
+            );
 
             return evaluateInline(
                 $vue->getPath(),

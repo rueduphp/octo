@@ -1,16 +1,25 @@
 <?php
 namespace Octo;
 
-use Interop\Http\ServerMiddleware\DelegateInterface;
-use Psr\Http\Message\ServerRequestInterface;
-
-class Fastmiddlewareredirect extends FastMiddleware
+class Fastmiddlewareredirect
 {
-    public function process(ServerRequestInterface $request, DelegateInterface $next)
+    use FastTrait;
+
+    public function process()
     {
         $container  = $this->getContainer();
-        $url        = $container->define('redirect');
+        $route      = $container->define('route');
 
-        return $container->redirectResponse($url);
+        if ($route) {
+            $url = $container->define('redirects.routes.' . $route->getName());
+
+            if ($url) {
+                return $container->redirectResponse($url);
+            }
+        }
+
+        $request = $container->getRequest();
+
+        return $container->process($request);
     }
 }

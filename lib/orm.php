@@ -12,6 +12,9 @@
 
     class Orm implements FastOrmInterface
     {
+        /**
+         * @var PDO
+         */
         protected $pdo;
         protected $table;
         protected $wheres       = [];
@@ -292,6 +295,15 @@
             return $this;
         }
 
+        /**
+         * @param \Closure $callback
+         * @param int $times
+         *
+         * @return mixed
+         *
+         * @throws \Exception
+         * @throws \Throwable
+         */
         public function transaction(\Closure $callback, $times = 1)
         {
             for ($t = 1; $t <= $times; $t++) {
@@ -315,21 +327,34 @@
             }
         }
 
+        /**
+         * @return bool
+         */
         public function begin()
         {
             return $this->pdo->beginTransaction();
         }
 
+        /**
+         * @return bool
+         */
         public function commit()
         {
             return $this->pdo->commit();
         }
 
+        /**
+         * @return bool
+         */
         public function rollBack()
         {
             return $this->pdo->rollBack();
         }
 
+        /**
+         * @param bool $reset
+         * @return \PDOStatement
+         */
         public function native($reset = true)
         {
             return $this->run(false, $reset);
@@ -344,6 +369,11 @@
             }
         }
 
+        /**
+         * @param bool $make
+         * @param bool $reset
+         * @return \PDOStatement
+         */
         public function run($make = true, $reset = true)
         {
             $stmt = $this->getStatement($make);
@@ -363,16 +393,28 @@
             return $stmt;
         }
 
+        /**
+         * @param bool $make
+         * @param bool $reset
+         * @return \PDOStatement
+         */
         public function get($make = true, $reset = true)
         {
             return $this->run($make, $reset);
         }
 
+        /**
+         * @return string
+         */
         public function sql()
         {
             return $this->getStatement()->queryString;
         }
 
+        /**
+         * @param bool $make
+         * @return \PDOStatement
+         */
         protected function getStatement($make = true)
         {
             if ($make) {
@@ -948,6 +990,20 @@
             }
         }
 
+        /**
+         * @param $id
+         * @return bool
+         */
+        public function exists($id)
+        {
+            return $this->find($id) !== null;
+        }
+
+        /**
+         * @param $id
+         * @param array $columns
+         * @return mixed
+         */
         public function find($id, $columns = ['*'])
         {
             if (is_string($columns)) {
@@ -964,7 +1020,7 @@
 
             $this->reset();
 
-            return $row;
+            return $row ?: null;
         }
 
         public function select($columns = ['*'])

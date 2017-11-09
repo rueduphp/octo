@@ -111,6 +111,8 @@
                 ->addRoute('GET', '/data/{id:\d+}', [$this, 'data'])
                 ->addRoute('GET', '/hello', [$this, 'hello'])
                 ->addRoute('GET', '/admin/foo', [$this, 'admin'])
+                ->view('/view', 'view', 'view')
+                ->redirect('/redirect', '/hello', 'redirect')
             ;
         }
 
@@ -365,6 +367,30 @@
 
             $this->assertEquals(200, $response->getStatusCode());
             $this->assertEquals('test', (string) $response->getBody());
+        }
+
+        public function testRedirect()
+        {
+            $_SERVER['REQUEST_URI'] = '/redirect';
+            $request = $this->app->fromGlobals();
+            $this->app->addModule(Module::class);
+            $response = $this->app->run($request);
+
+            $this->assertEquals('/hello', current($response->getHeader('Location')));
+            $this->assertEquals(301, $response->getStatusCode());
+            $this->assertTrue($this->app->isRedirection());
+        }
+
+        public function testView()
+        {
+            $_SERVER['REQUEST_URI'] = '/view';
+            $request = $this->app->fromGlobals();
+            $this->app->addModule(Module::class);
+            $response = $this->app->run($request);
+
+            $this->assertEquals(200, $response->getStatusCode());
+            $this->assertTrue($this->app->isSuccessful());
+            $this->assertEquals('view test', (string) $response->getBody());
         }
 
         public function testTwig()
