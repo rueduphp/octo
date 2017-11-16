@@ -328,7 +328,7 @@
                 $results[$keyBy($item)] = $item;
             }
 
-            return $this->new($results);
+            return new static($results);
         }
 
         /**
@@ -350,7 +350,7 @@
                 }
             }
 
-            return $this->new($results);
+            return new static($results);
         }
 
         /**
@@ -383,7 +383,7 @@
          */
         public function intersect($items)
         {
-            return $this->new(array_intersect($this->items, $this->getArrays($items)));
+            return new static(array_intersect($this->items, $this->getArrays($items)));
         }
 
         /**
@@ -408,7 +408,7 @@
          */
         public function union($items)
         {
-            return $this->new($this->items + $this->getArrays($items));
+            return new static($this->items + $this->getArrays($items));
         }
 
         /**
@@ -416,9 +416,13 @@
          */
         public function keys()
         {
-            return $this->new(array_keys($this->items));
+            return new static(array_keys($this->items));
         }
 
+        /**
+         * @param null $default
+         * @return mixed|null
+         */
         public function last($default = null)
         {
             return !empty($this->items) ? end($this->items) : $default;
@@ -449,7 +453,38 @@
          */
         public function map(callable $callback)
         {
-            return $this->new(array_map($callback, $this->items, array_keys($this->items)));
+            $keys = array_keys($this->items);
+
+            $items = array_map($callback, $this->items, $keys);
+
+            return new static(array_combine($keys, $items));
+        }
+
+        public function mapSpread(callable $callback)
+        {
+            return $this->map(function ($chunk, $key) use ($callback) {
+                $chunk[] = $key;
+
+                return $callback(...$chunk);
+            });
+        }
+
+        public function mapToDictionary(callable $callback)
+        {
+            $dictionary = $this->map($callback)->reduce(function ($groups, $pair) {
+                $groups[key($pair)][] = reset($pair);
+
+                return $groups;
+            }, []);
+
+            return new static($dictionary);
+        }
+
+        public function mapToGroups(callable $callback)
+        {
+            $groups = $this->mapToDictionary($callback);
+
+            return $groups->map([$this, 'make']);
         }
 
         /**

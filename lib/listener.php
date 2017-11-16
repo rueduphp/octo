@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class Listener
+    class Listener implements FastListenerInterface
     {
         public $priority    = 0;
         public $halt        = false;
@@ -24,9 +24,9 @@
             return $this;
         }
 
-        public function halt()
+        public function halt(bool $halt)
         {
-            $this->halt = !$this->halt;
+            $this->halt = $halt;
 
             return $this;
         }

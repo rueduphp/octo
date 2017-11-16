@@ -1,13 +1,17 @@
 <?php
     namespace Octo;
+    use function get_called_class;
 
+    /**
+     * @method fire()
+     **/
     class Fire
     {
         private $ns;
 
-        public function __construct($ns = 'core')
+        public function __construct($ns = null)
         {
-            $this->ns = $ns;
+            $this->ns = $ns ?: get_called_class();
         }
 
         public function ns()
@@ -39,6 +43,34 @@
             Registry::set('fire.events.' . $this->ns, $events);
 
             return $ev;
+        }
+
+        /**
+         * @param $event
+         * @return bool
+         */
+        public function has($event)
+        {
+            $events = Registry::get('fire.events.' . $this->ns, []);
+
+            return 'octodummy' !== isAke($events, $event, 'octodummy');
+        }
+
+        /**
+         * @param $event
+         * @return bool
+         */
+        public function delete($event)
+        {
+            if ($this->has($event)) {
+                $events = Registry::get('fire.events.' . $this->ns, []);
+                unset($events[$event]);
+                Registry::set('fire.events.' . $this->ns, $events);
+
+                return true;
+            }
+
+            return false;
         }
 
         public function emit()

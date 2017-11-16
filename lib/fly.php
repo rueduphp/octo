@@ -69,7 +69,7 @@
                 if ('octodummy' == $priority) {
                     unset(self::$events[$event]);
                 } else {
-                    unset($events[$event][$priority]);
+                    unset(self::$events[$event][$priority]);
                 }
             }
         }

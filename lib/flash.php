@@ -1,7 +1,7 @@
 <?php
 namespace Octo;
 
-class Flash
+class Flash implements FastFlashInterface
 {
     /**
      * @var FastSessionInterface

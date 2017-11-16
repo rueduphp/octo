@@ -5,6 +5,8 @@
     use Illuminate\Database\ConnectionResolver;
     use Illuminate\Database\Eloquent\Builder as Builderer;
     use Illuminate\Database\Query\Builder;
+    use Illuminate\Database\Query\Grammars\MySqlGrammar as MySqlQueryGrammar;
+    use Illuminate\Database\Query\Grammars\SQLiteGrammar as SQLiteQueryGrammar;
     use Illuminate\Database\Schema\Grammars\MySqlGrammar;
     use Illuminate\Database\Schema\Grammars\SQLiteGrammar;
     use PDO;
@@ -182,6 +184,7 @@
             $this->pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, [Statement::class, [$this->pdo]]);
 
             context('app')->pdo = $this->pdo;
+            actual('pdo', $this->pdo);
 
             actual('orm.driver', $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
 
@@ -200,10 +203,13 @@
         {
             $this->connect();
 
-            $model      = is_string($class) ? foundry($class) : $class;
+            /** @var Ormmodel $model */
+            $model = is_string($class) ? foundry($class) : $class;
 
-            $connection = foundry(Connection::class, $this->pdo);
+            /** @var  Connection $connection */
+            $connection = $this->grammar(foundry(Connection::class, $this->pdo));
 
+            /** @var ConnectionResolver $resolver */
             $resolver   = foundry(
                 ConnectionResolver::class,
                 ['octoconnection' => $connection]
@@ -213,7 +219,9 @@
 
             $model->setConnectionResolver($resolver);
 
+            /** @var Builder $builder */
             $builder    = foundry(Builder::class, $connection);
+            /** @var Builderer $eloquent */
             $eloquent   = foundry(Builderer::class, $builder);
 
             return $eloquent->setModel($model);
@@ -223,6 +231,7 @@
         {
             $this->connect();
 
+            /** @var  Connection $connection */
             $connection = foundry(Connection::class, $this->pdo);
 
             $driver = actual('orm.driver');
@@ -230,13 +239,38 @@
             switch ($driver) {
                 case 'mysql':
                     $connection->setSchemaGrammar(new MySqlGrammar());
+                    $connection->setQueryGrammar(new MySqlQueryGrammar());
                     break;
                 case 'sqlite':
                     $connection->setSchemaGrammar(new SQLiteGrammar());
+                    $connection->setQueryGrammar(new SQLiteQueryGrammar());
                     break;
             }
 
-            return $connection->getSchemaBuilder();
+            return $this->grammar($connection)->getSchemaBuilder();
+        }
+
+        /**
+         * @param Connection $connection
+         *
+         * @return Connection
+         */
+        private function grammar(Connection $connection)
+        {
+            $driver = actual('orm.driver');
+
+            switch ($driver) {
+                case 'mysql':
+                    $connection->setSchemaGrammar(new MySqlGrammar());
+                    $connection->setQueryGrammar(new MySqlQueryGrammar());
+                    break;
+                case 'sqlite':
+                    $connection->setSchemaGrammar(new SQLiteGrammar());
+                    $connection->setQueryGrammar(new SQLiteQueryGrammar());
+                    break;
+            }
+
+            return $connection;
         }
 
         /**
@@ -246,8 +280,11 @@
         {
             $this->connect();
 
-            $connection = foundry(Connection::class, $this->pdo);
-            $builder    = foundry(Builder::class, $connection);
+            /** @var Connection $connection */
+            $connection = $this->grammar(foundry(Connection::class, $this->pdo));
+
+            /** @var Builder $builder */
+            $builder = foundry(Builder::class, $connection);
 
             $builder->macro('all', function () use ($builder) {
                 return $builder->get();
@@ -266,16 +303,25 @@
             return $builder;
         }
 
+        /**
+         * @return Orm
+         */
         public function newQuery()
         {
             return new self($this->pdo);
         }
 
+        /**
+         * @return Orm
+         */
         public function fresh()
         {
             return $this->newQuery();
         }
 
+        /**
+         * @return $this
+         */
         public function reset()
         {
             $this->table        = null;
@@ -422,6 +468,30 @@
             }
 
             return $this->pdo->prepare($this->query);
+        }
+
+        /**
+         * @return bool
+         */
+        public function truncate()
+        {
+            if (empty($this->table)) {
+                exception('orm', 'No table set.');
+            }
+
+            return 1 === $this->execRaw('TRUNCATE TABLE ' . $this->table);
+        }
+
+        /**
+         * @return bool
+         */
+        public function drop()
+        {
+            if (empty($this->table)) {
+                exception('orm', 'No table set.');
+            }
+
+            return 1 === $this->execRaw('DROP TABLE ' . $this->table);
         }
 
         protected function makeQuery()
@@ -1039,7 +1109,22 @@
             return $this;
         }
 
+        /**
+         * @param null $table
+         *
+         * @return \PDOStatement
+         */
         public function destroy($table = null)
+        {
+            return $this->delete($table)->run();
+        }
+
+        /**
+         * @param null $table
+         *
+         * @return \PDOStatement
+         */
+        public function remove($table = null)
         {
             return $this->delete($table)->run();
         }
@@ -1070,6 +1155,10 @@
             return $this->update($data)->run();
         }
 
+        /**
+         * @param array $data
+         * @return Orm
+         */
         public function update(array $data)
         {
             $this->query = "UPDATE ";
@@ -1077,6 +1166,10 @@
             return $this->columnify($data);
         }
 
+        /**
+         * @param array $data
+         * @return $this
+         */
         protected function columnify(array $data)
         {
             foreach ($data as $column => $value) {
@@ -1087,6 +1180,9 @@
             return $this;
         }
 
+        /**
+         * @return string
+         */
         protected function havingClause()
         {
             if (empty($this->havings)) {
@@ -1102,6 +1198,12 @@
             return ' HAVING ' . ltrim(implode('', $args), ' AND');
         }
 
+        /**
+         * @param $column
+         * @param null $operator
+         * @param string $chainType
+         * @return $this
+         */
         public function having($column, $operator = null, $chainType = 'AND')
         {
             $this->havings[] = ' ' . $chainType . ' ' . $column . ' ' . $operator . ' ?';
@@ -1109,11 +1211,21 @@
             return $this;
         }
 
+        /**
+         * @param $column
+         * @param null $operator
+         * @return Orm
+         */
         public function orHaving($column, $operator = null)
         {
             return $this->having($column, $operator, 'OR');
         }
 
+        /**
+         * @param $column
+         * @param null $operator
+         * @return Orm
+         */
         public function havingCount($column, $operator = null)
         {
             $column = 'COUNT(' . $column . ')';
@@ -1121,6 +1233,11 @@
             return $this->having($column, $operator);
         }
 
+        /**
+         * @param $column
+         * @param null $operator
+         * @return Orm
+         */
         public function havingMax($column, $operator = null)
         {
             $column = 'MAX(' . $column . ')';
@@ -1128,6 +1245,11 @@
             return $this->having($column, $operator);
         }
 
+        /**
+         * @param $column
+         * @param null $operator
+         * @return Orm
+         */
         public function havingMin($column, $operator = null)
         {
             $column = 'MIN(' . $column . ')';
@@ -1135,6 +1257,11 @@
             return $this->having($column, $operator);
         }
 
+        /**
+         * @param $column
+         * @param null $operator
+         * @return Orm
+         */
         public function havingAvg($column, $operator = null)
         {
             $column = 'AVG(' . $column . ')';
@@ -1142,6 +1269,11 @@
             return $this->having($column, $operator);
         }
 
+        /**
+         * @param $column
+         * @param null $operator
+         * @return Orm
+         */
         public function havingSum($column, $operator = null)
         {
             $column = 'SUM(' . $column . ')';
@@ -1149,6 +1281,9 @@
             return $this->having($column, $operator);
         }
 
+        /**
+         * @return string
+         */
         protected function joinClause()
         {
             if (empty($this->joins)) {
@@ -1164,6 +1299,14 @@
             return implode('', $args);
         }
 
+        /**
+         * @param $table
+         * @param $first
+         * @param null $operator
+         * @param null $second
+         * @param string $joinType
+         * @return $this
+         */
         public function join($table, $first, $operator = null, $second = null, $joinType = 'INNER')
         {
             $this->joins[] = ' ' . $joinType . ' JOIN ' . $table . ' ON ' . $first . ' ' . $operator . ' ' . $second;
@@ -1171,21 +1314,45 @@
             return $this;
         }
 
+        /**
+         * @param $table
+         * @param $first
+         * @param $second
+         * @param string $operator
+         * @return Orm
+         */
         public function left($table, $first, $second, $operator = '=')
         {
             return $this->join($table, $first, $operator, $second, 'LEFT');
         }
 
+        /**
+         * @param $table
+         * @param $first
+         * @param $second
+         * @param string $operator
+         * @return Orm
+         */
         public function right($table, $first, $second, $operator = '=')
         {
             return $this->join($table, $first, $operator, $second, 'RIGHT');
         }
 
+        /**
+         * @param $table
+         * @param $first
+         * @param $second
+         * @param string $operator
+         * @return Orm
+         */
         public function full($table, $first, $second, $operator = '=')
         {
             return $this->join($table, $first, $operator, $second, 'FULL');
         }
 
+        /**
+         * @return string
+         */
         protected function groupByClause()
         {
             if (empty($this->groups)) {
@@ -1195,6 +1362,10 @@
             return ' GROUP BY ' . implode(' , ', $this->groups);
         }
 
+        /**
+         * @param $columns
+         * @return $this
+         */
         public function groupBy($columns)
         {
             $this->groups[] = $columns;
@@ -1202,11 +1373,21 @@
             return $this;
         }
 
+        /**
+         * @param $max
+         * @param null $offset
+         * @return Orm
+         */
         public function take($max, $offset = null)
         {
             return $this->limit($max, $offset);
         }
 
+        /**
+         * @param $max
+         * @param null $offset
+         * @return $this
+         */
         public function limit($max, $offset = null)
         {
             if ($offset >= 0) {
@@ -1218,6 +1399,9 @@
             return $this;
         }
 
+        /**
+         * @return string
+         */
         protected function limitClause()
         {
             if (is_null($this->limit)) {
@@ -1227,6 +1411,10 @@
             return ' LIMIT ' . $this->limit;
         }
 
+        /**
+         * @param int $offset
+         * @return $this
+         */
         public function offset($offset = 0)
         {
             if ($offset >= 0) {
@@ -1238,11 +1426,18 @@
             return $this;
         }
 
+        /**
+         * @param $value
+         * @return Orm
+         */
         public function skip($value)
         {
             return $this->offset($value);
         }
 
+        /**
+         * @return string
+         */
         protected function offsetClause()
         {
             if (is_null($this->offset)) {
@@ -1252,16 +1447,29 @@
             return ' OFFSET ' . $this->offset;
         }
 
+        /**
+         * @param string $column
+         * @return Orm
+         */
         public function latest($column = 'created_at')
         {
             return $this->orderBy($column, 'DESC');
         }
 
+        /**
+         * @param string $column
+         * @return Orm
+         */
         public function oldest($column = 'created_at')
         {
             return $this->orderBy($column, 'ASC');
         }
 
+        /**
+         * @param $column
+         * @param string $direction
+         * @return $this
+         */
         public function orderBy($column, $direction = 'ASC')
         {
             $this->orders[] = $column . ' ' . Strings::upper($direction);
@@ -1269,26 +1477,44 @@
             return $this;
         }
 
+        /**
+         * @param $column
+         * @return Orm
+         */
         public function orderByDesc($column)
         {
             return $this->orderBy($column, 'DESC');
         }
 
+        /**
+         * @param $column
+         * @return Orm
+         */
         public function sortBy($column)
         {
             return $this->orderBy($column);
         }
 
+        /**
+         * @param $column
+         * @return Orm
+         */
         public function sortByDesc($column)
         {
             return $this->orderBy($column, 'DESC');
         }
 
+        /**
+         * @return string
+         */
         public function now()
         {
             return date('Y-m-d H:i:s');
         }
 
+        /**
+         * @return string
+         */
         protected function orderByClause()
         {
             if (empty($this->orders)) {
@@ -1298,11 +1524,20 @@
             return ' ORDER BY ' . implode(' , ', $this->orders);
         }
 
+        /**
+         * @param array $array
+         * @return bool
+         */
         protected function isPaired(array $array)
         {
             return array_keys($array) !== range(0, count($array) - 1);
         }
 
+        /**
+         * @param $field
+         * @param null $value
+         * @return $this|Orm
+         */
         public function findBy($field, $value = null)
         {
             if (is_null($value)) {
@@ -1316,137 +1551,228 @@
             return $this->where($field, $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return mixed
+         */
         public function firstBy($field, $value)
         {
             return $this->findBy($field, $value)->first();
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return Orm
+         */
         public function startsWith($field, $value)
         {
             return $this->like($field, $value . '%');
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return Orm
+         */
         public function orStartsWith($field, $value)
         {
             return $this->orLike($field, $value . '%');
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return Orm
+         */
         public function endsWith($field, $value)
         {
             return $this->like($field, '%' . $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return Orm
+         */
         public function orEndsWith($field, $value)
         {
             return $this->orLike($field, '%' . $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return Orm
+         */
         public function lt($field, $value)
         {
             return $this->where($field, '<', $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return mixed
+         */
         public function orLt($field, $value)
         {
             return $this->or($field, '<', $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return Orm
+         */
         public function gt($field, $value)
         {
             return $this->where($field, '>', $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return mixed
+         */
         public function orGt($field, $value)
         {
             return $this->or($field, '>', $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return Orm
+         */
         public function lte($field, $value)
         {
             return $this->where($field, '<=', $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return mixed
+         */
         public function orLte($field, $value)
         {
             return $this->or($field, '<=', $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return Orm
+         */
         public function gte($field, $value)
         {
             return $this->where($field, '>=', $value);
         }
 
+        /**
+         * @param $field
+         * @param $value
+         * @return mixed
+         */
         public function orGte($field, $value)
         {
             return $this->or($field, '>=', $value);
         }
 
-        public function before($date, $strict = true)
+        /**
+         * @param $date
+         *
+         * @return false|string
+         */
+        protected function formatDate($date)
         {
             if (!is_int($date)) {
                 $date = (int) $date->timestamp;
             }
 
-            $date = date('Y-m-d H:i:s', $date);
+            return date('Y-m-d H:i:s', $date);
+        }
+
+        /**
+         * @param $date
+         * @param bool $strict
+         * @return Orm
+         */
+        public function before($date, $strict = true)
+        {
+            $date = $this->formatDate($date);
 
             return $strict ? $this->lt('created_at', $date) : $this->lte('created_at', $date);
         }
 
+        /**
+         * @param $date
+         * @param bool $strict
+         * @return Orm
+         */
         public function orBefore($date, $strict = true)
         {
-            if (!is_int($date)) {
-                $date = (int) $date->timestamp;
-            }
-
-            $date = date('Y-m-d H:i:s', $date);
+            $date = $this->formatDate($date);
 
             return $strict ? $this->orLt('created_at', $date) : $this->orLte('created_at', $date);
         }
 
+        /**
+         * @param $date
+         * @param bool $strict
+         * @return Orm
+         */
         public function after($date, $strict = true)
         {
-            if (!is_int($date)) {
-                $date = (int) $date->timestamp;
-            }
-
-            $date = date('Y-m-d H:i:s', $date);
+            $date = $this->formatDate($date);
 
             return $strict ? $this->gt('created_at', $date) : $this->gte('created_at', $date);
         }
 
+        /**
+         * @param $date
+         * @param bool $strict
+         * @return Orm
+         */
         public function orAfter($date, $strict = true)
         {
-            if (!is_int($date)) {
-                $date = (int) $date->timestamp;
-            }
-
-            $date = date('Y-m-d H:i:s', $date);
+            $date = $this->formatDate($date);
 
             return $strict ? $this->orGt('created_at', $date) : $this->orGte('created_at', $date);
         }
 
+        /**
+         * @param $field
+         * @param $op
+         * @param $date
+         * @return Orm
+         */
         public function when($field, $op, $date)
         {
-            if (!is_int($date)) {
-                $date = (int) $date->timestamp;
-            }
-
-            $date = date('Y-m-d H:i:s', $date);
+            $date = $this->formatDate($date);
 
             return $this->where($field, $op, $date);
         }
 
+        /**
+         * @param $field
+         * @param $op
+         * @param $date
+         * @return Orm
+         */
         public function orWhen($field, $op, $date)
         {
-            if (!is_int($date)) {
-                $date = (int) $date->timestamp;
-            }
-
-            $date = date('Y-m-d H:i:s', $date);
+            $date = $this->formatDate($date);
 
             return $this->or($field, $op, $date);
         }
 
+        /**
+         * @param $column
+         * @return mixed
+         */
         public function value($column)
         {
             $result = $this->first([$column]);
@@ -1458,21 +1784,37 @@
             return null;
         }
 
+        /**
+         * @param int $page
+         * @param int $perPage
+         * @return Orm
+         */
         public function forPage($page, $perPage = 15)
         {
             return $this->skip(($page - 1) * $perPage)->take($perPage);
         }
 
+        /**
+         * @return Orm
+         */
         public function deleted()
         {
             return $this->lte('deleted_at', microtime(true));
         }
 
+        /**
+         * @return Orm
+         */
         public function orDeleted()
         {
             return $this->orLte('deleted_at', microtime(true));
         }
 
+        /**
+         * @param array $attributes
+         * @param array $values
+         * @return mixed|Record
+         */
         public function updateOrCreate(array $attributes, array $values = [])
         {
             $model = $this->firstOrNew($attributes);
@@ -1486,6 +1828,10 @@
             return $model;
         }
 
+        /**
+         * @param $conditions
+         * @return mixed
+         */
         public function firstOrCreate($conditions)
         {
             $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
@@ -1507,6 +1853,10 @@
             return $exists;
         }
 
+        /**
+         * @param $conditions
+         * @return mixed|Record
+         */
         public function firstOrNew($conditions)
         {
             $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
@@ -1626,13 +1976,9 @@
 
         public function cursor()
         {
-            $values     = $this->values();
-            $entity     = $this->getEntity();
             $instance   = clone $this;
 
-            $statement  = $this->select()->run();
-
-            return new Ormiterator($statement, $instance);
+            return new Ormiterator($this->select()->run(), $instance);
         }
 
         public function rows($model = true)
@@ -1893,6 +2239,11 @@
             return $last ?: null;
         }
 
+        /**
+         * @param $field
+         * @param null $key
+         * @return array
+         */
         public function pluck($field, $key = null)
         {
             return $this->collection()->pluck($field, $key);
@@ -1978,7 +2329,31 @@
             if (fnmatch('between*', $m) && strlen($m) > 7) {
                 $field = callField($m, 'between');
 
-                return $this->between($field, array_shift($a));
+                return $this->between($field, current($a));
+            }
+
+            if (fnmatch('*isNull', $m) && strlen($m) > 6) {
+                $field = callField($m, 'isNull');
+
+                return $this->isNull($field);
+            }
+
+            if (fnmatch('*isNotNull', $m) && strlen($m) > 9) {
+                $field = callField($m, 'isNotNull');
+
+                return $this->isNotNull($field);
+            }
+
+            if (fnmatch('*isGreaterThan', $m) && strlen($m) > 13) {
+                $field = callField($m, 'isNull');
+
+                return $this->where($field, '>', current($a));
+            }
+
+            if (fnmatch('*isLowerThan', $m) && strlen($m) > 11) {
+                $field = callField($m, 'isNull');
+
+                return $this->where($field, '<', current($a));
             }
 
             if (fnmatch('where*', $m) && strlen($m) > 5) {
@@ -2028,5 +2403,23 @@
             }
 
             return call_user_func_array([$this->builder(), $m], $a);
+        }
+
+        /**
+         * @param $sql
+         * @return \PDOStatement
+         */
+        public function queryRaw($sql)
+        {
+            return $this->getPdo()->query($sql);
+        }
+
+        /**
+         * @param $sql
+         * @return int
+         */
+        public function execRaw($sql)
+        {
+            return $this->getPdo()->exec($sql);
         }
     }

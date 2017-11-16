@@ -1,7 +1,9 @@
 <?php
     require_once __DIR__ . '/classes.php';
 
+    use Illuminate\Database\Eloquent\Builder;
     use Illuminate\Database\Eloquent\Collection as CollectIll;
+    use Octo\Migrations as Migrator;
     use Octo\Orm;
     use Octo\Ormmodel;
     use Octo\Record;
@@ -65,7 +67,10 @@
 
     class OrmTest extends TestCase
     {
+       /** @var  PDO */
         protected $pdo;
+
+        /** @var  Orm */
         protected $db;
 
         public function setUp()

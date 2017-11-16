@@ -2,8 +2,10 @@
     namespace Octo;
 
     use function getenv;
+    use GuzzleHttp\Psr7\Response;
     use Illuminate\Support\Debug\Dumper;
     use function is_callable;
+    use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
@@ -834,6 +836,17 @@
         }
 
         return $d;
+    }
+
+    function logFile($path, $message, $type = 'INFO')
+    {
+        if (is_array($message)) $message = implode(PHP_EOL, $message);
+
+        $type = Strings::upper($type);
+
+        $file = $path . DS . date('Y_m_d') . '.logs';
+
+        File::append($file, date('H:i:s') . ':' . $type . ' => ' . $message);
     }
 
     function log($message, $type = 'INFO')
@@ -2576,7 +2589,7 @@
         });
 
         $app->response(function () {
-            return new \GuzzleHttp\Psr7\Response;
+            return new Response;
         });
 
         $app->render(function(\Psr\Http\Message\ResponseInterface $response) {
@@ -3643,11 +3656,51 @@
     }
 
     /**
-     * @return null|Fast
+     * @return Fast
      */
     function getContainer()
     {
         return fast();
+    }
+
+    /**
+     * @return \PDO
+     */
+    function getPdo()
+    {
+        return actual("pdo");
+    }
+
+    /**
+     * @return Module
+     */
+    function getModule()
+    {
+        return actual('fast.module');
+    }
+
+    /**
+     * @return FastPhpRenderer|FastTwigRenderer
+     */
+    function getRenderer()
+    {
+        return getContainer()->getRenderer();
+    }
+
+    /**
+     * @return ServerRequestInterface
+     */
+    function getRequest()
+    {
+        return getContainer()->getRequest();
+    }
+
+    /**
+     * @return Response
+     */
+    function getResponse()
+    {
+        return getContainer()->getResponse();
     }
 
     /**
@@ -4568,6 +4621,11 @@
     function code($text)
     {
         return str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
+    }
+
+    function getEventManager()
+    {
+        return instanciator()->singleton(FastEvent::class);
     }
 
     function value($value)

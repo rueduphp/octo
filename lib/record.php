@@ -731,6 +731,7 @@
         public function morphTo($class)
         {
             if ($this->exists()) {
+                /** @var Entity  $entity */
                 $entity = maker($class);
 
                 return $entity->model([
@@ -740,9 +741,10 @@
             }
         }
 
-        public function morphWith($model)
+        public function morphWith(Record $model)
         {
             if ($model->exists()) {
+                /** @var Entity  $entity */
                 $entity = $model->entity();
                 $getter = getter($entity->pk());
 

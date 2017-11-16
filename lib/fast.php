@@ -4,14 +4,17 @@
     use ArrayAccess;
     use ArrayObject;
     use Exception as NativeException;
+    use function get_called_class;
     use GuzzleHttp\Psr7\MessageTrait;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
+    use function is_writable;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ResponseInterface;
     use Psr\Http\Message\ServerRequestInterface;
+    use function session_save_path;
     use Twig_Environment;
     use Twig_Extension;
     use Twig_Filter;
@@ -181,6 +184,9 @@
             return $this->define('auth');
         }
 
+        /**
+         * @return ServerRequestInterface
+         */
         public function getRequest()
         {
             return $this->request;
@@ -828,6 +834,18 @@
         }
 
         /**
+         * @param string $key
+         * @param null $default
+         * @return mixed|null
+         */
+        public function value(string $key, $default = null)
+        {
+            $value = $this->define($key);
+
+            return $value ? $value : $default;
+        }
+
+        /**
          * @param string $routeName
          * @param array $params
          *
@@ -977,39 +995,123 @@
         }
     }
 
-    /* Interfaces */
-    interface FastOrmInterface {}
-    interface FastExceptionInterface {}
-    interface FastSessionInterface {}
-    interface FastCacheInterface {}
-    interface FastFlashInterface {}
-    interface FastLogInterface {}
-    interface FastDbInterface {}
-    interface FastMailerInterface {}
-    interface FastEventInterface {}
-    interface FastViewInterface {}
-    interface FastRouterInterface {}
-    interface FastRouteInterface {}
-    interface FastRendererInterface {}
-    interface FastAuthInterface {}
-    interface FastStorageInterface {}
-    interface FastContainerInterface
+    trait FastRegistryTrait
     {
-        public function get($key, $singleton = false);
-        public function has($key);
-    }
+        /**
+         * @var string
+         */
+        protected $registryInstance;
 
-    interface FastUserOrmInterface {}
-    interface FastRoleOrmInterface {}
+        /**
+         * @param $key
+         * @param $value
+         *
+         * @return $this
+         */
+        public function set($key, $value)
+        {
+            $key = $this->getRegistryKey($key);
 
-    class FastRedis extends Cacheredis  implements FastStorageInterface {}
-    class FastCache extends Cache       implements FastStorageInterface {}
-    class FastNow   extends Now         implements FastStorageInterface {}
+            Registry::set($key, $value);
 
-    class AuthmiddlewareException extends NativeException {}
-    class FastTwigExtensions extends Twig_Extension
-    {
-        use FastTrait;
+            return $this;
+        }
+
+        /**
+         * @param $key
+         * @param null $default
+         *
+         * @return mixed
+         */
+        public function get($key, $default = null)
+        {
+            $key = $this->getRegistryKey($key);
+
+            return Registry::get($key, $default);
+        }
+
+        /**
+         * @param $key
+         * @param mixed $callable
+
+         * @return mixed
+         */
+        public function getOr($key, $callable)
+        {
+            if (!is_callable($callable)) {
+                $callable = function () use ($callable) {return $callable;};
+            }
+
+            $res = $this->get($key, 'octodummy');
+
+            if ('octodummy' === $res) {
+                $this->set($key, $res = $callable());
+            }
+
+            return $res;
+        }
+
+        /**
+         * @param string $key
+         * @param mixed|null $default
+         *
+         * @return mixed|null
+         */
+        public function getOnce($key, $default = null)
+        {
+            if ($this->has($key)) {
+                $value = $this->get($key);
+
+                $this->delete($key);
+
+                return $value;
+            }
+
+            return $default;
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public function has($key)
+        {
+            $key = $this->getRegistryKey($key);
+
+            return 'octodummy' !== Registry::get($key, 'octodummy');
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public function delete($key)
+        {
+            if ($this->has($key)) {
+                $key = $this->getRegistryKey($key);
+                Registry::delete($key);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return string
+         */
+        private function getRegistryKey($key)
+        {
+            if (is_null($this->registryInstance)) {
+                $this->registryInstance = hash(token() . get_called_class());
+            }
+
+            return $this->registryInstance . $key;
+        }
     }
 
     trait FastTrait
@@ -1038,6 +1140,22 @@
         }
 
         /**
+         * @return FastEvent
+         */
+        public function getEventManager()
+        {
+            return getEventManager();
+        }
+
+        /**
+         * @return \PDO
+         */
+        public function getPdo()
+        {
+            return getPdo();
+        }
+
+        /**
          * @return Fastcontainer
          */
         public function getDI()
@@ -1049,11 +1167,109 @@
         {
             lvd(...func_get_args());
         }
+
+        public function ddbg()
+        {
+            ldd(...func_get_args());
+        }
+    }
+
+    trait Framework
+    {
+        use FastTrait;
+        use FastRegistryTrait;
+    }
+
+    /* Interfaces */
+    interface FastListenerInterface {}
+    interface FastOrmInterface {}
+    interface FastExceptionInterface {}
+    interface FastSessionInterface {}
+    interface FastCacheInterface {}
+    interface FastFlashInterface {}
+    interface FastLogInterface {}
+    interface FastRegistryInterface {}
+    interface FastDbInterface {}
+    interface FastMailerInterface {}
+    interface FastEventInterface {}
+    interface FastViewInterface {}
+    interface FastRouterInterface {}
+    interface FastRouteInterface {}
+    interface FastRendererInterface {}
+    interface FastAuthInterface {}
+    interface FastStorageInterface {}
+    interface FastContainerInterface
+    {
+        public function get($key, $singleton = false);
+        public function has($key);
+    }
+
+    interface FastUserOrmInterface {}
+    interface FastRoleOrmInterface {}
+
+    class FastEvent extends Fire implements FastEventInterface {}
+    class FastRedis extends Cacheredis  implements FastStorageInterface {}
+    class FastCache extends Cache       implements FastStorageInterface {}
+    class FastNow   extends Now         implements FastStorageInterface {}
+
+    class AuthmiddlewareException extends NativeException {}
+    class FastTwigExtensions extends Twig_Extension
+    {
+        use Framework;
+    }
+
+    class FastRegistry implements FastRegistryInterface
+    {
+        use Framework;
+    }
+
+    class FastLog implements FastLogInterface
+    {
+        /**
+         * @var string
+         */
+        private $path;
+
+        /**
+         * @param string|null $path
+         */
+        public function __construct($path = null)
+        {
+            if (is_null($path) || !is_writable($path)) {
+                $path = getContainer()->value('DIR_CACHE', session_save_path());
+            }
+
+            $this->path = $path;
+        }
+
+        public function __call($m, $a)
+        {
+            $message    = array_shift($a);
+
+            logFile($this->getPath(), $message, $m);
+        }
+
+        public static function __callStatic($m, $a)
+        {
+            $message    = array_shift($a);
+
+            $self = new self;
+
+            logFile($self->getPath(), $message, $m);
+        }
+
+        /**
+         * @return string
+         */
+        public function getPath(): string
+        {
+            return $this->path;
+        }
     }
 
     class FastPhpRenderer implements FastRendererInterface
     {
-        use FastTrait;
+        use Framework;
 
         /**
          * @param string $name
@@ -1110,7 +1326,7 @@
 
     class FastTwigRenderer extends Twig_Environment implements FastRendererInterface
     {
-        use FastTrait;
+        use Framework;
 
         /**
          * @param string $name
@@ -1126,7 +1342,7 @@
 
     class FastMiddleware implements MiddlewareInterface
     {
-        use FastTrait;
+        use Framework;
 
         public function process(ServerRequestInterface $request, DelegateInterface $next)
         {
