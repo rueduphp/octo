@@ -396,6 +396,7 @@
         {
             UserModel::create(['name' => 'test']);
 
+            $this->assertCount(10, PostModel::all());
             $this->assertEquals('test', UserModel::find(11)->name);
 
             $this->assertEquals(66, UserModel::sum('id'));

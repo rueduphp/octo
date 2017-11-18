@@ -178,7 +178,7 @@
          * @param PDO $pdo
          * @return Orm
          */
-        public function setPdo(PDO $pdo): Orm
+        public function setPdo(PDO $pdo)
         {
             $this->pdo = $pdo;
             $this->pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, [Statement::class, [$this->pdo]]);
@@ -194,11 +194,15 @@
         /**
          * @return PDO
          */
-        public function getPdo(): PDO
+        public function getPdo()
         {
             return $this->pdo;
         }
 
+        /**
+         * @param $class
+         * @return Builder
+         */
         public function eloquent($class)
         {
             $this->connect();
@@ -221,6 +225,11 @@
 
             /** @var Builder $builder */
             $builder    = foundry(Builder::class, $connection);
+
+            $builder->macro('all', function () use ($builder) {
+                return $builder->get();
+            });
+            
             /** @var Builderer $eloquent */
             $eloquent   = foundry(Builderer::class, $builder);
 
