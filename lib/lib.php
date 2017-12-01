@@ -5627,7 +5627,7 @@
         $class = 'Octo\\' . Strings::camelize($type);
 
         if (!class_exists($class)) {
-            $classCode = File::read(__DIR__ . DS . 'object.php');
+            $classCode = File::read(__DIR__ . DS . 'objet.php');
             list($dummy, $classCode) = explode('namespace ' . __NAMESPACE__ . ';', $classCode, 2);
 
             $classCode = str_replace_first('class Object', 'class ' . Strings::camelize($type), $classCode);
