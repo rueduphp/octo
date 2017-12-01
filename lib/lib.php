@@ -5630,7 +5630,7 @@
             $classCode = File::read(__DIR__ . DS . 'objet.php');
             list($dummy, $classCode) = explode('namespace ' . __NAMESPACE__ . ';', $classCode, 2);
 
-            $classCode = str_replace_first('class Object', 'class ' . Strings::camelize($type), $classCode);
+            $classCode = str_replace_first('class Objet', 'class ' . Strings::camelize($type), $classCode);
 
             $code = "namespace " . __NAMESPACE__ . " { $classCode };";
 
