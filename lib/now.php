@@ -23,14 +23,32 @@
             }
         }
 
-        public function reset($ns = 'core')
+        public function reset($ns = null)
         {
+            $ns = is_null($ns) ? $this->ns : $ns;
+
             unset(self::$data[$ns]);
+
+            return $this;
+        }
+
+        public function truncate()
+        {
+            return $this->reset();
         }
 
         public function resetAll()
         {
             self::$data = [];
+
+            return $this;
+        }
+
+        public function drop()
+        {
+            self::$data = [];
+
+            return $this;
         }
 
         public function getDirectory()
@@ -40,7 +58,7 @@
 
         public function copy($new, $drop = false)
         {
-            if (!isset(self::$data[$this->ns])) {
+            if (!isset(self::$data[$new])) {
                 $actualData = self::$data[$this->ns];
 
                 if ($drop) {
@@ -53,7 +71,7 @@
 
                 return $this;
             } else {
-                exception('now', "Yhe namespace $ns is already in use.");
+                exception('now', "Yhe namespace $new is already in use.");
             }
         }
 
@@ -157,6 +175,11 @@
             return $default;
         }
 
+        /**
+         * @param $k
+         * @param array $default
+         * @return \Generator
+         */
         public function collection($k, $default = [])
         {
             $data = !isset(self::$data[$this->ns][$k]) ? $default : self::$data[$this->ns][$k];

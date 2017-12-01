@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class Object extends \ArrayObject implements \ArrayAccess
+    class Objet extends \ArrayObject implements \ArrayAccess
     {
         use Notifiable;
 

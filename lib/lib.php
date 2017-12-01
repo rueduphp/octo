@@ -500,7 +500,7 @@
      */
     function o(array $o = [])
     {
-        return lib('object', [$o]);
+        return lib('objet', [$o]);
     }
 
     /**
@@ -539,7 +539,7 @@
 
         if (is_null($object)) {
             /* @var \Octo\Object $object */
-            $object = lib('object', [$o]);
+            $object = lib('objet', [$o]);
 
             $object->fn('persist', function () use ($name, $object) {
                 actual($name, $object);
@@ -955,7 +955,7 @@
     function server($k = null, $d = null)
     {
         if (empty($k)) {
-            return lib('object', [oclean($_SERVER)]);
+            return lib('objet', [oclean($_SERVER)]);
         }
 
         return isAke(oclean($_SERVER), $k, $d);
@@ -1022,7 +1022,7 @@
         }
 
         if (empty($k)) {
-            return lib('object', [$data]);
+            return lib('objet', [$data]);
         } else {
             return isAke($data, $k, $d);
         }
@@ -5400,7 +5400,7 @@
         $flasher = o();
 
         $flasher->macro('success', function ($v = 'octodummy') {
-            if ($v instanceof Object) {
+            if ($v instanceof Objet) {
                 $v = 'octodummy';
             }
 
@@ -5409,7 +5409,7 @@
         });
 
         $flasher->macro('error', function ($v = 'octodummy') {
-            if ($v instanceof Object) {
+            if ($v instanceof Objet) {
                 $v = 'octodummy';
             }
 
@@ -5960,7 +5960,7 @@
         return Strings::upper($str);
     }
 
-    function polymorph(Object $object)
+    function polymorph(Objet $object)
     {
         return em(
             $object->db(),
@@ -7220,10 +7220,10 @@
         $cache      = fmr('recall');
 
         if ($cache->has($key)) {
-            return $cache->get($ke);
+            return $cache->get($key);
         }
 
-        $calue = call_user_func_array($callback, $args);
+        $value = call_user_func_array($callback, $args);
 
         $cache->set($key, $value, $minutes);
 
