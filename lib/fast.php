@@ -1433,7 +1433,7 @@
     class FastException extends NativeException implements FastExceptionInterface {}
 
     class FastObject
-    extends Object
+    extends Objet
     implements
     FastUserOrmInterface,
     FastRouterInterface,
