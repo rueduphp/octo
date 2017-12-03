@@ -1985,6 +1985,10 @@
             return null;
         }
 
+        /**
+         * @param bool $model
+         * @return OctaliaIterator
+         */
         public function get($model = true)
         {
             $this->reset();

@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class Ormmodel extends \Illuminate\Database\Eloquent\Model
+    class Ormmodel extends \Illuminate\Database\Eloquent\Model implements FastModelInterface
     {
         protected $guarded  = [];
 

@@ -3,7 +3,7 @@
 
     use PDOException;
 
-    class Entity
+    class Entity implements FastModelInterface
     {
         protected $table;
         protected $guarded      = null;
@@ -102,7 +102,7 @@
         public static function called()
         {
             $class  = get_called_class();
-            $i      = maker($class);
+            $i      = instanciator()->factory($class);
 
             if (!isset($i->table)) {
                 $table = $i->table = Strings::lower(
@@ -141,7 +141,7 @@
                     }
                 }
             } else {
-                if ($concern == []) {
+                if ($concern === []) {
                     return $this;
                 }
             }
@@ -149,7 +149,7 @@
             return get_called_class();
         }
 
-        public static function new(array $data)
+        public static function new(array $data = [])
         {
             return static::create($data);
         }
@@ -169,7 +169,7 @@
             static::validate($data);
 
             try {
-                $new = static::db()
+                static::db()
                 ->insert($data)
                 ->run();
             } catch (PDOException $e) {

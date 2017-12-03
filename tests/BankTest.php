@@ -95,7 +95,7 @@ class BankTest extends TestCase
         $rows = $this->db->hydrate();
 
         foreach ($rows as $row) {
-            $this->assertInstanceOf(Object::class, $row);
+            $this->assertInstanceOf(Objet::class, $row);
 
             if ($row->getId() === 1) {
                 $this->assertSame('test',   $row->getName());

@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class Job
+    class Job implements FastJobInterface
     {
         public function add($job, $when = 0)
         {

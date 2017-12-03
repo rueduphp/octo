@@ -4,7 +4,7 @@ namespace Octo;
 use function array_key_exists;
 use const JSON_PRETTY_PRINT;
 
-class NodeData extends Object {}
+class NodeData extends Objet {}
 
 class Node
 {

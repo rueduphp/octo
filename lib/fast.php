@@ -1182,6 +1182,9 @@
 
     /* Interfaces */
     interface FastListenerInterface {}
+    interface FastQueueInterface {}
+    interface FastModelInterface {}
+    interface FastJobInterface {}
     interface FastOrmInterface {}
     interface FastExceptionInterface {}
     interface FastSessionInterface {}
@@ -1207,7 +1210,7 @@
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
 
-    class FastEvent extends Fire implements FastEventInterface {}
+    class FastEvent extends Fire        implements FastEventInterface {}
     class FastRedis extends Cacheredis  implements FastStorageInterface {}
     class FastCache extends Cache       implements FastStorageInterface {}
     class FastNow   extends Now         implements FastStorageInterface {}
@@ -1267,7 +1270,7 @@
         }
     }
 
-    class FastPhpRenderer implements FastRendererInterface
+    class FastPhpRenderer implements FastRendererInterface, FastViewInterface
     {
         use Framework;
 
@@ -1324,7 +1327,7 @@
         }
     }
 
-    class FastTwigRenderer extends Twig_Environment implements FastRendererInterface
+    class FastTwigRenderer extends Twig_Environment implements FastRendererInterface, FastViewInterface
     {
         use Framework;
 

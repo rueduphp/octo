@@ -8,8 +8,17 @@
     {
         use Notifiable;
 
-        protected $entity = null, $data = [], $initial = [], $callbacks = [];
+        /**
+         * @var Entity
+         */
+        protected $entity = null;
+        protected $data = [], $initial = [], $callbacks = [];
 
+        /**
+         * @param array $data
+         * @param Entity $entity
+         * @param bool $isProxy
+         */
         public function __construct(array $data = [], $entity, $isProxy = false)
         {
             $this->data     = $data;
@@ -17,7 +26,7 @@
             $this->entity   = $entity;
 
             if ($pk = isAke($data, $entity->pk(), null)) {
-                actual('orm.fields.' . $entity->pk(), array_keys($data));
+                actual('orm.fields.' . $entity->table(), array_keys($data));
             }
 
             $methods = get_class_methods($entity);
@@ -57,7 +66,7 @@
                 eval($code);
             }
 
-            actual('orm.proxy.' . $class, foundry('Octo\\' . $class, $data, $this->entity, true));
+            actual('orm.proxy.' . $class, instanciator()->factory('Octo\\' . $class, $data, $this->entity, true));
         }
 
         public function entity()
@@ -65,9 +74,12 @@
             return $this->entity;
         }
 
+        /**
+         * @return Orm
+         */
         public function db()
         {
-            return foundry(Orm::class)->table($this->entity->table());
+            return instanciator()->factory(Orm::class)->table($this->entity->table());
         }
 
         public function checkAndSave(callable $cb)
@@ -99,7 +111,7 @@
 
         public function contains($key)
         {
-            return 'octodummy' != $this->get($key, 'octodummy');
+            return 'octodummy' !== $this->get($key, 'octodummy');
         }
 
         public function collection()
@@ -109,7 +121,7 @@
 
         public function __call($m, $a)
         {
-            if ('array' == $m) {
+            if ('array' === $m) {
                 return $this->toArray();
             }
 
@@ -120,7 +132,7 @@
                     return call_user_func_array($c, array_merge($a, [$this]));
                 }
             } else {
-                if ($m == 'new') {
+                if ($m === 'new') {
                     if (empty($a)) {
                         $data = [];
                     } else {
@@ -134,7 +146,7 @@
                     return new self($data);
                 }
 
-                if (substr($m, 0, 3) == 'set' && strlen($m) > 3) {
+                if (substr($m, 0, 3) === 'set' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -143,7 +155,7 @@
                     return $this->set($field, $v);
                 }
 
-                if (substr($m, 0, 3) == 'get' && strlen($m) > 3) {
+                if (substr($m, 0, 3) === 'get' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -152,14 +164,14 @@
                     return $this->get($field, $d);
                 }
 
-                if (substr($m, 0, 3) == 'has' && strlen($m) > 3) {
+                if (substr($m, 0, 3) === 'has' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
                     return $this->has($field);
                 }
 
-                if (substr($m, 0, 3) == 'del' && strlen($m) > 3) {
+                if (substr($m, 0, 3) === 'del' && strlen($m) > 3) {
                     $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
                     $field              = Strings::lower($uncamelizeMethod);
 
@@ -167,8 +179,8 @@
                 }
 
                 if (
-                    'octodummy' == isAke($this->data, $m, 'octodummy')
-                    && 'octodummy' == isAke($this->callbacks, $m, 'octodummy')
+                    'octodummy' === isAke($this->data, $m, 'octodummy')
+                    && 'octodummy' === isAke($this->callbacks, $m, 'octodummy')
                     && $this->exists()
                 ) {
                     $methods = get_class_methods($this->entity);
@@ -216,7 +228,7 @@
                             return $this->morph();
                         }
 
-                        $entity = maker($class);
+                        $entity = instanciator()->singleton($class);
 
                         $pk = $entity->table() . '_id';
 
@@ -229,7 +241,7 @@
                                 return $this->sync($m);
                             }
                         } else {
-                            if (isset($this->morph_type) && $this->morph_type == $class) {
+                            if (isset($this->morph_type) && $this->morph_type === $class) {
                                 $m = array_shift($a);
 
                                 if (!$m) {
@@ -242,7 +254,7 @@
                     }
                 }
 
-                if (count($a) == 1) {
+                if (count($a) === 1) {
                     $concern = current($a);
 
                     return $this->set($m, $concern);
@@ -281,7 +293,7 @@
 
         public function exists()
         {
-            return 'octodummy' != isAke($this->data, $this->entity->pk(), 'octodummy');
+            return 'octodummy' !== isAke($this->data, $this->entity->pk(), 'octodummy');
         }
 
         public function set($k, $v)
@@ -296,7 +308,7 @@
                 return $this;
             }
 
-            if ($k == 'password') {
+            if ($k === 'password') {
                 $v = lib('hasher')->make($v);
             }
 
@@ -313,7 +325,7 @@
         {
             $methods = get_class_methods($this->entity);
 
-            if ('octodummy' == isAke($this->data, $k, 'octodummy')) {
+            if ('octodummy' === isAke($this->data, $k, 'octodummy')) {
                 $attrMethod = lcfirst(Strings::camelize('get_attribute_' . $k));
 
                 if (in_array($attrMethod, $methods)) {
@@ -322,8 +334,8 @@
             }
 
             if (
-                'octodummy' == isAke($this->data, $k, 'octodummy')
-                && 'octodummy' == isAke($this->callbacks, $k, 'octodummy')
+                'octodummy' === isAke($this->data, $k, 'octodummy')
+                && 'octodummy' === isAke($this->callbacks, $k, 'octodummy')
                 && $this->exists()
             ) {
                 if (fnmatch('*s', $k) && in_array($k, $methods)) {
@@ -359,7 +371,7 @@
                         return $this->morph();
                     }
 
-                    $entity = maker($class);
+                    $entity = instanciator()->factory($class);
 
                     $pk = $entity->table() . '_id';
 
@@ -449,9 +461,9 @@
         {
             $dirty = [];
 
-            if ($this->initial != $this->data) {
+            if ($this->initial !== $this->data) {
                 foreach ($this->data as $k => $v) {
-                    if ($this->initial[$k] != $v) {
+                    if ($this->initial[$k] !== $v) {
                         $dirty[$k] = $v;
                     }
                 }
@@ -467,7 +479,7 @@
 
         public function clean()
         {
-            $fields = actual('orm.fields.' . $this->entity->pk());
+            $fields = actual('orm.fields.' . $this->entity->table());
 
             if ($fields) {
                 $filled = array_keys($this->data);
@@ -615,7 +627,7 @@
             return null;
         }
 
-        public function sync($record)
+        public function sync(Record $record)
         {
             if ($this->exists() && $record->exists()) {
                 $tables = [$this->entity->table(), $record->entity()->table()];
@@ -659,7 +671,7 @@
 
         public function morphs($entityClass, $many = true)
         {
-            $morphEntity = maker($entityClass);
+            $morphEntity = instanciator()->factory($entityClass);
 
             $getter = getter($this->entity->pk());
 
@@ -682,7 +694,7 @@
         public function morph()
         {
             if ($this->exists()) {
-                $entity = maker($this->morph_type);
+                $entity = instanciator()->factory($this->morph_type);
 
                 return $entity->find((int) $this->morph_id);
             }
@@ -697,7 +709,7 @@
 
         public function pivots($entityClass, $many = true)
         {
-            $otherEntity = maker($entityClass);
+            $otherEntity = instanciator()->factory($entityClass);
 
             $tables = [$this->entity->table(), $otherEntity->table()];
 
@@ -732,7 +744,7 @@
         {
             if ($this->exists()) {
                 /** @var Entity  $entity */
-                $entity = maker($class);
+                $entity = instanciator()->singleton($class);
 
                 return $entity->model([
                     'morph_id'      => $this->get($this->entity->pk()),

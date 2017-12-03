@@ -13,7 +13,7 @@
      * @method static Octal last()
      * @method static Octal where($concern, $op = null, $value = null)
      */
-    class Octal
+    class Octal implements FastModelInterface
     {
         protected $entity;
         protected $__instance;

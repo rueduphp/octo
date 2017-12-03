@@ -160,7 +160,7 @@
             echo stripslashes($what);
         }
 
-        public static function limit($str, $length = 30, $end = '&hellip;')
+        public function limit($str, $length = 30, $end = '&hellip;')
         {
             $this->e(Inflector::limit($str, $length, $end));
         }

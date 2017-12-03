@@ -5480,7 +5480,7 @@
             'args' => $args
         ]);
 
-        $fn->macro('call', function () {
+        $fn->macro('call', function () use ($fn) {
             $nextArgs   = func_get_args();
             $next       = array_shift($nextArgs);
             $res        = call_user_func_array(
@@ -5517,6 +5517,12 @@
         return new Lazy($object);
     }
 
+    /**
+     * @param $callback
+     * @param array $args
+     *
+     * @return mixed
+     */
     function call($callback, array $args)
     {
         if (is_string($callback) && fnmatch('*::*', $callback)) {
@@ -5524,7 +5530,7 @@
         }
 
         if (is_array($callback) && isset($callback[1]) && is_object($callback[0])) {
-            if ($count = count($args)) {
+            if (!empty(count($args))) {
                 $args   = array_values($args);
             }
 
@@ -5546,6 +5552,7 @@
     /**
      * @param object|string $class
      * @param array $data
+     *
      * @return object
      */
     function hydrator($class, array $data)
@@ -5569,6 +5576,7 @@
 
     /**
      * @param string $str
+     *
      * @return string
      */
     function hash($str)
@@ -5588,6 +5596,7 @@
      * @param string $value
      * @param int $flags
      * @param string $encoding
+     *
      * @return array|\ArrayAccess|\Iterator|string
      */
     function e($value, $flags = ENT_QUOTES, $encoding = 'UTF-8')
@@ -5620,6 +5629,7 @@
     /**
      * @param string $type
      * @param array $data
+     *
      * @return mixed
      */
     function model($type, array $data = [])
@@ -5640,7 +5650,13 @@
         return new $class($data);
     }
 
-    function isRoute($name, array $args = [])
+    /**
+     * @param string $name
+     * @param array $args
+     *
+     * @return bool
+     */
+    function isRoute(string $name, array $args = [])
     {
         return Routes::isRoute($name, $args);
     }
@@ -5731,7 +5747,7 @@
                     return $return->go();
                 }
 
-                return Router::render(
+                Router::render(
                     $controller,
                     Registry::get('cb.404')
                 );
@@ -5788,6 +5804,8 @@
 
     function unserializeClosure($string)
     {
+        $closure = null;
+
         $infos = unserialize($string);
 
         $eval = 'namespace '. isAke($infos, 'namespace', __NAMESPACE__) .' {' . "\n";
@@ -5873,7 +5891,7 @@
 
         $timestamp += 60 - toNumber($seconds);
 
-        return after($closure, $args, $timestamp);
+        after($closure, $args, $timestamp);
     }
 
     function cron($when, callable $callback, array $args = [])
@@ -5895,7 +5913,7 @@
             cron([$future, ($future - $next)], $cb, $args);
         };
 
-        return after(
+        after(
             $closure,
             [serializeClosure($callback), $args, $next, $future],
             $next

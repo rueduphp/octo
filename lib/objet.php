@@ -6,7 +6,20 @@
         use Notifiable;
 
         protected $model = null, $data = [], $initial = [], $callbacks = [];
-        public $hooks = ['before' => ['create' => null, 'read' => null, 'update' => null, 'delete' => null], 'after' => ['create' => null, 'read' => null, 'update' => null, 'delete' => null]];
+        public $hooks = [
+            'before' => [
+                'create' => null,
+                'read' => null,
+                'update' => null,
+                'delete' => null
+            ],
+            'after' => [
+                'create' => null,
+                'read' => null,
+                'update' => null,
+                'delete' => null
+            ]
+        ];
 
         public function __construct(array $data = [])
         {

@@ -1,12 +1,22 @@
 <?php
     namespace Octo;
 
-    class Later
+    class Later implements FastQueueInterface
     {
+        /**
+         * @param $name
+         * @param $closure
+         * @param array $args
+         * @param int $when
+         *
+         * @return Objet
+         */
         public static function set($name, $closure, $args = [], $when = 0)
         {
             $closure_id = lib('closures')->store($name, $closure)->id;
-            $db         = em('systemLatertask');
+
+            /** @var Octalia $db */
+            $db = em('systemLatertask');
 
             $db->optimized = false;
 
@@ -21,7 +31,9 @@
         {
             set_time_limit(false);
 
+            /** @var Octalia $dbTask */
             $dbTask     = em('systemLatertask');
+            /** @var Octalia $dbInstance */
             $dbInstance = em('systemLaterinstance');
 
             $dbTask->optimized      = false;
@@ -31,12 +43,15 @@
 
             if ($tasks->count() > 0) {
                 foreach ($tasks as $task) {
-                    $check = $dbInstance->where('task_id', '=', (int) $task['id'])
-                    ->count();
+                    $check = $dbInstance
+                        ->where('task_id', '=', (int) $task['id'])
+                        ->count()
+                    ;
 
                     $callback_id = isAke($task, 'callback_id', null);
 
                     if ($check == 0) {
+                        /** @var Objet $instance */
                         $instance = $dbInstance->store([
                             'task_id'   => (int) $task['id'],
                             'start'     => time()
@@ -53,7 +68,7 @@
 
                             $args = array_merge([$res], $t['args']);
 
-                            $res = lib('closures')->fireStore(
+                            lib('closures')->fireStore(
                                 (int) $t['closure_id'],
                                 (array) $args
                             );
@@ -69,6 +84,7 @@
 
                         $instance->delete();
 
+                        /** @var Octalia $dbHistory */
                         $dbHistory = em('systemLaterhistory');
 
                         $dbHistory->optimized = false;
@@ -91,7 +107,7 @@
 
             $task->setCallbackId($callbackTask->id)->save();
 
-            $this->background();
+            self::background();
         }
 
         public static function background()
@@ -114,7 +130,12 @@
 
                 File::delete($file);
 
-                File::put($file, '<?php' . ' namespace ' . __NAMESPACE__ . ' {' . "\n" . '$configs = ' . var_export(Config::all(), true) . ";\n\n" . 'foreach ($configs as $k => $v) Config::set($k, $v); ' . "\n\n" . 'return ' . var_export($afters, true) . ';};');
+                File::put($file,
+                    '<?php' . ' namespace ' . __NAMESPACE__ .
+                    ' {' . "\n" . '$configs = ' . var_export(Config::all(), true) .
+                    ";\n\n" . 'foreach ($configs as $k => $v) Config::set($k, $v); ' .
+                    "\n\n" . 'return ' . var_export($afters, true) . ';};'
+                );
 
                 $exec = realpath(__DIR__ . '/afterbin.php');
 
@@ -147,9 +168,9 @@
                     $params     = $afterTask['params'];
                     $when       = $afterTask['when'];
 
-                    $diff = now() - $when;
+                    $diff = $now - $when;
 
-                    if ($when <= $now) call($callback, $params);
+                    if ($diff >= 0) call($callback, $params);
                     else $laters[$when] = [$callback, $params, $when, Config::all()];
                 }
 

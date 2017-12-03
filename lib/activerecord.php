@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class ActiveRecord extends Object
+    class ActiveRecord extends Objet
     {
         /**
          * @var null|Octal

@@ -2024,7 +2024,7 @@
 
             foreach ($relations as $relation) {
                 $class               = call_user_func([$thisEntity, $relation]);
-                $entity              = maker($class);
+                $entity              = instanciator()->factory($class);
                 $entities[$relation] = $entity;
 
                 $pk = $entity->table() . '_id';

@@ -51,7 +51,12 @@ class Instanciator
             return $callable();
         }
 
-        $ref                = new Reflector($make);
+        try {
+            $ref = new Reflector($make);
+        } catch (\Exception $e) {
+            exception('Instanciator', $e->getMessage());
+        }
+
         $canMakeInstance    = $ref->isInstantiable();
 
         if ($canMakeInstance) {
@@ -80,7 +85,11 @@ class Instanciator
                             $classParam = $param->getClass();
 
                             if ($classParam) {
-                                $p = $this->make($classParam->getName());
+                                try {
+                                    $p = $this->make($classParam->getName());
+                                } catch (\Exception $e) {
+                                    exception('Instanciator', $e->getMessage());
+                                }
                             } else {
                                 try {
                                     $p = $param->getDefaultValue();

@@ -8,7 +8,7 @@
     use Octo\FastRendererInterface;
     use Octo\FastUserOrmInterface;
     use Octo\Flash;
-    use Octo\Object;
+    use Octo\Objet;
     use Octo\Octal;
     use Octo\Resolver;
     use Psr\Container\ContainerInterface;
@@ -31,7 +31,7 @@
 
     class stdClassDummy
     {
-        public function __construct(PDODummy $pdo, Object $object)
+        public function __construct(PDODummy $pdo, Objet $object)
         {
             $this->object = $object;
             $this->object->pdo = $pdo;

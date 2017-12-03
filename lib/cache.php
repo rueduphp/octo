@@ -662,8 +662,7 @@
             foreach ($keys as $row) {
                 $key = str_replace(['.kh', "hash.$hash."], '', Arrays::last(explode(DS, $row)));
 
-                yield $key;
-                yield unserialize(File::read($row));
+                yield [$key => unserialize(File::read($row))];
             }
         }
 

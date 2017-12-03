@@ -4,7 +4,7 @@ namespace Octo;
 
 use function serialize;
 
-class Bank implements FastOrmInterface
+class Bank implements FastOrmInterface, FastDbInterface
 {
     /**
      * @var string
