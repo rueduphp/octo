@@ -986,7 +986,7 @@
             foreach ($values as $value) {
                 $this->prepares[] = $this->prepare(
                     '?',
-                    is_null($value) ? 1 : count($value)
+                    !is_array($value) ? 1 : count($value)
                 );
             }
 

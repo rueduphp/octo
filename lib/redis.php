@@ -127,7 +127,7 @@
             $this->client()->multi();
 
             foreach ($values as $key => $value) {
-                $this->set($key, $value, $minutes);
+                $this->set($key, $value, $expire);
             }
 
             $this->client()->exec();
@@ -165,7 +165,7 @@
             return $val ? $this->unserialize($val) : $default;
         }
 
-        public function hgetall($key, $default = null)
+        public function hgetall($key)
         {
             $key    = $this->ns . '.' . $key;
 
@@ -366,7 +366,7 @@
 
         public function getDel($k, $d = null)
         {
-            return $this->readAndDelete($key, $default);
+            return $this->readAndDelete($k, $d);
         }
 
         public function start($k, $d = null)

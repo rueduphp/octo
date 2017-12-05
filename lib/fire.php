@@ -1,182 +1,202 @@
 <?php
-    namespace Octo;
-    use function get_called_class;
+namespace Octo;
+
+/**
+ * @method fire()
+ **/
+class Fire
+{
+    /**
+     * @var string
+     */
+    private $ns;
 
     /**
-     * @method fire()
-     **/
-    class Fire
+     * @param string|null $ns
+     */
+    public function __construct($ns = null)
     {
-        private $ns;
+        $this->ns = $ns ?: get_called_class();
+    }
 
-        public function __construct($ns = null)
-        {
-            $this->ns = $ns ?: get_called_class();
+    /**
+     * @return string
+     */
+    public function ns()
+    {
+        return $this->ns;
+    }
+
+    /**
+     * @return Fire
+     */
+    protected static function called()
+    {
+        return actual('fire.class', maker(get_called_class(), [get_called_class()]));
+    }
+
+    public function on($event, $callable, $priority = 0)
+    {
+        $events = Registry::get('fire.events.' . $this->ns, []);
+
+        if (!isset($events[$event])) {
+            $events[$event] = [];
         }
 
-        public function ns()
-        {
-            return $this->ns;
+        $priority = !is_int($priority) ? 0 : $priority;
+
+        if (!is_callable($callable)) {
+            $callable = resolverClass($callable);
         }
 
-        protected static function called()
-        {
-            return actual('fire.class', maker(get_called_class(), [get_called_class()]));
-        }
+        $ev = $events[$event][] = new Listener($callable, $priority);
 
-        public function on($event, $callable, $priority = 0)
-        {
+        Registry::set('fire.events.' . $this->ns, $events);
+
+        return $ev;
+    }
+
+    /**
+     * @param $event
+     * @return bool
+     */
+    public function has($event)
+    {
+        $events = Registry::get('fire.events.' . $this->ns, []);
+
+        return 'octodummy' !== isAke($events, $event, 'octodummy');
+    }
+
+    /**
+     * @param $event
+     * @return bool
+     */
+    public function delete($event)
+    {
+        if ($this->has($event)) {
             $events = Registry::get('fire.events.' . $this->ns, []);
-
-            if (!isset($events[$event])) {
-                $events[$event] = [];
-            }
-
-            $priority = !is_int($priority) ? 0 : $priority;
-
-            if (!is_callable($callable)) {
-                $callable = resolverClass($callable);
-            }
-
-            $ev = $events[$event][] = new Listener($callable, $priority);
-
+            unset($events[$event]);
             Registry::set('fire.events.' . $this->ns, $events);
 
-            return $ev;
+            return true;
         }
 
-        /**
-         * @param $event
-         * @return bool
-         */
-        public function has($event)
-        {
-            $events = Registry::get('fire.events.' . $this->ns, []);
+        return false;
+    }
 
-            return 'octodummy' !== isAke($events, $event, 'octodummy');
-        }
+    public function emit()
+    {
+        $args   = func_get_args();
+        $event  = array_shift($args);
 
-        /**
-         * @param $event
-         * @return bool
-         */
-        public function delete($event)
-        {
-            if ($this->has($event)) {
-                $events = Registry::get('fire.events.' . $this->ns, []);
-                unset($events[$event]);
-                Registry::set('fire.events.' . $this->ns, $events);
+        $events = Registry::get('fire.events.' . $this->ns, []);
 
-                return true;
+        $eventsToCall = isAke($events, $event, []);
+
+        if (!empty($eventsToCall)) {
+            $results = [];
+            $collection = [];
+
+            foreach ($eventsToCall as $eventToCall) {
+                $collection[] = [
+                    'event'     => $eventToCall,
+                    'priority'  => (int) $eventToCall->priority
+                ];
             }
 
-            return false;
-        }
+            $listeners = array_values(coll($collection)->sortByDesc('priority')->toArray());
 
-        public function emit()
-        {
-            $args   = func_get_args();
-            $event  = array_shift($args);
+            foreach ($listeners as $listenerCalled) {
+                $result = null;
+                $listener = $listenerCalled['event'];
 
-            $events = Registry::get('fire.events.' . $this->ns, []);
+                $continue = true;
 
-            $eventsToCall = isAke($events, $event, []);
-
-            if (!empty($eventsToCall)) {
-                $collection = [];
-
-                foreach ($eventsToCall as $eventToCall) {
-                    $collection[] = [
-                        'event'     => $eventToCall,
-                        'priority'  => (int) $eventToCall->priority
-                    ];
-                }
-
-                $listeners = array_values(coll($collection)->sortByDesc('priority')->toArray());
-
-                $results = [];
-
-                foreach ($listeners as $listenerCalled) {
-                    $listener = $listenerCalled['event'];
-
-                    $continue = true;
-
-                    if ($listener->called) {
-                        if ($listener->once === true) {
-                            $continue = false;
-                        }
-                    }
-
-                    if (!$continue) {
-                        break;
-                    } else {
-                        $listener->called = true;
-                        $result = call_user_func_array($listener->callable, $args);
-
-                        if ($listener->halt) {
-                            Registry::set('fire.events.' . $this->ns, []);
-
-                            return $result;
-                        } else {
-                            $results[] = $result;
-                        }
+                if ($listener->called) {
+                    if ($listener->once === true) {
+                        $continue = false;
                     }
                 }
 
-                return $results;
-            }
-
-            return null;
-        }
-
-        public function subscriber($class)
-        {
-            $instance = maker($class);
-
-            $events = $instance->getEvents();
-
-            foreach ($events as $event => $method) {
-                if (is_string($method)) {
-                    $this->on($event, [$instance, $method]);
+                if (!$continue) {
+                    break;
                 } else {
-                    $ev = $this->on($event, [$instance, $method->getMethod()], $method->getPriority(0));
+                    $listener->called = true;
+                    $args[] = $listener;
 
-                    if ($method->getHalt()) {
-                        $ev->halt();
+                    if (is_string($listener->callable) && is_invokable(get_class($listener->callable))) {
+                        $params = array_merge([$listener->callable, '__invoke'], $args);
+                        $result = instanciator()->call(...$params);
+                    } else {
+                        $result = call_user_func_array($listener->callable, $args);
                     }
 
-                    if ($method->getOnce()) {
-                        $ev->once();
+                    if ($listener->halt) {
+                        Registry::set('fire.events.' . $this->ns, []);
+
+                        return $result;
+                    } else {
+                        $results[] = $result;
                     }
                 }
             }
+
+            return $results;
         }
 
-        public static function __callStatic($m, $a)
-        {
-            $instance = static::called();
+        return null;
+    }
 
-            if ($m == 'listen') {
-                $m = 'on';
-            } elseif ($m == 'fire') {
-                $m = 'emit';
-            } elseif ($m == 'subscribe') {
-                $m = 'subscriber';
+    public function subscriber($class)
+    {
+        /** @var FastEventSubscriberInterface $instance */
+        $instance = maker($class);
+
+        $events = $instance->getEvents();
+
+        foreach ($events as $event => $method) {
+            if (is_string($method)) {
+                $this->on($event, [$instance, $method]);
+            } else {
+                /** @var Listener $ev */
+                $ev = $this->on($event, [$instance, $method->getMethod()], $method->getPriority(0));
+
+                if ($method->getHalt()) {
+                    $ev->halt();
+                }
+
+                if ($method->getOnce()) {
+                    $ev->once();
+                }
             }
-
-            return call_user_func_array([$instance, $m], $a);
-        }
-
-        public function __call($m, $a)
-        {
-            if ($m == 'listen') {
-                $m = 'on';
-            } elseif ($m == 'fire') {
-                $m = 'emit';
-            } elseif ($m == 'subscribe') {
-                $m = 'subscriber';
-            }
-
-            return call_user_func_array([$this, $m], $a);
         }
     }
+
+    public static function __callStatic($m, $a)
+    {
+        $instance = static::called();
+
+        if ($m === 'listen') {
+            $m = 'on';
+        } elseif ($m === 'fire') {
+            $m = 'emit';
+        } elseif ($m === 'subscribe') {
+            $m = 'subscriber';
+        }
+
+        return call_user_func_array([$instance, $m], $a);
+    }
+
+    public function __call($m, $a)
+    {
+        if ($m === 'listen') {
+            $m = 'on';
+        } elseif ($m === 'fire') {
+            $m = 'emit';
+        } elseif ($m === 'subscribe') {
+            $m = 'subscriber';
+        }
+
+        return call_user_func_array([$this, $m], $a);
+    }
+}

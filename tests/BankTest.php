@@ -3,7 +3,7 @@
 use Octo\Bank;
 use Octo\FastNow;
 use Octo\FastRedis;
-use Octo\Object;
+use Octo\Objet;
 use Octo\Time;
 
 class BankTest extends TestCase

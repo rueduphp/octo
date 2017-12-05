@@ -1201,6 +1201,11 @@
     interface FastRendererInterface {}
     interface FastAuthInterface {}
     interface FastStorageInterface {}
+    interface FastEventSubscriberInterface
+    {
+        public function getEvents(): array;
+    }
+
     interface FastContainerInterface
     {
         public function get($key, $singleton = false);

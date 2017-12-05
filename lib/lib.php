@@ -6992,8 +6992,23 @@
         }
     }
 
+    function is_invokable($concern)
+    {
+        if (is_string($concern) && class_exists($concern)) {
+            $methods = get_class_methods($concern);
+
+            return in_array('__invoke', $methods);
+        }
+
+        return false;
+    }
+
     function resolverClass($class, $sep = '@')
     {
+        if (is_invokable($class)) {
+            return instanciator()->factory($class);
+        }
+
         return function() use ($class, $sep) {
             $segments   = explode($sep, $class);
             $method     = count($segments) == 2 ? $segments[1] : 'handle';
