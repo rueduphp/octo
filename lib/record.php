@@ -35,7 +35,7 @@
                 $entity->activeRecord($this);
             }
 
-            $traits = class_uses($entity);
+            $traits = allClasses($entity);
 
             if (!empty($traits)) {
                 foreach ($traits as $trait) {
@@ -45,6 +45,12 @@
 
                     if (in_array($method, $methods)) {
                         call_user_func_array([$entity, $method], [$this]);
+                    }
+
+                    $method = lcfirst(Strings::camelize('boot_' . $traitName));
+
+                    if (in_array($method, $methods)) {
+                        forward_static_call([$entity, $method]);
                     }
                 }
             }
@@ -82,6 +88,11 @@
             return instanciator()->factory(Orm::class)->table($this->entity->table());
         }
 
+        /**
+         * @param callable $cb
+         *
+         * @return bool|Record
+         */
         public function checkAndSave(callable $cb)
         {
             $check = $cb($this);
@@ -95,8 +106,8 @@
 
         public function fill(array $data = [])
         {
-            foreach ($data as $k => $v) {
-                $this->set($k, $v);
+            foreach ($data as $key => $value) {
+                $this->set($key, $value);
             }
 
             return $this;
@@ -272,10 +283,10 @@
         {
             $result = [];
 
-            foreach ($this->data as $k => $v) {
-                $v = arrayable($v) ? $v->toArray() : $v;
+            foreach ($this->data as $key => $value) {
+                $value = arrayable($value) ? $value->toArray() : $value;
 
-                $result[$k] = $v;
+                $result[$key] = $value;
             }
 
             return $result;
@@ -479,6 +490,8 @@
 
         public function clean()
         {
+            $this->entity()->fire('cleaning', $this);
+
             $fields = actual('orm.fields.' . $this->entity->table());
 
             if ($fields) {
@@ -491,11 +504,13 @@
                 }
             }
 
-            $this->entity()->fire('clean', $this);
+            $this->entity()->fire('cleaned', $this);
         }
 
         public function validate()
         {
+            $this->entity()->fire('validating', $this);
+
             $guarded    = $this->entity()->guarded();
             $fillable   = $this->entity()->fillable();
             $data       = $this->toArray();
@@ -530,7 +545,7 @@
                 }
             }
 
-            $this->entity()->fire('validate', $this);
+            $this->entity()->fire('validated', $this);
         }
 
         public function save()
@@ -572,6 +587,12 @@
             return $return;
         }
 
+        /**
+         * @return mixed
+         *
+         * @throws \Exception
+         * @throws \Throwable
+         */
         public function saveOrFail()
         {
             return $this->db()->transaction(function () {
@@ -600,13 +621,13 @@
 
         public function post($only = [])
         {
-            foreach ($_POST as $k => $v) {
-                if (!empty($only) && !in_array($k, $only)) {
+            foreach ($_POST as $key => $value) {
+                if (!empty($only) && !in_array($key, $only)) {
                     continue;
                 }
 
-                $setter = setter($k);
-                $this->$setter($v);
+                $setter = setter($key);
+                $this->$setter($value);
             }
 
             return $this->save();

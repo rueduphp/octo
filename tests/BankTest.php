@@ -12,10 +12,16 @@ class BankTest extends TestCase
      * @var Bank $db;
      */
     private $db;
+
     /**
      * @var Bank $udb;
      */
     private $udb;
+
+    /**
+     * @var Bank $udb;
+     */
+    private $postDb;
 
     public function setUp()
     {
@@ -23,6 +29,7 @@ class BankTest extends TestCase
 
         $this->db = new Bank('test', 'test', new FastNow('bank'));
         $this->udb = $udb = new Bank('test', 'user', new FastNow('bank'));
+        $this->postDb = new Bank('test', 'post', new FastNow('bank'));
 
         $faker = $this->faker();
 
@@ -53,6 +60,7 @@ class BankTest extends TestCase
     {
         parent::tearDown();
 
+        $this->udb->drop();
         $this->db->drop();
     }
 
@@ -95,15 +103,14 @@ class BankTest extends TestCase
         $rows = $this->db->hydrate();
 
         foreach ($rows as $row) {
+            $this->assertSame($row, $row->save());
             $this->assertInstanceOf(Objet::class, $row);
 
             if ($row->getId() === 1) {
                 $this->assertSame('test',   $row->getName());
-            } elseif ($row->getId() === 2) {
-                $this->assertSame('test2',  $row->getName());
+            } else {
+                $this->assertSame('test'. $row->getId(),  $row->getName());
             }
-
-            $this->assertSame($row, $row->save());
         }
 
         $row = $this->db->findHydrate(1);
@@ -129,7 +136,7 @@ class BankTest extends TestCase
 
     public function testFindBy()
     {
-        /** @var Object $row */
+        /** @var Objet $row */
         $row = $this->db->findByName('test105')->firstHydrate();
 
         $this->assertEquals(105, $row->getId());

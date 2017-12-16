@@ -1,10 +1,10 @@
 <?php
     namespace Octo;
 
-    use function getenv;
+    use function array_first;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Support\Debug\Dumper;
-    use function is_callable;
+    use function mb_check_encoding;
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
 
@@ -273,9 +273,22 @@
         );
     }
 
-    function job()
+    /**
+     * @param null $concern
+     * @param array $args
+     *
+     * @return Work
+     */
+    function job($concern = null, array $args = [])
     {
-        return new Job;
+        /** @var Work $work */
+        $work = getContainer()->resolve(Work::class);
+
+        if (!is_null($concern) && is_string($concern)) {
+            return $work->new($concern, $args);
+        }
+
+        return $work;
     }
 
     function osum(array $data, $field)
@@ -496,7 +509,7 @@
     /**
      * @param array $o
      *
-     * @return \Octo\Object
+     * @return \Octo\Objet
      */
     function o(array $o = [])
     {
@@ -1277,6 +1290,11 @@
         }
     }
 
+    /**
+     * @param mixed $value
+     *
+     * @return bool
+     */
     function blank($value)
     {
         if (is_null($value)) {
@@ -1298,6 +1316,11 @@
         return empty($value);
     }
 
+    /**
+     * @param mixed $value
+     *
+     * @return bool
+     */
     function filled($value)
     {
         return !blank($value);
@@ -1410,6 +1433,11 @@
         }
     }
 
+    /**
+     * @param $string
+     *
+     * @return bool
+     */
     function isUtf8($string)
     {
         if (!is_string($string)) {
@@ -1433,6 +1461,9 @@
         );
     }
 
+    /**
+     * @return string
+     */
     function token()
     {
         return sha1(
@@ -1452,6 +1483,7 @@
      * @param string $end
      * @param string $string
      * @param null|string $default
+     *
      * @return null|string
      */
     function cut($start, $end, $string, $default = null)
@@ -1474,6 +1506,7 @@
      * @param callable $c
      * @param null $maxAge
      * @param array $args
+     *
      * @return mixed
      */
     function xCache($k, callable $c, $maxAge = null, $args = [])
@@ -1532,6 +1565,7 @@
 
     /**
      * @param string $file
+     *
      * @return array|mixed
      */
     function includer($file)
@@ -1547,6 +1581,7 @@
 
     /**
      * @param array $files
+     *
      * @return array
      */
     function includers(array $files)
@@ -1563,7 +1598,8 @@
     /**
      * @param array $array
      * @param string $k
-     * @param null|array $d
+     * @param mixed|array $d
+     *
      * @return mixed
      */
     function isAke($array, $k, $d = [])
@@ -1584,17 +1620,48 @@
      */
     function uuid()
     {
-        return sprintf(
-            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff)
+        $seed = mt_rand(0, 2147483647) . '#' . mt_rand(0, 2147483647);
+
+        // Hash the seed and convert to a byte array
+        $val = md5($seed, true);
+        $byte = array_values(unpack('C16', $val));
+
+        // extract fields from byte array
+        $tLo = ($byte[0] << 24) | ($byte[1] << 16) | ($byte[2] << 8) | $byte[3];
+        $tMi = ($byte[4] << 8) | $byte[5];
+        $tHi = ($byte[6] << 8) | $byte[7];
+        $csLo = $byte[9];
+        $csHi = $byte[8] & 0x3f | (1 << 7);
+
+        // correct byte order for big edian architecture
+        if (pack('L', 0x6162797A) == pack('N', 0x6162797A)) {
+            $tLo = (($tLo & 0x000000ff) << 24) | (($tLo & 0x0000ff00) << 8)
+                | (($tLo & 0x00ff0000) >> 8) | (($tLo & 0xff000000) >> 24);
+            $tMi = (($tMi & 0x00ff) << 8) | (($tMi & 0xff00) >> 8);
+            $tHi = (($tHi & 0x00ff) << 8) | (($tHi & 0xff00) >> 8);
+        }
+
+        // apply version number
+        $tHi &= 0x0fff;
+        $tHi |= (3 << 12);
+
+        // cast to string
+        $uuid = sprintf(
+            '%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x',
+            $tLo,
+            $tMi,
+            $tHi,
+            $csHi,
+            $csLo,
+            $byte[10],
+            $byte[11],
+            $byte[12],
+            $byte[13],
+            $byte[14],
+            $byte[15]
         );
+
+        return $uuid;
     }
 
     /**
@@ -1745,6 +1812,30 @@
         return preg_replace($from, $to, $subject, 1);
     }
 
+    function replaceFirst($from, $to, $subject)
+    {
+        $parts = explode($from, $subject);
+
+        $replaced = [];
+
+        while (!empty($parts)) {
+            $part = array_shift($parts);
+
+            if (empty($replaced)) {
+                $replaced[] = $part . $to;
+            } else {
+                if (!empty($parts)) {
+                    $replaced[] = $part . $from;
+                } else {
+                    $replaced[] = $part;
+                }
+            }
+
+        }
+
+        return implode('', $replaced);
+    }
+
     function loadModel($class, $data)
     {
         $typeModel  = str_replace(['Octo\\', 'Lib'], '', get_class($class));
@@ -1810,6 +1901,7 @@
      * @param string $lib
      * @param array $args
      * @param bool $singleton
+     *
      * @return object
      */
     function lib($lib, $args = [], $singleton = false)
@@ -1832,7 +1924,7 @@
     }
 
     /**
-     * @return \Octo\Inflector
+     * @return Inflector
      */
     function str()
     {
@@ -1840,7 +1932,7 @@
     }
 
     /**
-     * @return \Octo\Now
+     * @return Now
      */
     function reg()
     {
@@ -1926,7 +2018,8 @@
 
     /**
      * @param Fast|null $context
-     * @return Fast|null
+     *
+     * @return Fast
      */
     function fast($context = null)
     {
@@ -1941,7 +2034,8 @@
      * @param string $class
      * @param int $count
      * @param string $lng
-     * @return Object
+     *
+     * @return Objet
      */
     function factory($class, $count = 1, $lng = 'fr_FR')
     {
@@ -1952,6 +2046,7 @@
         $model = maker($class);
         $faker = faker($lng);
 
+        /** @var Octalia $entity */
         $entity = $model->orm();
 
         $rows = [];
@@ -1979,13 +2074,14 @@
                     $res[] = $row;
                 }
 
-                return count($res) == 1 ? current($res) : coll($res);
+                return count($res) === 1 ? current($res) : coll($res);
             } else {
-                return count($rows) == 1 ? current($rows) : coll($rows);
+                return count($rows) === 1 ? current($rows) : coll($rows);
             }
         });
 
         $factories->macro('store', function ($subst = []) use ($factories) {
+            /** @var Octalia $em */
             $em = $factories->getEntity();
             $rows = [];
 
@@ -1999,7 +2095,7 @@
                 $rows[] = $em->persist($row);
             }
 
-            if (count($rows) == 1) {
+            if (count($rows) === 1) {
                 return $em->model(current($rows));
             }
 
@@ -3846,6 +3942,14 @@
         return instanciator()->call(...$args);
     }
 
+    /**
+     * @return Listener
+     */
+    function getEvent()
+    {
+        return actual('fired.event');
+    }
+
     function loadFiles($pattern)
     {
         $files = glob($pattern);
@@ -5550,6 +5654,32 @@
     }
 
     /**
+     * @return array
+     */
+    function recursive_merge()
+    {
+        $tabs = func_get_args();
+
+        $tab1 = array_shift($tabs);
+        $tab2 = array_shift($tabs);
+
+        $merged = array_unique(
+            array_merge(
+                $tab1,
+                $tab2
+            )
+        );
+
+        if (!empty($tabs)) {
+            $params = array_merge([$merged], $tabs);
+
+            return recursive_merge(...$params);
+        }
+
+        return $merged;
+    }
+
+    /**
      * @param object|string $class
      * @param array $data
      *
@@ -5565,7 +5695,7 @@
             $method = setter($key);
 
             if (in_array($method, $methods)) {
-                $instance->$method($value);
+                $instance->{$method}($value);
             } else {
                 $instance->{$key} = $value;
             }
@@ -5920,6 +6050,19 @@
         );
     }
 
+    function with()
+    {
+        $args = func_get_args();
+
+        $callback = array_shift($args);
+
+        if (is_callable($callback)) {
+            return $callback(...$args);
+        }
+
+        return $callback;
+    }
+
     function withoutError(callable $callback, array $args = [])
     {
         set_error_handler(function () {});
@@ -5931,6 +6074,41 @@
         return $result;
     }
 
+    /**
+     * @param $trait
+     * @return array
+     */
+    function allTraits($trait)
+    {
+        $traits = class_uses($trait);
+
+        foreach ($traits as $trait) {
+            $traits += allTraits($trait);
+        }
+
+        return $traits;
+    }
+
+    function allClasses($class)
+    {
+        if (is_object($class)) {
+            $class = get_class($class);
+        }
+
+        $results = [];
+
+        foreach (array_merge([$class => $class], class_parents($class)) as $class) {
+            $results += allTraits($class);
+        }
+
+        return array_unique($results);
+    }
+
+    /**
+     * @param string $lng
+     *
+     * @return \Faker\Generator
+     */
     function faker($lng = 'fr_FR')
     {
         return \Faker\Factory::create(
@@ -6051,6 +6229,10 @@
         return o($value);
     }
 
+    /**
+     * @param $orm
+     * @return FastOrmInterface
+     */
     function orm($orm = null)
     {
         if (is_object($orm)) {

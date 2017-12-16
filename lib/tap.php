@@ -15,7 +15,6 @@ class Tap
      * Create a new tap proxy instance.
      *
      * @param  mixed  $target
-     * @return void
      */
     public function __construct($target)
     {
@@ -27,6 +26,7 @@ class Tap
      *
      * @param  string  $method
      * @param  array  $parameters
+     *
      * @return mixed
      */
     public function __call($method, $parameters)

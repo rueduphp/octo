@@ -1,12 +1,12 @@
 <?php
     require_once __DIR__ . '/classes.php';
 
-    use Illuminate\Database\Eloquent\Builder;
     use Illuminate\Database\Eloquent\Collection as CollectIll;
-    use Octo\Migrations as Migrator;
+    use Octo\Factory;
     use Octo\Orm;
     use Octo\Ormmodel;
     use Octo\Record;
+    use Octo\Strings;
     use Tests\Comment;
     use Tests\Migrations;
     use Tests\Post;
@@ -76,6 +76,8 @@
         public function setUp()
         {
             parent::setUp();
+
+            $this->factories();
 
             $PDOoptions = [
                 PDO::ATTR_CASE                 => PDO::CASE_NATURAL,
@@ -301,7 +303,7 @@
         {
             $this->context('app')->test_value = 0;
 
-            $users = User::chunk(3, function ($rows) {
+            User::chunk(3, function ($rows) {
                 $this->context('app')->test_value += count($rows);
             });
 
@@ -452,5 +454,35 @@
                 $this->assertEquals(CommentModel::class, get_class($comment));
                 $this->assertEquals(UserModel::class, get_class($comment->commentable));
             }
+        }
+
+        public function testFactories()
+        {
+            Factory::save(Post::class, 15);
+            $this->assertEquals(25, Post::count());
+
+            $model = new PostModel;
+
+            Factory::save(PostModel::class, 15);
+            $this->assertEquals(40, $model->newQuery()->count());
+        }
+
+        private function factories()
+        {
+            Factory::for(Post::class, function ($faker) {
+                return [
+                    'content'   => $t = $faker->sentence,
+                    'user_id'   => $u = rand(1, 10),
+                    'title'     => Strings::urlize($t)
+                ];
+            });
+
+            Factory::for(PostModel::class, function ($faker) {
+                return [
+                    'content'   => $t = $faker->sentence,
+                    'user_id'   => $u = rand(1, 10),
+                    'title'     => Strings::urlize($t)
+                ];
+            });
         }
     }

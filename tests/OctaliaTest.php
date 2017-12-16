@@ -1,6 +1,7 @@
 <?php
     use Octo\Config;
     use Octo\ActiveRecord as AR;
+    use Octo\Factory;
 
     class PostEntity extends Octo\Octal {}
     class UserEntity extends Octo\Octal
@@ -29,11 +30,24 @@
         {
             parent::setUp();
 
-            $this->engine = Octo\conf('octalia.engine');
+            $this->engine = $this->conf('octalia.engine');
             Config::set('octalia.engine', 'ndb');
 
             UserEntity::drop();
             PostEntity::drop();
+
+            $this->factories();
+        }
+
+        private function factories()
+        {
+            Factory::for(PostEntity::class, function ($faker) {
+                return [
+                    'content'   => $t = $faker->sentence,
+                    'user_id'   => $u = rand(1, 10),
+                    'title'     => Strings::urlize($t)
+                ];
+            });
         }
 
         public function tearDown()
@@ -62,8 +76,8 @@
         /** @test */
         public function invoke()
         {
-            $user = $this->addUser();
-            $user = $this->addUser();
+            $this->addUser();
+            $this->addUser();
 
             $db = new UserEntity;
 
@@ -151,5 +165,11 @@
 
                 PostEntity::store($post);
             }
+        }
+
+        public function testFactories()
+        {
+            Factory::save(PostEntity::class, 15);
+            $this->assertEquals(15, PostEntity::count());
         }
     }

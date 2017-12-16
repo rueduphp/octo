@@ -38,7 +38,7 @@
 
                 $this->fire('booting');
 
-                $traits = class_uses($class);
+                $traits = allClasses($class);
 
                 if (!empty($traits)) {
                     foreach ($traits as $trait) {
@@ -47,13 +47,24 @@
                         $method     = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
 
                         if (in_array($method, $methods)) {
-                            call_user_func_array([$this, $method], []);
+                            callMethod($this, $method);
+                        }
+
+                        $method = lcfirst(Strings::camelize('boot_' . $traitName));
+
+                        if (in_array($method, $methods)) {
+                            forward_static_call([$class, $method]);
                         }
                     }
                 }
 
                 $this->fire('booted');
             }
+        }
+
+        public static function clearBooted()
+        {
+            static::$booted = [];
         }
 
         public function fire($event, $concern = null, $return = false)
@@ -239,7 +250,7 @@
         {
             $instance = static::db();
 
-            if ('new' == $m) {
+            if ('new' === $m) {
                 return static::create(current($a));
             }
 
@@ -260,7 +271,7 @@
         {
             $instance = static::db();
 
-            if ('new' == $m) {
+            if ('new' === $m) {
                 return static::create(current($a));
             }
 

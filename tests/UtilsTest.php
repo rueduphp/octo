@@ -158,19 +158,6 @@
         /**
          * @test
          */
-        public function jobs()
-        {
-            $job = $this->job();
-
-            $job->in(Tests\Job::class, 1);
-
-            $this->assertEquals(1, dbo('systemClosure')->count());
-            $this->assertEquals(Octo\Cacheredis::class, get_class(dbo('systemClosure')->driver));
-        }
-
-        /**
-         * @test
-         */
         public function wiring()
         {
             $this->wire(Foo::class, function () {

@@ -4,17 +4,15 @@
     use ArrayAccess;
     use ArrayObject;
     use Exception as NativeException;
-    use function get_called_class;
+    use function func_get_args;
     use GuzzleHttp\Psr7\MessageTrait;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
-    use function is_writable;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ResponseInterface;
     use Psr\Http\Message\ServerRequestInterface;
-    use function session_save_path;
     use Twig_Environment;
     use Twig_Extension;
     use Twig_Filter;
@@ -1124,7 +1122,11 @@
          */
         public function __call($method, $args)
         {
-            $method = '\\Octo\\' . $method;
+            if (fnmatch('helper*', $method) && strlen($method) > 6) {
+                $method = 'Octo\\' . str_replace_first('helper', '', $method);
+            } else {
+                $method = 'Octo\\' . $method;
+            }
 
             if (function_exists($method)) {
                 return call_user_func_array($method, $args);
@@ -1137,6 +1139,14 @@
         public function getContainer()
         {
             return getContainer();
+        }
+
+        /**
+         * @return Work
+         */
+        public function job()
+        {
+            return job(...func_get_args());
         }
 
         /**
@@ -1172,6 +1182,45 @@
         {
             ldd(...func_get_args());
         }
+
+        /**
+         * @return Listener
+         */
+        public function getEvent()
+        {
+            return getEvent();
+        }
+
+        /**
+         * @param string $lng
+         *
+         * @return \Faker\Generator
+         */
+        public function faker($lng = 'fr_FR')
+        {
+            return faker($lng);
+        }
+
+        /**
+         * @param null $orm
+         *
+         * @return FastOrmInterface
+         */
+        public function orm($orm = null)
+        {
+            return orm($orm);
+        }
+
+        /**
+         * @param mixed $value
+         * @param callable|null $callback
+         *
+         * @return mixed|Tap
+         */
+        public function same($value, callable $callback = null)
+        {
+            return tap($value, $callback);
+        }
     }
 
     trait Framework
@@ -1184,7 +1233,12 @@
     interface FastListenerInterface {}
     interface FastQueueInterface {}
     interface FastModelInterface {}
-    interface FastJobInterface {}
+    interface FastJobInterface
+    {
+        public function process();
+        public function onSuccess();
+        public function onFail();
+    }
     interface FastOrmInterface {}
     interface FastExceptionInterface {}
     interface FastSessionInterface {}
@@ -1259,7 +1313,7 @@
 
         public static function __callStatic($m, $a)
         {
-            $message    = array_shift($a);
+            $message = array_shift($a);
 
             $self = new self;
 
@@ -1319,6 +1373,12 @@
             return $this;
         }
 
+        /**
+         * @param null $key
+         * @param null $default
+         *
+         * @return array|mixed|null
+         */
         public function flash($key = null, $default = null)
         {
             /** @var Flash $flash */
@@ -1352,6 +1412,12 @@
     {
         use Framework;
 
+        /**
+         * @param ServerRequestInterface $request
+         * @param DelegateInterface $next
+         *
+         * @return ResponseInterface
+         */
         public function process(ServerRequestInterface $request, DelegateInterface $next)
         {
             return $next->process($request);
@@ -1360,6 +1426,9 @@
 
     class FastTwigExtension extends FastTwigExtensions
     {
+        /**
+         * @return array|\Twig_Function[]
+         */
         public function getFunctions()
         {
             return [
@@ -1372,6 +1441,12 @@
             ];
         }
 
+        /**
+         * @param null $key
+         * @param null $default
+         *
+         * @return array|mixed|null
+         */
         public function flash($key = null, $default = null)
         {
             /** @var Flash $flash */
@@ -1384,6 +1459,9 @@
             return $flash->all();
         }
 
+        /**
+         * @return array|Twig_Filter[]
+         */
         public function getFilters()
         {
             return [
@@ -1393,6 +1471,12 @@
             ];
         }
 
+        /**
+         * @param string $routeName
+         * @param array $params
+         *
+         * @return string
+         */
         public function path($routeName, array $params = [])
         {
             /**
@@ -1403,6 +1487,9 @@
             return $fastRouter->generateUri($routeName, $params);
         }
 
+        /**
+         * @return string
+         */
         public function logout()
         {
             /**
@@ -1413,6 +1500,9 @@
             return $fastRouter->generateUri('logout');
         }
 
+        /**
+         * @return string
+         */
         public function login()
         {
             /**
@@ -1423,11 +1513,17 @@
             return $fastRouter->generateUri('login');
         }
 
+        /**
+         * @return string
+         */
         public function csrf()
         {
             return csrf();
         }
 
+        /**
+         * @return bool|string
+         */
         public function dump()
         {
             $dump = fopen('php://memory', 'r+b');

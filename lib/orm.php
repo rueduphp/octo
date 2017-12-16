@@ -12,7 +12,7 @@
     use PDO;
     use PDOException;
 
-    class Orm implements FastOrmInterface
+    class Orm implements FastOrmInterface, FastDbInterface
     {
         /**
          * @var PDO

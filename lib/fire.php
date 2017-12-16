@@ -2,7 +2,8 @@
 namespace Octo;
 
 /**
- * @method fire()
+ * @method static fire(string $name)
+ * @method static subscribe(string $name)
  **/
 class Fire
 {
@@ -122,9 +123,9 @@ class Fire
                     break;
                 } else {
                     $listener->called = true;
-                    $args[] = $listener;
+                    actual('fired.event', $listener);
 
-                    if (is_string($listener->callable) && is_invokable(get_class($listener->callable))) {
+                    if (is_object($listener->callable) && is_invokable(get_class($listener->callable))) {
                         $params = array_merge([$listener->callable, '__invoke'], $args);
                         $result = instanciator()->call(...$params);
                     } else {

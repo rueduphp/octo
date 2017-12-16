@@ -71,7 +71,7 @@
 
                 $this->fire('booting');
 
-                $traits = class_uses($class);
+                $traits = allClasses($class);
 
                 if (!empty($traits)) {
                     foreach ($traits as $trait) {
@@ -81,6 +81,12 @@
 
                         if (in_array($method, $methods)) {
                             call_user_func_array([$this, $method], []);
+                        }
+
+                        $method = lcfirst(Strings::camelize('boot_' . $traitName));
+
+                        if (in_array($method, $methods)) {
+                            forward_static_call([$class, $method]);
                         }
                     }
                 }
@@ -169,6 +175,10 @@
             return em($this->entity)->octal($this);
         }
 
+        /**
+         * @param $field
+         * @return $this
+         */
         public function setEntityField($field)
         {
             if (!in_array($field, $this->entityFields)) {
@@ -211,11 +221,11 @@
         {
             $instance = maker(get_called_class(), [], false);
 
-            if ('new' == $m) {
+            if ('new' === $m) {
                 return static::store(current($a));
-            } elseif ('oldest' == $m) {
+            } elseif ('oldest' === $m) {
                 return static::sortBy('id');
-            } elseif ('newest' == $m) {
+            } elseif ('newest' === $m) {
                 return static::sortByDesc('id');
             }
 
@@ -227,11 +237,11 @@
             if (isset($this->row)) {
                 return call_user_func_array([$this->row, $m], $a);
             } else {
-                if ('newest' == $m) {
+                if ('newest' === $m) {
                     return $this->sortByDesc('id');
-                } elseif ('oldest' == $m) {
+                } elseif ('oldest' === $m) {
                     return $this->sortBy('id');
-                } elseif ('new' == $m) {
+                } elseif ('new' === $m) {
                     return $this->store(current($a));
                 }
 

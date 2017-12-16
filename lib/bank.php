@@ -2,8 +2,6 @@
 
 namespace Octo;
 
-use function serialize;
-
 class Bank implements FastOrmInterface, FastDbInterface
 {
     /**
@@ -36,6 +34,8 @@ class Bank implements FastOrmInterface, FastDbInterface
         $this->database = $database;
         $this->table    = $table;
         $this->engine   = $engine;
+
+        orm($this);
     }
 
     /**
@@ -71,9 +71,9 @@ class Bank implements FastOrmInterface, FastDbInterface
      */
     protected function makeId()
     {
-        $keyIds = $this->makeKey('ids');
-        $keyLastid = $this->makeKey('lastid');
-        $keyCount = $this->makeKey('count');
+        $keyIds     = $this->makeKey('ids');
+        $keyLastid  = $this->makeKey('lastid');
+        $keyCount   = $this->makeKey('count');
 
         $id = $this->engine->incr($keyIds);
         $this->engine->incr($keyCount);
@@ -256,6 +256,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param null $fields
+     *
      * @return array
      */
     public function select($fields = null)
@@ -306,6 +307,7 @@ class Bank implements FastOrmInterface, FastDbInterface
      * @param $key
      * @param null $operator
      * @param null $value
+     *
      * @return $this|mixed|Bank
      */
     public function where($key, $operator = null, $value = null)
@@ -548,7 +550,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param $field
-     * @return float|int
+     * @return float|int|mixed
      */
     public function avg($field)
     {
@@ -561,7 +563,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param $field
-     * @return mixed
+     * @return float|int|mixed
      */
     public function min($field)
     {
@@ -574,7 +576,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param $field
-     * @return mixed
+     * @return float|int|mixed
      */
     public function max($field)
     {
@@ -696,18 +698,8 @@ class Bank implements FastOrmInterface, FastDbInterface
      */
     public function hydrate()
     {
-        if (is_null($this->computed)) {
-            $rows = $this->engine->keys($this->makeKey('r', '*'));
-
-            foreach ($rows as $row) {
-                yield $this->hydrator($this->engine->get($row));
-            }
-        } else {
-            foreach ($this->computed as $id) {
-                yield $this->hydrator($this->engine->get($this->makeKey('r', $id)));
-            }
-
-            $this->reset();
+        foreach ($this->fetch() as $row) {
+            yield $this->hydrator($row);
         }
     }
 
@@ -749,8 +741,8 @@ class Bank implements FastOrmInterface, FastDbInterface
                 $row = $this->find((int) $item['id']);
 
                 if ($row) {
-                    foreach ($criteria as $k => $v) {
-                        $row[$k] = value($v);
+                    foreach ($criteria as $key => $value) {
+                        $row[$key] = value($value);
                     }
 
                     $this->store($row);
@@ -838,13 +830,13 @@ class Bank implements FastOrmInterface, FastDbInterface
      */
     public function __call($name, array $arguments)
     {
-        if ($name == 'new') {
+        if ($name === 'new') {
             $this->computed = current($arguments);
 
             return $this;
         }
 
-        if ($name == 'or') {
+        if ($name === 'or') {
             if (is_null($this->computed)) {
                 exception('bank', 'You must have at least one where clause before using the method or.');
             }
@@ -867,27 +859,19 @@ class Bank implements FastOrmInterface, FastDbInterface
             );
         }
 
-        if ($name == 'empty') {
+        if ($name === 'empty') {
             return $this->drop()->newQuery();
         }
 
-        if ($name == 'and') {
+        if ($name === 'and') {
             return call_user_func_array([$this, 'where'], $arguments);
         }
 
-        if ($name == 'list') {
+        if ($name === 'list') {
             return call_user_func_array(coll($this->fetchAll()), pluck, $arguments);
         }
 
-        if (fnmatch('*Hydrate', $name) && strlen($name) > 7) {
-            $method = str_replace('Hydrate', '', $name);
-
-            $results = $this->{$method}(...$arguments);
-
-            return !is_null($results) ? $this->hydrator($results) : $results;
-        }
-
-        if (fnmatch('*Cache', $name) && strlen($name) > 5) {
+        if (fnmatch('*Cache*', $name) && strlen($name) > 5) {
             $method = str_replace('Cache', '', $name);
 
             $keyCache = sha1(
@@ -903,12 +887,20 @@ class Bank implements FastOrmInterface, FastDbInterface
             }, $this->age());
         }
 
+        if (fnmatch('*Hydrate*', $name) && strlen($name) > 7) {
+            $method = str_replace('Hydrate', '', $name);
+
+            $results = $this->{$method}(...$arguments);
+
+            return !is_null($results) ? $this->hydrator($results) : $results;
+        }
+
         if (fnmatch('findBy*', $name) && strlen($name) > 6) {
             $field = callField($name, 'findBy');
 
             $op = '=';
 
-            if (count($arguments) == 2) {
+            if (count($arguments) === 2) {
                 $op     = array_shift($arguments);
                 $value  = array_shift($arguments);
             } else {
@@ -923,7 +915,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
             $op = '=';
 
-            if (count($arguments) == 2) {
+            if (count($arguments) === 2) {
                 $op     = array_shift($arguments);
                 $value  = array_shift($arguments);
             } else {
@@ -938,7 +930,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
             $op = '=';
 
-            if (count($arguments) == 2) {
+            if (count($arguments) === 2) {
                 $op     = array_shift($arguments);
                 $value  = array_shift($arguments);
             } else {
@@ -1019,7 +1011,7 @@ class Bank implements FastOrmInterface, FastDbInterface
     {
         $ids = $this->ids();
 
-        if (func_num_args() == 1) {
+        if (func_num_args() === 1) {
             return $this->new(
                 array_values(
                     array_splice(
@@ -1042,11 +1034,21 @@ class Bank implements FastOrmInterface, FastDbInterface
         );
     }
 
+    /**
+     * @param $field
+     *
+     * @return float|int|mixed
+     */
     public function average($field)
     {
         return $this->avg($field);
     }
 
+    /**
+     * @param null $limit
+     *
+     * @return Bank
+     */
     public function take($limit = null)
     {
         if ($limit < 0) {
@@ -1056,11 +1058,23 @@ class Bank implements FastOrmInterface, FastDbInterface
         return $this->slice(0, $limit);
     }
 
+    /**
+     * @param $o
+     * @param $l
+     *
+     * @return Bank
+     */
     public function limit($o, $l)
     {
         return $this->slice($o, $l);
     }
 
+    /**
+     * @param $field
+     * @param $value
+     *
+     * @return mixed|Bank
+     */
     public function like($field, $value)
     {
         return $this->where($field, 'like', $value);
@@ -1414,11 +1428,11 @@ class Bank implements FastOrmInterface, FastDbInterface
     {
         $conditions = is_object($conditions) ? $conditions->toArray() : $conditions;
 
-        foreach ($conditions as $k => $v) {
-            $this->where($k, $v);
+        foreach ($conditions as $key => $value) {
+            $this->where($key, $value);
         }
 
-        if ($this->count() == 0) {
+        if ($this->count() === 0) {
             $this->store($conditions);
         } else {
             return $this->first();
@@ -1585,12 +1599,12 @@ class Bank implements FastOrmInterface, FastDbInterface
 
             if (Arrays::isAssoc($data)) {
                 foreach ($data as $k => $v) {
-                    if ($k != 'id') {
-                        if ('true' == $v) {
+                    if ($k !== 'id') {
+                        if ('true' === $v) {
                             $v = true;
-                        } elseif ('false' == $v) {
+                        } elseif ('false' === $v) {
                             $v = false;
-                        } elseif ('null' == $v) {
+                        } elseif ('null' === $v) {
                             $v = null;
                         }
 

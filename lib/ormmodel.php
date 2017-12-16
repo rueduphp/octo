@@ -5,6 +5,12 @@
     {
         protected $guarded  = [];
 
+        public function __destruct()
+        {
+            $class = get_called_class();
+            actual('Ormmodel.' . $class, null);
+        }
+
         public static function __callStatic($m, $a)
         {
             return (new static)->$m(...$a);
@@ -14,7 +20,7 @@
         {
             $class      = get_called_class();
             $instance   = actual('Ormmodel.' . $class);
-
+////
             if (!$instance) {
                 actual('Ormmodel.' . $class, (new Orm)->eloquent($class));
             }

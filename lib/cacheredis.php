@@ -49,7 +49,7 @@
 
         public function __call($m, $a)
         {
-            if ('if' == $m) {
+            if ('if' === $m) {
                 return call_user_func_array([$this, 'cacheIf'], $a);
             }
         }
@@ -191,7 +191,7 @@
         {
             $res = $this->get($k, 'octodummy');
 
-            if ('octodummy' == $res) {
+            if ('octodummy' === $res) {
                 $this->set($k, $res = $c(), $e);
             }
 
@@ -228,7 +228,7 @@
             $isLogged   = !is_null($user);
             $key        = $isLogged ? sha1(lng() . '.' . forever() . '1.' . $k) :  sha1(lng() . '.' . forever() . '0.' . $k);
 
-            return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
+            return 'dummyget' === $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
         public function my($k, $v = 'dummyget', $e = null)
@@ -237,7 +237,7 @@
             $isLogged   = !is_null($user);
             $key        = $isLogged ? sha1(lng() . '.' . forever() . '1.' . $k) :  sha1(lng() . '.' . forever() . '0.' . $k);
 
-            return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
+            return 'dummyget' === $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
         public function aged($k, callable $c, $a)
@@ -530,7 +530,7 @@
 
         public function hgetall($hash)
         {
-            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
                 if (!fnmatch('*.c', $row) && !fnmatch('*.u', $row)) {
@@ -544,7 +544,7 @@
 
         public function hvals($hash)
         {
-            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
                 yield value(unserialize(redis()->get($row)));
@@ -553,7 +553,7 @@
 
         public function hlen($hash)
         {
-            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.*');
 
             return count($keys);
         }
@@ -562,7 +562,7 @@
         {
             $motor = redis()->pipeline();
 
-            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.*');
 
             $affected = 0;
 
@@ -579,7 +579,7 @@
 
         public function hkeys($hash)
         {
-            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.' . $pattern);
+            $keys = redis()->keys($this->dir . '.hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
                 if (!fnmatch('*.c', $row) && !fnmatch('*.u', $row)) {
@@ -762,7 +762,7 @@
 
         public function add($k, $v, $e)
         {
-            if (!$this->has($key)) {
+            if (!$this->has($k)) {
                 return $this->set($k, $v, $e);
             }
 

@@ -6,12 +6,20 @@
         private $message;
         private $driver;
 
+        /**
+         * @param Courrier $message         *
+         * @param null $driver
+         */
         public function __construct(Courrier $message, $driver = null)
         {
             $this->message  = $message;
             $this->driver   = $driver;
         }
 
+        /**
+         * @return mixed
+         * @throws Exception
+         */
         public function send()
         {
             $driver = !$this->driver ? Config::get('mailer.driver', 'logmail') : $this->driver;
@@ -23,6 +31,9 @@
             }
         }
 
+        /**
+         * @return bool
+         */
         public function queue()
         {
             lib('later')->set('Postman.' . token(), function ($m) {
@@ -37,6 +48,11 @@
             return true;
         }
 
+        /**
+         * @param int $seconds
+         * 
+         * @return bool
+         */
         public function later($seconds = 60)
         {
             $when = time() + $seconds;

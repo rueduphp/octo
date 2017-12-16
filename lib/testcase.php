@@ -5,7 +5,7 @@
 
     abstract class TestCase extends PTC
     {
-        use FastTrait;
+        use Framework;
 
         protected $app;
 
@@ -14,12 +14,6 @@
         public function em($entity, $new = true)
         {
             return dbMemory($entity, $new);
-        }
-
-        public function signIn($user = null)
-        {
-            $user = $user ? : $this->create(App\entities\UserEntity::class);
-            Auth::login($user);
         }
 
         public function make($class, $count = 1, $args = [], $lng = 'fr_FR')
@@ -86,7 +80,7 @@
 
                     return count($res) == 1 ? current($res) : coll($res);
                 } else {
-                    return count($rows) == 1 ? current($rows) : coll($rows);
+                    return count($rows) === 1 ? current($rows) : coll($rows);
                 }
             });
 
@@ -104,7 +98,7 @@
                     $rows[] = $em->persist($row);
                 }
 
-                if (count($rows) == 1) {
+                if (count($rows) === 1) {
                     return $em->model(current($rows));
                 }
 

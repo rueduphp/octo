@@ -86,7 +86,7 @@ class Instanciator
 
                             if ($classParam) {
                                 try {
-                                    $p = $this->make($classParam->getName());
+                                    $p = $this->factory($classParam->getName());
                                 } catch (\Exception $e) {
                                     exception('Instanciator', $e->getMessage());
                                 }
@@ -94,7 +94,10 @@ class Instanciator
                                 try {
                                     $p = $param->getDefaultValue();
                                 } catch (PHPException $e) {
-                                    exception('Instanciator', $param->getName() . " parameter has no default value.");
+                                    exception(
+                                        'Instanciator',
+                                        $param->getName() . " parameter has no default value."
+                                    );
                                 }
                             }
                         }
@@ -158,16 +161,19 @@ class Instanciator
                     $classParam = $param->getClass();
 
                     if ($classParam) {
-                        $p = $this->make($classParam->getName());
+                        $p = $this->factory($classParam->getName());
                     } else {
                         try {
                             $p = $param->getDefaultValue();
                         } catch (PHPException $e) {
                             if ($fnParams[0] instanceof ServerRequestInterface) {
-                                $var = $param->getName();
-                                $p = $fnParams[0]->getAttribute($var);
+                                $var    = $param->getName();
+                                $p      = $fnParams[0]->getAttribute($var);
                             } else {
-                                exception('Dic', $param->getName() . " parameter has no default value.");
+                                exception(
+                                    'Instanciator',
+                                    $param->getName() . " parameter has no default value."
+                                );
                             }
                         }
                     }
@@ -179,7 +185,9 @@ class Instanciator
 
         $closure = $ref->getClosure($object);
 
-        return call_user_func_array($closure, $fnParams);
+        $args = array_merge([$closure], $fnParams);
+
+        return $this->resolve(...$args);
     }
 
     protected function binds($concern = null)
@@ -194,16 +202,22 @@ class Instanciator
         }
     }
 
+    /**
+     * @return array
+     */
     public function getBinds()
     {
         return $this->binds();
     }
 
-    public function getWires()
+    public function getWires(): array
     {
         return Registry::get('core.wires', []);
     }
 
+    /**
+     * @param array $classes
+     */
     protected function registeredClasses(array $classes)
     {
         $data = Registry::get('core.Fastcontainer.registered', []);
@@ -215,7 +229,12 @@ class Instanciator
         Registry::set('core.Fastcontainer.registered', $data);
     }
 
-    public function wire($concern, $callable)
+    /***
+     * @param string $concern
+     *
+     * @param $callable
+     */
+    public function wire(string $concern, $callable)
     {
         if (!is_callable($callable)) {
             $callable = function () use ($callable) { return $callable; };
@@ -228,7 +247,10 @@ class Instanciator
         Registry::set('core.wires', $wires);
     }
 
-    public function wiring($file)
+    /**
+     * @param string $file
+     */
+    public function wiring(string $file)
     {
         if (is_file($file)) {
             $wires = include $file;
@@ -239,7 +261,13 @@ class Instanciator
         }
     }
 
-    public function autowire($concern, $raw = false)
+    /**
+     * @param string $concern
+     * @param bool $raw
+     *
+     * @return mixed
+     */
+    public function autowire(string $concern, bool $raw = false)
     {
         $wires      = Registry::get('core.wires', []);
         $callable   = isAke($wires, $concern, null);
@@ -286,9 +314,38 @@ class Instanciator
      */
     public function lazy($callable)
     {
-        $params = func_get_args();
-        array_shift($params);
+        $args = func_get_args();
+        array_shift($args);
 
-        return new Lazy($callable, $params);
+        return new Lazy($callable, $args);
+    }
+
+    /**
+     * @return mixed|null
+     */
+    public function with()
+    {
+        return with(...func_get_args());
+    }
+
+    /**
+     * @return mixed|null
+     */
+    public function resolve()
+    {
+        $args       = func_get_args();
+        $callable   = array_shift($args);
+
+        if ($callable instanceof Closure) {
+            return with(...func_get_args());
+        }
+
+        if (is_array($callable) && is_callable($callable)) {
+            $params = array_merge($callable, $args);
+
+            return $this->call(...$params);
+        }
+
+        return null;
     }
 }
