@@ -48,6 +48,7 @@ class JobTest extends TestCase
         $processed = $this->job()->process();
 
         $this->assertEquals(1, $processed);
+        $this->assertFalse($this->job()->hasNext());
         $this->assertSame($user, $this->helperGet('jobtest'));
         $this->assertEmpty($this->job()->schedule());
     }
@@ -66,6 +67,7 @@ class JobTest extends TestCase
         $this->assertEquals(0, $processed);
         $this->assertCount(3, $schedule);
         $this->assertEquals($schedule[1], $schedule[2]);
+        $this->asserTrue($this->job()->hasNext());
         $this->assertEquals([MyJob::class => date('d/m/Y H:i:s', strtotime('+2 second'))], $schedule[0]);
     }
 }
