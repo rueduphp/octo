@@ -26,9 +26,9 @@
 
         public function __set($k, $v)
         {
-            if ($k == '_macros') {
+            if ($k === '_macros') {
                 exception('macro', 'The variable _macros is protected.');
-            } elseif ($k == '_data') {
+            } elseif ($k === '_data') {
                 exception('macro', 'The variable _data is protected.');
             }
 
@@ -65,7 +65,7 @@
         {
             $v = isAke($this->_macros, $k, isAke($this->_data, $k, 'octodummy'));
 
-            return $v != 'octodummy';
+            return $v !== 'octodummy';
         }
 
         public function offsetSet($k, $v)
@@ -101,7 +101,7 @@
 
         public function __call($m, $a)
         {
-            if ($m == 'array') {
+            if ($m === 'array') {
                 return $this->_data;
             }
 

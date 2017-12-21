@@ -1,10 +1,8 @@
 <?php
     namespace Octo;
 
-    use function array_first;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Support\Debug\Dumper;
-    use function mb_check_encoding;
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
 
@@ -2406,9 +2404,9 @@
         require_once __DIR__ . DS . 'debug.php';
         require_once __DIR__ . DS . 'cachei.php';
 
-        if (!defined("OCTO_MAX"))       define('OCTO_MAX',          9223372036854775808);
-        if (!defined("OCTO_MIN"))       define('OCTO_MIN',          OCTO_MAX * -1);
-        if (!defined("OCTO_CACHE_TTL")) define('OCTO_CACHE_TTL',    strtotime('+1 year') - time());
+        if (!defined('OCTO_MAX'))       define('OCTO_MAX',          9223372036854775808);
+        if (!defined('OCTO_MIN'))       define('OCTO_MIN',          OCTO_MAX * -1);
+        if (!defined('OCTO_CACHE_TTL')) define('OCTO_CACHE_TTL',    strtotime('+1 year') - time());
 
         if (!class_exists('Octo\Route')) {
             Alias::facade('Route', 'Routes', 'Octo');
@@ -2491,7 +2489,7 @@
                     $urlSite = "$protocol://" . $_SERVER["SERVER_NAME"] . WEBROOT;
                 }
 
-                defined('URLSITE')  || define('URLSITE', $urlSite);
+                defined('URLSITE') || define('URLSITE', $urlSite);
             }
 
             ini_set('error_log', path('storage') . DS . 'logs' . DS . 'error.log');
@@ -2602,8 +2600,8 @@
                 define('FROM_ROOT', $nameDir);
             }
 
-            path("base",       $root);
-            path("app",        realpath($root . '/app'));
+            path('base',       $root);
+            path('app',        realpath($root . '/app'));
             path('public',     realpath($dir));
 
             $errors = [];
@@ -2622,14 +2620,14 @@
 
             if (!empty($errors)) {
                 $html = "<h1><i class='fa fa-warning fa-2x'></i> Some errors occured</h1>";
-                $html .= "<h3>Please chmod 0777 these directories :</h3>";
-                $html .= "<ul>";
+                $html .= '<h3>Please chmod 0777 these directories :</h3>';
+                $html .= '<ul>';
 
                 foreach ($errors as $error) {
-                    $html .= "<li>" . realpath($error) . "</li>";
+                    $html .= '<li>' . realpath($error) . '</li>';
                 }
 
-                $html .= "</ul>";
+                $html .= '</ul>';
 
                 view($html, 500, 'Octo Error Report');
             }
@@ -3428,7 +3426,7 @@
         listening('middlewares.booting');
 
         $middlewares        = Registry::get('core.middlewares', []);
-        $request            = make($_REQUEST, "request");
+        $request            = make($_REQUEST, 'request');
         $middlewaresFile    = path('app') . '/config/middlewares.php';
 
         if (File::exists($middlewaresFile)) {
@@ -3442,7 +3440,7 @@
             $method     = lcfirst(Strings::camelize('apply_' . $when));
 
             if (in_array($method, $methods)) {
-                call_user_func_array([$middleware, $method], [$request, context("app")]);
+                call_user_func_array([$middleware, $method], [$request, context('app')]);
             }
         }
     }
@@ -3459,7 +3457,7 @@
         }
 
         foreach ($aliases as $alias => $class) {
-            if ($alias == $className) {
+            if ($alias === $className) {
                 return class_alias($class, $alias);
             }
         }
@@ -4357,7 +4355,7 @@
             return true;
         }
 
-        if ('octodummy' == $value) {
+        if ('octodummy' === $value) {
             return Config::get($key);
         }
 
@@ -4504,39 +4502,56 @@
         return $promise;
     }
 
+    function option($key, $value = 'octodummy')
+    {
+        $options = Registry::get('core.options', []);
+
+        if ('octodummy' === $value) {
+            return aget($options, $key);
+        }
+
+        aset($options, $key, $value);
+
+        Registry::set('core.options', $options);
+    }
+
     function options()
     {
         $options = o();
 
         $options->macro('set', function ($k, $v) use ($options) {
-            $option = em('systemOption')
-            ->firstOrCreate(['name' => $k])
-            ->setValue($v)
-            ->save();
+            em('systemOption')
+                ->firstOrCreate(['name' => $k])
+                ->setValue($v)
+                ->save()
+            ;
 
             return $options;
         });
 
         $options->macro('get', function ($k, $d = null) {
             $option = em('systemOption')
-            ->where('name', $k)
-            ->first(true);
+                ->where('name', $k)
+                ->first(true)
+            ;
 
             return $option ? $option->value : $d;
         });
 
         $options->macro('has', function ($k) {
             $option = em('systemOption')
-            ->where('name', $k)
-            ->first(true);
+                ->where('name', $k)
+                ->first(true)
+            ;
 
             return $option ? true : false;
         });
 
         $options->macro('delete', function ($k) {
             $option = em('systemOption')
-            ->where('name', $k)
-            ->first(true);
+                ->where('name', $k)
+                ->first(true)
+            ;
 
             return $option ? $option->delete() : false;
         });
@@ -4552,9 +4567,10 @@
             $k = sha1(forever() . $k);
 
             em('systemSetting')
-            ->firstOrCreate(['name' => $k])
-            ->setValue($v)
-            ->save();
+                ->firstOrCreate(['name' => $k])
+                ->setValue($v)
+                ->save()
+            ;
 
             return $settings;
         });
@@ -4563,8 +4579,9 @@
             $k = sha1(forever() . $k);
 
             $setting = em('systemSetting')
-            ->where('name', $k)
-            ->first(true);
+                ->where('name', $k)
+                ->first(true)
+            ;
 
             return $setting ? $setting->value : $d;
         });
@@ -4573,8 +4590,9 @@
             $k = sha1(forever() . $k);
 
             $setting = em('systemSetting')
-            ->where(['name', '=', $k])
-            ->first(true);
+                ->where(['name', '=', $k])
+                ->first(true)
+            ;
 
             return $setting ? true : false;
         });
@@ -4727,6 +4745,9 @@
         return str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
     }
 
+    /**
+     * @return FastEvent
+     */
     function getEventManager()
     {
         return instanciator()->singleton(FastEvent::class);
@@ -6076,6 +6097,7 @@
 
     /**
      * @param $trait
+     *
      * @return array
      */
     function allTraits($trait)
@@ -6183,43 +6205,43 @@
         return Date::createFromTimestamp($timestamp, $tz);
     }
 
-    function event($name, callable $closure = null, array $args = [])
+
+    /**
+     * @param string $className
+     *
+     * @return mixed
+     */
+    function fire(string $className)
     {
-        $events = Registry::get('core.events', []);
+        return getEventManager()->fire($className);
+    }
 
-        $eventBag = isAke($events, $name, []);
+    /**
+     * @param string|null $className
+     * @param array $params
+     *
+     * @return FastEvent|Listener
+     */
+    function event($className = null, array $params = [])
+    {
+        $manager = getEventManager();
 
-        if (!is_callable($closure)) {
-            if (!empty($eventBag)) {
-                $res = [];
-
-                foreach ($eventBag as $event) {
-                    $res[] = call_user_func_array($event, $args);
-                }
-
-                return $res;
-            }
-        } else {
-            if (!isset($events[$name])) {
-                $events[$name] = [];
-            }
-
-            $events[$name][] = $closure;
-
-            Registry::set('core.events', $events);
-
-            $fluent = o();
-
-            $fluent->macro('new', function($name, callable $closure = null, array $args = []) {
-                return event($name, $closure, $args);
-            });
-
-            $fluent->macro('fire', function($name, array $args = []) {
-                return event($name, null, $args);
-            });
-
-            return $fluent;
+        if (is_null($className)) {
+            return $manager;
         }
+
+        $callable = function () use ($className, $params) {
+            $instance = instanciator()->make($className, $params, false);
+
+            try {
+                $res = instanciator()->call($instance, 'fire');
+                instanciator()->call($instance, 'onSuccess', $res);
+            } catch (\Exception $e) {
+                instanciator()->call($instance, 'onFail');
+            }
+        };
+
+        return $manager->on($className, $callable);
     }
 
     function objectifier()
@@ -6279,17 +6301,6 @@
         Registry::set('core.actuals', $actuals);
 
         return $value;
-    }
-
-    /**
-     * @param $event
-     * @param array $args
-     *
-     * @return array|Object
-     */
-    function fire($event, array $args = [])
-    {
-        return event($event, null, $args);
     }
 
     /**

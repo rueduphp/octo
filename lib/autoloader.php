@@ -10,7 +10,7 @@
         {
             if (!class_exists($class)) {
                 foreach (self::$aliases as $alias => $className) {
-                    if ($alias == $class) {
+                    if ($alias === $class) {
                         return class_alias($className, $alias);
                     }
                 }
@@ -25,7 +25,7 @@
                 $ns     = array_shift($tab);
                 $lib    = array_shift($tab);
 
-                if ('Octo' == $ns) {
+                if ('Octo' === $ns) {
                     if (!empty($tab)) {
                         $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
                     } else {
@@ -38,7 +38,7 @@
                         return;
                     }
                 } else {
-                    if ($ns == $class || empty($ns)) {
+                    if ($ns === $class || empty($ns)) {
                         if (class_exists('\\' . __NAMESPACE__ . '\\' . $class)) {
                             return class_alias('\\' . __NAMESPACE__ . '\\' . $class, $class);
                         }

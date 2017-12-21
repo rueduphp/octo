@@ -36,6 +36,13 @@ class Fire
         return actual('fire.class', maker(get_called_class(), [get_called_class()]));
     }
 
+    /**
+     * @param string $event
+     * @param $callable
+     * @param int $priority
+     *
+     * @return Listener
+     */
     public function on($event, $callable, $priority = 0)
     {
         $events = Registry::get('fire.events.' . $this->ns, []);

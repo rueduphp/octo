@@ -4,7 +4,6 @@
     use ArrayAccess;
     use ArrayObject;
     use Exception as NativeException;
-    use function func_get_args;
     use GuzzleHttp\Psr7\MessageTrait;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
@@ -164,7 +163,7 @@
 
         /**
          * @param mixed $auth
-         * 
+         *
          * @return $this
          */
         public function setAuth($auth)
@@ -1248,7 +1247,12 @@
     interface FastRegistryInterface {}
     interface FastDbInterface {}
     interface FastMailerInterface {}
-    interface FastEventInterface {}
+    interface FastEventInterface
+    {
+        public function fire();
+        public function onSuccess();
+        public function onFail();
+    }
     interface FastViewInterface {}
     interface FastRouterInterface {}
     interface FastRouteInterface {}
@@ -1269,7 +1273,7 @@
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
 
-    class FastEvent extends Fire        implements FastEventInterface {}
+    class FastEvent extends Fire {}
     class FastRedis extends Cacheredis  implements FastStorageInterface {}
     class FastCache extends Cache       implements FastStorageInterface {}
     class FastNow   extends Now         implements FastStorageInterface {}

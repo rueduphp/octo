@@ -179,6 +179,7 @@
             }
 
             $tab = explode(DS, $path);
+
             array_pop($tab);
 
             $parent = implode(DS, $tab);

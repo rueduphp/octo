@@ -13,6 +13,11 @@ class Work
      */
     private $payload = [];
 
+    /**
+     * @var string
+     */
+    private $date_format = 'd/m/Y H:i:s';
+
     public function __construct($store)
     {
         $this->store = $store;
@@ -24,17 +29,23 @@ class Work
      *
      * @return Work
      */
-    public function new(string $className, array $args = []): self
+    public function new(string $className, array $args = []): Work
     {
-        return $this->payload('job', $className)->payload('args', $args);
+        return $this
+            ->payload('job', $className)
+            ->payload('args', $args)
+        ;
     }
 
     /**
      * @return Work
      */
-    public function now(): self
+    public function now(): Work
     {
-        return $this->payload('when', 0)->save();
+        return $this
+            ->payload('when', 0)
+            ->save()
+        ;
     }
 
     /**
@@ -42,11 +53,14 @@ class Work
      *
      * @return Work
      */
-    public function in(int $minutes = 5): self
+    public function in(int $minutes = 5): Work
     {
         $when = time() + ($minutes * 60);
 
-        return $this->payload('when', $when)->save();
+        return $this
+            ->payload('when', $when)
+            ->save()
+        ;
     }
 
     /**
@@ -54,18 +68,21 @@ class Work
      *
      * @return Work
      */
-    public function at(int $timestamp): self
+    public function at(int $timestamp): Work
     {
-        return $this->payload('when', $timestamp)->save();
+        return $this
+            ->payload('when', $timestamp)
+            ->save()
+        ;
     }
 
     /**
      * @param string $key
      * @param mixed $value
      *
-     * @return $this
+     * @return Work
      */
-    private function payload(string $key, $value): self
+    private function payload(string $key, $value): Work
     {
         $this->payload[$key] = $value;
 
@@ -73,9 +90,9 @@ class Work
     }
 
     /**
-     * @return $this
+     * @return Work
      */
-    private function save(): self
+    private function save(): Work
     {
         if ($this->ready()) {
             $row = [
@@ -95,31 +112,51 @@ class Work
      */
     public function process(): int
     {
-        $computed   = 0;
+        $computed = 0;
 
         if ($this->hasNext()) {
-            $all        = $this->store->get('queue.whens', []);
-            $now        = time();
+            $all = $this
+                ->store
+                ->get('queue.whens', [])
+            ;
 
-            $jobs   = $this->store->get('queue.jobs', []);
-            $args   = $this->store->get('queue.args', []);
-            $failed = $this->store->get('queue.failed', []);
+            $now = time();
+
+            $jobs = $this
+                ->store
+                ->get('queue.jobs', [])
+            ;
+
+            $args = $this
+                ->store
+                ->get('queue.args', [])
+            ;
+
+            $failed = $this
+                ->store
+                ->get('queue.failed', [])
+            ;
 
             foreach ($all as $row) {
                 if ((int) $row['when'] <= $now) {
                     $computed++;
                     array_shift($all);
 
-                    $id = $row['id'];
-                    $job = isAke($jobs, $id, false);
+                    $id     = $row['id'];
+                    $job    = isAke($jobs, $id, false);
 
                     if ($job) {
                         $params = isAke($args, $id, []);
 
-                        $instance = instanciator()->make($job, $params, false);
+                        $instance = instanciator()
+                            ->make($job, $params, false)
+                        ;
 
                         try {
-                            instanciator()->call($instance, 'process');
+                            instanciator()
+                                ->call($instance, 'process')
+                            ;
+
                             unset($jobs[$id]);
                             unset($args[$id]);
 
@@ -134,15 +171,20 @@ class Work
             }
 
             if (0 < $computed) {
-                $this->store->set('queue.jobs', $jobs);
-                $this->store->set('queue.args', $args);
-                $this->store->set('queue.failed', $failed);
+                $this->store
+                    ->set('queue.jobs', $jobs)
+                    ->set('queue.args', $args)
+                    ->set('queue.failed', $failed)
+                ;
 
                 if (is_null($all)) {
                     $all = [];
                 }
 
-                $this->store->set('queue.whens', $all);
+                $this
+                    ->store
+                    ->set('queue.whens', $all)
+                ;
             }
         }
 
@@ -154,16 +196,27 @@ class Work
      */
     public function schedule(): array
     {
-        $schedule = [];
+        $schedule   = [];
 
-        $all    = $this->store->get('queue.whens', []);
-        $jobs   = $this->store->get('queue.jobs', []);
+        $all = $this
+            ->store
+            ->get('queue.whens', [])
+        ;
+
+        $jobs = $this
+            ->store
+            ->get('queue.jobs', [])
+        ;
 
         foreach ($all as $item) {
-            $job = isAke($jobs, $item['id'], false);
+            $job = isAke(
+                $jobs,
+                $item['id'],
+                false
+            );
 
             if ($job) {
-                $schedule[] = [$job => date('d/m/Y H:i:s', (int) $item['when'])];
+                $schedule[] = [$job => date($this->date_format, (int) $item['when'])];
             }
         }
 
@@ -175,16 +228,27 @@ class Work
      */
     public function fails(): array
     {
-        $fails = [];
+        $fails  = [];
 
-        $all    = $this->store->get('queue.failed', []);
-        $jobs   = $this->store->get('queue.jobs', []);
+        $all  = $this
+            ->store
+            ->get('queue.failed', [])
+        ;
+
+        $jobs   = $this
+            ->store
+            ->get('queue.jobs', [])
+        ;
 
         foreach ($all as $id => $timestamp) {
-            $job = isAke($jobs, $id, false);
+            $job = isAke(
+                $jobs,
+                $id,
+                false
+            );
 
             if ($job) {
-                $fails[] = [$job => date('d/m/Y H:i:s', (int) $timestamp)];
+                $fails[] = [$job => date($this->date_format, (int) $timestamp)];
             }
         }
 
@@ -194,33 +258,66 @@ class Work
     /**
      * @return bool
      */
-    public function hasNext()
+    public function hasNext(): bool
     {
-        return !empty($this->store->get('queue.whens', []));
+        return !empty(
+            $this
+            ->store
+            ->get(
+                'queue.whens',
+                []
+            )
+        );
     }
 
     /**
      * @param array $job
      *
-     * @return $this
+     * @return Work
      */
-    private function store(array $job): self
+    private function store(array $job): Work
     {
-        $jobs   = $this->store->get('queue.jobs', []);
-        $args   = $this->store->get('queue.args', []);
-        $whens  = $this->store->get('queue.whens', []);
+        $jobs       = $this
+            ->store
+            ->get(
+                'queue.jobs', []
+            );
+
+        $args       = $this
+            ->store
+            ->get(
+                'queue.args', []
+            )
+        ;
+
+        $whens      = $this
+            ->store
+            ->get(
+                'queue.whens', []
+            )
+        ;
 
         $id = token();
 
         $jobs[$id]  = $job['job'];
         $args[$id]  = $job['args'];
-        $whens[]    = ['id' => $id, 'when' => (int) $job['when']];
 
-        $whens = array_values(coll($whens)->sortBy('when')->toArray());
+        $whens[]  = [
+            'id' => $id,
+            'when' => (int) $job['when']
+        ];
 
-        $this->store->set('queue.jobs', $jobs);
-        $this->store->set('queue.args', $args);
-        $this->store->set('queue.whens', $whens);
+        $whens = array_values(
+            coll($whens)
+                ->sortBy('when')
+                ->toArray()
+        );
+
+        $this->store
+            ->set('queue.jobs', $jobs)
+            ->set('queue.args', $args)
+            ->set('queue.whens', $whens)
+        ;
 
         return $this;
     }
@@ -228,22 +325,53 @@ class Work
     private function failed($instance): void
     {
         if (method_exists($instance, 'onFail')) {
-            instanciator()->call($instance, 'onFail');
+            instanciator()
+                ->call($instance, 'onFail')
+            ;
         }
     }
 
     private function success($instance): void
     {
         if (method_exists($instance, 'onSuccess')) {
-            instanciator()->call($instance, 'onSuccess');
+            instanciator()
+                ->call($instance, 'onSuccess')
+            ;
         }
     }
 
     /**
      * @return bool
      */
-    private function ready()
+    private function ready(): bool
     {
-        return isset($this->payload['job']) && isset($this->payload['when']) && isset($this->payload['args']);
+        return isset($this->payload['job'])
+            && isset($this->payload['when'])
+            && isset($this->payload['args'])
+        ;
+    }
+
+    /**
+     * @param string $date_format
+     *
+     * @return Work
+     */
+    public function setDateFormat(string $date_format): Work
+    {
+        $this->date_format = $date_format;
+
+        return $this;
+    }
+
+    /**
+     * @param mixed $store
+     *
+     * @return Work
+     */
+    public function setStore($store): Work
+    {
+        $this->store = $store;
+
+        return $this;
     }
 }
