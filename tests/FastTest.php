@@ -1,11 +1,11 @@
 <?php
     use Interop\Http\ServerMiddleware\DelegateInterface;
-    use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Octo\App;
     use Octo\Config;
     use Octo\Fast;
     use Octo\FastMiddleware;
     use Octo\FastRendererInterface;
+    use Octo\FastRequest;
     use Octo\FastUserOrmInterface;
     use Octo\Flash;
     use Octo\Objet;
@@ -14,6 +14,14 @@
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
+
+    class myRequest extends FastRequest
+    {
+        public function __construct()
+        {
+            parent::__construct();
+        }
+    }
 
     class DataEntity extends Octal {}
 
@@ -59,7 +67,7 @@
             ;
         }
 
-        public function demo()
+        public function demo(myRequest $request)
         {
             return $this->renderer->render('demo', ['name' => 'test']);
         }
@@ -116,30 +124,23 @@
             ;
         }
 
-        public function test(ServerRequestInterface $request)
+        public function test(FastRequest $request)
         {
             return "OK";
         }
 
-        public function admin(ServerRequestInterface $request)
+        public function admin(FastRequest $request)
         {
             return "OK";
         }
 
-         public function slug(
-            ServerRequestInterface $request,
-            ContainerInterface $app,
-            string $slug,
-            FastUserOrmInterface $user
-         ) {
+         public function slug(string $slug, FastUserOrmInterface $user)
+         {
             return $slug;
          }
 
-         public function data(
-            ServerRequestInterface $request,
-            ContainerInterface $app,
-            int $id
-         ) {
+         public function data(int $id)
+         {
             $post = DataEntity::find($id);
 
             return $post->name;
@@ -504,5 +505,6 @@
 
             $this->assertInstanceOf(stdClass::class, Resolver::factory(stdClass::class));
             $this->assertInstanceOf(stdClass::class, Resolver::lazy(stdClass::class)());
+            $this->assertSame(Resolver::factory(stdClass::class), Resolver::lazy(stdClass::class)());
         }
     }

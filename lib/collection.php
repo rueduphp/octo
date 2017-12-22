@@ -712,7 +712,7 @@
 
         public function splice($offset, $length = null, $replacement = [])
         {
-            if (func_num_args() == 1) {
+            if (func_num_args() === 1) {
                 return $this->new(array_splice($this->items, $offset));
             }
 
@@ -793,6 +793,11 @@
             return array_values($this->items);
         }
 
+        /**
+         * @param $value
+         *
+         * @return \Closure
+         */
         protected function makeClosure($value)
         {
             return function($item) use ($value) {
@@ -800,6 +805,9 @@
             };
         }
 
+        /**
+         * @return Collection
+         */
         public function zip()
         {
             $arrayableItems = array_map(function ($items) {
@@ -813,6 +821,9 @@
             return $this->new(call_user_func_array('array_map', $params));
         }
 
+        /**
+         * @return array
+         */
         public function toArray()
         {
             return array_map(function($value) {
@@ -820,6 +831,9 @@
             }, $this->items);
         }
 
+        /**
+         * @return array
+         */
         public function items()
         {
             return array_map(function($value) {
@@ -829,31 +843,55 @@
             }, $this->items);
         }
 
+        /**
+         * @return array
+         */
         public function jsonSerialize()
         {
             return $this->toArray();
         }
 
+        /**
+         * @param int $options
+         *
+         * @return string
+         */
         public function toJson($options = 0)
         {
             return json_encode($this->toArray(), $options);
         }
 
+        /**
+         * @return ArrayIterator|\Traversable
+         */
         public function getIterator()
         {
             return new ArrayIterator($this->items);
         }
 
+        /**
+         * @param int $flags
+         *
+         * @return CachingIterator
+         */
         public function getCachingIterator($flags = CachingIterator::CALL_TOSTRING)
         {
             return new CachingIterator($this->getIterator(), $flags);
         }
 
+        /**
+         * @return int
+         */
         public function count()
         {
             return count($this->items);
         }
 
+        /**
+         * @param mixed $key
+         *
+         * @return bool
+         */
         public function offsetExists($key)
         {
             return array_key_exists($key, $this->items);
@@ -864,6 +902,11 @@
             return $this->items[$key];
         }
 
+        /**
+         * @param $value
+         *
+         * @return $this
+         */
         public function add($value)
         {
             $this->items[] = $value;
@@ -885,6 +928,9 @@
             unset($this->items[$key]);
         }
 
+        /**
+         * @return string
+         */
         public function __toString()
         {
             return $this->toJson();
@@ -892,9 +938,14 @@
 
         public function nth($key, $d = null)
         {
-            return (isset($this->items[$key])) ? $this->items[$key] : $d;
+            return isset($this->items[$key]) ? $this->items[$key] : $d;
         }
 
+        /**
+         * @param $items
+         *
+         * @return array
+         */
         protected function getArrays($items)
         {
             if (arrayable($items)) {
@@ -987,7 +1038,7 @@
                 }
             }
 
-            if (func_num_args() == 2) {
+            if (func_num_args() === 2) {
                 list($value, $operator) = [$operator, '='];
             }
 
@@ -1175,6 +1226,10 @@
             return call_user_func_array([$this, 'q'], func_get_args());
         }
 
+        /**
+         * @param $file
+         * @throws \Exception
+         */
         public function save($file)
         {
             $array = $this->native();
@@ -1227,11 +1282,11 @@
 
         public function __call($m, $a)
         {
-            if ($m == 'new') {
+            if ($m === 'new') {
                 return new self(current($a));
-            } elseif ($m == 'array') {
+            } elseif ($m === 'array') {
                 return $this->toArray();
-            } elseif ($m == 'list') {
+            } elseif ($m === 'list') {
                 return call_user_func_array([$this, 'lists'], $a);
             }
         }
@@ -1258,6 +1313,7 @@
 
         /**
          * @param array $items
+         *
          * @return $this
          */
         public function replace(array $items)
@@ -1292,6 +1348,7 @@
 
         /**
          * @param callable $callback
+         *
          * @return mixed
          */
         public function pipe(callable $callback)
@@ -1301,6 +1358,7 @@
 
         /**
          * @param callable $callback
+         *
          * @return Collection
          */
         public function step(callable $callback)
@@ -1310,6 +1368,7 @@
 
         /**
          * @param callable $callback
+         *
          * @return $this
          */
         public function tap(callable $callback)
@@ -1336,7 +1395,6 @@
 
                     $res[$key] = $value;
                 }
-
 
                 return $this->new($res);
             }

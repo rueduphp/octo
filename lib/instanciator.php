@@ -145,7 +145,7 @@ class Instanciator
         $ref        = $reflection->getMethod($method);
         $params     = $ref->getParameters();
 
-        if (empty($args) || count($args) != count($params)) {
+        if (empty($args) || count($args) !== count($params)) {
             foreach ($params as $param) {
                 if (!empty($args)) {
                     $p = array_shift($args);
@@ -166,9 +166,10 @@ class Instanciator
                         try {
                             $p = $param->getDefaultValue();
                         } catch (PHPException $e) {
-                            if ($fnParams[0] instanceof ServerRequestInterface) {
-                                $var    = $param->getName();
-                                $p      = $fnParams[0]->getAttribute($var);
+                            $attr = getContainer()->getRequest()->getAttribute($param->getName());
+
+                            if ($attr) {
+                                $p      = $attr;
                             } else {
                                 exception(
                                     'Instanciator',

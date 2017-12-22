@@ -136,7 +136,7 @@
             if (is_array($value)) {
                 return true;
             } else {
-                return (is_object($value) && $value instanceof \Traversable);
+                return is_object($value) && $value instanceof \Traversable;
             }
         }
 
@@ -464,13 +464,13 @@
         }
 
         public static function last($array, callable $callback = null, $default = null)
-    {
-        if (is_null($callback)) {
-            return empty($array) ? value($default) : end($array);
-        }
+        {
+            if (is_null($callback)) {
+                return empty($array) ? value($default) : end($array);
+            }
 
-        return static::first(array_reverse($array, true), $callback, $default);
-    }
+            return static::first(array_reverse($array, true), $callback, $default);
+        }
 
         public static function overwrite(array $array1, array $array2)
         {

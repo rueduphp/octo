@@ -52,6 +52,22 @@
             actual('fast', $this);
         }
 
+        public function set_config($key, $value)
+        {
+            $configs = Registry::get('fast.config', []);
+            aset($configs, $key, $value);
+            Registry::set('fast.config', $configs);
+
+            return $this;
+        }
+
+        public function get_config($key, $value = null)
+        {
+            $configs = Registry::get('fast.config', []);
+
+            return aget($configs, $key, $value);
+        }
+
         public function add($key, $value)
         {
             $concern = 'add.fast.' . $key;
@@ -500,6 +516,8 @@
 
         public function process(ServerRequestInterface $request)
         {
+            $this->request = $request;
+
             $middleware = $this->getMiddleware();
 
             if (is_null($middleware)) {
@@ -833,6 +851,7 @@
         /**
          * @param string $key
          * @param null $default
+         *
          * @return mixed|null
          */
         public function value(string $key, $default = null)
@@ -1272,6 +1291,40 @@
 
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
+
+    /**
+     * Class FastRequest
+     * @method getServerParams()
+     * @method getCookieParams()
+     * @method withCookieParams(array $cookies)
+     * @method getQueryParams()
+     * @method withQueryParams(array $query)
+     * @method getUploadedFiles()
+     * @method withUploadedFiles(array $uploadedFiles)
+     * @method getParsedBody()
+     * @method withParsedBody($data)
+     * @method getAttributes()
+     * @method getAttribute($name, $default = null)
+     * @method withAttribute($name, $value)
+     * @method withoutAttribute($name)
+     */
+    class FastRequest
+    {
+        /**
+         * @var ServerRequestInterface
+         */
+        protected $request;
+
+        public function __construct()
+        {
+            $this->request = getContainer()->getRequest();
+        }
+
+        public function __call($method, $params)
+        {
+            return $this->request->{$method}(...$params);
+        }
+    }
 
     class FastEvent extends Fire {}
     class FastRedis extends Cacheredis  implements FastStorageInterface {}

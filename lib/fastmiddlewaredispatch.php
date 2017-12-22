@@ -1,6 +1,7 @@
 <?php
 namespace Octo;
 
+use function FastRoute\TestFixtures\empty_options_cached;
 use Interop\Http\ServerMiddleware\DelegateInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -20,7 +21,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
             if (is_array($middleware)) {
                 $module = $middleware[0];
                 $action = $middleware[1];
-                $response = callMethod($module, $action, $request, $app);
+                $response = callMethod($module, $action);
             } else {
                 $module     = $this->maker($middleware);
                 $callable   = [$module, 'run'];
