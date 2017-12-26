@@ -439,7 +439,7 @@
         {
             $res = $this->get($k, 'octodummy');
 
-            if ('octodummy' == $res) {
+            if ('octodummy' === $res) {
                 $this->set($k, $res = $c(), $e);
             }
 
@@ -498,6 +498,17 @@
             return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
+        /**
+         * @param $k
+         * @param callable $c
+         * @param $a
+         *
+         * @return mixed
+         *
+         * @throws Exception
+         * @throws \Exception
+         *
+         */
         public function aged($k, callable $c, $a)
         {
             $k = sha1($this->dir) . '.' . $k;

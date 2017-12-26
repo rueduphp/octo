@@ -750,14 +750,14 @@
         {
             $key = "flash_{$key}";
 
-            if ($val != 'octodummy') {
+            if ($val !== 'octodummy') {
                 $this->set($key, $val);
             } else {
                 $val = $this->get($key);
                 $this->delete($key);
             }
 
-            return $val != 'octodummy' ? $this : $val;
+            return $val !== 'octodummy' ? $this : $val;
         }
 
         public function add($k, $v, $e)

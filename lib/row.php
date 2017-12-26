@@ -50,7 +50,7 @@ class Row
 
     /**
      * @param string $key
-     * 
+     *
      * @return bool
      */
     public function delete(string $key): bool
@@ -62,6 +62,15 @@ class Row
         }
 
         return false;
+    }
+
+    public function cache(string $key, int $age)
+    {
+        $callable = function () use ($key) {
+            return $this->get($key);
+        };
+
+        return $this->engine->until($key, $callable, $age);
     }
 
     /**
