@@ -73,7 +73,7 @@
             $method  = 'on' . Strings::camelize($event);
 
             if (in_array($method, $methods)) {
-                $result = $this->$method($concern);
+                $result = $this->{$method}($concern);
 
                 if ($return) {
                     return $result;

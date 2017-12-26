@@ -7,8 +7,43 @@
     {
         use Framework;
 
-        public function run($action, ServerRequestInterface $request, Fast $app)
+        /**
+         * @param string $action
+         * @param ServerRequestInterface $request
+         * @param Fast $app
+         * 
+         * @return mixed|null
+         */
+        public function run(string $action, ServerRequestInterface $request, Fast $app)
         {
-            return callMethod($this, $action, $request, $app);
+            return instanciator()
+                ->call(
+                    $this,
+                    $action,
+                    $request,
+                    $app
+                )
+            ;
+        }
+
+        /**
+         * @param string $class
+         */
+        public function middleware(string $class)
+        {
+            $middleware = $this
+                ->getContainer()
+                ->resolve($class)
+            ;
+
+            instanciator()
+                ->call(
+                    $middleware,
+                    'process',
+                    $this
+                        ->getContainer()
+                        ->getRequest()
+                )
+            ;
         }
     }

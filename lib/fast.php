@@ -4,6 +4,7 @@
     use ArrayAccess;
     use ArrayObject;
     use Exception as NativeException;
+    use function func_get_args;
     use GuzzleHttp\Psr7\MessageTrait;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
@@ -445,14 +446,19 @@
         }
 
         /**
-         * @param string $class
-         * @param bool $singleton
-         *
          * @return mixed|object
          */
-        public function resolve($class, $singleton = true)
+        public function resolve()
         {
-            return $singleton ? instanciator()->singleton($class) : instanciator()->factory($class);
+            return instanciator()->factory(...func_get_args());
+        }
+
+        /**
+         * @return mixed|object
+         */
+        public function resolveOnce()
+        {
+            return instanciator()->singleton(...func_get_args());
         }
 
         /**
@@ -1160,6 +1166,22 @@
         }
 
         /**
+         * @return mixed|object
+         */
+        public function resolve()
+        {
+            return getContainer()->resolve(...func_get_args());
+        }
+
+        /**
+         * @return mixed|object
+         */
+        public function resolveOnce()
+        {
+            return getContainer()->resolveOnce(...func_get_args());
+        }
+
+        /**
          * @return Work
          */
         public function job()
@@ -1291,6 +1313,10 @@
 
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
+
+    class FastOrm implements FastOrmInterface {}
+    class FastMailer implements FastMailerInterface {}
+    class FastSession implements FastSessionInterface {}
 
     /**
      * Class FastRequest

@@ -524,7 +524,7 @@
             $keys = array_keys($data);
 
             if (!is_array($guarded)) {
-                if ($fillable != $keys) {
+                if ($fillable !== $keys) {
                     foreach ($keys as $key) {
                         if (!in_array($key, $fillable)) {
                             exception(
@@ -567,9 +567,10 @@
                 $this->entity()->fire('updating', $this);
 
                 $this->db()
-                ->update($this->data)
-                ->where($this->entity->pk(), $this->get($this->entity->pk()))
-                ->run();
+                    ->update($this->data)
+                    ->where($this->entity->pk(), $this->get($this->entity->pk()))
+                    ->run()
+                ;
 
                 $return = $this;
 
@@ -582,7 +583,10 @@
                 $this->entity()->fire('created', $return);
             }
 
-            $this->entity()->fire('saved', $return);
+            $this
+                ->entity()
+                ->fire('saved', $return)
+            ;
 
             return $return;
         }
@@ -606,10 +610,11 @@
                 if ($fire && $this->entity()->fire('deleting', $this, true) === false) return false;
 
                 $status = $this->db()
-                ->delete()
-                ->where($this->entity->pk(), $this->get($this->entity->pk()))
-                ->run()
-                ->rowCount();
+                    ->delete()
+                    ->where($this->entity->pk(), $this->get($this->entity->pk()))
+                    ->run()
+                    ->rowCount()
+                ;
 
                 $check = $status > 0;
 

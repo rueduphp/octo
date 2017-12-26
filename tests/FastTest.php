@@ -199,7 +199,7 @@
                 })
                 ->set(Octo\FastAuthInterface::class, function () {
                     /**
-                     * @var Octo\Object $auth
+                     * @var Octo\Objet $auth
                      */
                     $auth = $this->fo();
 
