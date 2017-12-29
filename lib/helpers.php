@@ -8,7 +8,7 @@
                 return $app;
             }
 
-            if ('octodummy' == $v) {
+            if ('octodummy' === $v) {
                 return $app[$k];
             }
 

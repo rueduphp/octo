@@ -1,14 +1,18 @@
 <?php
     namespace Octo;
 
+    use function class_exists;
     use Illuminate\Database\Connection;
     use Illuminate\Database\ConnectionResolver;
     use Illuminate\Database\Eloquent\Builder as Builderer;
     use Illuminate\Database\Query\Builder;
     use Illuminate\Database\Query\Grammars\MySqlGrammar as MySqlQueryGrammar;
     use Illuminate\Database\Query\Grammars\SQLiteGrammar as SQLiteQueryGrammar;
+    use Illuminate\Database\Query\Grammars\PostgresGrammar as PostgresQueryGrammar;
+    use Illuminate\Database\Schema\Builder as Schema;
     use Illuminate\Database\Schema\Grammars\MySqlGrammar;
     use Illuminate\Database\Schema\Grammars\SQLiteGrammar;
+    use Illuminate\Database\Schema\Grammars\PostgresGrammar;
     use PDO;
     use PDOException;
 
@@ -208,7 +212,7 @@
             $this->connect();
 
             /** @var Ormmodel $model */
-            $model = is_string($class) ? foundry($class) : $class;
+            $model = is_string($class) && class_exists($class) ? foundry($class) : $class;
 
             /** @var  Connection $connection */
             $connection = $this->grammar(foundry(Connection::class, $this->pdo));
@@ -254,7 +258,13 @@
                     $connection->setSchemaGrammar(new SQLiteGrammar());
                     $connection->setQueryGrammar(new SQLiteQueryGrammar());
                     break;
+                case 'postgres':
+                    $connection->setSchemaGrammar(new PostgresGrammar());
+                    $connection->setQueryGrammar(new PostgresQueryGrammar());
+                    break;
             }
+
+            Schema::defaultStringLength(191);
 
             return $this->grammar($connection)->getSchemaBuilder();
         }
@@ -276,6 +286,10 @@
                 case 'sqlite':
                     $connection->setSchemaGrammar(new SQLiteGrammar());
                     $connection->setQueryGrammar(new SQLiteQueryGrammar());
+                    break;
+                case 'postgres':
+                    $connection->setSchemaGrammar(new PostgresGrammar());
+                    $connection->setQueryGrammar(new PostgresQueryGrammar());
                     break;
             }
 

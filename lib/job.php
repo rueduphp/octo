@@ -37,4 +37,19 @@
 
             return $this->add($job, $ts);
         }
+
+        public function process()
+        {
+            // TODO: Implement process() method.
+        }
+
+        public function onSuccess()
+        {
+            // TODO: Implement onSuccess() method.
+        }
+
+        public function onFail()
+        {
+            // TODO: Implement onFail() method.
+        }
     }

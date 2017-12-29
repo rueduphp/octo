@@ -32,6 +32,7 @@
 
         /**
          * @param array $config
+         *
          * @return Fast
          */
         public static function create($config = [])

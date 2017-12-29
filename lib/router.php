@@ -525,7 +525,7 @@
                     $this->uri = Route::getUri($route['uri'], $route['callback']);
 
                     if ($this->uri) {
-                        route($route);
+                        actual('route', $route);
 
                         if ($before = $this->uri->getBefore()) {
                             if (is_callable($before)) {

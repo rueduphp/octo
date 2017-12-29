@@ -1011,6 +1011,12 @@
             return array_values($value) === $value;
         }
 
+        /**
+         * @param \SplFixedArray $arr
+         * @param int $size
+         *
+         * @return \SplFixedArray
+         */
         public static function chunk_fixed(\SplFixedArray $arr, $size)
         {
             $chunks = new \SplFixedArray(ceil(count($arr) / $size));
@@ -1026,5 +1032,50 @@
             $chunk->setSize(count($arr) % $size);
 
             return $chunks;
+        }
+
+        /**
+         * @param array $data
+         * @param $callback
+         * @param null $flag
+         *
+         * @return array
+         *
+         * @throws \Exception
+         */
+        public static function filter(array $data, $callback, $flag = null)
+        {
+            if (! is_callable($callback)) {
+                throw new \Exception(sprintf(
+                    'Second parameter of %s must be callable',
+                    __METHOD__
+                ));
+            }
+
+            if (version_compare(PHP_VERSION, '5.6.0') >= 0) {
+                return array_filter($data, $callback, $flag);
+            }
+
+            $output = [];
+
+            foreach ($data as $key => $value) {
+                $params = [$value];
+
+                if ($flag === 1) {
+                    $params[] = $key;
+                }
+
+                if ($flag === 2) {
+                    $params = [$key];
+                }
+
+                $response = call_user_func_array($callback, $params);
+
+                if ($response) {
+                    $output[$key] = $value;
+                }
+            }
+
+            return $output;
         }
     }

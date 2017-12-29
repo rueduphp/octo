@@ -4,6 +4,7 @@
     /* Traits */
 
     use BadMethodCallException;
+    use Closure;
     use Exception as PHPException;
     use const JSON_PRETTY_PRINT;
     use ReflectionClass;
@@ -256,12 +257,12 @@
     {
         protected static $macros = [];
 
-        public static function macro($name, callable $macro)
+        public static function macro(string $name, callable $macro)
         {
             static::$macros[$name] = $macro;
         }
 
-        public static function fn($name, callable $macro)
+        public static function fn(string $name, callable $macro)
         {
             static::$macros[$name] = $macro;
         }
@@ -269,7 +270,9 @@
         public static function mixin($mixin)
         {
             $methods = (new ReflectionClass($mixin))->getMethods(
-                ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED
+                ReflectionMethod::IS_PRIVATE |
+                ReflectionMethod::IS_PUBLIC |
+                ReflectionMethod::IS_PROTECTED
             );
 
             foreach ($methods as $method) {
@@ -279,14 +282,14 @@
             }
         }
 
-        public static function hasMacro($name)
+        public static function hasMacro(string $name)
         {
             return isset(static::$macros[$name]);
         }
 
-        public static function __callStatic($method, $parameters)
+        public static function __callStatic(string $method, array $parameters)
         {
-            if (! static::hasMacro($method)) {
+            if (!static::hasMacro($method)) {
                 throw new BadMethodCallException("Method {$method} does not exist.");
             }
 
@@ -297,7 +300,7 @@
             return call_user_func_array(static::$macros[$method], $parameters);
         }
 
-        public function __call($method, $parameters)
+        public function __call(string $method, array $parameters)
         {
             if (! static::hasMacro($method)) {
                 throw new BadMethodCallException("Method {$method} does not exist.");

@@ -1,8 +1,6 @@
 <?php
 namespace Octo;
 
-use function get_parent_class;
-
 class Factory
 {
     /**
@@ -50,11 +48,11 @@ class Factory
      * @param string $className
      * @param int $count
      *
-     * @return array
+     * @return Rows
      */
-    public static function save(string $className, int $count = 1): array
+    public static function save(string $className, int $count = 1): Rows
     {
-        $entities   = [];
+        $entities   = new Rows;
         $entity     = new $className;
         $rows       = self::make($className, $count);
 
@@ -64,9 +62,9 @@ class Factory
             $parent, [Octal::class, Bank::class]
         ) ? 'store' : 'create';
 
-        foreach ($rows as $row) {
-            $entities[] = $entity->{$method}($row);
-        }
+        array_map(function ($row) use ($method, $entity, &$entities) {
+            $entities->push($entity->{$method}($row));
+        }, $rows);
 
         return $entities;
     }

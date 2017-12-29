@@ -190,7 +190,7 @@
                 $this->forget($key);
             }
 
-            return $val != 'octodummy' ? $this : $val;
+            return $val !== 'octodummy' ? $this : $val;
         }
 
         public function __call($m, $a)

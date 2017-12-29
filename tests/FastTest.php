@@ -1,7 +1,8 @@
 <?php
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Octo\App;
-    use Octo\Config;
+use Octo\Cachesql;
+use Octo\Config;
     use Octo\Fast;
     use Octo\FastMiddleware;
     use Octo\FastRendererInterface;
@@ -15,13 +16,7 @@
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
 
-    class myRequest extends FastRequest
-    {
-        public function __construct()
-        {
-            parent::__construct();
-        }
-    }
+    class myRequest extends FastRequest {}
 
     class DataEntity extends Octal {}
 

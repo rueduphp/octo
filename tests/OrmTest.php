@@ -92,6 +92,9 @@
 
             $this->db = new Orm($this->pdo);
 
+            /** @var PDO $p */
+            $p = $this->proxy($this->pdo);
+
             Migrations::migrate($this->db->schema());
             Migrations::seeds($this->db);
         }

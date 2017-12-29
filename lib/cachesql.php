@@ -28,24 +28,13 @@
         public function __construct($ns = 'core')
         {
             $this->dir      = $ns;
-            $this->table    = Strings::urlize($ns, '');
+            $this->table    = 'cache_' . Strings::urlize($ns, '');
 
-            $app = context('app');
+            $this->db = getPdo();
 
-            if (!$this->db = $app['pdo']) {
-                $this->db = new \PDO(
-                    'mysql:host=' .
-                    Config::get('mysql.host', 'localhost') . ';dbname=' .
-                    Config::get('mysql.db', def('SITE_NAME', 'project')),
-                    Config::get('mysql.user', 'root'),
-                    Config::get('mysql.password', 'root')
-                );
+            $this->id = sha1('sql' . $ns);
 
-                $this->db->setAttribute(
-                    \PDO::ATTR_ERRMODE,
-                    \PDO::ERRMODE_WARNING
-                );
-            }
+            $this->cleanCache();
 
             $sql = "CREATE TABLE IF NOT EXISTS `" . $this->table . "` (
   `k` varchar(255) NOT NULL,
@@ -53,9 +42,7 @@
   `e` bigint(20) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`k`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
-            $this->q($sql);
-
-            $this->id = sha1('sql' . $ns);
+            $this->db->query($sql);
         }
 
         public static function instance($ns = 'core')
@@ -75,7 +62,7 @@
 
         public function __call($m, $a)
         {
-            if ('if' == $m) {
+            if ('if' === $m) {
                 return call_user_func_array([$this, 'cacheIf'], $a);
             }
         }
@@ -198,7 +185,7 @@
                 if ($row) {
                     $age = $row['e'];
 
-                    if (0 == $age || $age >= time()) {
+                    if (0 === $age || $age >= time()) {
                         return value(unserialize($row['v']));
                     } else {
                         $this->_delete($file);
@@ -385,7 +372,7 @@
         private function cleanCache()
         {
             $q = "DELETE FROM " . $this->table . " WHERE e > 0 AND e < " . time();
-            $this->q($q);
+            $this->db->query($q);
         }
 
         public function keys($pattern = '*')
@@ -605,7 +592,7 @@
 
         public function hgetall($hash)
         {
-            $this->keys('hash.' . $hash . '.*');
+            $keys = $this->keys('hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
                 $key = str_replace([$this->dir . '.', "hash.$hash."], '', Arrays::last(explode(DS, $row)));
@@ -617,7 +604,7 @@
 
         public function hvals($hash)
         {
-            $this->keys('hash.' . $hash . '.*');
+            $keys = $this->keys('hash.' . $hash . '.*');
 
             foreach ($keys as $row) {
                 yield unserialize($this->_read($this->getPath($row))['v']);
@@ -705,6 +692,9 @@
             return $this->set($destination, $tab);
         }
 
+        /**
+         * @return Cachesql
+         */
         public function sunionstore()
         {
             $args = func_get_args();
@@ -720,17 +710,34 @@
             return $this->set($destination, $tab);
         }
 
+        /**
+         * @param $hash
+         * @param $key
+         *
+         * @return bool
+         */
         public function sismember($hash, $key)
         {
             return in_array($key, $this->get($hash, []));
         }
 
-        public function smembers($key)
+        /**
+         * @param string $key
+         *
+         * @return array
+         */
+        public function smembers(string $key): array
         {
             return $this->get($key, []);
         }
 
-        public function srem($hash, $key)
+        /**
+         * @param string $hash
+         * @param string $key
+         *
+         * @return bool
+         */
+        public function srem(string $hash, string $key)
         {
             $tab = $this->get($hash, []);
 
@@ -739,7 +746,7 @@
             $exists = false;
 
             foreach ($tab as $row) {
-                if ($row != $key) {
+                if ($row !== $key) {
                     $new[] = $row;
                 } else {
                     $exists = true;
@@ -813,7 +820,7 @@
         {
             $key = "flash_{$key}";
 
-            if ($val != 'octodummy') {
+            if ($val !== 'octodummy') {
                 $this->set($key, $val);
             } else {
                 $val = $this->get($key);
@@ -825,7 +832,7 @@
 
         public function add($k, $v, $e)
         {
-            if (!$this->has($key)) {
+            if (!$this->has($k)) {
                 return $this->set($k, $v, $e);
             }
 
@@ -938,7 +945,7 @@
 
         public function getTtl($e = null)
         {
-            return $e ? $e : Registry::get('cache.ttl.' . $this->id, $e);
+            return $e ?: Registry::get('cache.ttl.' . $this->id, $e);
         }
 
         private function _delete($k)
@@ -955,7 +962,7 @@
                     " . $this->quote($e) . "
                 );";
 
-            $res = $this->q($q);
+            $this->q($q);
         }
 
         private function _read($k)
@@ -991,7 +998,7 @@
                 $count = $res->rowCount();
             }
 
-            return $count == 2;
+            return $count === 2;
         }
 
         private function q($query)

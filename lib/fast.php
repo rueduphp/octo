@@ -4,10 +4,9 @@
     use ArrayAccess;
     use ArrayObject;
     use Exception as NativeException;
-    use function func_get_args;
-    use GuzzleHttp\Psr7\MessageTrait;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
+    use GuzzleHttp\Psr7\Uri;
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Psr\Container\ContainerInterface;
@@ -34,6 +33,11 @@
 
         protected $response, $request, $router, $middlewares = [], $extensionsLoaded = [];
 
+        /**
+         * @param null $config
+         *
+         * @throws \TypeError
+         */
         public function __construct($config = null)
         {
             Timer::start();
@@ -51,6 +55,8 @@
             $this->request = $this->fromGlobals();
 
             actual('fast', $this);
+
+//            $this->getLang();
         }
 
         public function set_config($key, $value)
@@ -130,6 +136,11 @@
             return $this;
         }
 
+        /**
+         * @return array
+         *
+         * @throws \TypeError
+         */
         public function getSession()
         {
             $session = $this->define('session');
@@ -141,9 +152,10 @@
 
         /**
          * @param FastRendererInterface $renderer
-         * @return $this
+         *
+         * @return Fast
          */
-        public function setRenderer(FastRendererInterface $renderer)
+        public function setRenderer(FastRendererInterface $renderer): self
         {
             $this->define('renderer', $renderer);
 
@@ -482,7 +494,8 @@
 
         /**
          * @param $uri
-         * @return MessageTrait|static
+         *
+         * @return Psr7Response
          */
         public function redirectResponse($uri)
         {
@@ -494,9 +507,9 @@
             return $this->response;
         }
 
-        public function redirectRouteResponse($route)
+        public function redirectRouteResponse($route, array $params = [])
         {
-            $uri = $this->router()->urlFor($route);
+            $uri = $this->router()->urlFor($route, $params);
 
             return $this->redirectResponse($uri);
         }
@@ -847,7 +860,7 @@
         {
             $keyDefine = 'fast.' . $key;
 
-            if ('octodummy' == $value) {
+            if ('octodummy' === $value) {
                 return actual($keyDefine);
             }
 
@@ -885,6 +898,7 @@
 
         /**
          * @param array $context
+         *
          * @return array
          */
         function beforeRender($context = [])
@@ -1014,6 +1028,60 @@
         public function getResponse()
         {
             return isset($this->response) ? $this->response : $this->response();
+        }
+
+        /**
+         * @param string $name
+         *
+         * @return string
+         *
+         * @throws \TypeError
+         */
+        public function getLang($name = 'lng'): string
+        {
+            $session        = $this->getSession();
+            $language       = isAke($session, $name, null);
+            $isCli          = false;
+            $fromBrowser    = isAke($_SERVER, 'HTTP_ACCEPT_LANGUAGE', false);
+
+            if (false === $fromBrowser) {
+                $isCli = true;
+            }
+
+            if ($isCli) {
+                return defined('DEFAULT_LANGUAGE') ? DEFAULT_LANGUAGE : 'en';
+            }
+
+            $var = defined('LANGUAGE_VAR') ? LANGUAGE_VAR : 'lng';
+
+            if (is_null($language)) {
+                $language = $this->getRequest()->getAttribute($var, \Locale::acceptFromHttp($fromBrowser));
+                $session[$name] = $language;
+            }
+
+            if (fnmatch('*_*', $language)) {
+                list($language, $d) = explode('_', $language, 2);
+                $session[$name] = $language;
+            }
+
+            return $language;
+        }
+
+        /**
+         * @param string $language
+         * @param string $name
+         *
+         * @return Fast
+         *
+         * @throws \TypeError
+         */
+        public function setLang(string $language, $name = 'lng'): self
+        {
+            $session = $this->getSession();
+
+            $session[$name] = $language;
+
+            return $this;
         }
     }
 
@@ -1166,6 +1234,46 @@
         }
 
         /**
+         * @return ServerRequestInterface
+         */
+        public function getRequest()
+        {
+            return getRequest();
+        }
+
+        /**
+         * @return Session
+         */
+        public function getSession()
+        {
+            return getSession();
+        }
+
+        /**
+         * @return Octalia|Orm
+         */
+        public function getDb()
+        {
+            return getDb();
+        }
+
+        /**
+         * @return FastLog
+         */
+        public function getLog()
+        {
+            return getLog();
+        }
+
+        /**
+         * @return Cache
+         */
+        public function getKh()
+        {
+            return getCache();
+        }
+
+        /**
          * @return mixed|object
          */
         public function resolve()
@@ -1261,6 +1369,14 @@
         {
             return tap($value, $callback);
         }
+
+        /**
+         * @return mixed|object|Fast
+         */
+        public function app()
+        {
+            return app(...func_get_args());
+        }
     }
 
     trait Framework
@@ -1320,6 +1436,12 @@
 
     /**
      * Class FastRequest
+     * @method hasHeader($header)
+     * @method getHeader($header)
+     * @method getHeaders()
+     * @method getUri()
+     * @method getMethod()
+     * @method withMethod($method)
      * @method getServerParams()
      * @method getCookieParams()
      * @method withCookieParams(array $cookies)
@@ -1336,19 +1458,74 @@
      */
     class FastRequest
     {
-        /**
-         * @var ServerRequestInterface
-         */
-        protected $request;
 
-        public function __construct()
+        /**
+         * @param string $method
+         *
+         * @return FastRequest
+         */
+        public function setMethod(string $method): self
         {
-            $this->request = getContainer()->getRequest();
+            $this->withMethod($method);
+
+            return $this;
         }
 
-        public function __call($method, $params)
+        /**
+         * @return bool
+         */
+        public function isSecure()
         {
-            return $this->request->{$method}(...$params);
+            return 'https' === strtolower($this->getUri()->getScheme());
+        }
+
+        /**
+         * @param string $name
+         * @param null|string $default
+         *
+         * @return null|string
+         */
+        public function get(string $name, ?string $default = null): ?string
+        {
+            return $this->getAttribute($name, $default);
+        }
+
+        /**
+         * @param int $index
+         * @param null|string $default
+         *
+         * @return null|string
+         */
+        public function segment(int $index = 1, ?string $default = null): ?string
+        {
+            $idx = $index - 1;
+
+            return aget($this->segments(), $idx, $default);
+        }
+
+        /**
+         * @return array
+         */
+        public function segments()
+        {
+            /** @var Uri $uri */
+            $uri = $this->getUri();
+            $segments = explode('/', $uri->getPath());
+
+            return array_values(array_filter($segments, function ($v) {
+                return $v !== '';
+            }));
+        }
+
+        /**
+         * @param string $method
+         * @param array $params
+         *
+         * @return mixed
+         */
+        public function __call(string $method, array $params)
+        {
+            return getContainer()->getRequest()->{$method}(...$params);
         }
     }
 
@@ -1516,6 +1693,7 @@
         {
             return [
                 new Twig_SimpleFunction('dump', [$this, 'dump'], ['is_safe' => ['html']]),
+                new Twig_SimpleFunction('asset', [$this, 'asset']),
                 new Twig_SimpleFunction('path', [$this, 'path']),
                 new Twig_SimpleFunction('flash', [$this, 'flash']),
                 new Twig_SimpleFunction('logout', [$this, 'logout']),
@@ -1552,6 +1730,22 @@
                 new Twig_Filter('uncamelize', ['Octo\Inflector', 'uncamelize']),
                 new Twig_Filter('strlen', ['Octo\Inflector', 'length']),
             ];
+        }
+
+        /**
+         * @param string $asset
+         * 
+         * @return string
+         */
+        public function asset(string $asset)
+        {
+            $path = $this->getContainer()->define("asset_path");
+
+            if (!$path) {
+                $path = '/assets/';
+            }
+
+            return $path . $asset;
         }
 
         /**

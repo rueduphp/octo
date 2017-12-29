@@ -1,16 +1,19 @@
 <?php
 namespace Tests;
 
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Schema\Builder;
+use Octo\Orm;
 use Octo\Strings;
-use function Octo\faker;
 use PostModel;
 use UserModel;
+use function Octo\faker;
 
 class Migrations
 {
-    public static function migrate($schema)
+    public static function migrate(Builder $schema)
     {
-        $schema->create('post', function ($table) {
+        $schema->create('post', function (Blueprint $table) {
             $table->increments('id');
             $table->string('title')->nullable();
             $table->text('content')->nullable();
@@ -19,14 +22,14 @@ class Migrations
             $table->timestamp('updated_at')->nullable()->useCurrent();
         });
 
-        $schema->create('user', function ($table) {
+        $schema->create('user', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name')->nullable();
             $table->timestamp('created_at')->nullable()->useCurrent();
             $table->timestamp('updated_at')->nullable()->useCurrent();
         });
 
-        $schema->create('postuser', function ($table) {
+        $schema->create('postuser', function (Blueprint $table) {
             $table->increments('id');
             $table->integer('user_id')->nullable()->index();
             $table->integer('post_id')->nullable()->index();
@@ -34,7 +37,7 @@ class Migrations
             $table->timestamp('updated_at')->nullable()->useCurrent();
         });
 
-        $schema->create('comment', function ($table) {
+        $schema->create('comment', function (Blueprint $table) {
             $table->increments('id');
             $table->integer('commentable_id')->nullable()->index();
             $table->integer('morph_id')->nullable()->index();
@@ -46,7 +49,7 @@ class Migrations
         });
     }
 
-    public static function seeds($orm)
+    public static function seeds(Orm $orm)
     {
         $faker = faker();
 

@@ -1,6 +1,7 @@
 <?php
     namespace Octo;
 
+    use Carbon\Carbon;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Support\Debug\Dumper;
     use Psr\Http\Message\ServerRequestInterface;
@@ -1002,7 +1003,7 @@
 
     function request($k = null, $d = null)
     {
-        return Input::method($k, $d);
+        return getRequest()->getAttribute($k, $d);
     }
 
     function customRequest($name, $cb = null)
@@ -1910,6 +1911,10 @@
             if (!class_exists($class)) {
                 $file = __DIR__ . DS . Strings::lower($lib) . '.php';
 
+                if (!file_exists($file)) {
+                    $file = __DIR__ . DS . $lib . '.php';
+                }
+
                 if (file_exists($file)) {
                     require_once $file;
                 }
@@ -2181,10 +2186,59 @@
         return $eval;
     }
 
+    /**
+     * @param string $path
+     * @param string $namespace
+     */
+    function addVueDirectory(string $path, string $namespace)
+    {
+        $directories = Registry::get('vue.directories', []);
+
+        $directories[$namespace] = $path;
+
+        Registry::set('vue.directories', $directories);
+    }
+
+    /**
+     * @return array
+     */
+    function getVueDirectories()
+    {
+        return Registry::get('vue.directories', []);
+    }
+
+    /**
+     * @param string $file
+     *
+     * @return null|string
+     */
+    function searchVueFile(string $file): ?string
+    {
+        if (!fnmatch('*::*', $file)) {
+            return path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
+        }
+
+        $path = null;
+
+        foreach (getVueDirectories() as $namespace => $directory) {
+            if (fnmatch($namespace . '::*', $file)) {
+                $computed = str_replace($namespace . '::', '', $file);
+                $path = $directory . '/views/' . str_replace('.', '/', $computed) . '.phtml';
+
+                if (File::exists($path)) {
+                    return $path;
+                }
+            }
+        }
+
+        return $path;
+
+    }
+
     function vue($file, $args = [], $status = 200)
     {
         if (!File::exists($file)) {
-            $path = path('app') . '/views/' . str_replace('.', '/', $file) . '.phtml';
+            $path = searchVueFile($file);
         } else {
             $path = $file;
         }
@@ -2264,7 +2318,7 @@
                 $inc = cut("'", "'", $include);
 
                 if (!File::exists($inc)) {
-                    $pathFile = path('app') . '/views/' . str_replace('.', '/', $inc) . '.phtml';
+                    $pathFile = searchVueFile($inc);
                 } else {
                     $pathFile = $inc;
                 }
@@ -2391,7 +2445,11 @@
         return (new Now)->get('octo.paths', []);
     }
 
-    function systemBoot($dir = null)
+    /**
+     * @param null|string $dir
+     * @throws Exception
+     */
+    function systemBoot(?string $dir = null)
     {
         $whoops = new \Whoops\Run;
         $whoops->pushHandler(new \Whoops\Handler\PrettyPageHandler);
@@ -2436,8 +2494,8 @@
            staticFacade('\\Octo\\Now', 'Registry');
         }
 
-        Autoloader::alias('Str', '\\Octo\\Inflector');
-        Autoloader::alias('Dater', '\\Carbon\\Carbon');
+        Autoloader::alias('Str', Inflector::class);
+        Autoloader::alias('Dater', Carbon::class);
 
         $dirs = Arrays::last(
             explode(
@@ -2583,7 +2641,7 @@
             $args = func_get_args();
             array_pop($args);
 
-            return call_user_func_array('\\Octo\\maker', $args);
+            return maker(...$args);
         });
 
         $app->init(function ($dir) {
@@ -3175,6 +3233,16 @@
         return single('i18n', $cb);
     }
 
+    /**
+     * @param $concern
+     *
+     * @return Proxy
+     */
+    function proxy($concern)
+    {
+        return new Proxy($concern);
+    }
+
     function provider($service = null, array $args = [])
     {
         $provider = classify('providers');
@@ -3659,15 +3727,15 @@
     function app($make = null, $params = [])
     {
         if (empty($make)) {
-            return App::getInstance();
+            return getContainer();
         }
 
-        return App::getInstance()->make($make, $params);
+        return getContainer()->resolve($make, $params);
     }
 
     function injector($make, $params = [])
     {
-        return (new Now)->make($make, $params);
+        return maker($make, $params, false);
     }
 
     function next()
@@ -3720,23 +3788,17 @@
 
     function foundry()
     {
-        $args   = func_get_args();
-
-        return instanciator()->factory(...$args);
+        return instanciator()->factory(...func_get_args());
     }
 
     function single()
     {
-        $args   = func_get_args();
-
-        return instanciator()->singleton(...$args);
+        return instanciator()->singleton(...func_get_args());
     }
 
     function singleton()
     {
-        $args   = func_get_args();
-
-        return instanciator()->singleton(...$args);
+        return instanciator()->singleton(...func_get_args());
     }
 
     function wire($concern, $callable)
@@ -3762,7 +3824,7 @@
      */
     function getPdo()
     {
-        return actual("pdo");
+        return actual('pdo');
     }
 
     /**
@@ -3798,6 +3860,39 @@
     }
 
     /**
+     * @return Session
+     */
+    function getSession()
+    {
+        return getContainer()->getSession();
+    }
+
+    /**
+     * @return Octalia|Orm
+     */
+    function getDb()
+    {
+        return orm();
+    }
+
+    /**
+     * @return Cache
+     */
+    function getCache()
+    {
+        return app()->resolve(FastCache::class);
+    }
+
+    /**
+     * @return FastLog
+     */
+    function getLog()
+    {
+        return app()->resolve(FastLog::class);
+    }
+
+
+    /**
      * @return FastRouteRouter
      */
     function getRouter()
@@ -3813,7 +3908,7 @@
             $superdi = o();
 
             $superdi->macro('registry', function ($key, $value = 'octodummy') use ($superdi) {
-                if ($value == $superdi && func_num_args() == 2) {
+                if ($value === $superdi && func_num_args() === 2) {
                     $value = 'octodummy';
                 }
 
@@ -3826,7 +3921,7 @@
                     return $superdi;
                 }
 
-                if ('octodummy' == $value) {
+                if ('octodummy' === $value) {
                     return $superdi->dataget($key);
                 }
 
@@ -3834,7 +3929,7 @@
             });
 
             $superdi->macro('dataget', function ($key, $default = null) use ($superdi) {
-                if ($default == $superdi && func_num_args() == 2) {
+                if ($default === $superdi && func_num_args() === 2) {
                     $default = null;
                 }
 
@@ -3842,7 +3937,7 @@
             });
 
             $superdi->macro('datahas', function ($key) {
-                return 'octodummy' != isAke(Registry::get('core.superdi.data', []), $key, 'octodummy');
+                return 'octodummy' !== isAke(Registry::get('core.superdi.data', []), $key, 'octodummy');
             });
 
             $superdi->macro('dataset', function ($key, $value) use ($superdi) {
@@ -3894,7 +3989,7 @@
             });
 
             $superdi->macro('register', function ($concern, $callable, $c = null) use ($superdi) {
-                if ($c == $superdi && func_num_args() == 3) {
+                if ($c === $superdi && func_num_args() === 3) {
                     $c = null;
                 }
 
@@ -3928,16 +4023,12 @@
 
     function maker()
     {
-        $args = func_get_args();
-
-        return instanciator()->make(...$args);
+        return instanciator()->make(...func_get_args());
     }
 
     function callMethod()
     {
-        $args = func_get_args();
-
-        return instanciator()->call(...$args);
+        return instanciator()->call(...func_get_args());
     }
 
     /**
@@ -3953,7 +4044,9 @@
         $files = glob($pattern);
 
         foreach ($files as $file) {
-            require_once $file;
+            if (fnmatch('*.php', $file) || fnmatch('*.inc', $file)) {
+                require_once $file;
+            }
         }
     }
 
@@ -4664,15 +4757,12 @@
         return null;
     }
 
-    function on($event, callable $cb, $args = [])
+    /**
+     * @return null|Listener
+     */
+    function on()
     {
-        if (is_callable($event)) {
-            $res = call_user_func_array($event, $args);
-        } else {
-            $res = listen($event, $args);
-        }
-
-        return call_user_func_array($cb, [$res]);
+        return subscribe(...func_get_args());
     }
 
     function broadcast($event, callable $cb)
@@ -5684,6 +5774,9 @@
         $tab1 = array_shift($tabs);
         $tab2 = array_shift($tabs);
 
+        if (arrayable($tab1)) $tab1 = $tab1->toArray();
+        if (arrayable($tab2)) $tab2 = $tab2->toArray();
+
         $merged = array_unique(
             array_merge(
                 $tab1,
@@ -6017,10 +6110,7 @@
     {
         $seconds = !is_numeric($expression) ? secondsTo($expression) : $expression + 0;
 
-        while (0 < $seconds) {
-            $seconds--;
-            sleep(1);
-        }
+        sleep($seconds);
 
         return is_callable($callback) ? call($callback, $args) : true;
     }
@@ -6253,6 +6343,7 @@
 
     /**
      * @param $orm
+     *
      * @return FastOrmInterface
      */
     function orm($orm = null)
@@ -6290,7 +6381,7 @@
             return $actuals;
         }
 
-        if (1 == $num) {
+        if (1 === $num) {
             return isAke($actuals, $key, null);
         }
 
@@ -6304,18 +6395,18 @@
     }
 
     /**
-     * @param $event
+     * @param string $event
      * @param null $concern
      * @param bool $return
      *
      * @return array|null
      */
-    function listening($event, $concern = null, $return = false)
+    function listening(string $event, $concern = null, $return = false)
     {
         if (Fly::has($event)) {
             $result = Fly::listen($event, $concern);
 
-            if ($return) {
+            if (true === $return) {
                 return $result;
             }
         }
@@ -6328,13 +6419,13 @@
      * @param callable $callable
      * @param null $back
      *
-     * @return mixed|null
+     * @return Listener|null
      */
-    function subscribe($event, callable $callable, $back = null)
+    function subscribe(string $event, callable $callable, $back = null)
     {
-       Fly::on($event, $callable);
+       $e = Fly::on($event, $callable);
 
-       return $back;
+       return $back ?: $e;
     }
 
     /**
@@ -6368,6 +6459,10 @@
         });
 
         $validator->macro('check', function (array $data = []) use ($name) {
+            if (is_object($data)) {
+                $data = [];
+            }
+
             $errors = [];
 
             $data = empty($data) ? $_POST : $data;
@@ -6402,7 +6497,7 @@
 
     function laravel()
     {
-        return call_user_func_array('\\app', func_get_args());
+        return \app(...func_get_args());
     }
 
     function laravel5($app, $name = 'laravel_app', callable $config = null)
@@ -6812,13 +6907,9 @@
         require_once __DIR__ . DS . 'dom.php';
     }
 
-    function route($route = null)
+    function route(string $name, array $params = [])
     {
-        if ($route) {
-            Registry::set('core.route', $route);
-        }
-
-        return Registry::get('core.route');
+        return getContainer()->router()->urlFor($name, $params);
     }
 
     function headers()
@@ -7399,13 +7490,13 @@
                 ob_end_clean();
             }
 
-            view('<h1>An error occured !</h1><p>' . $e->getMessage() . '</p>', 500, 'An error occured');
+            view('<h1>An error occured !</h1><p>' . $e->getMessage() . ' on ' . $e->getFile() . ' [line ' . $e->getLine() . ']</p>', 500, 'An error occured');
         } catch (\Throwable $e) {
             while (ob_get_level() > $ob_get_level) {
                 ob_end_clean();
             }
 
-            view('<h1>An error occured !</h1><p>' . $e->getMessage() . '</p>', 500, 'An error occured');
+            view('<h1>An error occured !</h1><p>' . $e->getMessage() . ' on ' . $e->getFile() . ' [line ' . $e->getLine() . ']</p>', 500, 'An error occured');
         }
 
         return ltrim(ob_get_clean());

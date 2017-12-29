@@ -10,7 +10,12 @@
         path("base",    path('app'));
         path("storage", path('app') . '/storage');
 
-        systemBoot(path('app'));
+        try {
+            systemBoot(path('app'));
+        } catch (\Exception $e) {
+            $error = $e->getMessage() . ' [' . $e->getFile() . ' on line ' . $e->getLine() . ']';
+            Cli::show($error, 'ERROR');
+        }
 
         Octo::cli();
     });

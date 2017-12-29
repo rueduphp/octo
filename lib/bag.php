@@ -9,17 +9,16 @@
 
         public function __construct()
         {
-            if (!session_id()) {
-                session_start();
-                $_SESSION['octobag'] = [];
-            }
+            $session = getSession();
 
-            self::$data = $_SESSION['octobag'];
+            self::$data = $session['octobag'] ?? [];
         }
 
         public function __destruct()
         {
-            $_SESSION['octobag'] = self::$data;
+            $session = getSession();
+
+            $session['octobag'] = self::$data;
         }
 
         public function flush()
@@ -112,7 +111,7 @@
             return $default;
         }
 
-        public function collection($k, $default = [])
+        public function cursor($k, $default = [])
         {
             $data = !isset(self::$data[$k]) ? $default : self::$data[$k];
 
@@ -178,9 +177,13 @@
 
         public function delete($k)
         {
-            unset(self::$data[$k]);
+            if ($this->has($k)) {
+                unset(self::$data[$k]);
 
-            return $this;
+                return true;
+            }
+
+            return false;
         }
 
         public function forget($k)
