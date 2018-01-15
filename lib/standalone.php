@@ -1,6 +1,9 @@
 <?php
     namespace Octo;
 
+    ini_set('error_reporting', E_ALL);
+    ini_set('display_errors', true);
+
     require_once __DIR__ . '/../vendor/autoload.php';
 
     call_user_func(function () {

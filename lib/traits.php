@@ -3,6 +3,7 @@
 
     /* Traits */
 
+    use ArrayAccess;
     use BadMethodCallException;
     use Closure;
     use Exception as PHPException;
@@ -557,6 +558,7 @@
             }
 
             $value = null;
+
             return $value;
         }
 
@@ -588,5 +590,240 @@
         public function count()
         {
             return count($this->data);
+        }
+    }
+
+    trait Arrayable
+    {
+        protected $data = [];
+
+        public function __construct($data = null)
+        {
+            $data = arrayable($data) ? $data->toArray() : $data;
+
+            if (is_array($data) && !empty($data)) {
+                $this->fill($data);
+            }
+        }
+
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return self
+         */
+        public function set(string $key, $value): self
+        {
+            aset($this->data, $key, $value);
+
+            return $this;
+        }
+
+        /**
+         * @param string $key
+         * @param null $default
+         *
+         * @return mixed
+         */
+        public function get(string $key, $default = null)
+        {
+            return aget($this->data, $key, $default);
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public function delete(string $key): bool
+        {
+            if ($this->has($key)) {
+                adel($this->data, $key);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public function has(string $key): bool
+        {
+            return 'octodummy' !== $this->get($key, 'octodummy');
+        }
+
+        /**
+         * @param array $data
+         *
+         * @return self
+         */
+        public function fill(array $data): self
+        {
+            foreach ($data as $key => $value) {
+                $value = arrayable($value) ? $value->toArray() : $value;
+
+                if (is_array($value)) {
+                    $this->fill($value);
+                } else {
+                    $this->set($key, $value);
+                }
+            }
+
+            return $this;
+        }
+
+        /**
+         * @param mixed $offset
+         *
+         * @return bool
+         */
+        public function offsetExists($offset)
+        {
+            return $this->has($offset);
+        }
+
+        /**
+         * @param mixed $offset
+         *
+         * @return mixed
+         */
+        public function offsetGet($offset)
+        {
+            return $this->get($offset);
+        }
+
+        /**
+         * @param mixed $offset
+         * @param mixed $value
+         */
+        public function offsetSet($offset, $value)
+        {
+            $this->set($offset, $value);
+        }
+
+        /**
+         * @param mixed $offset
+         */
+        public function offsetUnset($offset)
+        {
+            $this->delete($offset);
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public function __isset(string $key): bool
+        {
+            return $this->has($key);
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return mixed
+         */
+        public function __get(string $key)
+        {
+            return $this->get($key);
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public function __unset(string $key): bool
+        {
+            return $this->delete($key);
+        }
+
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return self
+         */
+        public function __set(string $key, $value): self
+        {
+            return $this->set($key, $value);
+        }
+
+        /**
+         * @return array
+         */
+        public function toArray(): array
+        {
+            return $this->data;
+        }
+
+        /**
+         * @return string
+         */
+        public function toJson(): string
+        {
+            return json_encode($this->data);
+        }
+
+        /**
+         * @return string
+         */
+        public function __toString(): string
+        {
+            return $this->toJson();
+        }
+
+        /**
+         * @param string $name
+         * @param array $arguments
+         *
+         * @return mixed
+         */
+        public function __call(string $name, array $arguments)
+        {
+            return coll($this->data)->{$name}(...$arguments);
+        }
+    }
+
+    trait Eventable
+    {
+        /**
+         * @param string $event
+         * @param callable $callable
+         *
+         * @return Listener
+         */
+        public function on(string $event, callable $callable)
+        {
+            return getEventManager()->on($event, $callable);
+        }
+
+        /**
+         * @param string $event
+         * @param mixed|null $concern
+         * @param bool $return
+         *
+         * @return mixed|null
+         */
+        public function fire(string $event, $concern = null, bool $return = false)
+        {
+            $value = getEventManager()->fire($event, $concern);
+
+            return $return ? $value : $concern;
+        }
+
+        /**
+         * @param string $event
+         *
+         * @return bool
+         */
+        public function hasEvent(string $event): bool
+        {
+            return getEventManager()->has($event);
         }
     }

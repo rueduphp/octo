@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    use function class_exists;
+    use Closure;
     use Illuminate\Database\Connection;
     use Illuminate\Database\ConnectionResolver;
     use Illuminate\Database\Eloquent\Builder as Builderer;
@@ -31,6 +31,8 @@
         protected $joins        = [];
         protected $groups       = [];
         protected $havings      = [];
+        protected $raws         = [];
+        protected $orRaws       = [];
         protected $limit        = null;
         protected $offset       = null;
         protected $query        = null;
@@ -697,9 +699,34 @@
             return [$key, $operator, $value];
         }
 
-        public function where()
+        public function orWhereRaw(string $sql): self
         {
-            list($key, $operator, $value) = call_user_func_array([$this, 'extractWhere'], func_get_args());
+            $this->orRaws[] = $sql;
+
+            return $this;
+        }
+
+        public function whereRaw(string $sql): self
+        {
+            $this->raws[] = $sql;
+
+            return $this;
+        }
+
+        /**
+         * @return Orm
+         */
+        public function where(): self
+        {
+            $args = func_get_args();
+
+            $first = current($args);
+
+            if ($first instanceof Closure) {
+                return $first($this);
+            }
+
+            list($key, $operator, $value) = call_user_func_array([$this, 'extractWhere'], $args);
 
             $this->values[] = $value;
 
@@ -719,98 +746,104 @@
             return $this->_where($key, $operator, 'OR');
         }
 
-        public function between($key, array $values)
+        /**
+         * @param string $key
+         * @param array $values
+         *
+         * @return Orm
+         */
+        public function between(string $key, array $values): self
         {
             return $this->values($values)->_between($key);
         }
 
-        public function notBetween($key, array $values)
+        public function notBetween(string $key, array $values)
         {
             return $this->values($values)->_between($key, 'AND', true);
         }
 
-        public function orBetween($key, array $values)
+        public function orBetween(string $key, array $values)
         {
             return $this->values($values)->_between($key, 'OR');
         }
 
-        public function orNotBetween($key, array $values)
+        public function orNotBetween(string $key, array $values)
         {
             return $this->values($values)->_between($key, 'OR', true);
         }
 
-        public function in($key, array $values)
+        public function in(string $key, array $values)
         {
             return $this->values($values)
             ->prepares($values)
             ->_whereIn($key, $this->prepares());
         }
 
-        public function notIn($key, array $values)
+        public function notIn(string $key, array $values)
         {
             return $this->values($values)
             ->prepares($values)
             ->_whereIn($key, $this->prepares(), 'AND', true);
         }
 
-        public function orIn($key, array $values)
+        public function orIn(string $key, array $values)
         {
             return $this->values($values)
             ->prepares($values)
             ->_whereIn($key, $this->prepares(), 'OR');
         }
 
-        public function orNotIn($key, array $values)
+        public function orNotIn(string $key, array $values)
         {
             return $this->values($values)
             ->prepares($values)
             ->_whereIn($key, $this->prepares(), 'OR', true);
         }
 
-        public function like($key, $value)
+        public function like(string $key, $value)
         {
             $this->values[] = $value;
 
             return $this->_whereLike($key);
         }
 
-        public function notLike($key, $value)
+        public function notLike(string $key, $value)
         {
             $this->values[] = $value;
 
             return $this->_whereLike($key, 'AND', true);
         }
 
-        public function orLike($key, $value)
+        public function orLike(string $key, $value)
         {
             $this->values[] = $value;
 
             return $this->_whereLike($key, 'OR');
         }
 
-        public function orNotLike($key, $value)
+        public function orNotLike(string $key, $value)
         {
             $this->values[] = $value;
 
             return $this->_whereLike($key, 'OR', true);
         }
 
-        public function isNull($key)
+        public function isNull(string $key)
         {
             return $this->_whereNull($key);
         }
 
-        public function isNotNull($key)
+        public function isNotNull(string $key)
         {
             return $this->_whereNull($key, 'AND', true);
         }
 
-        public function orIsNull($key)
+        public function orIsNull(string $key)
         {
             return $this->_whereNull($key, 'OR');
         }
 
-        public function orIsNotNull($key)
+        public function orIsNotNull(string $key)
         {
             return $this->_whereNull($key, 'OR', true);
         }
@@ -871,7 +904,15 @@
             return $this;
         }
 
-        protected function _whereIn($key, $prepares, $type = 'AND', $not = false)
+        /**
+         * @param string $key
+         * @param string $prepares
+         * @param null|string $type
+         * @param bool|null $not
+         *
+         * @return Orm
+         */
+        protected function _whereIn(string $key, string $prepares, ?string $type = 'AND', ?bool $not = false): self
         {
             $verb = 'IN';
 
@@ -884,7 +925,14 @@
             return $this;
         }
 
-        protected function _between($key, $type = 'AND', $not = false)
+        /**
+         * @param string $key
+         * @param null|string $type
+         * @param bool|null $not
+         *
+         * @return Orm
+         */
+        protected function _between(string $key, ?string $type = 'AND', ?bool $not = false): self
         {
             $verb = 'BETWEEN';
 
@@ -897,7 +945,14 @@
             return $this;
         }
 
-        protected function _where($key, $operator = '=', $type = 'AND')
+        /**
+         * @param string $key
+         * @param string $operator
+         * @param string $type
+         *
+         * @return Orm
+         */
+        protected function _where(string $key, string $operator = '=', string $type = 'AND'): self
         {
             $this->wheres[] = ' ' . $type . ' ' . $key . ' ' . $operator . ' ?';
 
@@ -919,7 +974,13 @@
             return ' WHERE ' . ltrim(implode('', $args), ' AND');
         }
 
-        public function raw($sql, $bind = "")
+        /**
+         * @param string $sql
+         * @param string $bind
+         *
+         * @return null|\PDOStatement
+         */
+        public function raw(string $sql, string $bind = "")
         {
             $bind = $this->cleanup($bind);
 
@@ -934,6 +995,11 @@
             return null;
         }
 
+        /**
+         * @param $bind
+         *
+         * @return array
+         */
         protected function cleanup($bind)
         {
             if (!is_array($bind)) {
@@ -944,25 +1010,36 @@
             return $bind;
         }
 
-        public function from($table)
+        /**
+         * @param string $table
+         *
+         * @return Orm
+         */
+        public function from(string $table): self
+        {
+            return $this->table($table);
+        }
+
+        /**
+         * @param string $table
+         *
+         * @return Orm
+         */
+        public function table(string $table): self
         {
             $this->table = $table;
 
             return $this;
         }
 
-        public function table($table)
+        /**
+         * @param string $table
+         *
+         * @return Orm
+         */
+        public function into(string $table): self
         {
-            $this->table = $table;
-
-            return $this;
-        }
-
-        public function into($table)
-        {
-            $this->table = $table;
-
-            return $this;
+            return $this->table($table);
         }
 
         protected function columns($columns = null)
@@ -1025,6 +1102,9 @@
             return $this->table;
         }
 
+        /**
+         * @return mixed
+         */
         public function first()
         {
             if (empty($this->columns())) {
@@ -1034,7 +1114,11 @@
             return $this->get()->fetch();
         }
 
-        public function firstWith($table)
+        /**
+         * @param string $table
+         * @return mixed
+         */
+        public function firstWith(string $table)
         {
             if (empty($this->columns())) {
                 $this->select();
@@ -1085,6 +1169,7 @@
 
         /**
          * @param $id
+         *
          * @return bool
          */
         public function exists($id)
@@ -1095,6 +1180,7 @@
         /**
          * @param $id
          * @param array $columns
+         *
          * @return mixed
          */
         public function find($id, $columns = ['*'])
@@ -1116,7 +1202,12 @@
             return $row ?: null;
         }
 
-        public function select($columns = ['*'])
+        /**
+         * @param array $columns
+         *
+         * @return Orm
+         */
+        public function select(array $columns = ['*']): self
         {
             if (is_string($columns)) {
                 $columns = func_get_args();
@@ -1137,7 +1228,7 @@
          *
          * @return \PDOStatement
          */
-        public function destroy($table = null)
+        public function destroy(?string $table = null)
         {
             return $this->delete($table)->run();
         }
@@ -1147,12 +1238,17 @@
          *
          * @return \PDOStatement
          */
-        public function remove($table = null)
+        public function remove(?string $table = null)
         {
             return $this->delete($table)->run();
         }
 
-        public function delete($table = null)
+        /**
+         * @param string|null $table
+         *
+         * @return Orm
+         */
+        public function delete(?string $table = null): self
         {
             if ($table) {
                 $this->table = $table;
@@ -1163,7 +1259,12 @@
             return $this;
         }
 
-        public function insert(array $data)
+        /**
+         * @param array $data
+         *
+         * @return Orm
+         */
+        public function insert(array $data): self
         {
             $this->query = "INSERT INTO ";
 
@@ -1173,6 +1274,11 @@
             return $this;
         }
 
+        /**
+         * @param array $data
+         *
+         * @return \PDOStatement
+         */
         public function edit(array $data)
         {
             return $this->update($data)->run();

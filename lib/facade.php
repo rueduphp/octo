@@ -16,7 +16,7 @@ class Facade
         $instance = instanciator()->singleton(self::getNativeClass());
 
         if (!$instance) {
-            throw new RuntimeException('Facade has not been set.');
+            throw new RuntimeException(get_called_class() . ' has not been set.');
         }
 
         return $instance->$method(...$args);
@@ -27,6 +27,6 @@ class Facade
      */
     private static function getNativeClass(): string
     {
-        throw new RuntimeException('Facade does not implement getNativeClass method.');
+        throw new RuntimeException(get_called_class() . ' does not implement getNativeClass method.');
     }
 }

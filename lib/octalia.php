@@ -1,6 +1,7 @@
 <?php
     namespace Octo;
 
+    use Closure;
     use SplFixedArray;
 
     class Octalia implements FastOrmInterface, FastDbInterface
@@ -643,7 +644,7 @@
 
             $model  = lib('activerecord', [$row, $this->entity()]);
 
-            $model->fn('save', function ($event = null) use ($model) {
+            $model->fn('save', function () use ($model) {
                 if ($model->exists() && !$model->isDirty()) {
                     return $model;
                 }
@@ -672,7 +673,7 @@
                 }
 
                 return sha1(serialize($model->toArray()));
-            })->fn('delete', function ($event = null) use ($row, $model) {
+            })->fn('delete', function () use ($row, $model) {
                 if (isset($row['id'])) {
                     if ($model) {
                         $status = $this->delete($row['id']);
@@ -1428,6 +1429,14 @@
 
         public function whereSQL($key, $operator = null, $value = null)
         {
+            $args = func_get_args();
+
+            $first = current($args);
+
+            if ($first instanceof Closure) {
+                return $first($this);
+            }
+
             if (!empty($this->query)) {
                 $last = end($this->query);
 

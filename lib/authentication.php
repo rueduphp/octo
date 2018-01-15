@@ -212,7 +212,7 @@
 
         public static function __callStatic($m, $a)
         {
-            if ($m == "self") {
+            if ($m === "self") {
                 return static::called();
             }
 

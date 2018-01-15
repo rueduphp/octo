@@ -69,9 +69,9 @@ class Fastmiddlewarecsrf extends FastMiddleware
     }
 
     /**
-     * Generate and store a random token.
-     *
      * @return string
+     *
+     * @throws \Exception
      */
     public function generateToken()
     {

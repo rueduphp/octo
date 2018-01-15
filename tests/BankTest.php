@@ -27,16 +27,16 @@ class BankTest extends TestCase
     {
         parent::setUp();
 
-        $this->db = new Bank('test', 'test', new FastNow('bank'));
-        $this->udb = $udb = new Bank('test', 'user', new FastNow('bank'));
-        $this->postDb = new Bank('test', 'post', new FastNow('bank'));
+        $this->db           = new Bank('test', 'test', new FastNow('bank'));
+        $this->udb = $udb   = new Bank('test', 'user', new FastNow('bank'));
+        $this->postDb       = new Bank('test', 'post', new FastNow('bank'));
 
         $faker = $this->faker();
 
         for ($i = 0; $i < 10; ++$i) {
             $udb->store([
-                'age' => ($i + 1) * 5,
-                'name' => $faker->name
+                'age'   => ($i + 1) * 5,
+                'name'  => $faker->name
             ]);
         }
 
@@ -48,10 +48,10 @@ class BankTest extends TestCase
             }
 
             $this->db->store([
-                'user_id' => rand(1, 10),
-                'price' => ($i + 1) * 100,
-                'name' => $name,
-                'slug' => $faker->slug
+                'user_id'   => rand(1, 10),
+                'price'     => ($i + 1) * 100,
+                'name'      => $name,
+                'slug'      => $faker->slug
             ]);
         }
     }
@@ -130,8 +130,8 @@ class BankTest extends TestCase
         $this->assertEquals(998, $count);
 
         $this->assertEquals(100000, $this->db->max('price'));
-        $this->assertEquals(100, $this->db->min('price'));
-        $this->assertEquals(50050, $this->db->avg('price'));
+        $this->assertEquals(100,    $this->db->min('price'));
+        $this->assertEquals(50050,  $this->db->avg('price'));
     }
 
     public function testFindBy()

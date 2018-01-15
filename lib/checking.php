@@ -1,8 +1,6 @@
 <?php
     namespace Octo;
 
-    use function sprintf;
-
     class Checking
     {
         /**
@@ -25,17 +23,27 @@
          */
         private $lng;
 
-        public function __construct($data = null, $lng = 'en')
+        /**
+         * @param array|null $data
+         * @param string $lng
+         */
+        public function __construct(?array $data = null, string $lng = 'en')
         {
             $this->data = empty($data) ? $_POST : $data;
             $this->lng = $lng;
         }
 
+        /**
+         * @return bool
+         */
         public function success()
         {
             return empty($this->errors);
         }
 
+        /**
+         * @return bool
+         */
         public function fail()
         {
             return !empty($this->errors);
@@ -90,7 +98,11 @@
             return $this->errors;
         }
 
-        private function isCustom($field, $callable)
+        /**
+         * @param string $field
+         * @param callable $callable
+         */
+        protected function isCustom(string $field, callable $callable)
         {
             $value = isAke($this->data, $field, null);
 
@@ -101,7 +113,11 @@
             }
         }
 
-        private function isMinLength($field, $length)
+        /**
+         * @param string $field
+         * @param int $length
+         */
+        protected function isMinLength(string $field, int $length)
         {
             $value = isAke($this->data, $field, null);
             $check = mb_strlen($value) >= $length;
@@ -111,7 +127,11 @@
             }
         }
 
-        private function isMaxLength($field, $length)
+        /**
+         * @param string $field
+         * @param int $length
+         */
+        protected function isMaxLength(string $field, int $length)
         {
             $value = isAke($this->data, $field, null);
             $check = mb_strlen($value) <= $length;
@@ -121,7 +141,10 @@
             }
         }
 
-        private function isInteger($field)
+        /**
+         * @param string $field
+         */
+        protected function isInteger(string $field)
         {
             $value = isAke($this->data, $field, null);
             $check = reallyInt($value);
@@ -131,7 +154,10 @@
             }
         }
 
-        private function isInt($field)
+        /**
+         * @param string $field
+         */
+        protected function isInt(string $field)
         {
             $value = isAke($this->data, $field, null);
             $check = reallyInt($value);
@@ -141,7 +167,10 @@
             }
         }
 
-        private function isRequired($field)
+        /**
+         * @param string $field
+         */
+        protected function isRequired(string $field)
         {
             $value = isAke($this->data, $field, null);
 
@@ -152,7 +181,10 @@
             }
         }
 
-        private function isEmail($field)
+        /**
+         * @param string $field
+         */
+        protected function isEmail(string $field)
         {
             $value = isAke($this->data, $field, null);
 
@@ -163,13 +195,23 @@
             }
         }
 
-        private function isSlug($field)
+        protected function isSlug(string $field)
         {
             $value = isAke($this->data, $field, null);
+            $pattern = "/^[a-z]+(?:-[a-z]+)*$/";
 
+            $check = 0 !== preg_match($pattern, $value);
+
+            if (!$check) {
+                $this->addError($field, 'slug');
+            }
         }
 
-        protected function addError($field, $rule)
+        /**
+         * @param string $field
+         * @param string $rule
+         */
+        protected function addError(string $field, string $rule)
         {
             if (!isset($this->errors[$field])) {
                 $this->errors[$field] = [];
@@ -238,6 +280,15 @@
                     'custom'    => '%s does not match with custom rule',
                     'minlength' => '%s is too short',
                     'maxlength' => '%s is too long',
+                ],
+                'fr' => [
+                    'required'  => '%s est requis',
+                    'slug'      => '%s n\'est pas un slug valide',
+                    'email'     => '%s n\'est pas un email valide',
+                    'integer'   => '%s n\'est pas un nombre entier valide',
+                    'custom'    => '%s ne correspond pas à la règle personnalisée',
+                    'minlength' => '%s est trop court',
+                    'maxlength' => '%s is trop long',
                 ]
             ];
 

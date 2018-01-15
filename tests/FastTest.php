@@ -1,8 +1,8 @@
 <?php
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Octo\App;
-use Octo\Cachesql;
-use Octo\Config;
+    use Octo\Config;
+    use Octo\Facader;
     use Octo\Fast;
     use Octo\FastMiddleware;
     use Octo\FastRendererInterface;
@@ -11,10 +11,28 @@ use Octo\Config;
     use Octo\Flash;
     use Octo\Objet;
     use Octo\Octal;
+    use Octo\Reflector;
     use Octo\Resolver;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
+
+    class MyEvents extends Facader {}
+
+    class ShareClass
+    {
+        private $object;
+
+        public function __construct($object)
+        {
+            $this->object = new Reflector($object);
+        }
+
+        public function __call($name, $arguments)
+        {
+            return $this->object->{$name}(...$arguments);
+        }
+    }
 
     class myRequest extends FastRequest {}
 
@@ -178,7 +196,7 @@ use Octo\Config;
                     return Octo\Fastmiddlewaregeo::createGeocoder();
                 })
                 ->set(Octo\FastSessionInterface::class, function () {
-                    return new Octo\Sessionarray;
+                    return $this->session;
                 })
                 ->set(Octo\FastCacheInterface::class, function () {
                     return new Octo\Now;
@@ -187,10 +205,10 @@ use Octo\Config;
                     return $this->fo();
                 })
                 ->set(Octo\FastRouterInterface::class, function () {
-                    return $this->actual("fast")->router();
+                    return App::router();
                 })
                 ->set(Octo\FastRendererInterface::class, function () {
-                    return $this->actual("fast")->getRenderer();
+                    return App::renderer();
                 })
                 ->set(Octo\FastAuthInterface::class, function () {
                     /**
@@ -211,7 +229,7 @@ use Octo\Config;
                     });
 
                     $auth->macro('getSession', function () {
-                        return $this->actual('fast')->getSession();
+                        return App::session();
                     });
 
                     return $auth;
@@ -227,8 +245,16 @@ use Octo\Config;
                 ->addMiddleware(Octo\Fastmiddlewarenotfound::class)
             ;
 
+            $shareClass = new ShareClass($this->app);
+
+            $this->instanciator()->share($shareClass);
+
             $this->engine = Octo\conf('octalia.engine');
             Config::set('octalia.engine', 'ndb');
+
+            MyEvents::test(function ($a, $b) {
+                return $a * $b;
+            });
         }
 
         public function tearDown()
@@ -236,6 +262,19 @@ use Octo\Config;
             parent::tearDown();
 
             Config::set('octalia.engine', $this->engine);
+        }
+
+        public function testFacader()
+        {
+            $this->assertSame(15, MyEvents::test(5, 3));
+        }
+
+        public function testShare()
+        {
+            $shared = $this->instanciator()->shared(ShareClass::class);
+            $this->assertInstanceOf(ShareClass::class, $shared);
+
+            $this->assertSame(Fast::class, $shared->getName());
         }
 
         public function testRequest()
@@ -501,5 +540,14 @@ use Octo\Config;
             $this->assertInstanceOf(stdClass::class, Resolver::factory(stdClass::class));
             $this->assertInstanceOf(stdClass::class, Resolver::lazy(stdClass::class)());
             $this->assertSame(Resolver::factory(stdClass::class), Resolver::lazy(stdClass::class)());
+        }
+
+        public function testBlade()
+        {
+            $str = '<h1>Test {{$name}}</h1>';
+
+            $compiled = $this->blader($str, ['name' => 'Foo']);
+
+            $this->assertSame('<h1>Test Foo</h1>', $compiled);
         }
     }

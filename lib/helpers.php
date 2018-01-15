@@ -1,4 +1,24 @@
 <?php
+    if (!function_exists('handler')) {
+        function handler($concern, $object)
+        {
+            $handlers = Octo\Registry::get('core.$handlers', Octo\Registry::get('core.all.binds', []));
+
+
+            $handlers[$concern] = $object;
+            Octo\Registry::set('core.$handlers', $handlers);
+        }
+    }
+
+    if (!function_exists('handled')) {
+        function handled($concern)
+        {
+            $handlers = Octo\Registry::get('core.$handlers', Octo\Registry::get('core.all.binds', []));
+
+            return Octo\isAke($handlers, $concern, null);
+        }
+    }
+
     if (!function_exists('app')) {
         function app($k = null, $v = 'octodummy')
         {

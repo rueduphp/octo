@@ -1,15 +1,16 @@
 <?php
     namespace Octo;
 
-    use Closure;
-    use ReflectionClass;
-    use ReflectionMethod;
-    use ReflectionFunction;
-    use ReflectionParameter;
     use ArrayAccess as AA;
+    use Closure;
+    use GuzzleHttp\Psr7\Response as Psr7Response;
+    use Psr\Http\Message\ServerRequestInterface;
+    use Zend\Expressive\Router\FastRouteRouter;
 
     class App implements AA, AppInterface
     {
+        use Macroable;
+
         protected static $instance;
         protected $resolved = [];
         protected $bindings = [];
@@ -25,6 +26,82 @@
         protected $resolvingCallbacks = [];
         protected $afterResolvingCallbacks = [];
 
+        /**
+         * @param null $concern
+         *
+         * @return ServerRequestInterface
+         */
+        public static function request($concern = null)
+        {
+            if ($concern instanceof ServerRequestInterface) {
+                getContainer()->setRequest($concern);
+            }
+
+            return getContainer()->getRequest();
+        }
+
+        /**
+         * @return Psr7Response
+         */
+        public static function response()
+        {
+            return getContainer()->getResponse();
+        }
+
+        /**
+         * @return FastRouteRouter
+         */
+        public static function router()
+        {
+            return getContainer()->router();
+        }
+
+        /**
+         * @param null $concern
+         *
+         * @return Session
+         *
+         * @throws \TypeError
+         */
+        public static function session($concern = null)
+        {
+            if ($concern) {
+                getContainer()->setSession($concern);
+            }
+
+            return getContainer()->getSession();
+        }
+
+        /**
+         * @param null|string $concern
+         *
+         * @return string
+         *
+         * @throws \TypeError
+         */
+        public static function lang(?string $concern = null)
+        {
+            if ($concern) {
+                getContainer()->setLang($concern);
+            }
+
+            return getContainer()->getLang();
+        }
+
+        /**
+         * @param null $concern
+         *
+         * @return FastPhpRenderer|FastTwigRenderer
+         */
+        public static function renderer($concern = null)
+        {
+            if ($concern) {
+                getContainer()->setRenderer($concern);
+            }
+
+            return getContainer()->getRenderer();
+        }
+
         public function when($real)
         {
             return instanciator()->factory(Contextual::class, $this, $real);
@@ -37,7 +114,7 @@
          */
         public static function create($config = [])
         {
-            return instanciator()->factory(Fast::class, $config);
+            return instanciator()->singleton(Fast::class, $config);
         }
 
         protected function resolvable($toResolve)
@@ -738,6 +815,13 @@
         public function provider($toResolve, $real = null)
         {
             $this->bind($toResolve, $real, true);
+        }
+
+        public static function __callStatic(string $method, array $parameters)
+        {
+            if ('self' === $method) {
+                return getContainer();
+            }
         }
     }
 

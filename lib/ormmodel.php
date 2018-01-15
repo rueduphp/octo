@@ -31,4 +31,14 @@
 
             return $this->newQuery()->$m(...$a);
         }
+
+        /**
+         * @return FastFactory
+         */
+        public static function factory()
+        {
+            $class = get_called_class();
+
+            return new FastFactory($class, new $class());
+        }
     }

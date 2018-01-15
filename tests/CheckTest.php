@@ -1,5 +1,6 @@
 <?php
     use Octo\Checking;
+    use Octo\Inflector;
 
     class CheckTest extends TestCase
     {
@@ -10,6 +11,7 @@
                 'lastname'  => 'Doe',
                 'firstname' => 'John',
                 'email'     => 'JohnDoe@doe.com',
+                'slug'      => Inflector::urlize('this is a slug', '-'),
                 'age'       => 35
             ];
 
@@ -21,6 +23,7 @@
             $validator->add('firstname')->minLength(3);
 
             $validator->add('email')->required()->email();
+            $validator->add('slug')->required()->slug();
 
             $validator->add('age')
             ->required()
@@ -40,6 +43,7 @@
                 'lastname'  => 'Doe',
                 'firstname' => '',
                 'email'     => 'JohnDoe@doe.com',
+                'slug'      => Inflector::urlize('this is a slug', '?'),
                 'age'       => 35
             ];
 
@@ -51,6 +55,7 @@
             $validator->add('firstname')->required()->minLength(10);
 
             $validator->add('email')->required()->email();
+            $validator->add('slug')->required()->slug();
 
             $validator->add('age')
             ->required()

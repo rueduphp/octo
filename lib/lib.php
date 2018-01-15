@@ -2,9 +2,11 @@
     namespace Octo;
 
     use Carbon\Carbon;
+    use Closure;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Support\Debug\Dumper;
     use Psr\Http\Message\ServerRequestInterface;
+    use ReflectionFunction;
     use Zend\Expressive\Router\FastRouteRouter;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
@@ -121,12 +123,16 @@
     /**
      * @return Instanciator
      */
-    function instanciator()
+    function instanciator($cache = null)
     {
         static $instanciator = null;
 
         if (is_null($instanciator)) {
             $instanciator = new Instanciator;
+        }
+
+        if (!is_null($cache)) {
+            $instanciator->setCache($cache);
         }
 
         return $instanciator;
@@ -154,9 +160,9 @@
         $debug = 'production' !== appenv('APPLICATION_ENV', 'production');
 
         $defaultConfig = [
-            'debug' => $debug,
-            'auto_reload' => $debug,
-            'cache' => $debug ? false : path('app') . '/storage/cache/views'
+            'debug'         => $debug,
+            'auto_reload'   => $debug,
+            'cache'         => $debug ? false : $cachePath
         ];
 
         $conf = array_merge($defaultConfig, $config);
@@ -930,12 +936,12 @@
         }
     }
 
-    function aget($array, $k, $d = null)
+    function aget($array, string $k, $d = null)
     {
         return Arrays::get($array, $k, $d);
     }
 
-    function aset(&$array, $k, $v = null)
+    function aset(&$array, string $k, $v = null)
     {
         return Arrays::set($array, $k, $v);
     }
@@ -964,22 +970,22 @@
         return lib('geo')->dwnCache($url);
     }
 
-    function server($k = null, $d = null)
+    function server($key = null, $default = null)
     {
-        if (empty($k)) {
+        if (empty($key)) {
             return lib('objet', [oclean($_SERVER)]);
         }
 
-        return isAke(oclean($_SERVER), $k, $d);
+        return isAke(oclean($_SERVER), $key, $default);
     }
 
-    function post($k = null, $d = null)
+    function post($key = null, $default = null)
     {
-        if (empty($k)) {
+        if (empty($key)) {
             return Post::notEmpty();
         }
 
-        return Post::get($k, $d);
+        return Post::get($key, $default);
     }
 
     function item($attributes = [])
@@ -2026,11 +2032,18 @@
      */
     function fast($context = null)
     {
-        if ($context && $context instanceof Fast) {
+        if ($context instanceof Fast) {
             actual('fast', $context);
         }
 
-        return actual('fast');
+        $fast = actual('fast');
+
+        if (is_null($fast)) {
+            $fast = new Fast;
+            actual('fast', $fast);
+        }
+
+        return $fast;
     }
 
     /**
@@ -2111,6 +2124,38 @@
         });
 
         return $factories;
+    }
+
+    /**
+     * @return mixed|null
+     */
+    function makeFactory()
+    {
+        $args = func_get_args();
+        $closure = array_shift($args);
+
+        if ($closure instanceof Closure) {
+            return instanciator()->makeClosure($closure, $args);
+        }
+
+        return null;
+    }
+
+    /**
+     * @return null|Lazy
+     */
+    function lazyFactory()
+    {
+        $args       = func_get_args();
+        $closure    = array_shift($args);
+
+        if ($closure instanceof Closure) {
+            return lazy(function () use ($closure, $args) {
+                return instanciator()->makeClosure($closure, $args);
+            });
+        }
+
+        return null;
     }
 
     function status($code = 200)
@@ -2251,6 +2296,15 @@
             'path'      => $path
         ]);
 
+        $vue->macro('setvar', function ($key, $value) use ($vue) {
+            $args       = $vue->args;
+            $args[$key] = $value;
+
+            $vue->args = $args;
+
+            return $vue;
+        });
+
         $vue->macro('render', function () use ($vue) {
             $withs = $vue->withs;
 
@@ -2382,9 +2436,9 @@
             );
         });
 
-        $vue->macro('with', function ($k, $v) use ($vue) {
-            $withs      = $vue->withs;
-            $withs[$k]  = $v;
+        $vue->macro('with', function ($key, $value) use ($vue) {
+            $withs          = $vue->withs;
+            $withs[$key]    = $value;
 
             $vue->withs = $withs;
 
@@ -3738,6 +3792,23 @@
         return maker($make, $params, false);
     }
 
+    /**
+     * @param Closure $a
+     * @param Closure $b
+     *
+     * @return bool
+     */
+    function sameClosures(Closure $a, Closure $b)
+    {
+        $ref1 = new ReflectionFunction($a);
+        $ref2 = new ReflectionFunction($b);
+
+        $hash1 = sha1($ref1->getFileName() . $ref1->getStartLine() . $ref1->getEndLine());
+        $hash2 = sha1($ref2->getFileName() . $ref2->getStartLine() . $ref2->getEndLine());
+
+        return $hash1 === $hash2;
+    }
+
     function next()
     {
         static $nextables = [];
@@ -3814,7 +3885,7 @@
     /**
      * @return Fast
      */
-    function getContainer()
+    function getContainer(): Fast
     {
         return fast();
     }
@@ -7511,14 +7582,31 @@
         };
     }
 
-    function auth($em = 'user')
+    function auth()
     {
-        return guard($em);
+        return getContainer()->defined('lock', function (Fast $app) {
+            return $app->resolve(Lock::class);
+        });
     }
 
     function load_entity($class)
     {
         Autoloader::entity($class);
+    }
+
+    function handler($concern, $object)
+    {
+        $handlers = Registry::get('core.$handlers', Registry::get('core.all.binds', []));
+
+        $handlers[$concern] = $object;
+        Registry::set('core.$handlers', $handlers);
+    }
+
+    function handled($concern)
+    {
+        $handlers = Registry::get('core.$handlers', Registry::get('core.all.binds', []));
+
+        return isAke($handlers, $concern, null);
     }
 
     function recall()
@@ -7805,6 +7893,34 @@
         });
 
         return $class;
+    }
+
+    /**
+     * @param string $str
+     * @param array $data
+     *
+     * @return string
+     *
+     * @throws \Exception
+     */
+    function blader(string $str, array $data = [])
+    {
+        $blade          = instanciator()->singleton(FastBladeCompiler::class);
+        $parsed_string  = $blade->compileString($str);
+
+        ob_start() && extract($data, EXTR_SKIP);
+
+        try {
+            eval('?>' . $parsed_string);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            throw $e;
+        }
+
+        $str = ob_get_contents();
+        ob_end_clean();
+
+        return $str;
     }
 
     function be($user, $ns = 'web')

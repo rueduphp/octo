@@ -1,6 +1,7 @@
 <?php
     namespace Octo;
 
+    use function get_called_class;
     use PDOException;
 
     class Entity implements FastModelInterface
@@ -286,5 +287,13 @@
             }
 
             return $result;
+        }
+
+        /**
+         * @return FastFactory
+         */
+        public static function factory()
+        {
+            return new FastFactory(get_called_class(), self::called());
         }
     }

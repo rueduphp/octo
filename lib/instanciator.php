@@ -3,17 +3,40 @@ namespace Octo;
 
 use Closure;
 use Exception as PHPException;
-use Psr\Http\Message\ServerRequestInterface;
+use function is_object;
+use ReflectionFunction;
 
 class Instanciator
 {
+    use Eventable;
+
+    protected $cache;
+
+    /**
+     * @return Listener
+     */
+    public function resolving()
+    {
+        $args = func_get_args();
+
+        if (1 === count($args)) {
+            $event = 'all.resolving';
+
+            return $this->on($event, current($args));
+        } elseif (2 === count($args)) {
+            $event = current($args) . '.resolving';
+
+            return $this->on($event, end($args));
+        }
+    }
+
     public function factory()
     {
         $args   = func_get_args();
 
         $class  = array_shift($args);
 
-        return $this->make($class, $args, false);
+        return is_string($class) ? $this->make($class, $args, false) : $this->makeClosure($class, $args);
     }
 
     public function foundry()
@@ -29,14 +52,21 @@ class Instanciator
 
         $class  = array_shift($args);
 
-        return $this->make($class, $args, true);
+        return is_string($class) ? $this->make($class, $args, true) : $this->makeClosure($class, $args);
     }
 
-    public function make($make, $args = [], $singleton = true)
+    /**
+     * @param string $make
+     * @param array $args
+     * @param bool $singleton
+     *
+     * @return mixed|object
+     */
+    public function make(string $make, array $args = [], bool $singleton = true)
     {
         if ($i = $this->autowire($make)) {
             $binds[$make] = $this->resolver($i);
-
+//
             $this->binds($binds);
 
             return $i;
@@ -94,10 +124,16 @@ class Instanciator
                                 try {
                                     $p = $param->getDefaultValue();
                                 } catch (PHPException $e) {
-                                    exception(
-                                        'Instanciator',
-                                        $param->getName() . " parameter has no default value."
-                                    );
+                                    $attr = getContainer()->getRequest()->getAttribute($param->getName());
+
+                                    if ($attr) {
+                                        $p = $attr;
+                                    } else {
+                                        exception(
+                                            'Instanciator',
+                                            $param->getName() . " parameter has no default value."
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -135,6 +171,89 @@ class Instanciator
         exception('Instanciator', "The class $make is not set.");
     }
 
+    /**
+     * @return mixed
+     */
+    public function invoker()
+    {
+        return $this->makeClosure(...func_get_args());
+    }
+
+    /**
+     * @return mixed
+     */
+    public function makeClosure()
+    {
+        $args       = func_get_args();
+        $closure    = array_shift($args);
+        $ref        = new ReflectionFunction($closure);
+        $params     = $ref->getParameters();
+
+        if (empty($args) || count($args) != count($params)) {
+            $instanceParams = [];
+
+            foreach ($params as $param) {
+                $p = null;
+
+                if (!empty($args)) {
+                    $p = array_shift($args);
+
+                    if (is_null($p)) {
+                        try {
+                            $p = $param->getDefaultValue();
+                        } catch (PHPException $e) {
+                            $p = null;
+                        }
+                    }
+                } else {
+                    $classParam = $param->getClass();
+
+                    if ($classParam) {
+                        try {
+                            $p = $this->factory($classParam->getName());
+                        } catch (\Exception $e) {
+                            exception('Instanciator', $e->getMessage());
+                        }
+                    } else {
+                        try {
+                            $p = $param->getDefaultValue();
+                        } catch (PHPException $e) {
+                            $attr = getContainer()->getRequest()->getAttribute($param->getName());
+
+                            if ($attr) {
+                                $p = $attr;
+                            } else {
+                                exception(
+                                    'Instanciator',
+                                    $param->getName() . " parameter has no default value."
+                                );
+                            }
+                        }
+                    }
+                }
+
+                $instanceParams[] = $p;
+            }
+
+            if (!empty($instanceParams)) {
+                return $closure(...$instanceParams);
+            } else {
+                return $closure();
+            }
+        } else {
+            return $closure(...$args);
+        }
+    }
+
+    public function interact()
+    {
+        $args   = func_get_args();
+        $class  = array_shift($args);
+        $params = array_merge([$this->factory($class)], $args);
+
+        return $this->call(...$params);
+    }
+
     public function call()
     {
         $args       = func_get_args();
@@ -169,7 +288,7 @@ class Instanciator
                             $attr = getContainer()->getRequest()->getAttribute($param->getName());
 
                             if ($attr) {
-                                $p      = $attr;
+                                $p = $attr;
                             } else {
                                 exception(
                                     'Instanciator',
@@ -191,7 +310,7 @@ class Instanciator
         return $this->resolve(...$args);
     }
 
-    protected function binds($concern = null)
+    public function binds($concern = null)
     {
         $binds = Registry::get('core.all.binds', []);
 
@@ -263,6 +382,38 @@ class Instanciator
     }
 
     /**
+     * @param $concern
+     *
+     * @return Instanciator
+     */
+    public function share($concern): self
+    {
+        if (is_object($concern)) {
+            $class = get_class($concern);
+
+            $this->wire($class, $concern);
+        } elseif (is_string($concern)) {
+            $args   = func_get_args();
+            $key    = array_shift($args);
+            $value  = array_shift($args);
+
+            $this->wire($key, $value);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string $concern
+     *
+     * @return mixed
+     */
+    public function shared(string $concern)
+    {
+        return $this->autowire($concern);
+    }
+
+    /**
      * @param string $concern
      * @param bool $raw
      *
@@ -273,7 +424,7 @@ class Instanciator
         $wires      = Registry::get('core.wires', []);
         $callable   = isAke($wires, $concern, null);
 
-        if (!$raw && $callable && is_callable($callable)) {
+        if (!$raw && is_callable($callable)) {
             return $callable();
         }
 
@@ -338,7 +489,7 @@ class Instanciator
         $callable   = array_shift($args);
 
         if ($callable instanceof Closure) {
-            return with(...func_get_args());
+            return $this->makeClosure(...func_get_args());
         }
 
         if (is_array($callable) && is_callable($callable)) {
@@ -348,5 +499,65 @@ class Instanciator
         }
 
         return null;
+    }
+
+    /**
+     * @param string $key
+     * @param callable|null $resolver
+     *
+     * @return mixed|null
+     *
+     * @throws Exception
+     * @throws PHPException
+     */
+    public function cache(string $key, ?callable $resolver = null)
+    {
+        $cache  = $this->getCache();
+        $args   = func_get_args();
+        $class  = $key = array_shift($args);
+
+        if ($cache) {
+            $key = 'di.' . $key;
+
+            if ($cache->has($key)) {
+                return $this->get($key);
+            } else {
+                $resolver = array_shift($args);
+
+                if (!is_callable($resolver)) {
+                    $resolver = function () use ($class) {
+                        return $this->singleton($class);
+                    };
+                }
+
+                $resolved = $resolver(...$args);
+
+                $cache->set($key, $resolved, strtotime('+24 hour') - time());
+
+                return $resolved;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param mixed $cache
+     *
+     * @return Instanciator
+     */
+    public function setCache($cache): self
+    {
+        $this->cache = $cache;
+
+        return $this;
+    }
+
+    /**
+     * @return Cache
+     */
+    public function getCache()
+    {
+        return $this->cache;
     }
 }

@@ -2,6 +2,8 @@
 
 namespace Octo;
 
+use Closure;
+
 class Bank implements FastOrmInterface, FastDbInterface
 {
     /**
@@ -36,6 +38,14 @@ class Bank implements FastOrmInterface, FastDbInterface
         $this->engine   = $engine;
 
         orm($this);
+    }
+
+    /**
+     * @return FastFactory
+     */
+    public static function factory()
+    {
+        return new FastFactory(self::class, orm());
     }
 
     /**
@@ -104,6 +114,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param $data
+     *
      * @return mixed
      */
     public function store($data)
@@ -312,11 +323,11 @@ class Bank implements FastOrmInterface, FastDbInterface
      */
     public function where($key, $operator = null, $value = null)
     {
-        if ($key instanceof \Closure) {
+        if ($key instanceof Closure) {
             return $key($this);
         }
 
-        if ($key instanceof Object) {
+        if ($key instanceof Objet) {
             $fkTable = $key->table();
 
             return $this->where($fkTable . '_id', (int) $key->id);
@@ -341,23 +352,23 @@ class Bank implements FastOrmInterface, FastDbInterface
 
         if ($nargs == 1) {
             if (is_array($key)) {
-                if (count($key) == 1) {
+                if (count($key) === 1) {
                     $operator   = '=';
                     $value      = array_values($key);
                     $key        = array_keys($key);
-                } elseif (count($key) == 3) {
+                } elseif (count($key) === 3) {
                     list($key, $operator, $value) = $key;
                 }
             }
-        } elseif ($nargs == 2) {
+        } elseif ($nargs === 2) {
             list($value, $operator) = [$operator, '='];
-        } elseif ($nargs == 3) {
+        } elseif ($nargs === 3) {
             list($key, $operator, $value) = func_get_args();
         } else {
-            exception('Octalia', "This method requires at least one argument to proceed.");
+            exception('Bank', "This method requires at least one argument to proceed.");
         }
 
-        if ($value instanceof \Closure) {
+        if ($value instanceof Closure) {
             $value = $value($this);
         }
 
@@ -537,6 +548,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param $field
+     *
      * @return float|int|mixed
      */
     public function sum($field)
@@ -550,6 +562,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param $field
+     *
      * @return float|int|mixed
      */
     public function avg($field)
@@ -563,6 +576,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param $field
+     *
      * @return float|int|mixed
      */
     public function min($field)
@@ -576,6 +590,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @param $field
+     *
      * @return float|int|mixed
      */
     public function max($field)
@@ -830,6 +845,10 @@ class Bank implements FastOrmInterface, FastDbInterface
      */
     public function __call($name, array $arguments)
     {
+        if ($name === 'create') {
+            return $this->store(...$arguments);
+        }
+
         if ($name === 'new') {
             $this->computed = current($arguments);
 

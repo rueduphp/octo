@@ -241,7 +241,7 @@
                     return $this->sortByDesc('id');
                 } elseif ('oldest' === $m) {
                     return $this->sortBy('id');
-                } elseif ('new' === $m) {
+                } elseif ('new' === $m || 'create' === $m) {
                     return $this->store(current($a));
                 }
 
@@ -273,5 +273,13 @@
             }
 
             return $this;
+        }
+
+        /**
+         * @return FastFactory
+         */
+        public static function factory()
+        {
+            return new FastFactory(get_called_class(), self::called());
         }
     }

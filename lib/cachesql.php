@@ -6,7 +6,7 @@
         use Notifiable;
 
         private $dir;
-        private $table;
+        protected $table = 'data_cache';
         private $id;
         private $db;
         private static $instances = [];
@@ -27,23 +27,47 @@
 
         public function __construct($ns = 'core')
         {
-            $this->dir      = $ns;
-            $this->table    = 'cache_' . Strings::urlize($ns, '');
-
-            $this->db = getPdo();
-
-            $this->id = sha1('sql' . $ns);
+            $this->dir  = $ns;
+            $this->db   = getPdo();
+            $this->id   = sha1('sql' . $ns);
 
             $this->cleanCache();
-
-            $sql = "CREATE TABLE IF NOT EXISTS `" . $this->table . "` (
-  `k` varchar(255) NOT NULL,
-  `v` longtext NOT NULL,
-  `e` bigint(20) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
-            $this->db->query($sql);
         }
+
+        /**
+         * @return string
+         */
+        public function getTable(): string
+        {
+            return $this->table;
+        }
+
+        /**
+         * @param string $table
+         *
+         * @return Cachesql
+         */
+        public function setTable(string $table): self
+        {
+            $this->table = $table;
+
+            return $this;
+        }
+
+        /**
+         * @param null $table
+         *
+         * @return bool
+         */
+        private function hasTable($table): bool
+        {
+            $query = "SELECT COUNT(*) AS count FROM information_schema.tables WHERE table_name = '{$table}'";
+
+            $res = (int) $this->db->query($query)->fetchColumn();
+
+            return $res > 0;
+        }
+
 
         public static function instance($ns = 'core')
         {

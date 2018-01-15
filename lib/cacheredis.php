@@ -248,14 +248,15 @@
         }
 
         /**
-         * @param $k
-         * @return int
+         * @param string $k
+         *
+         * @return bool
          */
-        public function has($k)
+        public function has(string $k)
         {
             $file = $this->getPath($k);
 
-            return redis()->exists($file);
+            return 0 !== redis()->exists($file);
         }
 
         public function age($k)

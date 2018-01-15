@@ -66,6 +66,7 @@ class Fire
 
     /**
      * @param $event
+     *
      * @return bool
      */
     public function has($event)
@@ -77,6 +78,7 @@ class Fire
 
     /**
      * @param $event
+     *
      * @return bool
      */
     public function delete($event)

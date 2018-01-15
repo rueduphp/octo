@@ -3,10 +3,12 @@
 
     use ArrayAccess;
     use ArrayObject;
+    use Closure;
     use Exception as NativeException;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
-    use GuzzleHttp\Psr7\Uri;
+    use Illuminate\Filesystem\Filesystem;
+    use Illuminate\View\Compilers\BladeCompiler;
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Psr\Container\ContainerInterface;
@@ -16,6 +18,7 @@
     use Twig_Extension;
     use Twig_Filter;
     use Twig_SimpleFunction;
+    use TypeError;
     use Zend\Expressive\Router\FastRouteRouter as FastRouter;
     use Zend\Expressive\Router\Route as FastRoute;
     use function Http\Response\send as sendResponse;
@@ -31,35 +34,24 @@
          */
         protected $app;
 
-        protected $response, $request, $router, $middlewares = [], $extensionsLoaded = [];
+        protected $response, $request, $router, $middlewares = [], $extensionsLoaded = [], $started = false;
 
-        /**
-         * @param null $config
-         *
-         * @throws \TypeError
-         */
-        public function __construct($config = null)
+        public function __construct()
         {
-            Timer::start();
-
-            $config = arrayable($config) ? $config->toArray() : $config;
-
             $this->app = instanciator()->singleton(Fastcontainer::class);
-
-            if ($config && is_array($config)) {
-                foreach ($config as $key => $value) {
-                    Config::set($key, $value);
-                }
-            }
 
             $this->request = $this->fromGlobals();
 
             actual('fast', $this);
-
-//            $this->getLang();
         }
 
-        public function set_config($key, $value)
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Fast
+         */
+        public function set_config(string $key, $value): self
         {
             $configs = Registry::get('fast.config', []);
             aset($configs, $key, $value);
@@ -68,14 +60,120 @@
             return $this;
         }
 
-        public function get_config($key, $value = null)
+        /**
+         * @param string $key
+         * @param null $value
+         *
+         * @return mixed
+         */
+        public function get_config(string $key, $value = null)
         {
             $configs = Registry::get('fast.config', []);
 
             return aget($configs, $key, $value);
         }
 
-        public function add($key, $value)
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Fast
+         */
+        public function bind(string $key, $value): self
+        {
+            $bound = Registry::get('fast.bound', []);
+            aset($bound, $key, $value);
+            Registry::set('fast.bound', $bound);
+
+            return $this;
+        }
+
+        /**
+         * @param string $key
+         * @param null $value
+         *
+         * @return mixed
+         */
+        public function retrieve(string $key, $value = null)
+        {
+            $bound = Registry::get('fast.bound', []);
+
+            return aget($bound, $key, $value);
+        }
+
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Fast
+         */
+        public function handle(string $key, $value): self
+        {
+            $handled = Registry::get('fast.handled', []);
+            aset($handled, $key, $value);
+            Registry::set('fast.handled', $handled);
+
+            return $this;
+        }
+
+        /**
+         * @param string $key
+         * @param null $value
+         *
+         * @return mixed
+         */
+        public function handled(string $key, $value = null)
+        {
+            $handled = Registry::get('fast.handled', []);
+
+            $value =  aget($handled, $key, $value);
+
+            if (is_string($value) && class_exists($value)) {
+                return [instanciator()->singleton($value), 'handle'];
+            }
+
+            return $value;
+        }
+
+        /**
+         * @param $concern
+         *
+         * @return Fast
+         */
+        public function share($concern): self
+        {
+            if (is_object($concern)) {
+                $class = get_class($concern);
+
+                instanciator()->wire($class, $concern);
+            } elseif (is_string($concern)) {
+                $args   = func_get_args();
+                $key    = array_shift($args);
+                $value  = array_shift($args);
+
+                instanciator()->wire($key, $value);
+            }
+
+            return $this;
+        }
+
+        /**
+         * @param string $concern
+         *
+         * @return mixed
+         */
+        public function shared(string $concern)
+        {
+            return instanciator()->autowire($concern);
+        }
+
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Fast
+         */
+        public function add(string $key, $value): self
         {
             $concern = 'add.fast.' . $key;
 
@@ -84,28 +182,36 @@
             $new = array_merge($old, [$value]);
 
             $this->app->dataset($concern, $new);
+
+            return $this;
         }
 
         /**
          * @return ServerRequestInterface
          */
-        public function fromGlobals()
+        public function fromGlobals(): ServerRequestInterface
         {
             return Psr7Request::fromGlobals();
         }
 
         /**
          * @param ServerRequestInterface $request
-         * @return $this
+         *
+         * @return Fast
          */
-        public function setRequest(ServerRequestInterface $request)
+        public function setRequest(ServerRequestInterface $request): self
         {
             $this->request = $request;
 
             return $this;
         }
 
-        public function setUser($user)
+        /**
+         * @param $user
+         *
+         * @return Fast
+         */
+        public function setUser($user): self
         {
             $this->define('user', $user);
 
@@ -114,21 +220,39 @@
 
         public function getUser()
         {
-            return $this->define('user');
+            $user = handled('user');
+
+            if ($user) {
+                return $user;
+            }
+
+            $user = $this->define('user');
+
+            handler('user', $user);
+
+            return $user;
         }
 
         /**
          * @param $session
-         * @throws \TypeError
+         *
+         * @throws TypeError
          */
         private function testSession($session)
         {
             if (!is_array($session) && !$session instanceof ArrayAccess) {
-                throw new \TypeError('session is not valid');
+                throw new TypeError('session is not valid');
             }
         }
 
-        public function setSession($session)
+        /**
+         * @param $session
+         *
+         * @return Fast
+         *
+         * @throws TypeError
+         */
+        public function setSession($session): self
         {
             $this->testSession($session);
             $this->define('session', $session);
@@ -137,13 +261,17 @@
         }
 
         /**
-         * @return array
+         * @return Session
          *
-         * @throws \TypeError
+         * @throws TypeError
          */
         public function getSession()
         {
             $session = $this->define('session');
+
+            if (is_null($session)) {
+                return null;
+            }
 
             $this->testSession($session);
 
@@ -298,6 +426,10 @@
 
         public function __set($key, $value)
         {
+            if (class_exists($key)) {
+                handler($key, $value);
+            }
+
             return $this->set($key, $value);
         }
 
@@ -430,6 +562,7 @@
          * @param $event
          * @param callable $callable
          * @param int $priority
+         *
          * @return Listener
          */
         public function on($event, callable $callable, $priority = 0)
@@ -507,7 +640,13 @@
             return $this->response;
         }
 
-        public function redirectRouteResponse($route, array $params = [])
+        /**
+         * @param string $route
+         * @param array $params
+         *
+         * @return Psr7Response
+         */
+        public function redirectRouteResponse(string $route, array $params = [])
         {
             $uri = $this->router()->urlFor($route, $params);
 
@@ -515,9 +654,36 @@
         }
 
         /**
+         * @param int $status
+         *
+         * @return Psr7Response
+         */
+        public function setStatus(int $status)
+        {
+            $this->response = $this->response()->withStatus($status);
+
+            return $this->response;
+        }
+
+        /**
+         * @param string $key
+         * @param mixed $value
+         *
+         * @return Psr7Response
+         */
+        public function setHeader(string $key, $value)
+        {
+            $this->response = $this->response()->withHeader($key, $value);
+
+            return $this->response;
+        }
+
+        /**
          * @param null $request
          *
-         * @return ResponseInterface
+         * @return mixed|null|ResponseInterface
+         *
+         * @throws TypeError
          */
         public function run($request = null)
         {
@@ -533,8 +699,33 @@
              return $this->process($this->request);
         }
 
+        /**
+         * @return bool
+         * @throws TypeError
+         */
+        public function hasSession(): bool
+        {
+            return !is_null($this->getSession());
+        }
+
+        /**
+         * @param ServerRequestInterface $request
+         *
+         * @return mixed|null|ResponseInterface
+         *
+         * @throws TypeError
+         */
         public function process(ServerRequestInterface $request)
         {
+            if (false === $this->started && true === $this->hasSession()) {
+                unset($this->getSession()['old_inputs']);
+                $this->started = true;
+            }
+
+            if ('post' === Inflector::lower($request->getMethod()) && true === $this->hasSession()) {
+                $this->getSession()->set('old_inputs', $request->getParsedBody() ?? []);
+            }
+
             $this->request = $request;
 
             $middleware = $this->getMiddleware();
@@ -627,11 +818,11 @@
         }
 
         /**
-         * @param $moduleClass
+         * @param string $moduleClass
          *
          * @return Fast
          */
-        public function addModule($moduleClass)
+        public function addModule(string $moduleClass): self
         {
             $module = instanciator()->singleton($moduleClass);
 
@@ -661,13 +852,36 @@
                 callMethod($module, 'twig', $this);
             }
 
+            if (in_array('policies', $methods)) {
+                callMethod($module, 'policies', $this);
+            }
+
             return $this;
+        }
+
+        /**
+         * @return bool
+         */
+        public function isDebug(): bool
+        {
+            return 'production' !== appenv('APPLICATION_ENV', 'production');
         }
 
         public function router()
         {
-            if (!$this->define('router')) {
-                $this->define('router', new FastRouter);
+            if (!$this->defined('router')) {
+                if (!$this->isDebug()) {
+                    $cachePath = appenv('CACHE_PATH', path('app') . '/storage/cache') . '/router';
+
+                    $router = new FastRouter(null, null, [
+                        FastRouter::CONFIG_CACHE_ENABLED => true,
+                        FastRouter::CONFIG_CACHE_FILE => $cachePath
+                    ]);
+                } else {
+                    $router = new FastRouter;
+                }
+
+                $this->define('router', $router);
             }
 
             if (!isset($this->router)) {
@@ -716,7 +930,7 @@
                             /**
                              * @var $fastRouter FastRouter
                              */
-                            $fastRouter = $this->define('router');
+                            $fastRouter = $this->defined('router');
 
                             $fastRouter->addRoute(
                                 new FastRoute($path, $middleware, $method, $name)
@@ -736,7 +950,7 @@
                         /**
                          * @var $fastRouter FastRouter
                          */
-                        $fastRouter = $this->define('router');
+                        $fastRouter = $this->defined('router');
 
                         $fastRouter->addRoute(
                             new FastRoute('/' . $name, $middleware, ['GET'], $name . '.index')
@@ -797,7 +1011,7 @@
                         /**
                          * @var $fastRouter FastRouter
                          */
-                        $fastRouter = $this->define('router');
+                        $fastRouter = $this->defined('router');
                         $fastRouter->addRoute(
                             new FastRoute($path, $middleware, $method, $name)
                         );
@@ -810,7 +1024,7 @@
                     /**
                      * @var $fastRouter FastRouter
                      */
-                    $fastRouter = $this->define('router');
+                    $fastRouter = $this->defined('router');
 
                     return $fastRouter->generateUri($name, $params);
                 });
@@ -821,7 +1035,7 @@
                     /**
                      * @var $fastRouter FastRouter
                      */
-                    $fastRouter = $this->define('router');
+                    $fastRouter = $this->defined('router');
                     $result     = $fastRouter->match($request);
 
                     if ($result->isSuccess()) {
@@ -837,6 +1051,8 @@
 
                 $this->router = $router;
             }
+
+            handler('router', $this->router);
 
             return $this->router;
         }
@@ -856,6 +1072,12 @@
             }
         }
 
+        /**
+         * @param string $key
+         * @param mixed $value
+         *
+         * @return mixed|null
+         */
         public function define(string $key, $value = 'octodummy')
         {
             $keyDefine = 'fast.' . $key;
@@ -873,6 +1095,25 @@
          *
          * @return mixed|null
          */
+        public function defined(string $key, $default = null)
+        {
+            $keyDefine = 'fast.' . $key;
+
+            $defined = actual($keyDefine);
+
+            if (is_null($defined)) {
+                $defined = $default;
+            }
+
+            return is_callable($defined) ? $defined($this) : $defined;
+        }
+
+        /**
+         * @param string $key
+         * @param mixed|null $default
+         *
+         * @return mixed|null
+         */
         public function value(string $key, $default = null)
         {
             $value = $this->define($key);
@@ -886,12 +1127,12 @@
          *
          * @return string
          */
-        public function path(string $routeName, array $params)
+        public function path(string $routeName, array $params): string
         {
             /**
              * @var $fastRouter FastRouter
              */
-            $fastRouter = $this->define("router");
+            $fastRouter = $this->defined("router");
 
             return $fastRouter->generateUri($routeName, $params);
         }
@@ -900,8 +1141,10 @@
          * @param array $context
          *
          * @return array
+         *
+         * @throws TypeError
          */
-        function beforeRender($context = [])
+        public function beforeRender($context = []): array
         {
             $session = $this->getSession();
 
@@ -925,7 +1168,7 @@
         /**
          * @return bool
          */
-        public function isInvalid()
+        public function isInvalid(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -935,7 +1178,7 @@
         /**
          * @return bool
          */
-        public function isInformational()
+        public function isInformational(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -945,7 +1188,7 @@
         /**
          * @return bool
          */
-        public function isSuccessful()
+        public function isSuccessful(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -955,7 +1198,7 @@
         /**
          * @return bool
          */
-        public function isRedirection()
+        public function isRedirection(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -965,7 +1208,7 @@
         /**
          * @return bool
          */
-        public function isClientError()
+        public function isClientError(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -975,7 +1218,7 @@
         /**
          * @return bool
          */
-        public function isServerError()
+        public function isServerError(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -985,7 +1228,7 @@
         /**
          * @return bool
          */
-        public function isOk()
+        public function isOk(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -995,7 +1238,7 @@
         /**
          * @return bool
          */
-        public function isForbidden()
+        public function isForbidden(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -1005,7 +1248,7 @@
         /**
          * @return bool
          */
-        public function isNotFound()
+        public function isNotFound(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -1015,7 +1258,7 @@
         /**
          * @return bool
          */
-        public function isEmpty()
+        public function isEmpty(): bool
         {
             $statusCode = isset($this->response) ? $this->response->getStatusCode() : 0;
 
@@ -1025,7 +1268,7 @@
         /**
          * @return Psr7Response
          */
-        public function getResponse()
+        public function getResponse(): Psr7Response
         {
             return isset($this->response) ? $this->response : $this->response();
         }
@@ -1035,9 +1278,9 @@
          *
          * @return string
          *
-         * @throws \TypeError
+         * @throws TypeError
          */
-        public function getLang($name = 'lng'): string
+        public function getLang(string $name = 'lng'): string
         {
             $session        = $this->getSession();
             $language       = isAke($session, $name, null);
@@ -1073,7 +1316,7 @@
          *
          * @return Fast
          *
-         * @throws \TypeError
+         * @throws TypeError
          */
         public function setLang(string $language, $name = 'lng'): self
         {
@@ -1093,12 +1336,12 @@
         protected $registryInstance;
 
         /**
-         * @param $key
+         * @param string $key
          * @param $value
          *
-         * @return $this
+         * @return self
          */
-        public function set($key, $value)
+        public function set(string $key, $value): self
         {
             $key = $this->getRegistryKey($key);
 
@@ -1108,12 +1351,12 @@
         }
 
         /**
-         * @param $key
+         * @param string $key
          * @param null $default
          *
          * @return mixed
          */
-        public function get($key, $default = null)
+        public function get(string $key, $default = null)
         {
             $key = $this->getRegistryKey($key);
 
@@ -1126,7 +1369,7 @@
 
          * @return mixed
          */
-        public function getOr($key, $callable)
+        public function getOr(string $key, $callable)
         {
             if (!is_callable($callable)) {
                 $callable = function () use ($callable) {return $callable;};
@@ -1147,7 +1390,7 @@
          *
          * @return mixed|null
          */
-        public function getOnce($key, $default = null)
+        public function getOnce(string $key, $default = null)
         {
             if ($this->has($key)) {
                 $value = $this->get($key);
@@ -1165,7 +1408,7 @@
          *
          * @return bool
          */
-        public function has($key)
+        public function has(string $key)
         {
             $key = $this->getRegistryKey($key);
 
@@ -1177,7 +1420,7 @@
          *
          * @return bool
          */
-        public function delete($key)
+        public function delete(string $key)
         {
             if ($this->has($key)) {
                 $key = $this->getRegistryKey($key);
@@ -1194,7 +1437,7 @@
          *
          * @return string
          */
-        private function getRegistryKey($key)
+        private function getRegistryKey(string $key)
         {
             if (is_null($this->registryInstance)) {
                 $this->registryInstance = hash(token() . get_called_class());
@@ -1212,7 +1455,7 @@
          *
          * @return mixed
          */
-        public function __call($method, $args)
+        public function __call(string $method, array $args)
         {
             if (fnmatch('helper*', $method) && strlen($method) > 6) {
                 $method = 'Octo\\' . str_replace_first('helper', '', $method);
@@ -1228,7 +1471,7 @@
         /**
          * @return Fast
          */
-        public function getContainer()
+        public function getContainer(): Fast
         {
             return getContainer();
         }
@@ -1236,7 +1479,7 @@
         /**
          * @return ServerRequestInterface
          */
-        public function getRequest()
+        public function getRequest(): ServerRequestInterface
         {
             return getRequest();
         }
@@ -1344,7 +1587,7 @@
          *
          * @return \Faker\Generator
          */
-        public function faker($lng = 'fr_FR')
+        public function faker(string $lng = 'fr_FR')
         {
             return faker($lng);
         }
@@ -1429,10 +1672,402 @@
 
     interface FastUserOrmInterface {}
     interface FastRoleOrmInterface {}
+    interface FastPermissionInterface {}
 
     class FastOrm implements FastOrmInterface {}
     class FastMailer implements FastMailerInterface {}
     class FastSession implements FastSessionInterface {}
+
+    trait Extendable
+    {
+        protected $_mother;
+        protected $_called = false;
+
+        /**
+         * @return mixed
+         */
+        public function handle()
+        {
+            $args           = func_get_args();
+            $action         = array_shift($args);
+            $this->_mother  = current($args);
+
+            if (method_exists($this, 'setUp') && false === $this->_called) {
+                $this->setUp(current($args));
+                $this->_called = true;
+            }
+
+            return $this->{$action}(...$args);
+        }
+
+        /**
+         * @param string $method
+         * @param array $parameters
+         *
+         * @return mixed
+         */
+        public function __call(string $method, array $parameters)
+        {
+            return $this->_mother->{$method}(...$parameters);
+        }
+    }
+
+    class FastAuth implements FastAuthInterface
+    {
+        use Extendable;
+
+        /**
+         * @return Lock
+         */
+        public function getAuth(): Lock
+        {
+            return $this->_mother;
+        }
+    }
+
+    class FastGate
+    {
+        /**
+         * @param string $key
+         * @param callable $callable
+         * @param bool $paste
+         *
+         * @throws NativeException
+         */
+        public static function rule(string $key, callable $callable, bool $paste = false)
+        {
+            $gates = Registry::get('fast.gates', []);
+
+            if (false === $paste) {
+                $rule = isAke($gates, $key, false);
+
+                if (is_callable($rule)) {
+                    throw new NativeException("The rule {$key} ever exists.");
+                }
+            }
+
+            $gates[$key] = $callable;
+
+            Registry::set('fast.gates', $gates);
+        }
+
+        /**
+         * @param string $key
+         * @param mixed|null $default
+         *
+         * @return mixed|null
+         */
+        public static function get(string $key, $default = null)
+        {
+            if ($user = self::user()) {
+                return isAke($user, $key, $default);
+            }
+
+            return $default;
+        }
+
+        /**
+         * @return mixed|null
+         */
+        public static function id()
+        {
+            return self::get('id');
+        }
+
+        /**
+         * @return mixed|null
+         */
+        public static function email()
+        {
+            return self::get('email');
+        }
+
+        public static function user()
+        {
+            return getContainer()->defined('user');
+        }
+
+        /**
+         * @return bool
+         */
+        public static function isAuth(): bool
+        {
+            return !is_null(self::user());
+        }
+
+        /**
+         * @return bool
+         */
+        public static function isGuest(): bool
+        {
+            return !self::isAuth();
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public static function has(string $key): bool
+        {
+
+            $gates  = Registry::get('fast.gates', []);
+            $rule   = isAke($gates, $key, false);
+
+            return false !== $rule;
+        }
+
+        /**
+         * @return bool
+         */
+        public static function can()
+        {
+            if (self::isAuth()) {
+                $args   = func_get_args();
+                $key    = array_shift($args);
+                $gates  = Registry::get('fast.gates', []);
+                $rule   = isAke($gates, $key, false);
+
+                if (is_callable($rule)) {
+                    $params = array_merge([self::user()], $args);
+
+                    if ($rule instanceof Closure) {
+                        $params = array_merge([$rule], $params);
+
+                        return instanciator()->makeClosure(...$params);
+                    } else {
+                        if (is_array($rule)) {
+                            $params = array_merge($rule, $params);
+
+                            return instanciator()->call(...$params);
+                        } else {
+                            return $rule(...$params);
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public static function cannot(string $key): bool
+        {
+            return !self::can(...func_get_args());
+        }
+
+        /**
+         * @param string $key
+         *
+         * @return bool
+         */
+        public static function cant(string $key): bool
+        {
+            return self::cannot(...func_get_args());
+        }
+
+        /**
+         * @param string $key
+         *
+         * @throws NativeException
+         */
+        public static function authorize(string $key)
+        {
+            self::rule($key, function () {
+                return true;
+            }, true);
+        }
+
+        /**
+         * @param string $key
+         *
+         * @throws NativeException
+         */
+        public static function forbid(string $key)
+        {
+            self::rule($key, function () {
+                return false;
+            }, true);
+        }
+
+        /**
+         * @return Lock
+         */
+        public static function getLock()
+        {
+            return getContainer()->defined('lock');
+        }
+    }
+
+    class FastPermission implements FastPermissionInterface
+    {
+        use Extendable;
+
+        /**
+         * @return Permission
+         */
+        public function getManager(): Permission
+        {
+            return $this->_mother;
+        }
+    }
+
+    class FastFactory
+    {
+        /**
+         * @var Ormmodel|Entity|Octal
+         */
+        private $entity;
+
+        /**
+         * @var string
+         */
+        private $model;
+
+        /**
+         * @param string $model
+         * @param callable $resolver
+         *
+         * @throws NativeException
+         */
+        public static function add(string $model, callable $resolver)
+        {
+            $factories = Registry::get('fast.factories', []);
+
+            $factory = isAke($factories, $model, false);
+
+            if (is_callable($factory)) {
+                throw new NativeException("The factory $model ever exists.");
+            }
+
+            $factories[$model] = $resolver;
+
+            Registry::set('fast.factories', $factories);
+        }
+
+        /**
+         * @param string $model
+         * @param FastOrmInterface|Ormmodel|Entity|Octal $entity
+         */
+        public function __construct(string $model, $entity)
+        {
+            $this->entity   = $entity;
+            $this->model    = $model;
+        }
+
+        /**
+         * @return array
+         *
+         * @throws NativeException
+         */
+        public function create()
+        {
+            $factories = Registry::get('fast.factories', []);
+
+            $factory = isAke($factories, $this->model, false);
+
+            if (!class_exists($this->model) || false === $factory) {
+                throw new NativeException("The factory {$this->model} does not exist.");
+            }
+
+            $args = func_get_args();
+
+            $count  = 1;
+            $params = [];
+            $lng    = null;
+
+            if (!empty($args)) {
+                if (count($args) === 3) {
+                    $count  = current($args);
+                    $params = $args[1];
+                    $lng    = end($args);
+                } elseif (count($args) === 2) {
+                    $count  = current($args);
+                    $params = end($args);
+                } elseif (count($args) === 1) {
+                    $arg = current($args);
+
+                    if (is_int($arg)) {
+                        $count = $arg;
+                    } elseif (is_array($arg)) {
+                        $params = $arg;
+                    }
+                }
+            }
+
+            $results = [];
+
+            $faker = $lng ? faker($lng) : faker();
+
+            for ($i = 0; $i < $count; $i++) {
+                $data = $factory($faker, $this->entity);
+                $results[] = $this->entity->create(array_merge($data, $params));
+            }
+
+            return $results;
+        }
+
+        /**
+         * @return array
+         *
+         * @throws NativeException
+         */
+        public function make()
+        {
+            $factories = Registry::get('fast.factories', []);
+
+            $factory = isAke($factories, $this->model, false);
+
+            if (!class_exists($this->model) || false === $factory) {
+                throw new NativeException("The factory {$this->model} does not exist.");
+            }
+
+            $args = func_get_args();
+
+            $count  = 1;
+            $params = [];
+            $lng    = null;
+
+            if (!empty($args)) {
+                if (count($args) === 3) {
+                    $count  = current($args);
+                    $params = $args[1];
+                    $lng    = end($args);
+                } elseif (count($args) === 2) {
+                    $count = current($args);
+                    $params = end($args);
+                } elseif (count($args) === 1) {
+                    $arg = current($args);
+
+                    if (is_int($arg)) {
+                        $count = $arg;
+                    } elseif (is_array($arg)) {
+                        $params = $arg;
+                    }
+                }
+            }
+
+            $results = [];
+
+            $faker = $lng ? faker($lng) : faker();
+
+            for ($i = 0; $i < $count; $i++) {
+                $data = $factory($faker, $this->entity);
+
+                if ($this->entity instanceof Ormmodel) {
+                    $results[] = new $this->model(array_merge($data, $params));
+                } else {
+                    $results[] = $this->entity->model(array_merge($data, $params));
+                }
+            }
+
+            return $results;
+        }
+    }
 
     /**
      * Class FastRequest
@@ -1458,7 +2093,6 @@
      */
     class FastRequest
     {
-
         /**
          * @param string $method
          *
@@ -1466,28 +2100,135 @@
          */
         public function setMethod(string $method): self
         {
-            $this->withMethod($method);
+            $request = getContainer()->getRequest()->withMethod($method);
+
+            getContainer()->setRequest($request);
 
             return $this;
         }
 
         /**
-         * @return bool
+         * @param string $key
+         * @param null $default
+         *
+         * @return mixed
+         *
+         * @throws TypeError
          */
-        public function isSecure()
+        public function old(string $key, $default = null)
         {
-            return 'https' === strtolower($this->getUri()->getScheme());
+            /** @var array $inputs */
+            $inputs = getContainer()->getSession()->get('old_inputs', []);
+
+            return isAke($inputs, $key, $default);
         }
 
         /**
-         * @param string $name
-         * @param null|string $default
+         * @param callable $callable
          *
-         * @return null|string
+         * @return Checking
          */
-        public function get(string $name, ?string $default = null): ?string
+        public function validate(callable $callable)
         {
-            return $this->getAttribute($name, $default);
+            return $callable($this);
+        }
+
+        /**
+         * @return string
+         */
+        public function method(): string
+        {
+            return getContainer()->getRequest()->getMethod();
+        }
+
+        /**
+         * @return bool
+         */
+        public function isSecure(): bool
+        {
+            return 'https' === Inflector::lower(getContainer()->getRequest()->getUri()->getScheme());
+        }
+
+        /**
+         * @param string $key
+         * @param null|mixed $default
+         *
+         * @return null|mixed
+         */
+        public function get(string $key, $default = null)
+        {
+            $attrs = getContainer()->getRequest()->getQueryParams();
+
+            return isAke($attrs, $key, $default);
+        }
+
+        /**
+         * @param null|string $key
+         * @param null|mixed $default
+         *
+         * @return null|mixed
+         */
+        public function post(?string $key = null, $default = null)
+        {
+            $attrs = getContainer()->getRequest()->getParsedBody();
+
+            return !is_null($key) ? isAke($attrs, $key, $default) : $attrs;
+        }
+
+        /**
+         * @param null|string $key
+         * @param null|mixed $default
+         *
+         * @return null|mixed
+         */
+        public function input(?string $key = null, $default = null)
+        {
+            $attrs = $this->all();
+
+            return !is_null($key) ? isAke($attrs, $key, $default) : $attrs;
+        }
+
+        /**
+         * @return array
+         */
+        public function all(): array
+        {
+            $get    = getContainer()->getRequest()->getQueryParams();
+            $post   = getContainer()->getRequest()->getParsedBody();
+            $files  = getContainer()->getRequest()->getUploadedFiles();
+
+            return array_merge($get, $post, $files);
+        }
+
+        /**
+         * @return array
+         */
+        public function only(): array
+        {
+            $keys = func_get_args();
+            $inputs = [];
+            $attrs = getContainer()->getRequest()->getParsedBody();
+
+            foreach ($keys as $key) {
+                $inputs[$key] = isAke($attrs, $key, null);
+            }
+
+            return $inputs;
+        }
+
+        /**
+         * @return array
+         */
+        public function except(): array
+        {
+            $keys = func_get_args();
+            $attrs = getContainer()->getRequest()->getParsedBody();
+
+            foreach ($keys as $key) {
+                unset($attrs[$key]);
+            }
+
+            return $attrs;
         }
 
         /**
@@ -1506,14 +2247,13 @@
         /**
          * @return array
          */
-        public function segments()
+        public function segments(): array
         {
-            /** @var Uri $uri */
-            $uri = $this->getUri();
+            $uri = getContainer()->getRequest()->getUri();
             $segments = explode('/', $uri->getPath());
 
-            return array_values(array_filter($segments, function ($v) {
-                return $v !== '';
+            return array_values(array_filter($segments, function ($segment) {
+                return $segment !== '';
             }));
         }
 
@@ -1526,6 +2266,18 @@
         public function __call(string $method, array $params)
         {
             return getContainer()->getRequest()->{$method}(...$params);
+        }
+    }
+
+    class FastBladeCompiler extends BladeCompiler
+    {
+        public function __construct($files = null, $cachePath = null)
+        {
+            $this->files        = is_null($files) ? new Filesystem() : $files;
+            $this->cachePath    = is_null($cachePath) ?
+                appenv('CACHE_PATH', path('app') . '/storage/cache') . '/blade' :
+                $cachePath
+            ;
         }
     }
 
@@ -1564,14 +2316,22 @@
             $this->path = $path;
         }
 
-        public function __call($m, $a)
+        /**
+         * @param string $m
+         * @param array $a
+         */
+        public function __call(string $m, array $a)
         {
             $message    = array_shift($a);
 
             logFile($this->getPath(), $message, $m);
         }
 
-        public static function __callStatic($m, $a)
+        /**
+         * @param string $m
+         * @param array $a
+         */
+        public static function __callStatic(string $m, array $a)
         {
             $message = array_shift($a);
 
@@ -1586,6 +2346,64 @@
         public function getPath(): string
         {
             return $this->path;
+        }
+    }
+
+    class FastBag implements ArrayAccess
+    {
+        use Arrayable;
+    }
+
+    class FastConfig extends FastBag {}
+    class FastRules extends FastBag {}
+
+    class FastPost extends FastBag
+    {
+        public function __construct($data = null)
+        {
+            $data = is_null($data) ? $_POST : $data;
+
+            parent::__construct($data);
+        }
+    }
+
+    class FastGet extends FastBag
+    {
+        public function __construct($data = null)
+        {
+            $data = is_null($data) ? $_GET : $data;
+
+            parent::__construct($data);
+        }
+    }
+
+    class FastCookie extends FastBag
+    {
+        public function __construct($data = null)
+        {
+            $data = is_null($data) ? $_COOKIE : $data;
+
+            parent::__construct($data);
+        }
+    }
+
+    class FastFiles extends FastBag
+    {
+        public function __construct($data = null)
+        {
+            $data = is_null($data) ? $_FILES : $data;
+
+            parent::__construct($data);
+        }
+    }
+
+    class FastServer extends FastBag
+    {
+        public function __construct($data = null)
+        {
+            $data = is_null($data) ? $_SERVER : $data;
+
+            parent::__construct($data);
         }
     }
 
@@ -1650,6 +2468,34 @@
 
             return $flash->all();
         }
+
+        /**
+         * @param null|string $key
+         *
+         * @return mixed
+         *
+         * @throws TypeError
+         */
+        public function user(?string $key = null)
+        {
+            /** @var Lock $lock */
+            $lock = $this->getContainer()->defined('lock');
+
+            return $lock->get($key);
+        }
+
+        /**
+         * @return bool
+         *
+         * @throws TypeError
+         */
+        public function can()
+        {
+            /** @var Permission $permission */
+            $permission = $this->getContainer()->defined('permission');
+
+            return $permission->can(...func_get_args());
+        }
     }
 
     class FastTwigRenderer extends Twig_Environment implements FastRendererInterface, FastViewInterface
@@ -1661,6 +2507,10 @@
          * @param array $context
          *
          * @return string
+         *
+         * @throws \Twig_Error_Loader         *
+         * @throws \Twig_Error_Runtime         *
+         * @throws \Twig_Error_Syntax
          */
         public function render($name, array $context = [])
         {
@@ -1693,22 +2543,32 @@
         {
             return [
                 new Twig_SimpleFunction('dump', [$this, 'dump'], ['is_safe' => ['html']]),
+                new Twig_SimpleFunction('old', [$this, 'old'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('asset', [$this, 'asset']),
                 new Twig_SimpleFunction('path', [$this, 'path']),
                 new Twig_SimpleFunction('flash', [$this, 'flash']),
                 new Twig_SimpleFunction('logout', [$this, 'logout']),
                 new Twig_SimpleFunction('login', [$this, 'login']),
+                new Twig_SimpleFunction('user', [$this, 'user']),
                 new Twig_SimpleFunction('input_csrf', [$this, 'csrf'], ['is_safe' => ['html']])
             ];
         }
 
+        public function old(string $key, $default = null)
+        {
+            /** @var array $inputs */
+            $inputs = getContainer()->getSession()->get('old_inputs', []);
+
+            return isAke($inputs, $key, $default);
+        }
+
         /**
-         * @param null $key
+         * @param null|string $key
          * @param null $default
          *
          * @return array|mixed|null
          */
-        public function flash($key = null, $default = null)
+        public function flash(?string $key = null, $default = null)
         {
             /** @var Flash $flash */
             $flash = $this->getContainer()->resolve(Flash::class);
@@ -1718,6 +2578,34 @@
             }
 
             return $flash->all();
+        }
+
+        /**
+         * @param null|string $key
+         *
+         * @return mixed
+         *
+         * @throws TypeError
+         */
+        public function user(?string $key = null)
+        {
+            /** @var Lock $lock */
+            $lock = $this->getContainer()->defined('lock');
+
+            return $lock->get($key);
+        }
+
+        /**
+         * @return bool
+         *
+         * @throws TypeError
+         */
+        public function can()
+        {
+            /** @var Permission $permission */
+            $permission = $this->getContainer()->defined('permission');
+
+            return $permission->can(...func_get_args());
         }
 
         /**
@@ -1734,7 +2622,7 @@
 
         /**
          * @param string $asset
-         * 
+         *
          * @return string
          */
         public function asset(string $asset)
