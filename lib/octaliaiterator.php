@@ -26,7 +26,7 @@
 
         public function __get($k)
         {
-            if ($k == 'ids') {
+            if ($k === 'ids') {
                 $key = 'ids.' . $this->database . '.' . $this->db->table . '.' . sha1($this->directory);
 
                 if (!Registry::get($key, false)) {
@@ -37,19 +37,19 @@
                 }
 
                 return $ids;
-            } elseif ('db' == $k) {
+            } elseif ('db' === $k) {
                 $key = 'db.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
 
                 return Registry::get($key);
-            } elseif ('position' == $k) {
+            } elseif ('position' === $k) {
                 $key = 'position.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
 
                 return Registry::get($key);
-            } elseif ('closure' == $k) {
+            } elseif ('closure' === $k) {
                 $key = 'closure.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
 
                 return Registry::get($key);
-            } elseif ('count' == $k) {
+            } elseif ('count' === $k) {
                 $key = 'count.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
 
                 return Registry::get($key);
@@ -60,19 +60,19 @@
 
         public function __set($k, $v)
         {
-            if ($k == 'ids') {
+            if ($k === 'ids') {
                 $key = 'ids.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
                 Registry::set($key, $v);
-            } elseif ($k == 'position') {
+            } elseif ($k === 'position') {
                 $key = 'position.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
                 Registry::set($key, $v);
-            } elseif ($k == 'db') {
+            } elseif ($k === 'db') {
                 $key = 'db.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
                 Registry::set($key, $v);
-            } elseif ($k == 'closure') {
+            } elseif ($k === 'closure') {
                 $key = 'closure.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
                 Registry::set($key, $v);
-            } elseif ($k == 'count') {
+            } elseif ($k === 'count') {
                 $key = 'count.' . $this->database . '.' . $this->table . '.' . sha1($this->directory);
                 Registry::set($key, $v);
             } else {
@@ -488,6 +488,8 @@
                 foreach ($fields as $field) {
                     if (isset($row[$field])) {
                         $item[$field] = $row[$field];
+                    } else {
+                        $item[$field] = null;
                     }
                 }
 
@@ -504,12 +506,10 @@
             }
 
             $this->hook(function ($row) use ($fields) {
-                $item = [];
+                $item = $row;
 
-                foreach ($row as $k => $v) {
-                    if (!in_array($k, $fields)) {
-                        $item[$field] = $row[$field];
-                    }
+                foreach ($fields as $field) {
+                    unset($item[$field]);
                 }
 
                 return $this->row($item);

@@ -231,6 +231,14 @@
             return $this;
         }
 
+        /**
+         * @param array $keys
+         *
+         * @return array
+         *
+         * @throws Exception
+         * @throws \Exception
+         */
         public function many(array $keys)
         {
             $return = [];
@@ -412,17 +420,18 @@
         }
 
         /**
-         * @param $k
-         * @param $v
+         * @param string $k
+         * @param callable $c
          *
-         * @return Cache
+         * @return mixed
          *
          * @throws Exception
          * @throws \Exception
+         * @throws \ReflectionException
          */
-        public function forever($k, $v)
+        public function forever(string $k, callable $c)
         {
-            return $this->set($k, $v);
+            return $this->getOr($k, $c);
         }
 
         /**
@@ -434,13 +443,14 @@
          *
          * @throws Exception
          * @throws \Exception
+         * @throws \ReflectionException
          */
         public function getOr($k, callable $c, $e = null)
         {
             $res = $this->get($k, 'octodummy');
 
             if ('octodummy' === $res) {
-                $this->set($k, $res = $c(), $e);
+                $this->set($k, $res = instanciator()->makeClosure($c), $e);
             }
 
             return $res;
@@ -455,6 +465,7 @@
          *
          * @throws Exception
          * @throws \Exception
+         * @throws \ReflectionException
          */
         public function remember($k, $c, $e = null)
         {
@@ -465,6 +476,16 @@
             return $this->getOr($k, $c, $e);
         }
 
+        /**
+         * @param $k
+         * @param callable|null $exists
+         * @param callable|null $notExists
+         *
+         * @return bool
+         *
+         * @throws Exception
+         * @throws \Exception
+         */
         public function watch($k, callable $exists = null, callable $notExists = null)
         {
             if ($this->has($k)) {
@@ -484,7 +505,9 @@
         {
             $user       = session('web')->getUser();
             $isLogged   = !is_null($user);
-            $key        = $isLogged ? sha1(lng() . '.' . forever() . '1.' . $k) :  sha1(lng() . '.' . forever() . '0.' . $k);
+            $key        = $isLogged ?
+                sha1(lng() . '.' . forever() . '1.' . $k) :
+                sha1(lng() . '.' . forever() . '0.' . $k);
 
             return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
         }

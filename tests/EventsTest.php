@@ -24,6 +24,9 @@ class EventsTest extends TestCase
         });
     }
 
+    /**
+     * @throws Exception
+     */
     public function testFire()
     {
         Octo\set('eventval', 5);

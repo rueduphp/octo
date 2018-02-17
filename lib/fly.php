@@ -5,6 +5,9 @@
     {
         protected static $events = [];
 
+        /**
+         * @throws \ReflectionException
+         */
         public static function push()
         {
             $args       = func_get_args();
@@ -66,7 +69,7 @@
         public static function forget($event, $priority = 'octodummy')
         {
             if (isset(self::$events[$event])) {
-                if ('octodummy' == $priority) {
+                if ('octodummy' === $priority) {
                     unset(self::$events[$event]);
                 } else {
                     unset(self::$events[$event][$priority]);

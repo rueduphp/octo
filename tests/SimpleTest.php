@@ -1,197 +1,370 @@
 <?php
-    use Octo\Registry;
-    use Octo\Config;
-    use Octo\InternalEvents;
-    use Octo\On;
-    use Octo\Emit;
-    use Octo\Dispatch;
 
-    class MyEvent extends Octo\Fire {}
+use Octo\Config;
+use Octo\Emit;
+use Octo\Inflector;
+use Octo\InternalEvents;
+use Octo\Live;
+use Octo\Now;
+use Octo\On;
+use Octo\Registry;
+use function Octo\sessionKey;
+use Octo\Trust;
 
-    class Middleware
+class MyGuard extends Trust
+{
+    public function __construct()
     {
-        public function handle($request, $response, callable $next)
-        {
-            $uri = $request->getUri()->getPath();
-            context('app')->uri = $uri;
+        $this->providers['login'] = function () {
+            $session = $this->session();
 
-            return $next(
-                $request,
-                $response
-            );
-        }
+            $session['user'] = ['id' => 1, 'name' => 'foo', 'email' => 'foo@bar.com'];
+
+            return true;
+        };
+
+        $this->providers['logout'] = function () {
+            $session = $this->session();
+
+            unset($session['user']);
+
+            return true;
+        };
+    }
+}
+
+class Bag extends Octo\Container
+{
+    public function getDummy()
+    {
+        return 'dummy';
+    }
+}
+
+class MyEvent extends Octo\Fire {}
+
+class Middleware
+{
+    public function handle($request, $response, callable $next)
+    {
+        $uri = $request->getUri()->getPath();
+        context('app')->uri = $uri;
+
+        return $next(
+            $request,
+            $response
+        );
+    }
+}
+
+class Middleware2
+{
+    public function handle($request, $response, callable $next)
+    {
+        $_SERVER['REQUEST_URI'] = '/test';
+
+        $request = context('app')->request();
+
+        context('app')->uri2 = $request->getUri()->getPath();
+
+        return $next(
+            $request,
+            $response
+        );
+    }
+}
+
+class Subscriber
+{
+    public function getEvents()
+    {
+        return [
+            'test_1' => 'first',
+            'test_2' => 'second'
+        ];
     }
 
-    class Middleware2
+    public function first()
     {
-        public function handle($request, $response, callable $next)
-        {
-            $_SERVER['REQUEST_URI'] = '/test';
-
-            $request = context('app')->request();
-
-            context('app')->uri2 = $request->getUri()->getPath();
-
-            return $next(
-                $request,
-                $response
-            );
-        }
+        context('app')->event_test_value += 1;
     }
 
-    class Subscriber
+    public function second()
     {
-        public function getEvents()
-        {
-            return [
-                'test_1' => 'first',
-                'test_2' => 'second'
-            ];
-        }
+        context('app')->event_test_value += 2;
+    }
+}
 
-        public function first()
-        {
-            context('app')->event_test_value += 1;
-        }
+class SimpleTest extends TestCase
+{
+    /**
+     * @throws Exception
+     * @throws ReflectionException
+     */
+    public function testTrust()
+    {
+        $this->getEventManager()->on('trust.login.auth', function (bool $status, Live $session) {
+            $session['trust.login.event'] = $status;
+        });
 
-        public function second()
-        {
-            context('app')->event_test_value += 2;
-        }
+        $this->getEventManager()->on('trust.logout.auth', function (bool $status, Live $session) {
+            $session['trust.logout.event'] = $status;
+        });
+
+        $session = MyGuard::session();
+
+        $session['trust.login.event'] = false;
+        $session['trust.logout.event'] = false;
+
+        $this->assertFalse(MyGuard::isAuth());
+        $this->assertTrue(MyGuard::isGuest());
+
+        $this->assertFalse(MyGuard::session()['trust.login.event']);
+        $this->assertFalse(MyGuard::session()['trust.logout.event']);
+
+        MyGuard::login();
+
+        $this->assertTrue(MyGuard::session()['trust.login.event']);
+
+        $this->assertTrue(MyGuard::isAuth());
+        $this->assertFalse(MyGuard::isGuest());
+
+        $this->assertSame(1, MyGuard::user('id'));
+        $this->assertSame('foo', MyGuard::user('name'));
+        $this->assertSame('foo@bar.com', MyGuard::user('email'));
+
+        MyGuard::logout();
+
+        $this->assertTrue(MyGuard::session()['trust.logout.event']);
+
+        $this->assertFalse(MyGuard::isAuth());
+        $this->assertTrue(MyGuard::isGuest());
     }
 
-    class SimpleTest extends TestCase
+    /**
+     * @throws Exception
+     * @throws ReflectionException
+     * @throws \Octo\Exception
+     */
+    public function testLive()
     {
-        /** @test */
-        public function it_is_a_basic_test()
-        {
-            $theme = $this->em('theme')->store(['name' => 'biopic']);
+        $this->getEventManager()->on('live.login', function (bool $status, Live $session, $request) {
+            $session['live.login.event'] = $status;
+        });
 
-            $post = $this->em('post')->store([
-                'theme_id' => (int) $theme->id
-            ]);
+        $this->getEventManager()->on('live.logout', function (bool $status, Live $session, $request) {
+            $session['live.logout.event'] = $status;
+        });
 
-            $this->assertEquals($post->theme_id, $theme->id);
-            $this->assertEquals($post->theme()->id, $theme->id);
-            $this->assertEquals($post->theme->id, $theme->id);
-        }
+        $live = new Live(new Now(sessionKey()));
 
-        /** @test */
-        public function it_tests_path()
-        {
-            $this->assertEquals(__DIR__, $this->path('app'));
-            $this->assertEquals(__DIR__ . DS . 'storage', $this->path('storage'));
-        }
+        $live->setLoginProvider(function ($session, $request) {
+            $session['user'] = ['id' => 1, 'name' => 'foo', 'email' => 'foo@bar.com'];
 
-        /** @test */
-        public function static_fire_class()
-        {
-            $this->app['event_test_value'] = 0;
+            return true;
+        });
 
-            $this->assertTrue(MyEvent::called() instanceof Octo\Fire);
-            $this->assertTrue(MyEvent::called() instanceof MyEvent);
-            $this->assertEquals('MyEvent', MyEvent::called()->ns());
+        $live->setLogoutProvider(function ($session, $request) {
+            unset($session['user']);
 
-            $this->assertEquals(0, count(Registry::get('fire.events.MyEvent', [])));
+            return true;
+        });
 
-            MyEvent::listen('test', function () {
-                $this->app['event_test_value'] += 2;
-            });
+        $live->destroy();
 
-            $this->assertEquals(1, count(Registry::get('fire.events.MyEvent', [])));
+        $live['foo'] = 'bar';
+        $live['live.login.event'] = false;
+        $live['live.logout.event'] = false;
 
-            MyEvent::fire('test');
+        $this->assertSame('bar', $live['foo']);
+        $this->assertFalse($live->isAuth());
+        $this->assertTrue($live->isGuest());
 
-            $this->assertEquals(2, $this->app['event_test_value']);
+        $this->assertFalse($live['live.login.event']);
+        $this->assertFalse($live['live.logout.event']);
 
-            MyEvent::fire('test');
+        $live->login();
 
-            $this->assertEquals(4, $this->app['event_test_value']);
+        $this->assertTrue($live['live.login.event']);
+        $this->assertSame(1, $live->user('id'));
+        $this->assertSame('foo', $live->user('name'));
+        $this->assertSame('foo@bar.com', $live->user('email'));
 
-            MyEvent::subscribe(Subscriber::class);
+        $this->assertTrue($live->isAuth());
+        $this->assertFalse($live->isGuest());
 
-            $this->app['event_test_value'] = 0;
+        $live->logout();
 
-            MyEvent::fire('test_1');
-            MyEvent::fire('test_2');
+        $this->assertTrue($live['live.logout.event']);
+        $this->assertFalse($live->isAuth());
+        $this->assertTrue($live->isGuest());
+    }
 
-            $this->assertEquals(3, $this->app['event_test_value']);
-        }
+    /**
+     * @throws Exception
+     */
+    public function testContainer()
+    {
+        Bag::test(function (Bag $container, Inflector $i) {
+            return $i->upper($container->getDummy());
+        });
 
-        /** @test */
-        public function internal_fire_class()
-        {
-            $this->app['event_test_value'] = 0;
+        $this->assertSame('DUMMY', Bag::test());
+    }
 
-            $this->assertTrue(InternalEvents::called() instanceof Octo\Fire);
-            $this->assertTrue(InternalEvents::called() instanceof InternalEvents);
-            $this->assertEquals('Octo\InternalEvents', InternalEvents::called()->ns());
+    /**
+     * @test
+     * @throws Exception
+     */
+    public function it_is_a_basic_test()
+    {
+        $theme = $this->em('theme')->store(['name' => 'biopic']);
 
-            $this->assertEquals(0, count(Registry::get('fire.events.Octo\InternalEvents', [])));
+        $post = $this->em('post')->store([
+            'theme_id' => (int) $theme->id
+        ]);
 
-            On::test(function () {
-                $this->app['event_test_value'] += 2;
-            });
+        $this->assertEquals($post->theme_id, $theme->id);
+        $this->assertEquals($post->theme()->id, $theme->id);
+        $this->assertEquals($post->theme->id, $theme->id);
+    }
 
-            $this->assertEquals(1, count(Registry::get('fire.events.Octo\InternalEvents', [])));
+    /**
+     * @test
+     * @throws Exception
+     */
+    public function it_tests_path()
+    {
+        $this->assertEquals(__DIR__, $this->path('app'));
+        $this->assertEquals(__DIR__ . DS . 'storage', $this->path('storage'));
+    }
 
-            Emit::test();
+    /**
+     * @test
+     * @throws Exception
+     * @throws ReflectionException
+     */
+    public function static_fire_class()
+    {
+        $this->app['event_test_value'] = 0;
 
-            $this->assertEquals(2, $this->app['event_test_value']);
+        $this->assertTrue(MyEvent::called() instanceof Octo\Fire);
+        $this->assertTrue(MyEvent::called() instanceof MyEvent);
+        $this->assertEquals('myevent', MyEvent::called()->ns());
 
-            Emit::test();
+        $this->assertEquals(0, count(Registry::get('fire.events.MyEvent', [])));
 
-            $this->assertEquals(4, $this->app['event_test_value']);
-        }
+        MyEvent::listen('test', function () {
+            $this->app['event_test_value'] += 2;
+        });
 
-        /** @test */
-        public function it_burst()
-        {
-            $burst = $this->burst('/assets/css/style.css');
+        $this->assertEquals(1, count(Registry::get('fire.events.myevent', [])));
 
-            $hash = md5(filemtime(__DIR__ . '/assets/css/style.css'));
+        MyEvent::fire('test');
 
-            $this->assertEquals('/burst/assets/css/style-' . $hash . '.css', $burst);
-        }
+        $this->assertEquals(2, $this->app['event_test_value']);
 
-        /** @test */
-        public function containerTests()
-        {
-            $this->container('test', 1);
+        MyEvent::fire('test');
 
-            $this->container(Datetime::class, function () {
-                return $this->foundry(stdClass::class);
-            });
+        $this->assertEquals(4, $this->app['event_test_value']);
 
-            $this->assertEquals(1, $this->container('test'));
-            $this->assertEquals(stdClass::class, get_class($this->container(Datetime::class)));
-            $this->assertEquals(stdClass::class, get_class($this->foundry(Datetime::class)));
-            $this->assertEquals($this->maker(Datetime::class), $this->container(Datetime::class));
-        }
+        MyEvent::subscribe(Subscriber::class);
 
-        /** @test */
-        public function mail()
-        {
-            $message = $this->message()
-            ->from('test@test.com')
-            ->to('qa@test.com')
-            ->subject('test')
-            ->attach(__DIR__ . '/mail.phtml')
-            ->view(__DIR__ . '/mail.phtml', ['name' => 'John Doe']);
+        $this->app['event_test_value'] = 0;
 
-            $this->assertContains('<h1>This is a mail view !!</h1>', $message->getBody());
-            $this->assertContains('<h2>For John Doe</h2>', $message->getBody());
+        MyEvent::fire('test_1');
+        MyEvent::fire('test_2');
 
-            $send = isAke($_SERVER, 'HOME', null) === '/home/octo';
+        $this->assertEquals(3, $this->app['event_test_value']);
+    }
 
-            if ($send) {
-                Config::set('MAILER_DRIVER', 'smtp');
-                Config::set('SMTP_SECURITY', '');
-                Config::set('SMTP_PORT', 1025);
+    /**
+     * @@test
+     * @throws Exception
+     * @throws ReflectionException
+     */
+    public function internal_fire_class()
+    {
+        $this->app['event_test_value'] = 0;
 
-                $status = $message->send();
+        $this->assertTrue(InternalEvents::called() instanceof Octo\Fire);
+        $this->assertTrue(InternalEvents::called() instanceof InternalEvents);
+        $this->assertEquals('octo-internalevents', InternalEvents::called()->ns());
 
-                $this->assertEquals(1, $status);
-            }
+        $this->assertEquals(0, count(Registry::get('fire.events.Octo\InternalEvents', [])));
+
+        On::test(function () {
+            $this->app['event_test_value'] += 2;
+        });
+
+        $this->assertEquals(1, count(Registry::get('fire.events.octo-internalevents', [])));
+
+        Emit::test();
+
+        $this->assertEquals(2, $this->app['event_test_value']);
+
+        Emit::test();
+
+        $this->assertEquals(4, $this->app['event_test_value']);
+    }
+
+    /**
+     * @test
+     * @throws Exception
+     */
+    public function it_burst()
+    {
+        $burst = $this->burst('/assets/css/style.css');
+
+        $hash = md5(filemtime(__DIR__ . '/assets/css/style.css'));
+
+        $this->assertEquals('/burst/assets/css/style-' . $hash . '.css', $burst);
+    }
+
+    /**
+     * @test
+     * @throws Exception
+     */
+    public function containerTests()
+    {
+        $this->container('test', 1);
+
+        $this->container(Datetime::class, function () {
+            return $this->foundry(stdClass::class);
+        });
+
+        $this->assertEquals(1, $this->container('test'));
+        $this->assertEquals(stdClass::class, get_class($this->container(Datetime::class)));
+        $this->assertEquals(stdClass::class, get_class($this->foundry(Datetime::class)));
+        $this->assertEquals($this->maker(Datetime::class), $this->container(Datetime::class));
+    }
+
+    /**
+     * @test
+     * @throws Exception
+     */
+    public function mail()
+    {
+        $message = $this->message()
+        ->from('test@test.com')
+        ->to('qa@test.com')
+        ->subject('test')
+        ->attach(__DIR__ . '/mail.phtml')
+        ->view(__DIR__ . '/mail.phtml', ['name' => 'John Doe']);
+
+        $this->assertContains('<h1>This is a mail view !!</h1>', $message->getBody());
+        $this->assertContains('<h2>For John Doe</h2>', $message->getBody());
+
+        $send = isAke($_SERVER, 'HOME', null) === '/home/octo';
+
+        if ($send) {
+            Config::set('MAILER_DRIVER', 'smtp');
+            Config::set('SMTP_SECURITY', '');
+            Config::set('SMTP_PORT', 1025);
+
+            $status = $message->send();
+
+            $this->assertEquals(1, $status);
         }
     }
+}

@@ -314,7 +314,7 @@
 
         public function __toString()
         {
-            return $this->render();
+            return $this->renderAttributes();
         }
 
         protected function renderAttributes()

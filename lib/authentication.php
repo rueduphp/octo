@@ -5,12 +5,25 @@
     {
         protected $ns = 'web', $actual = 'auth.user', $entity = 'user';
 
-        protected static function called()
+        /**
+         * @return Authentication
+         *
+         * @throws \ReflectionException
+         */
+        protected static function called(): Authentication
         {
-            return actual('auth.class', maker(get_called_class()));
+            return actual('auth.class', instanciator()->singleton(get_called_class()));
         }
 
-        public static function policy($policy, callable $callable)
+        /**
+         * @param string $policy
+         * @param callable $callable
+         *
+         * @return Authentication
+         *
+         * @throws \ReflectionException
+         */
+        public static function policy(string $policy, callable $callable)
         {
             $class              = static::called();
             $policies           = Registry::get('guard.policies.' . $class->actual, []);
@@ -21,14 +34,24 @@
             return $class;
         }
 
-        public static function cannot()
+        /**
+         * @return bool
+         *
+         * @throws \ReflectionException
+         */
+        public static function cannot(): bool
         {
             $check = call_user_func_array([static::called(), 'can'], func_get_args());
 
             return !$check;
         }
 
-        public static function can()
+        /**
+         * @return bool
+         *
+         * @throws \ReflectionException
+         */
+        public static function can(): bool
         {
             $check = call_user_func_array([static::called(), 'allows'], func_get_args());
 
@@ -39,7 +62,12 @@
             return false;
         }
 
-        public static function allows()
+        /**
+         * @return bool
+         *
+         * @throws \ReflectionException
+         */
+        public static function allows(): bool
         {
             if ($user = static::user()) {
                 $user       = arrayable($user) ? $user->toArray() : $user;
@@ -58,6 +86,14 @@
             return false;
         }
 
+        /**
+         * @param null $default
+         * @param null $class
+         *
+         * @return mixed|null|object
+         *
+         * @throws \ReflectionException
+         */
         public static function get($default = null, $class = null)
         {
             $class = $class ?: static::called();
@@ -91,6 +127,11 @@
             return $default;
         }
 
+        /**
+         * @param null $user
+         *
+         * @throws \ReflectionException
+         */
         public static function make($user = null)
         {
             $class = static::called();
@@ -108,6 +149,11 @@
             }
         }
 
+        /**
+         * @return bool
+         *
+         * @throws \ReflectionException
+         */
         public static function is()
         {
             $class = static::called();
@@ -115,6 +161,11 @@
             return 'octodummy' !== static::get('octodummy', $class);
         }
 
+        /**
+         * @return bool
+         *
+         * @throws \ReflectionException
+         */
         public static function guest()
         {
             $class = static::called();
@@ -122,6 +173,10 @@
             return 'octodummy' === static::get('octodummy', $class);
         }
 
+        /**
+         * @param $user
+         * @throws \ReflectionException
+         */
         public static function login($user)
         {
             $class = static::called();
@@ -137,6 +192,10 @@
             }
         }
 
+        /**
+         * @param $id
+         * @throws \ReflectionException
+         */
         public static function loginWithId($id)
         {
             $class = static::called();
@@ -154,6 +213,9 @@
             }
         }
 
+        /**
+         * @throws \ReflectionException
+         */
         public static function logout()
         {
             $class = static::called();
@@ -165,6 +227,10 @@
             actual($class->actual, null);
         }
 
+        /**
+         * @return null
+         * @throws \ReflectionException
+         */
         public static function id()
         {
             $class = static::called();
@@ -178,7 +244,11 @@
             return null;
         }
 
-        public static function email()
+        /**
+         * @return null|string
+         * @throws \ReflectionException
+         */
+        public static function email(): ?string
         {
             $class = static::called();
 
@@ -191,7 +261,14 @@
             return null;
         }
 
-        public static function user($model = true)
+        /**
+         * @param bool $model
+         *
+         * @return mixed|null|object
+         *
+         * @throws \ReflectionException
+         */
+        public static function user(bool $model = true)
         {
             $class = static::called();
 
@@ -210,7 +287,15 @@
             return !empty($user) ? item($user) : null;
         }
 
-        public static function __callStatic($m, $a)
+        /**
+         * @param string $m
+         * @param array $a
+         *
+         * @return mixed|Authentication
+         *
+         * @throws \ReflectionException
+         */
+        public static function __callStatic(string $m, array $a)
         {
             if ($m === "self") {
                 return static::called();

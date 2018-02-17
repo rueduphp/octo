@@ -2,8 +2,10 @@
     require_once __DIR__ . '/classes.php';
 
     use Illuminate\Database\Eloquent\Collection as CollectIll;
-    use Octo\Factory;
-    use Octo\Orm;
+use Octo\Caching;
+use Octo\Factory;
+use Octo\Inflector;
+use Octo\Orm;
     use Octo\Ormmodel;
     use Octo\Record;
     use Octo\Strings;
@@ -99,7 +101,10 @@
             Migrations::seeds($this->db);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkInsert()
         {
             $q = $this->db->insert([
@@ -165,7 +170,10 @@
             $this->assertEquals('Lorem ipsum 2', $this->db->from('post')->find(1)['content']);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkModel()
         {
             $new = Post::create([
@@ -199,7 +207,10 @@
             $this->assertEquals($count, $posts->count());
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkCollection()
         {
             $list   = Post::collection()->pluck('id');
@@ -208,7 +219,10 @@
             $this->assertEquals($list, $list2);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkMorph()
         {
             $comment    = Comment::first();
@@ -218,7 +232,10 @@
             $this->assertGreaterThanOrEqual(1, $user->comments->count());
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkPivots()
         {
             $user   = Postuser::first()->user;
@@ -231,16 +248,22 @@
             $this->assertEquals(Postuser::where('user_id', $user->id)->count(), $count);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkScopes()
         {
             $countScope = Post::test()->count();
             $countQuery = Post::where('id', '>', 5)->count();
 
-            $this->assertEquals($countQuery, $countScope);
+            $this->assertSame($countQuery, $countScope);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function fnsWith()
         {
             $post = Post::findWith(1, 'user');
@@ -256,7 +279,10 @@
             $this->assertTrue(is_array($post->array()['user']));
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkBuilder()
         {
             $query = Post::builder();
@@ -267,7 +293,10 @@
             $this->assertEquals(3, $query->first()->id);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkRelations()
         {
             $users = User::with('posts');
@@ -289,7 +318,10 @@
             $this->assertEquals($first->user_id, $first->user->id);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkRaw()
         {
             $row = $this->db->raw('SELECT 1 + 1 AS sum');
@@ -301,7 +333,10 @@
             $this->assertEquals(date('Y-m-d'), $row->fetch()['datenow']);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkChunk()
         {
             $this->context('app')->test_value = 0;
@@ -313,7 +348,10 @@
             $this->assertEquals(10, $this->context('app')->test_value);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkSplit()
         {
             $this->context('app')->test_value = 0;
@@ -325,7 +363,10 @@
             $this->assertEquals(10, $this->context('app')->test_value);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkEach()
         {
             $this->context('app')->test_value = 0;
@@ -339,7 +380,10 @@
             $this->assertTrue($status);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkResults()
         {
             $users = User::all();
@@ -372,7 +416,10 @@
             $this->assertEquals(2, $chunks->count());
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkAggregates()
         {
             $count = User::count();
@@ -396,7 +443,10 @@
             );
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function ormmodel()
         {
             UserModel::create(['name' => 'test']);
@@ -459,6 +509,9 @@
             }
         }
 
+        /**
+         * @throws Exception
+         */
         public function testFactories()
         {
             Factory::save(Post::class, 15);
@@ -468,6 +521,47 @@
 
             Factory::save(PostModel::class, 15);
             $this->assertEquals(40, $model->newQuery()->count());
+        }
+
+        /**
+         * @throws Exception
+         */
+        public function testCahing()
+        {
+            /** @var Caching $cache */
+            $cache = $this->caching();
+
+            $this->assertNull($cache->get('test'));
+
+            $cache->set('test', 'foo');
+            $this->assertSame('foo', $cache->get('test'));
+
+            $cache->set('test', '1');
+            $this->assertSame('1', $cache->get('test'));
+
+            $cache->set('test', 1);
+            $this->assertSame(1, $cache->get('test'));
+
+            $this->assertTrue($cache->has('test'));
+            $cache->del('test');
+            $this->assertFalse($cache->has('test'));
+
+            $cache->set('test', [['name' => 'foo'], ['name' => 'bar']]);
+            $this->assertCount(2, $cache->get('test'));
+
+            $cache->set('test', new Inflector);
+            $this->assertInstanceOf(Inflector::class, $cache->get('test'));
+
+            $cache->set('foo', 'bar');
+
+            $this->assertCount(1, $cache->keys('t*'));
+            $this->assertCount(1, $cache->keys('f*'));
+            $this->assertCount(2, $cache->all());
+
+            $this->assertSame(2, $cache->flush());
+            $this->assertCount(0, $cache->keys('t*'));
+            $this->assertCount(0, $cache->keys('f*'));
+            $this->assertCount(0, $cache->all());
         }
 
         private function factories()

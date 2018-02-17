@@ -47,6 +47,12 @@ class Migrations
             $table->timestamp('created_at')->nullable()->useCurrent();
             $table->timestamp('updated_at')->nullable()->useCurrent();
         });
+
+        $schema->create('caching', function (Blueprint $table) {
+            $table->string('k')->primary()->unique();
+            $table->longText('v')->nullable();
+            $table->unsignedBigInteger('e')->index();
+        });
     }
 
     public static function seeds(Orm $orm)

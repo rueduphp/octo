@@ -7,6 +7,7 @@ use Octo\FastAuth;
 use Octo\FastFactory;
 use Octo\FastGate;
 use Octo\Lock;
+use Octo\Orm;
 use Tests\Migrations;
 use Tests\Post;
 
@@ -86,6 +87,14 @@ class LockTest extends TestCase
      */
     protected $app;
 
+    /**
+     * @var Orm
+     */
+    protected $db;
+
+    /**
+     * @throws ReflectionException
+     */
     public function setUp()
     {
         parent::setUp();
@@ -111,6 +120,7 @@ class LockTest extends TestCase
     }
 
     /**
+     * @throws Exception
      * @throws TypeError
      */
     public function testStatic()
@@ -140,6 +150,7 @@ class LockTest extends TestCase
 
     /**
      * @throws Exception
+     * @throws ReflectionException
      * @throws TypeError
      */
     public function testPerms()

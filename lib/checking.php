@@ -1,6 +1,8 @@
 <?php
     namespace Octo;
 
+    use function method_exists;
+
     class Checking
     {
         /**
@@ -22,6 +24,11 @@
          * @var string
          */
         private $lng;
+
+        /**
+         * @var string
+         */
+        private $messager = CheckingMessages::class;
 
         /**
          * @param array|null $data
@@ -99,8 +106,30 @@
         }
 
         /**
+         * @param string $messager
+         *
+         * @return Checking
+         */
+        public function setMessager(string $messager): Checking
+        {
+            $this->messager = $messager;
+
+            return $this;
+        }
+
+        /**
+         * @return string
+         */
+        public function getMessager(): string
+        {
+            return $this->messager;
+        }
+
+        /**
          * @param string $field
          * @param callable $callable
+         *
+         * @throws \ReflectionException
          */
         protected function isCustom(string $field, callable $callable)
         {
@@ -130,6 +159,8 @@
         /**
          * @param string $field
          * @param int $length
+         *
+         * @throws \ReflectionException
          */
         protected function isMaxLength(string $field, int $length)
         {
@@ -143,6 +174,8 @@
 
         /**
          * @param string $field
+         *
+         * @throws \ReflectionException
          */
         protected function isInteger(string $field)
         {
@@ -156,6 +189,8 @@
 
         /**
          * @param string $field
+         *
+         * @throws \ReflectionException
          */
         protected function isInt(string $field)
         {
@@ -169,12 +204,12 @@
 
         /**
          * @param string $field
+         *
+         * @throws \ReflectionException
          */
         protected function isRequired(string $field)
         {
-            $value = isAke($this->data, $field, null);
-
-            $check = $value && strlen($value);
+            $check = 'octodummy' !== isAke($this->data, $field, 'octodummy');
 
             if (!$check) {
                 $this->addError($field, 'required');
@@ -183,6 +218,40 @@
 
         /**
          * @param string $field
+         *
+         * @throws \ReflectionException
+         */
+        protected function isNotEmpty(string $field)
+        {
+            $value = isAke($this->data, $field, 'octodummy');
+
+            $check = 'octodummy' !== $value && strlen($value) > 0;
+
+            if (!$check) {
+                $this->addError($field, 'not_empty');
+            }
+        }
+
+        /**
+         * @param string $field
+         *
+         * @throws \ReflectionException
+         */
+        protected function isEmpty(string $field)
+        {
+            $value = isAke($this->data, $field, 'octodummy');
+
+            $check = 'octodummy' !== $value && strlen($value) === 0;
+
+            if (!$check) {
+                $this->addError($field, 'empty');
+            }
+        }
+
+        /**
+         * @param string $field
+         *
+         * @throws \ReflectionException
          */
         protected function isEmail(string $field)
         {
@@ -195,6 +264,11 @@
             }
         }
 
+        /**
+         * @param string $field
+         *
+         * @throws \ReflectionException
+         */
         protected function isSlug(string $field)
         {
             $value = isAke($this->data, $field, null);
@@ -210,6 +284,8 @@
         /**
          * @param string $field
          * @param string $rule
+         *
+         * @throws \ReflectionException
          */
         protected function addError(string $field, string $rule)
         {
@@ -217,7 +293,7 @@
                 $this->errors[$field] = [];
             }
 
-            $this->errors[$field][] = new CheckingMessages($field, $rule, $this->lng);
+            $this->errors[$field][] = instanciator()->factory($this->messager, $field, $rule, $this->lng);
         }
     }
 
@@ -269,11 +345,13 @@
         /**
          * @return string
          */
-        private function message()
+        protected function message()
         {
             $messages = [
                 'en' => [
                     'required'  => '%s is required',
+                    'empty'     => '%s is not empty',
+                    'not_empty' => '%s is empty',
                     'slug'      => '%s is not a valid slug',
                     'email'     => '%s is not a valid email',
                     'integer'   => '%s is not a valid integer',
@@ -283,6 +361,8 @@
                 ],
                 'fr' => [
                     'required'  => '%s est requis',
+                    'empty'     => '%s n\'est pas vide',
+                    'not_empty' => '%s est vide',
                     'slug'      => '%s n\'est pas un slug valide',
                     'email'     => '%s n\'est pas un email valide',
                     'integer'   => '%s n\'est pas un nombre entier valide',

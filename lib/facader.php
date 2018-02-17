@@ -19,9 +19,10 @@ class Facader
 
                 return instanciator()->call(...$params);
             } elseif ($method instanceof Closure) {
+                $arg = current($arguments);
                 $continue = true;
 
-                if (current($arguments) instanceof Closure && sameClosures($method, current($arguments))) {
+                if ($arg instanceof Closure && true === sameClosures($method, $arg)) {
                     $continue = false;
                 }
 
@@ -39,13 +40,13 @@ class Facader
 
     public static function __define()
     {
-        $class = get_called_class();
-        $arguments = func_get_args();
-        $methods = Registry::get("facader." . $class, []);
-
-        $method = array_shift($arguments);
+        $class      = get_called_class();
+        $arguments  = func_get_args();
+        $methods    = Registry::get("facader." . $class, []);
+        $method     = array_shift($arguments);
 
         $methods[$method] = current($arguments);
+
         Registry::set("facader." . $class, $methods);
     }
 }

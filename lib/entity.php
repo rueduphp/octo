@@ -16,6 +16,9 @@
 
         protected static $booted = [];
 
+        /**
+         * @throws \ReflectionException
+         */
         public function __construct()
         {
             $class  = get_called_class();
@@ -25,16 +28,16 @@
             if (!isset(static::$booted[$class])) {
                 static::$booted[$class] = true;
 
+                if (in_array('boot', $methods)) {
+                    instanciator()->call($this, 'boot');
+                }
+
                 if (in_array('events', $methods)) {
-                    static::events($this);
+                    instanciator()->call($this, 'events');
                 }
 
                 if (in_array('policies', $methods)) {
-                    static::policies($this);
-                }
-
-                if (in_array('boot', $methods)) {
-                    static::boot($this);
+                    instanciator()->call($this, 'policies');
                 }
 
                 $this->fire('booting');
@@ -48,7 +51,7 @@
                         $method     = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
 
                         if (in_array($method, $methods)) {
-                            callMethod($this, $method);
+                            instanciator()->call($this, $method);
                         }
 
                         $method = lcfirst(Strings::camelize('boot_' . $traitName));
@@ -68,7 +71,14 @@
             static::$booted = [];
         }
 
-        public function fire($event, $concern = null, $return = false)
+        /**
+         * @param string $event
+         * @param null $concern
+         * @param bool $return
+         *
+         * @return null|mixed
+         */
+        public function fire(string $event, $concern = null, bool $return = false)
         {
             $methods = get_class_methods($this);
             $method  = 'on' . Strings::camelize($event);
@@ -258,7 +268,7 @@
             $result = call_user_func_array([$instance, $m], $a);
 
             if (
-                $m != 'lastId'
+                $m !== 'lastId'
                 && !fnmatch('*ith*', $m)
                 && (startsWith($m, 'find') || startsWith($m, 'first') || fnmatch('last*', $m))
             ) {
@@ -279,7 +289,7 @@
             $result = call_user_func_array([$instance, $m], $a);
 
             if (
-                $m != 'lastId'
+                $m !== 'lastId'
                 && !fnmatch('*ith*', $m)
                 && (startsWith($m, 'find') || startsWith($m, 'first') || fnmatch('last*', $m))
             ) {

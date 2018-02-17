@@ -3,7 +3,6 @@ namespace Octo;
 
 use Closure;
 use Exception as PHPException;
-use function is_object;
 use ReflectionFunction;
 
 class Instanciator
@@ -30,6 +29,11 @@ class Instanciator
         }
     }
 
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     public function factory()
     {
         $args   = func_get_args();
@@ -39,6 +43,11 @@ class Instanciator
         return is_string($class) ? $this->make($class, $args, false) : $this->makeClosure($class, $args);
     }
 
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     public function foundry()
     {
         $args   = func_get_args();
@@ -46,6 +55,11 @@ class Instanciator
         return $this->factory(...$args);
     }
 
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     public function singleton()
     {
         $args   = func_get_args();
@@ -66,7 +80,6 @@ class Instanciator
     {
         if ($i = $this->autowire($make)) {
             $binds[$make] = $this->resolver($i);
-//
             $this->binds($binds);
 
             return $i;
@@ -78,6 +91,7 @@ class Instanciator
         $callable   = isAke($binds, $make, null);
 
         if ($callable && is_callable($callable) && $singleton) {
+            if (\Container::class === $make) lvd($callable);
             return $callable();
         }
 
@@ -87,7 +101,7 @@ class Instanciator
             exception('Instanciator', $e->getMessage());
         }
 
-        $canMakeInstance    = $ref->isInstantiable();
+        $canMakeInstance = $ref->isInstantiable();
 
         if ($canMakeInstance) {
             $maker = $ref->getConstructor();
@@ -173,6 +187,8 @@ class Instanciator
 
     /**
      * @return mixed
+     *
+     * @throws \ReflectionException
      */
     public function invoker()
     {
@@ -181,11 +197,14 @@ class Instanciator
 
     /**
      * @return mixed
+     *
+     * @throws \ReflectionException
      */
     public function makeClosure()
     {
         $args       = func_get_args();
         $closure    = array_shift($args);
+
         $ref        = new ReflectionFunction($closure);
         $params     = $ref->getParameters();
 
@@ -245,6 +264,11 @@ class Instanciator
         }
     }
 
+    /**
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
     public function interact()
     {
         $args   = func_get_args();
@@ -254,6 +278,11 @@ class Instanciator
         return $this->call(...$params);
     }
 
+    /**
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
     public function call()
     {
         $args       = func_get_args();
@@ -310,6 +339,11 @@ class Instanciator
         return $this->resolve(...$args);
     }
 
+    /**
+     * @param null $concern
+     *
+     * @return mixed
+     */
     public function binds($concern = null)
     {
         $binds = Registry::get('core.all.binds', []);
@@ -330,6 +364,9 @@ class Instanciator
         return $this->binds();
     }
 
+    /**
+     * @return array
+     */
     public function getWires(): array
     {
         return Registry::get('core.wires', []);
@@ -338,7 +375,7 @@ class Instanciator
     /**
      * @param array $classes
      */
-    protected function registeredClasses(array $classes)
+    protected function registeredClasses(array $classes): void
     {
         $data = Registry::get('core.Fastcontainer.registered', []);
 
@@ -351,10 +388,9 @@ class Instanciator
 
     /***
      * @param string $concern
-     *
-     * @param $callable
+     * @param mixed $callable
      */
-    public function wire(string $concern, $callable)
+    public function wire(string $concern, $callable): void
     {
         if (!is_callable($callable)) {
             $callable = function () use ($callable) { return $callable; };
@@ -370,7 +406,7 @@ class Instanciator
     /**
      * @param string $file
      */
-    public function wiring(string $file)
+    public function wiring(string $file): void
     {
         if (is_file($file)) {
             $wires = include $file;
@@ -382,7 +418,7 @@ class Instanciator
     }
 
     /**
-     * @param $concern
+     * @param mixed $concern
      *
      * @return Instanciator
      */
@@ -482,6 +518,8 @@ class Instanciator
 
     /**
      * @return mixed|null
+     *
+     * @throws \ReflectionException
      */
     public function resolve()
     {

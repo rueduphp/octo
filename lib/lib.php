@@ -95,13 +95,10 @@
             $content = File::read($file);
 
             if ('controller' == $context) {
-                $controller = Registry::get('app.controller', null);
                 $content    = str_replace(['{{', '}}'], ['<?php $controller->e("', '");?>'], $content);
                 $content    = str_replace(['[[', ']]'], ['<?php $controller->trad("', '");?>'], $content);
 
                 $content    = Router::compile($content);
-            } else {
-                $controller = o($args);
             }
 
             $content = str_replace('$this->', '$controller->', $content);
@@ -158,6 +155,8 @@
     function twigRenderer($folder = null, array $config = [])
     {
         $debug = 'production' !== appenv('APPLICATION_ENV', 'production');
+
+        $cachePath = appenv('CACHE_PATH', path('app') . '/storage/cache') . '/twig';
 
         $defaultConfig = [
             'debug'         => $debug,
@@ -403,6 +402,11 @@
     function rdb($db, $table, $driver = null)
     {
         return lib('octalia', [$db, $table, lib('cacheredis', ["$db.$table"])]);
+    }
+
+    function cachingDb($db, $table, $driver = null)
+    {
+        return lib('octalia', [$db, $table, lib('caching', ["$db.$table"])]);
     }
 
     function ramdb($db, $table)
@@ -765,11 +769,6 @@
         return false;
     }
 
-    function isCli()
-    {
-        return PHP_SAPI === 'cli' || defined('STDIN');
-    }
-
     function cloudMail($to, $subject, $body, $headers, $sep = "\n")
     {
         $ch = curl_init(optGet("cloud.mail.url"));
@@ -1053,7 +1052,14 @@
         ? stripslashes($str) : $str), ENT_QUOTES))));
     }
 
-    function i64($field)
+    /**
+     * @param string $field
+     *
+     * @return null|string
+     *
+     * @throws \Exception
+     */
+    function i64(string $field): ?string
     {
         if (Arrays::exists($_FILES, $field)) {
             $fileupload         = $_FILES[$field]['tmp_name'];
@@ -1132,7 +1138,7 @@
         return file_get_contents($f);
     }
 
-    function session($context = 'web')
+    function session($context = 'web'): Session
     {
         return lib('session', [$context]);
     }
@@ -1147,6 +1153,17 @@
         {
             return Strings::lower($word) . str_replace(' ', '', ucwords(str_replace('_', ' ', $key)));
         }
+    }
+
+    /**
+     * @param string $word
+     * @param string $key
+     *
+     * @return string
+     */
+    function prefixed(string $word, string $key): string
+    {
+        return humanize($word, $key);
     }
 
     if (!function_exists('setter')) {
@@ -1239,26 +1256,42 @@
         return tap(...$args);
     }
 
-    function tap($value, callable $callback = null)
+    /**
+     * @param $value
+     * @param callable|null $callback
+     *
+     * @return Tap
+     *
+     * @throws \ReflectionException
+     */
+    function tap($value, ?callable $callback = null)
     {
         if (is_null($callback)) {
             return new Tap($value);
         }
 
-        $callback($value);
+        callCallable($callback, $value);
 
         return $value;
     }
 
-    function adapt($value, callable $callback = null)
+    /**
+     * @param $value
+     * @param callable|null $callback
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function adapt($value, ?callable $callback = null)
     {
-        return is_null($callback) ? $value : $callback($value);
+        return is_null($callback) ? $value : callCallable($callback, $value);
     }
 
     function catchRollback($value, callable $callback)
     {
         try {
-            return $callback($value);
+            return callCallable($callback, $value);
         } catch (\Exception $e) {
             return $value;
         }
@@ -1267,19 +1300,28 @@
     function catchIt($value, callable $callback)
     {
         try {
-            return $callback($value);
+            return callCallable($callback, $value);
         } catch (\Exception $e) {
             return $e;
         }
     }
 
+    /**
+     * @param $times
+     * @param callable $callback
+     * @param int $sleep
+     *
+     * @return mixed|null
+     *
+     * @throws \Exception
+     */
     function times($times, callable $callback, $sleep = 0)
     {
         $times--;
 
         beginning:
         try {
-            return $callback();
+            return callCallable($callback);
         } catch (\Exception $e) {
             if (!$times) {
                 throw $e;
@@ -1333,7 +1375,9 @@
 
     function ldd()
     {
-        call_user_func_array('\\dd', func_get_args());
+        lvd(...func_get_args());
+
+        exit;
     }
 
     function lvd()
@@ -1670,20 +1714,84 @@
     }
 
     /**
-     * @param string $ns
-     * @return mixed|string
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
      */
-    function forever($ns = 'user')
+    function callCallable()
     {
-        if (php_sapi_name() == 'cli' || PHP_SAPI == 'cli') {
-            return hash(File::read(__FILE__));
+        $args       = func_get_args();
+        $callable   = array_shift($args);
+
+        $params = !is_array($callable)
+            ? array_merge([$callable], $args)
+            : array_merge($callable, $args)
+        ;
+
+        return $callable instanceof Closure ?
+            instanciator()->makeClosure(...$params) :
+            instanciator()->call(...$params)
+        ;
+    }
+
+    /**
+     * @return bool
+     */
+    function isCli(): bool
+    {
+        return PHP_SAPI === 'cli' || php_sapi_name() === 'cli' || defined('STDIN');
+    }
+
+    /**
+     * @param string $ns
+     *
+     * @return string
+     */
+    function sessionKey(string $ns = 'session'): string
+    {
+        if (true === isCli()) {
+            return sha1(File::read(__FILE__) . $ns);
+        }
+
+        $ns = SITE_NAME . '_' . $ns;
+
+        $key = isAke($_COOKIE, $ns, null);
+
+        if (!$key) {
+            $key = sha1(uniqid(sha1(uniqid(null, true)), true));
+        }
+
+        setcookie($ns, $key, strtotime('+1 hour'), '/');
+
+        return $key;
+    }
+
+    /**
+     * @param string $ns
+     *
+     * @return string
+     */
+    function rememberKey(string $ns = 'user'): string
+    {
+        return forever($ns);
+    }
+
+    /**
+     * @param string $ns
+     *
+     * @return string
+     */
+    function forever(string $ns = 'user'): string
+    {
+        if (true === isCli()) {
+            return sha1(File::read(__FILE__) . $ns);
         }
 
         $ns         = SITE_NAME . '_' . $ns;
         $cookie     = isAke($_COOKIE, $ns, null);
 
         if (!$cookie) {
-            $cookie = uuid();
+            $cookie = sha1(uniqid(sha1(uniqid(null, true)), true));
         }
 
         setcookie($ns, $cookie, strtotime('+1 year'), '/');
@@ -1695,7 +1803,7 @@
      * @param string $context
      * @return string
      */
-    function locale($context = 'web')
+    function locale(string $context = 'web'): string
     {
         $language       = session($context)->getLanguage();
         $isCli          = false;
@@ -1733,16 +1841,17 @@
      * @param string $context
      * @return string
      */
-    function lng($context = 'web')
+    function lng(string $context = 'web'): string
     {
         return locale($context);
     }
 
     /**
      * @param array $data
+     *
      * @return Collection
      */
-    function coll($data = [])
+    function coll($data = []): Collection
     {
         $data = arrayable($data) ? $data->toArray() : $data;
 
@@ -1752,19 +1861,23 @@
     /**
      * @param string|null $ns
      * @param string|null $dir
+     *
      * @return Cache
      */
-    function kh($ns = null, $dir = null)
+    function kh(?string $ns = null, ?string $dir = null)
     {
         return fmr($ns, $dir);
     }
 
     /**
-     * @param string|null $ns
-     * @param string|null $dir
+     * @param null|string $ns
+     * @param null|string $dir
+     *
      * @return Cache
+     *
+     * @throws Exception
      */
-    function fmr($ns = null, $dir = null)
+    function fmr(?string $ns = null, ?string $dir = null)
     {
         if ($cache = conf($ns . '.fmr.instance')) {
             return $cache;
@@ -1774,11 +1887,22 @@
     }
 
     /**
+     * @param string $ns
+     *
+     * @return Caching
+     */
+    function caching(string $ns = 'core')
+    {
+        return new Caching($ns);
+    }
+
+    /**
      * @param string|null $ns
      * @param array $data
+     *
      * @return Now
      */
-    function stock($ns = null, $data = [])
+    function stock(?string $ns = null, $data = [])
     {
         return new Now($ns, $data);
     }
@@ -1787,19 +1911,31 @@
      * @param string $from
      * @param string $to
      * @param string $subject
+     *
      * @return string
      */
-    function srf($from, $to, $subject)
+    function srf(string $from, string $to, string $subject): string
     {
         return str_replace_first($from, $to, $subject);
     }
 
-    function lite($ns = null)
+    /**
+     * @param null|string $ns
+     *
+     * @return Cachelite
+     */
+    function lite(?string $ns = null)
     {
         return new Cachelite($ns);
     }
 
-    function mem($ns = null, $dir = null)
+    /**
+     * @param null|string $ns
+     * @param null|string $dir
+     *
+     * @return OctaliaMemory
+     */
+    function mem(?string $ns = null, ?string $dir = null)
     {
         return new OctaliaMemory($ns, $dir);
     }
@@ -1808,9 +1944,10 @@
      * @param string $from
      * @param string $to
      * @param string $subject
+     *
      * @return string
      */
-    function str_replace_first($from, $to, $subject)
+    function str_replace_first(string $from, string $to, string $subject): string
     {
         $from = '/' . preg_quote($from, '/') . '/';
 
@@ -1907,10 +2044,12 @@
      * @param array $args
      * @param bool $singleton
      *
-     * @return object
+     * @return mixed|object
      */
-    function lib($lib, $args = [], $singleton = false)
+    function lib(string $lib, $args = [], bool $singleton = false)
     {
+        $args = arrayable($args) ? $args->toArray() : $args;
+
         try {
             $class = '\\Octo\\' . Strings::camelize($lib);
 
@@ -1926,9 +2065,9 @@
                 }
             }
 
-            return maker($class, $args, $singleton);
+            return instanciator()->make($class, $args, $singleton);
         } catch (\Exception $e) {
-            return maker($lib, $args, $singleton);
+            return instanciator()->make($lib, $args, $singleton);
         }
     }
 
@@ -3792,21 +3931,27 @@
         return maker($make, $params, false);
     }
 
-    /**
-     * @param Closure $a
-     * @param Closure $b
-     *
-     * @return bool
-     */
-    function sameClosures(Closure $a, Closure $b)
+    function sameClosures()
     {
-        $ref1 = new ReflectionFunction($a);
-        $ref2 = new ReflectionFunction($b);
+        $closures = func_get_args();
 
-        $hash1 = sha1($ref1->getFileName() . $ref1->getStartLine() . $ref1->getEndLine());
-        $hash2 = sha1($ref2->getFileName() . $ref2->getStartLine() . $ref2->getEndLine());
+        $hashes = [];
 
-        return $hash1 === $hash2;
+        foreach ($closures as $closure) {
+            $ref = new ReflectionFunction($closure);
+
+            $hashed = sha1($ref->getFileName() . $ref->getStartLine() . $ref->getEndLine());
+
+            if (!empty($hashes)) {
+                if (!in_array($hashed, $hashes)) {
+                    return false;
+                }
+            } else {
+                $hashes[] = $hashed;
+            }
+        }
+
+        return true;
     }
 
     function next()
@@ -3956,12 +4101,13 @@
 
     /**
      * @return FastLog
+     *
+     * @throws \ReflectionException
      */
     function getLog()
     {
         return app()->resolve(FastLog::class);
     }
-
 
     /**
      * @return FastRouteRouter
@@ -3969,6 +4115,39 @@
     function getRouter()
     {
         return actual('fast.router');
+    }
+
+    function dataget($target, $key, $default = null)
+    {
+        if (is_null($key)) {
+            return $target;
+        }
+
+        $key = is_array($key) ? $key : explode('.', $key);
+
+        while (!is_null($segment = array_shift($key))) {
+            if ($segment === '*') {
+                if ($target instanceof Collection) {
+                    $target = $target->all();
+                } elseif (!is_array($target)) {
+                    return value($default);
+                }
+
+                $result = Arrays::pluck($target, $key);
+
+                return in_array('*', $key) ? Arrays::collapse($result) : $result;
+            }
+
+            if (Arrays::accessible($target) && Arrays::exists($target, $segment)) {
+                $target = $target[$segment];
+            } elseif (is_object($target) && isset($target->{$segment})) {
+                $target = $target->{$segment};
+            } else {
+                return value($default);
+            }
+        }
+
+        return $target;
     }
 
     function superdi()
@@ -4097,6 +4276,10 @@
         return instanciator()->make(...func_get_args());
     }
 
+    /**
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
     function callMethod()
     {
         return instanciator()->call(...func_get_args());
@@ -4836,6 +5019,28 @@
         return subscribe(...func_get_args());
     }
 
+    function only()
+    {
+        /** @var array $keys */
+        $keys = func_get_args();
+
+        /** @var array $items */
+        $items = array_shift($keys);
+
+        return Arrays::only($items, $keys);
+    }
+
+    function except()
+    {
+        /** @var array $keys */
+        $keys = func_get_args();
+
+        /** @var array $items */
+        $items = array_shift($keys);
+
+        return Arrays::except($items, $keys);
+    }
+
     function broadcast($event, callable $cb)
     {
         $events = Registry::get('core.events', []);
@@ -4901,19 +5106,33 @@
         return false;
     }
 
-    function code($text)
+    /**
+     * @param string $text
+     *
+     * @return string
+     */
+    function code(string $text): string
     {
         return str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
     }
 
     /**
      * @return FastEvent
+     *
+     * @throws \ReflectionException
      */
     function getEventManager()
     {
         return instanciator()->singleton(FastEvent::class);
     }
 
+    /**
+     * @param $value
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
     function value($value)
     {
         return File::value($value);
@@ -4978,7 +5197,7 @@
     {
         $config = !is_array($config) ? ['driver' => 'imagick'] : $config;
 
-        return maker(\Intervention\Image\ImageManager::class, [$config]);
+        return instanciator()->make(\Intervention\Image\ImageManager::class, [$config]);
     }
 
     function imgResize($source_file, $dest_dir, $max_w, $max_h, $stamp_file = null)
@@ -5976,15 +6195,20 @@
         return Routes::isRoute($name, $args);
     }
 
-    function urlFor($name, array $args = [])
+    /**
+     * @param string $routeName
+     * @param array $params
+     *
+     * @return string
+     */
+    function urlFor(string $routeName, array $params = []): string
     {
-        $url = Routes::url($name, $args);
+        /**
+         * @var $fastRouter FastRouteRouter
+         */
+        $fastRouter = getContainer()->define("router");
 
-        if (!$url) {
-            $url = $name;
-        }
-
-        return WEBROOT . '/' . trim($url, '/');
+        return $fastRouter->generateUri($routeName, $params);
     }
 
     function url($name, array $args = [])
@@ -6437,6 +6661,20 @@
     }
 
     /**
+     * @param null|Live $live
+     *
+     * @return null|Live
+     */
+    function live(?Live $live = null)
+    {
+        if ($live instanceof Live) {
+            actual('core.live', $live);
+        }
+
+        return actual('core.live');
+    }
+
+    /**
      * @return mixed|null
      */
     function actual()
@@ -6836,6 +7074,15 @@
         return $dic;
     }
 
+    /**
+     * @param $k
+     * @param string $v
+     *
+     * @return $this|mixed
+     *
+     * @throws Exception
+     * @throws \Exception
+     */
     function once($k, $v = 'octodummy')
     {
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
@@ -6851,6 +7098,15 @@
         return $value;
     }
 
+    /**
+     * @param $k
+     * @param string $v
+     *
+     * @return $this|mixed
+     *
+     * @throws Exception
+     * @throws \Exception
+     */
     function keep($k, $v = 'octodummy')
     {
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
@@ -6862,6 +7118,14 @@
         return fmr('keep')->get($key);
     }
 
+    /**
+     * @param $k
+     *
+     * @return bool
+     *
+     * @throws Exception
+     * @throws \Exception
+     */
     function unkeep($k)
     {
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
@@ -6876,10 +7140,12 @@
         if ($driver && is_object($driver)) {
             $class = get_class($driver);
 
-            if ($class == Now::class) {
+            if ($class === Now::class) {
                 return 'Octo\\ndb';
-            } else if ($class == Cacheredis::class) {
+            } else if ($class === Cacheredis::class) {
                 return 'Octo\\rdb';
+            } else if ($class === Caching::class) {
+                return 'Octo\\cachingDb';
             }
         }
 
@@ -6905,6 +7171,21 @@
     function entity($model, array $data = [])
     {
         return em($model)->model($data);
+    }
+
+    /**
+     * @param string $db
+     * @param string $table
+     *
+     * @return Octalia
+     *
+     * @throws Exception
+     */
+    function driverDb(string $db,string  $table): Octalia
+    {
+        $driver = orm()->driver;
+
+        return new Octalia($db, $table, $driver);
     }
 
     function em($model, $engine = 'engine', $force = false)
@@ -7079,12 +7360,25 @@
         return $mailer->send($message);
     }
 
-    function message($swift = null)
+    /**
+     * @param null|\Swift_Message $swift
+     *
+     * @return Mailable
+     */
+    function message(?\Swift_Message $swift = null)
     {
         return foundry(Mailable::class, $swift);
     }
 
-    function mailer()
+    /**
+     * @return \Swift_Mailer
+     */
+    function mailer(): \Swift_Mailer
+    {
+        return getContainer()['mailer'] ?? (new Sender())->sendmail();
+    }
+
+    function mailerSwift()
     {
         $mailer = conf('MAILER_DRIVER', 'php'); /* smtp, sendmail, php */
 
@@ -7358,7 +7652,15 @@
         return false;
     }
 
-    function resolverClass($class, $sep = '@')
+    /**
+     * @param string $class
+     * @param string $sep
+     *
+     * @return Closure|mixed|object
+     *
+     * @throws \ReflectionException
+     */
+    function resolverClass(string $class, string $sep = '@')
     {
         if (is_invokable($class)) {
             return instanciator()->factory($class);
@@ -7366,11 +7668,12 @@
 
         return function() use ($class, $sep) {
             $segments   = explode($sep, $class);
-            $method     = count($segments) == 2 ? $segments[1] : 'handle';
-            $callable   = [maker($segments[0]), $method];
+            $method     = count($segments) === 2 ? $segments[1] : 'handle';
+            $callable   = [instanciator()->factory($segments[0]), $method];
             $data       = func_get_args();
+            $params     = array_merge($callable, $data);
 
-            return call_user_func_array($callable, $data);
+            return instanciator()->call(...$params);
         };
     }
 
@@ -7902,8 +8205,9 @@
      * @return string
      *
      * @throws \Exception
+     * @throws \ReflectionException
      */
-    function blader(string $str, array $data = [])
+    function blader(string $str, array $data = []): string
     {
         $blade          = instanciator()->singleton(FastBladeCompiler::class);
         $parsed_string  = $blade->compileString($str);
@@ -7923,16 +8227,30 @@
         return $str;
     }
 
-    function be($user, $ns = 'web')
+    /**
+     * @param $value
+     * @return array
+     */
+    function wrap($value): array
+    {
+        return !is_array($value) ? [$value] : $value;
+    }
+
+    function be($user)
     {
         $user = arrayable($user) ? $user->toArray() : $user;
 
-        session($ns)->setUser($user);
+        live()['user'] = $user;
     }
 
+    /**
+     * @return \GuzzleHttp\Client
+     *
+     * @throws \ReflectionException
+     */
     function client()
     {
-        return maker(\GuzzleHttp\Client::class, [], false);
+        return instanciator()->singleton(\GuzzleHttp\Client::class, [], false);
     }
 
     function itOr($a, $b)

@@ -18,7 +18,12 @@
             return new self;
         }
 
-        public function in($dir)
+        /**
+         * @param string $dir
+         * @return $this
+         * @throws Exception
+         */
+        public function in(string $dir)
         {
             if (!is_dir($dir)) {
                 throw new Exception("$dir is not a valid directory.");
@@ -198,12 +203,12 @@
             return false;
         }
 
-        public function first($model = false)
+        public function first()
         {
             return self::getInfo(current($this->getIterator()));
         }
 
-        public function last($model = false)
+        public function last()
         {
             $i  =  $this->getIterator();
 

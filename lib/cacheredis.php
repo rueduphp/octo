@@ -1,9 +1,7 @@
 <?php
     namespace Octo;
 
-    use function str_replace;
-
-    class Cacheredis
+    class Cacheredis implements FastCacheInterface
     {
         use Notifiable;
 
@@ -182,22 +180,46 @@
             return value($d);
         }
 
-        public function forever($k, $v)
+        /**
+         * @param string $k
+         * @param callable $c
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
+        public function forever(string $k, callable $c)
         {
-            return $this->set($k, $v);
+            return $this->getOr($k, $c);
         }
 
+        /**
+         * @param $k
+         * @param callable $c
+         * @param null $e
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function getOr($k, callable $c, $e = null)
         {
             $res = $this->get($k, 'octodummy');
 
             if ('octodummy' === $res) {
-                $this->set($k, $res = $c(), $e);
+                $this->set($k, $res = instanciator()->makeClosure($c), $e);
             }
 
             return $res;
         }
 
+        /**
+         * @param $k
+         * @param $c
+         * @param null $e
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         public function remember($k, $c, $e = null)
         {
             if (!is_callable($c)) {
@@ -226,7 +248,9 @@
         {
             $user       = session('web')->getUser();
             $isLogged   = !is_null($user);
-            $key        = $isLogged ? sha1(lng() . '.' . forever() . '1.' . $k) :  sha1(lng() . '.' . forever() . '0.' . $k);
+            $key        = $isLogged ?
+                sha1(lng() . '.' . forever() . '1.' . $k) :
+                sha1(lng() . '.' . forever() . '0.' . $k);
 
             return 'dummyget' === $v ? $this->get($key) : $this->set($key, $v, $e);
         }
@@ -350,8 +374,9 @@
 
         /**
          * @param string $pattern
-         *
          * @return int
+         *
+         * @throws \Exception
          */
         public function flush($pattern = '*')
         {

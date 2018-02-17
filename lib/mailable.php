@@ -1,9 +1,11 @@
 <?php
     namespace Octo;
 
+    use Swift_Mailer;
     use Swift_Message;
     use Swift_Image;
     use Swift_Attachment;
+    use Swift_Mime_Attachment;
 
     class Mailable
     {
@@ -20,7 +22,7 @@
          * @param  \Swift_Message|null  $swift
          * @return void
          */
-        public function __construct(Swift_Message $swift = null)
+        public function __construct(?Swift_Message $swift = null)
         {
             $swift = is_null($swift) ? Swift_Message::newInstance() : $swift;
             $this->swift = $swift;
@@ -31,6 +33,7 @@
          *
          * @param  string|array  $address
          * @param  string|null  $name
+         *
          * @return $this
          */
         public function from($address, $name = null)
@@ -45,6 +48,7 @@
          *
          * @param  string|array  $address
          * @param  string|null  $name
+         *
          * @return $this
          */
         public function sender($address, $name = null)
@@ -58,6 +62,7 @@
          * Set the "return path" of the message.
          *
          * @param  string  $address
+         *
          * @return $this
          */
         public function returnPath($address)
@@ -73,6 +78,7 @@
          * @param  string|array  $address
          * @param  string|null  $name
          * @param  bool  $override
+         *
          * @return $this
          */
         public function to($address, $name = null, $override = false)
@@ -182,12 +188,10 @@
         }
 
         /**
-         * Create a Swift Attachment instance.
-         *
-         * @param  string  $file
-         * @return \Swift_Attachment
+         * @param string $file
+         * @return Swift_Mime_Attachment
          */
-        protected function createAttachmentFromPath($file)
+        protected function createAttachmentFromPath(string $file): Swift_Mime_Attachment
         {
             return Swift_Attachment::fromPath($file);
         }
@@ -208,37 +212,32 @@
         }
 
         /**
-         * Create a Swift Attachment instance from data.
-         *
-         * @param  string  $data
-         * @param  string  $name
-         * @return \Swift_Attachment
+         * @param $data
+         * @param $name
+         * @return Swift_Mime_Attachment
          */
-        protected function createAttachmentFromData($data, $name)
+        protected function createAttachmentFromData($data, $name): Swift_Mime_Attachment
         {
             return Swift_Attachment::newInstance($data, $name);
         }
 
         /**
-         * Embed a file in the message and get the CID.
-         *
-         * @param  string  $file
+         * @param string $file
          * @return string
          */
-        public function embed($file)
+        public function embed(string $file): string
         {
             return $this->swift->embed(Swift_Image::fromPath($file));
         }
 
         /**
-         * Embed in-memory data in the message and get the CID.
+         * @param string $data
+         * @param string $name
+         * @param null|string $contentType
          *
-         * @param  string  $data
-         * @param  string  $name
-         * @param  string|null  $contentType
          * @return string
          */
-        public function embedData($data, $name, $contentType = null)
+        public function embedData(string $data, string $name, ?string $contentType = null): string
         {
             $image = Swift_Image::newInstance($data, $name, $contentType);
 
@@ -246,13 +245,12 @@
         }
 
         /**
-         * Prepare and attach the given attachment.
+         * @param Swift_Attachment $attachment
+         * @param array $options
          *
-         * @param  \Swift_Attachment  $attachment
-         * @param  array  $options
-         * @return $this
+         * @return Mailable
          */
-        protected function prepAttachment($attachment, $options = [])
+        protected function prepAttachment(Swift_Attachment $attachment, array $options = []): self
         {
             if (isset($options['mime'])) {
                 $attachment->setContentType($options['mime']);
@@ -272,7 +270,7 @@
          *
          * @return \Swift_Message
          */
-        public function getSwiftMessage()
+        public function getSwiftMessage(): Swift_Message
         {
             return $this->swift;
         }
@@ -282,19 +280,31 @@
          *
          * @return \Swift_Message
          */
-        public function __invoke()
+        public function __invoke(): Swift_Message
         {
             return $this->swift;
         }
 
-        public function send($mailer = null)
+        /**
+         * @param null|Swift_Mailer $mailer
+         *
+         * @return int
+         */
+        public function send(?Swift_Mailer $mailer = null): int
         {
-            $mailer = $mailer ?: mailer();
+            /** @var Swift_Mailer $mailer */
+            $mailer = $mailer ?: getContainer()['mailer'];
 
             return $mailer->send($this->swift);
         }
 
-        public function view($path, $args = [])
+        /**
+         * @param string $path
+         * @param array $args
+         *
+         * @return Mailable
+         */
+        public function view(string $path, array $args = []): self
         {
             $view = vue($path, $args);
 
@@ -317,9 +327,10 @@
          *
          * @param  string  $method
          * @param  array  $parameters
+         *
          * @return mixed
          */
-        public function __call($method, $parameters)
+        public function __call(string $method, array $parameters)
         {
             $callable = [$this->swift, $method];
 

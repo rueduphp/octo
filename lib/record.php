@@ -3,10 +3,11 @@
 
     use ArrayAccess;
     use ArrayObject;
+    use function func_get_args;
 
     class Record extends ArrayObject implements ArrayAccess
     {
-        use Notifiable;
+        use Notifiable, Eventable;
 
         /**
          * @var Entity
@@ -16,8 +17,10 @@
 
         /**
          * @param array $data
-         * @param Entity $entity
+         * @param $entity
          * @param bool $isProxy
+         *
+         * @throws \ReflectionException
          */
         public function __construct(array $data = [], $entity, $isProxy = false)
         {
@@ -44,13 +47,17 @@
                     $method     = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
 
                     if (in_array($method, $methods)) {
-                        call_user_func_array([$entity, $method], [$this]);
+                        $params = [$entity, $method, $this];
+
+                        return instanciator()->call(...$params);
                     }
 
                     $method = lcfirst(Strings::camelize('boot_' . $traitName));
 
                     if (in_array($method, $methods)) {
-                        forward_static_call([$entity, $method]);
+                        $params = [$entity, $method, $this];
+
+                        return instanciator()->call(...$params);
                     }
                 }
             }
@@ -62,6 +69,10 @@
             }
         }
 
+        /**
+         * @param $data
+         * @throws \ReflectionException
+         */
         public function proxy($data)
         {
             $class = str_replace('\\', '_', get_class($this->entity)) . 'Record';
@@ -82,8 +93,9 @@
 
         /**
          * @return Orm
+         * @throws \ReflectionException
          */
-        public function db()
+        public function db(): Orm
         {
             return instanciator()->factory(Orm::class)->table($this->entity->table());
         }
@@ -91,11 +103,13 @@
         /**
          * @param callable $cb
          *
-         * @return bool|Record
+         * @return mixed|null|Record
+         *
+         * @throws \ReflectionException
          */
         public function checkAndSave(callable $cb)
         {
-            $check = $cb($this);
+            $check = callCallable($cb, $this);
 
             if (true === $check) {
                 return $this->save();
@@ -130,7 +144,15 @@
             return coll($this->data);
         }
 
-        public function __call($m, $a)
+        /**
+         * @param string $m
+         * @param array $a
+         *
+         * @return array|mixed|null|Record
+         *
+         * @throws \ReflectionException
+         */
+        public function __call(string $m, array $a)
         {
             if ('array' === $m) {
                 return $this->toArray();
@@ -140,7 +162,9 @@
 
             if ($c) {
                 if (is_callable($c)) {
-                    return call_user_func_array($c, array_merge($a, [$this]));
+                    $params = array_merge([$c], array_merge($a, [$this]));
+
+                    return callCallable(...$params);
                 }
             } else {
                 if ($m === 'new') {
@@ -274,7 +298,9 @@
                 $method = '\\Octo\\' . $m;
 
                 if (function_exists($method)) {
-                    return call_user_func_array($method, $a);
+                    $params = array_merge([$method], $a);
+
+                    return callCallable(...$params);
                 }
             }
         }
@@ -653,35 +679,45 @@
             return null;
         }
 
-        public function sync(Record $record)
+        public function sync($records)
         {
-            if ($this->exists() && $record->exists()) {
-                $tables = [$this->entity->table(), $record->entity()->table()];
+            $records = !is_array($records) ? func_get_args() : $records;
 
-                sort($tables);
+            foreach ($records as $record) {
+                if ($this->exists() && $record->exists()) {
+                    $tables = [$this->entity->table(), $record->entity()->table()];
 
-                $pivot = implode('', $tables);
+                    sort($tables);
 
-                $pivotEntity = actual("orm.entity.$pivot");
+                    $pivot = implode('', $tables);
 
-                if (!$pivotEntity) {
-                    $pivotEntity = (new Entity)->setTable($pivot);
+                    $pivotEntity = actual("orm.entity.$pivot");
+
+                    if (!$pivotEntity) {
+                        $pivotEntity = (new Entity)->setTable($pivot);
+                    }
+
+                    $getter = getter($this->entity->pk());
+
+                    $idValue = $this->$getter();
+
+                    $pivotEntity
+                        ->delete()
+                        ->where($this->entity->table() . '_id', $idValue)
+                        ->run()
+                    ;
+
+                    $getter = getter($record->entity()->pk());
+
+                    $idRecord = $record->$getter();
+
+                    $row = [
+                        $this->entity->table() . '_id'      => $idValue,
+                        $record->entity()->table() . '_id'  => $idRecord
+                    ];
+
+                    $pivotEntity->firstOrCreate($row);
                 }
-
-                $getter = getter($this->entity->pk());
-
-                $idValue = $this->$getter();
-
-                $getter = getter($record->entity()->pk());
-
-                $idRecord = $record->$getter();
-
-                $row = [
-                    $this->entity->table() . '_id'      => $idValue,
-                    $record->entity()->table() . '_id'  => $idRecord
-                ];
-
-                $pivotEntity->firstOrCreate($row);
             }
         }
 

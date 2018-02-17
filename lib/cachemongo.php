@@ -3,7 +3,7 @@
 
     use MongoClient as MGC;
 
-    class Cachemongo
+    class Cachemongo implements FastCacheInterface
     {
         use Notifiable;
 
@@ -236,17 +236,34 @@
             return value($d);
         }
 
-        public function forever($k, $v)
+        /**
+         * @param string $k
+         * @param callable $c
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
+        public function forever(string $k, callable $c)
         {
-            return $this->set($k, $v);
+            return $this->getOr($k, $c);
         }
 
+        /**
+         * @param $k
+         * @param callable $c
+         * @param null $e
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         public function getOr($k, callable $c, $e = null)
         {
             $res = $this->get($k, 'octodummy');
 
-            if ('octodummy' == $res) {
-                $this->set($k, $res = $c(), $e);
+            if ('octodummy' === $res) {
+                $this->set($k, $res = instanciator()->makeClosure($c), $e);
             }
 
             return $res;

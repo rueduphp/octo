@@ -10,7 +10,15 @@
 
         public $path, $ns, $db, $table, $query;
 
-        public function __construct($db = 'core', $table = 'core', $driver = null, $dir = null)
+        /**
+         * @param string $db
+         * @param string $table
+         * @param null $driver
+         * @param null $dir
+         *
+         * @throws Exception
+         */
+        public function __construct(string $db = 'core', string $table = 'core', $driver = null, $dir = null)
         {
             $dir            = empty($dir) ? conf('octalia.dir', session_save_path()) : $dir;
             $driver         = empty($driver) ? fmr("odb.$db.$table", $dir) : $driver;
@@ -689,11 +697,11 @@
                 if (Arrays::isAssoc($data)) {
                     foreach ($data as $k => $v) {
                         if ($k != 'id') {
-                            if ('true' == $v) {
+                            if ('true' === $v) {
                                 $v = true;
-                            } elseif ('false' == $v) {
+                            } elseif ('false' === $v) {
                                 $v = false;
-                            } elseif ('null' == $v) {
+                            } elseif ('null' === $v) {
                                 $v = null;
                             }
 
@@ -911,6 +919,14 @@
             );
         }
 
+        /**
+         * @param $m
+         * @param $a
+         *
+         * @return mixed|Octalia
+         *
+         * @throws \ReflectionException
+         */
         public function __call($m, $a)
         {
             $database   = $this->db;
@@ -923,28 +939,32 @@
                 $method     = 'scope' . ucfirst(Strings::camelize($m));
 
                 if (in_array($method, $methods)) {
-                    return call_user_func_array([$entity, $method], array_merge([$this], $a));
+                    $params = array_merge([$entity, $method], array_merge([$this], $a));
+
+                    return instanciator()->call(...$params);
                 }
 
                 $method = 'query' . ucfirst(Strings::camelize($m));
 
                 if (in_array($method, $methods)) {
-                    return call_user_func_array([$entity, $method], array_merge([$this], $a));
+                    $params = array_merge([$entity, $method], array_merge([$this], $a));
+
+                    return instanciator()->call(...$params);
                 }
             }
 
-            if ($m == 'is' && count($a) == 2) {
+            if ($m === 'is' && count($a) === 2) {
                 return $this->where(
                     current($a),
                     end($a)
                 );
             }
 
-            if ($m == 'resetted') {
+            if ($m === 'resetted') {
                 return new self($this->db, $this->table, $this->driver);
             }
 
-            if ($m == 'empty') {
+            if ($m === 'empty') {
                 $this->driver->set('rows', []);
 
                 $this->age(microtime(true));
@@ -954,7 +974,7 @@
                 return $this->resetted();
             }
 
-            if ($m == 'or') {
+            if ($m === 'or') {
                 if (empty($this->query)) {
                     exception('octalia', 'You must have at least one where clause before using the method or.');
                 }
@@ -974,7 +994,7 @@
                 return $this;
             }
 
-            if ($m == 'xor') {
+            if ($m === 'xor') {
                 if (empty($this->query)) {
                     exception('octalia', 'You must have at least one where clause before using the method xor.');
                 }
@@ -994,7 +1014,7 @@
                 return $this;
             }
 
-            if ($m == 'rawOr') {
+            if ($m === 'rawOr') {
                 if (empty($this->query)) {
                     exception('octalia', 'You must have at least one where clause before using the method rawOr.');
                 }
@@ -1014,7 +1034,7 @@
                 return $this;
             }
 
-            if ($m == 'rawXor') {
+            if ($m === 'rawXor') {
                 if (empty($this->query)) {
                     exception('octalia', 'You must have at least one where clause before using the method rawXor.');
                 }
@@ -1034,11 +1054,11 @@
                 return $this;
             }
 
-            if ($m == 'and') {
+            if ($m === 'and') {
                 return call_user_func_array([$this, 'where'], $a);
             }
 
-            if ($m == 'new') {
+            if ($m === 'new') {
                 $this->iterator(current($a));
 
                 return $this;
@@ -1051,7 +1071,7 @@
                 return $this->like($field, $value);
             }
 
-            if ($m == 'list') {
+            if ($m === 'list') {
                 $field = array_shift($a);
 
                 if (!$field) {
@@ -1087,7 +1107,7 @@
 
                 $op = '=';
 
-                if (count($a) == 2) {
+                if (count($a) === 2) {
                     $op     = array_shift($a);
                     $value  = array_shift($a);
                 } else {
@@ -1102,7 +1122,7 @@
 
                 $op = '=';
 
-                if (count($a) == 2) {
+                if (count($a) === 2) {
                     $op     = array_shift($a);
                     $value  = array_shift($a);
                 } else {
@@ -1117,7 +1137,7 @@
 
                 $op = '=';
 
-                if (count($a) == 2) {
+                if (count($a) === 2) {
                     $op     = array_shift($a);
                     $value  = array_shift($a);
                 } else {
@@ -1190,7 +1210,7 @@
                 return $this->lastBy($field, $value, $model);
             }
 
-            if (count($a) == 1) {
+            if (count($a) === 1) {
                 $o = array_shift($a);
 
                 if ($o instanceof Object) {
@@ -1220,7 +1240,12 @@
             return call_user_func_array([coll($data), $m], $a);
         }
 
-        public function first($model = true)
+        /**
+         * @param bool $model
+         *
+         * @return null
+         */
+        public function first(bool $model = true)
         {
             $i  = $this->iterator();
             $id = current($i);

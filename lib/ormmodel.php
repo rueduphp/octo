@@ -1,7 +1,9 @@
 <?php
     namespace Octo;
 
-    class Ormmodel extends \Illuminate\Database\Eloquent\Model implements FastModelInterface
+    use Illuminate\Database\Eloquent\Model as EloquentModel;
+
+    class Ormmodel extends EloquentModel implements FastModelInterface
     {
         protected $guarded  = [];
 

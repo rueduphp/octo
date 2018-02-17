@@ -33,9 +33,9 @@
         {
             list($driver, $m) = explode('_', Strings::uncamelize($m), 2);
 
-            if ($driver == 'array') {
+            if ($driver === 'array') {
                 $driver = 'now';
-            } elseif ($driver == 'file') {
+            } elseif ($driver === 'file') {
                 $driver = 'cache';
             }
 

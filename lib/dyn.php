@@ -36,6 +36,14 @@
             return $this->native;
         }
 
+        /**
+         * @param $m
+         * @param $a
+         *
+         * @return mixed|null|Dyn
+         *
+         * @throws \ReflectionException
+         */
         public function __call($m, $a)
         {
             $c = isAke($this->events, $m, null);
@@ -48,16 +56,22 @@
                     if (!$has_method) {
                         $args = array_merge($a, [$this]);
 
-                        return call_user_func_array($c, $args);
-                    } else {
-                        $res = call_user_func_array([$this->native, $m], $a);
+                        $params = array_merge([$c], $args);
 
-                        return call_user_func_array($c, [$res]);
+                        return callCallable(...$params);
+                    } else {
+                        $params = array_merge([$this->native, $m], $a);
+
+                        $res = instanciator()->call(...$params);
+
+                        return callCallable($c, $res);
                     }
                 }
             } else {
                 if (!is_null($this->native)) {
-                    return call_user_func_array([$this->native, $m], $a);
+                    $params = array_merge([$this->native, $m], $a);
+
+                    return instanciator()->call(...$params);
                 } else {
                     if (!empty($a)) {
                         $c = current($a);

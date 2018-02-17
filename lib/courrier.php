@@ -23,7 +23,9 @@
         /** @var mixed */
         private $html;
 
-
+        /**
+         * @throws Exception
+         */
         public function __construct()
         {
             foreach (static::$defaultHeaders as $name => $value) {
@@ -43,7 +45,15 @@
             echo $this->getSubject();
         }
 
-        public function setFrom($email, $name = null)
+        /**
+         * @param string $email
+         * @param null|string $name
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function setFrom(string $email, ?string $name = null): self
         {
             $this->setHeader('From', $this->formatEmail($email, $name));
 
@@ -55,14 +65,29 @@
             return $this->getHeader('From');
         }
 
-        public function addReplyTo($email, $name = NULL)
+        /**
+         * @param string $email
+         * @param null|string $name
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function addReplyTo(string $email, ?string $name = null): self
         {
             $this->setHeader('Reply-To', $this->formatEmail($email, $name), true);
 
             return $this;
         }
 
-        public function setSubject($subject)
+        /**
+         * @param string $subject
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function setSubject(string $subject): self
         {
             $this->setHeader('Subject', $subject);
 
@@ -77,28 +102,58 @@
             return $this->getHeader('Subject');
         }
 
-        public function addTo($email, $name = NULL) // addRecipient()
+        /**
+         * @param string $email
+         * @param null|string $name
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function addTo(string $email, ?string $name = null): self
         {
             $this->setHeader('To', $this->formatEmail($email, $name), true);
 
             return $this;
         }
 
-        public function addCc($email, $name = NULL)
+        /**
+         * @param string $email
+         * @param null|string $name
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function addCc(string $email, ?string $name = null): self
         {
             $this->setHeader('Cc', $this->formatEmail($email, $name), true);
 
             return $this;
         }
 
-        public function addBcc($email, $name = null)
+        /**
+         * @param string $email
+         * @param null|string $name
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function addBcc(string $email, ?string $name = null): self
         {
             $this->setHeader('Bcc', $this->formatEmail($email, $name), true);
 
             return $this;
         }
 
-        private function formatEmail($email, $name)
+        /**
+         * @param string $email
+         * @param string $name
+         *
+         * @return array
+         */
+        protected function formatEmail(string $email, string $name): array
         {
             if (!$name && preg_match('#^(.+) +<(.*)>\z#', $email, $matches)) {
                 return [$matches[2] => $matches[1]];
@@ -107,31 +162,59 @@
             }
         }
 
-        public function setReturnPath($email)
+        /**
+         * @param string $email
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function setReturnPath(string $email): self
         {
             $this->setHeader('Return-Path', $email);
 
             return $this;
         }
 
+        /**
+         * @return mixed|null
+         */
         public function getReturnPath()
         {
             return $this->getHeader('Return-Path');
         }
 
-        public function setPriority($priority)
+        /**
+         * @param int $priority
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function setPriority(int $priority): self
         {
             $this->setHeader('X-Priority', (int) $priority);
 
             return $this;
         }
 
+        /**
+         * @return mixed|null
+         */
         public function getPriority()
         {
             return $this->getHeader('X-Priority');
         }
 
-        public function setHtmlBody($html, $basePath = null)
+        /**
+         * @param string $html
+         * @param null|string $basePath
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function setHtmlBody(string $html, ?string $basePath = null): self
         {
             $html = (string) $html;
 
@@ -182,12 +265,24 @@
             return $this;
         }
 
+        /**
+         * @return mixed
+         */
         public function getHtmlBody()
         {
             return $this->html;
         }
 
-        public function addEmbeddedFile($file, $content = null, $contentType = null)
+        /**
+         * @param string $file
+         * @param null|string $content
+         * @param null|string $contentType
+         *
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        public function addEmbeddedFile(string $file, ?string $content = null, ?string $contentType = null): self
         {
             return $this->inlines[$file] =
                 $this->createAttachment(
@@ -201,14 +296,28 @@
                 );
         }
 
-        public function addInlinePart(MimePart $part)
+        /**
+         * @param MimePart $part
+         *
+         * @return Courrier
+         */
+        public function addInlinePart(MimePart $part): self
         {
             $this->inlines[] = $part;
 
             return $this;
         }
 
-        public function addAttachment($file, $content = null, $contentType = null)
+        /**
+         * @param string $file
+         * @param null|string $content
+         * @param null|string $contentType
+         *
+         * @return MimePart
+         *
+         * @throws Exception
+         */
+        public function addAttachment(string $file, ?string $content = null, ?string $contentType = null): MimePart
         {
             return $this->attachments[] = $this->createAttachment(
                 $file,
@@ -218,13 +327,30 @@
             );
         }
 
+        /**
+         * @return array
+         */
         public function getAttachments()
         {
             return $this->attachments;
         }
 
-        private function createAttachment($file, $content, $contentType, $disposition)
-        {
+        /**
+         * @param string $file
+         * @param string $content
+         * @param string $contentType
+         * @param string $disposition
+         *
+         * @return MimePart
+         *
+         * @throws Exception
+         */
+        protected function createAttachment(
+            string $file,
+            string $content,
+            string $contentType,
+            string $disposition
+        ): MimePart {
             $part = new MimePart;
 
             if ($content === null) {
@@ -245,12 +371,22 @@
             return $part;
         }
 
-        public function generateMessage()
+        /**
+         * @return string
+         *
+         * @throws Exception
+         */
+        public function generateMessage(): string
         {
             return $this->build()->getEncodedMessage();
         }
 
-        protected function build()
+        /**
+         * @return Courrier
+         *
+         * @throws Exception
+         */
+        protected function build(): self
         {
             $mail = clone $this;
             $mail->setHeader('Message-ID', $this->getRandomId());
@@ -298,7 +434,14 @@
             return $mail;
         }
 
-        protected function buildText($html)
+        /**
+         * @param string $html
+         *
+         * @return string
+         *
+         * @throws Exception
+         */
+        protected function buildText(string $html): string
         {
             $text = $this->replace($html, [
                 '#<(style|script|head).*</\\1>#Uis' => '',
@@ -314,15 +457,32 @@
             return trim($text);
         }
 
-        private function getRandomId()
+        /**
+         * @return string
+         */
+        private function getRandomId(): string
         {
             return '<' . token() . '@'
             . preg_replace('#[^\w.-]+#', '', isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : php_uname('n'))
             . '>';
         }
 
-        public function replace($subject, $pattern, $replacement = null, $limit = -1)
-        {
+        /**
+         * @param string $subject
+         * @param string $pattern
+         * @param null|string $replacement
+         * @param int $limit
+         *
+         * @return mixed
+         *
+         * @throws Exception
+         */
+        public function replace(
+            string $subject,
+            string $pattern,
+            ?string $replacement = null,
+            int $limit = -1
+        ) {
             if (is_object($replacement) || is_array($replacement)) {
                 if (!is_callable($replacement, false, $textual)) {
                     throw new Exception("Callback '$textual' is not callable.");
@@ -337,7 +497,15 @@
             return $this->pcre('preg_replace', [$pattern, $replacement, $subject, $limit]);
         }
 
-        public function pcre($func, $args)
+        /**
+         * @param string $func
+         * @param array $args
+         *
+         * @return mixed
+         *
+         * @throws Exception
+         */
+        public function pcre(string $func, array $args)
         {
             static $messages = [
                 PREG_INTERNAL_ERROR         => 'Internal error',
@@ -359,9 +527,16 @@
             return $res;
         }
 
-        public function invokeSafe($function, array $args, $onError)
+        /**
+         * @param string $function
+         * @param array $args
+         * @param callable $onError
+         *
+         * @return mixed
+         */
+        public function invokeSafe(string $function, array $args, callable $onError)
         {
-            set_error_handler(function ($severity, $message, $file) use ($onError, & $prev, $function) {
+            set_error_handler(function ($severity, $message, $file) use ($onError, &$prev, $function) {
                 if ($file === '' && defined('HHVM_VERSION')) {
                     $file = func_get_arg(5)[1]['file'];
                 }
@@ -369,8 +544,8 @@
                 if ($file === __FILE__) {
                     $msg = preg_replace("#^$function\(.*?\): #", '', $message);
 
-                    if ($onError($msg, $severity) !== false) {
-                        return;
+                    if ($status = $onError($msg, $severity) !== false) {
+                        return $status;
                     }
                 }
 

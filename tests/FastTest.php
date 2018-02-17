@@ -13,6 +13,7 @@
     use Octo\Octal;
     use Octo\Reflector;
     use Octo\Resolver;
+    use function Octo\sessionKey;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use Zend\Expressive\Router\FastRouteRouter;
@@ -66,6 +67,9 @@
          */
         private $renderer;
 
+        /**
+         * @param ContainerInterface $app
+         */
         public function config(ContainerInterface $app)
         {
             $app->phpRenderer(__DIR__ . DIRECTORY_SEPARATOR . 'views');
@@ -73,6 +77,9 @@
             $this->renderer = $app->getRenderer();
         }
 
+        /**
+         * @param $router
+         */
         public function routes($router)
         {
             $router
@@ -80,6 +87,11 @@
             ;
         }
 
+        /**
+         * @param myRequest $request
+         *
+         * @return mixed
+         */
         public function demo(myRequest $request)
         {
             return $this->renderer->render('demo', ['name' => 'test']);
@@ -104,11 +116,17 @@
          */
         private $app;
 
+        /**
+         * @param stdClassDummy $dummy
+         */
         public function __construct(stdClassDummy $dummy)
         {
             $this->dummy = $dummy;
         }
 
+        /**
+         * @param ContainerInterface $app
+         */
         public function config(ContainerInterface $app)
         {
             $app->twigRenderer(__DIR__ . DIRECTORY_SEPARATOR . 'twig');
@@ -124,7 +142,10 @@
             $this->renderer = $renderer;
         }
 
-        public function routes($router)
+        /**
+         * @param Objet $router
+         */
+        public function routes(Objet $router)
         {
             $router
                 ->addRoute('GET', '/test', [$this, 'test'])
@@ -137,29 +158,53 @@
             ;
         }
 
+        /**
+         * @param FastRequest $request
+         *
+         * @return string
+         */
         public function test(FastRequest $request)
         {
             return "OK";
         }
 
-        public function admin(FastRequest $request)
+        /**
+         * @param FastRequest $request
+         *
+         * @return string
+         */
+        public function admin(FastRequest $request): string
         {
             return "OK";
         }
 
-         public function slug(string $slug, FastUserOrmInterface $user)
+        /**
+         * @param string $slug
+         * @param FastUserOrmInterface $user
+         *
+         * @return string
+         */
+        public function slug(string $slug, FastUserOrmInterface $user): string
          {
             return $slug;
          }
 
-         public function data(int $id)
+        /**
+         * @param int $id
+         *
+         * @return string
+         */
+         public function data(int $id): string
          {
             $post = DataEntity::find($id);
 
             return $post->name;
          }
 
-        public function hello()
+        /**
+         * @return mixed
+         */
+         public function hello()
         {
             return $this->renderer->render('hello', ['name' => 'test']);
         }
@@ -178,7 +223,8 @@
         {
             parent::setUp();
 
-            $this->session = new Octo\Sessionarray;
+//            $this->session = new Octo\Sessionarray;
+            $this->session = new Live(new Now(sessionKey()));;
 
             $this->app = App::create();
 
@@ -264,11 +310,17 @@
             Config::set('octalia.engine', $this->engine);
         }
 
+        /**
+         * @throws Exception
+         */
         public function testFacader()
         {
             $this->assertSame(15, MyEvents::test(5, 3));
         }
 
+        /**
+         * @throws Exception
+         */
         public function testShare()
         {
             $shared = $this->instanciator()->shared(ShareClass::class);
@@ -277,6 +329,9 @@
             $this->assertSame(Fast::class, $shared->getName());
         }
 
+        /**
+         * @throws Exception
+         */
         public function testRequest()
         {
             $this
@@ -287,6 +342,9 @@
             ;
         }
 
+        /**
+         * @throws Exception
+         */
         public function testBag()
         {
             $this->app['test'] = 123;
@@ -313,12 +371,20 @@
             $this->app['test'] = 123;
         }
 
+        /**
+         * @throws Exception
+         */
         public function testNotEmptyAfterInstanciated()
         {
             $this->assertEquals(123, $this->app['test']);
             $this->assertEquals(123, $this->app->test);
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function Geo()
         {
             $_SERVER['REMOTE_ADDR'] = '77.207.10.26';
@@ -335,6 +401,11 @@
             $this->assertEquals('France', $geoloc->first()->getCountry()->getName());
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testNotFound()
         {
             $_SERVER['REQUEST_URI'] = '/dummy';
@@ -346,6 +417,11 @@
             $this->assertEquals(404, $this->app->getResponse()->getStatusCode());
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testAuth()
         {
             $_SERVER['REQUEST_URI'] = '/admin/foo';
@@ -358,6 +434,11 @@
             $this->assertEquals('/admin/login', current($response->getHeader('Location')));
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testTrailingSlashRedirect()
         {
             $_SERVER['REQUEST_URI'] = '/slug/foo/';
@@ -370,6 +451,11 @@
             $this->assertEquals('/slug/foo', current($response->getHeader('Location')));
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testAddModuleSimpleUrl()
         {
             $_SERVER['REQUEST_URI'] = '/test';
@@ -381,6 +467,11 @@
             $this->assertEquals('OK', (string) $response->getBody());
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testAddModuleArgsUrl()
         {
             $_SERVER['REQUEST_URI'] = '/slug/foo';
@@ -392,6 +483,11 @@
             $this->assertEquals('foo', (string) $response->getBody());
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testData()
         {
             DataEntity::store(['name' => 'test']);
@@ -404,6 +500,11 @@
             $this->assertEquals('test', (string) $response->getBody());
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testRedirect()
         {
             $_SERVER['REQUEST_URI'] = '/redirect';
@@ -416,6 +517,11 @@
             $this->assertTrue($this->app->isRedirection());
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testView()
         {
             $_SERVER['REQUEST_URI'] = '/view';
@@ -428,6 +534,11 @@
             $this->assertEquals('view test', (string) $response->getBody());
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testTwig()
         {
             $_SERVER['REQUEST_URI'] = '/hello';
@@ -439,6 +550,11 @@
             $this->assertEquals('<h1>Hello test <a href="/slug/foo">link</a></h1>', (string) $response->getBody());
         }
 
+        /**
+         * @throws Exception
+         * @throws ReflectionException
+         * @throws TypeError
+         */
         public function testPhpRenderer()
         {
             $_SERVER['REQUEST_URI'] = '/demo';
@@ -451,6 +567,9 @@
             $this->assertEquals('<h1>Hello test</h1>', (string) $response->getBody());
         }
 
+        /**
+         * @throws Exception
+         */
         public function testDirectAssignations()
         {
             $app = $this->app->dummy(1);
@@ -461,7 +580,10 @@
             $this->assertEquals(1, $app->is_dummy);
         }
 
-        function testCache()
+        /**
+         * @throws Exception
+         */
+        public function testCache()
         {
             $cache = $this->getContainer()->get(Octo\FastCacheInterface::class);
 
@@ -478,6 +600,9 @@
             $this->assertSame(10, $cache->get('number'));
         }
 
+        /**
+         * @throws Exception
+         */
         public function testContainer()
         {
             /** @var Octo\FastContainer $container */
@@ -501,6 +626,9 @@
             $this->assertInstanceOf(Fast::class, $this->getContainer()->self('fast'));
         }
 
+        /**
+         * @throws Exception
+         */
         public function testFlash()
         {
             $flash = $this->instanciator()->singleton(Flash::class);
@@ -529,6 +657,9 @@
             $this->incr('test', 8);
         }
 
+        /**
+         * @throws Exception
+         */
         public function testResolver()
         {
             $lazy = $this->lazy([$this, 'lazytest']);
@@ -542,6 +673,9 @@
             $this->assertSame(Resolver::factory(stdClass::class), Resolver::lazy(stdClass::class)());
         }
 
+        /**
+         * @throws Exception
+         */
         public function testBlade()
         {
             $str = '<h1>Test {{$name}}</h1>';

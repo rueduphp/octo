@@ -1,18 +1,38 @@
 <?php
     namespace Octo;
 
+    use Closure;
+    use SplFixedArray as SPA;
+
     class Arrays
     {
+        /**
+         * @var string
+         */
         public static $delimiter = '.';
 
+        /**
+         * @var array
+         */
         private static $resources = [];
 
-        public static function fixed(array $array = [])
+        /**
+         * @param array $array
+         *
+         * @return SPA
+         */
+        public static function fixed(array $array = []): SPA
         {
-            return \SplFixedArray::fromArray($array);
+            return SPA::fromArray($array);
         }
 
-        public static function makeResourceWithName($name, array $array = [])
+        /**
+         * @param string $name
+         * @param array $array
+         *
+         * @return bool|resource
+         */
+        public static function makeResourceWithName(string $name, array $array = [])
         {
             $resource = fopen("php://memory", 'r+');
             fwrite($resource, serialize($array));
@@ -22,7 +42,14 @@
             return $resource;
         }
 
-        public static function makeFromResourceName($name, $default = [], $unserialize = true)
+        /**
+         * @param string $name
+         * @param array $default
+         * @param bool $unserialize
+         *
+         * @return array|mixed|string
+         */
+        public static function makeFromResourceName(string $name, array $default = [], bool $unserialize = true)
         {
             $resource = isAke(self::$resources, $name, false);
 
@@ -43,6 +70,11 @@
             return $unserialize ? $default : serialize($default);
         }
 
+        /**
+         * @param array $array
+         *
+         * @return bool|resource
+         */
         public static function makeResource(array $array = [])
         {
             $resource = fopen("php://memory", 'r+');
@@ -51,7 +83,13 @@
             return $resource;
         }
 
-        public static function makeFromResource($resource, $default = [], $unserialize = true)
+        /**
+         * @param $resource
+         * @param array $default
+         * @param bool $unserialize
+         * @return array|mixed|string
+         */
+        public static function makeFromResource($resource, array $default = [], bool $unserialize = true)
         {
             if (is_resource($resource)) {
                 rewind($resource);
@@ -70,10 +108,16 @@
             return $unserialize ? $default : serialize($default);
         }
 
-        public static function setObject(array $array, $type = null)
+        /**
+         * @param array $array
+         * @param null|string $type
+         *
+         * @return null|Objet
+         */
+        public static function setObject(array $array, ?string $type = null)
         {
             if (true === static::isAssoc($array)) {
-                $object = new Object;
+                $object = new Objet;
 
                 if (!empty($type)) {
                     $object->octo_type = $type;
@@ -442,7 +486,14 @@
             return $array1;
         }
 
-        public static function first($array, callable $callback = null, $default = null)
+        /**
+         * @param array $array
+         * @param callable|null $callback
+         * @param null|string $default
+         *
+         * @return mixed
+         */
+        public static function first(array $array, ?callable $callback = null, ?string $default = null)
         {
             if (is_null($callback)) {
                 if (empty($array)) {
@@ -463,16 +514,33 @@
             return value($default);
         }
 
-        public static function last($array, callable $callback = null, $default = null)
+        /**
+         * @param array $array
+         * @param callable|null $callback
+         * @param null|string $default
+         *
+         * @return mixed
+         */
+        public static function last(array $array, ?callable $callback = null, ?string $default = null)
         {
             if (is_null($callback)) {
                 return empty($array) ? value($default) : end($array);
             }
 
-            return static::first(array_reverse($array, true), $callback, $default);
+            return static::first(
+                array_reverse($array, true),
+                $callback,
+                $default
+            );
         }
 
-        public static function overwrite(array $array1, array $array2)
+        /**
+         * @param array $array1
+         * @param array $array2
+         *
+         * @return array
+         */
+        public static function overwrite(array $array1, array $array2): array
         {
             foreach (array_intersect_key($array2, $array1) as $key => $value) {
                 $array1[$key] = $value;
@@ -489,7 +557,13 @@
             return $array1;
         }
 
-        public static function dot($array, $prepend = '')
+        /**
+         * @param array $array
+         * @param string $prepend
+         *
+         * @return array
+         */
+        public static function dot(array $array, string $prepend = ''): array
         {
             $results = [];
 
@@ -504,9 +578,14 @@
             return $results;
         }
 
-        public static function callback($str)
+        /**
+         * @param string $str
+         *
+         * @return array
+         */
+        public static function callback(string $str): array
         {
-            $command = $params = null;
+            $params = null;
 
             if (preg_match('/^([^\(]*+)\((.*)\)$/', $str, $match)) {
                 $command = $match[1];
@@ -526,7 +605,12 @@
             return array($command, $params);
         }
 
-        public static function flatten($array)
+        /**
+         * @param array $array
+         *
+         * @return array
+         */
+        public static function flatten(array $array): array
         {
             $return = [];
 
@@ -535,7 +619,13 @@
             return $return;
         }
 
-        public static function splitOnValue($array, $value)
+        /**
+         * @param array $array
+         * @param $value
+         *
+         * @return array|null
+         */
+        public static function splitOnValue(array $array, $value): ?array
         {
             if (static::is($array)) {
                 $paramPos = array_search($value, $array);
@@ -577,8 +667,15 @@
             }
         }
 
-        public static function splitGroups($groups)
+        /**
+         * @param array $groups
+         *
+         * @return array
+         */
+        public static function splitGroups(array $groups): array
         {
+            $g = $arrFirst = $arrSecond = $arrReturn = $totalItems = $count = [];
+
             foreach ($groups as $k => $v) {
                 $g[$k] = strlen($v);
                 $totalItems += $g[$k];
@@ -607,7 +704,12 @@
             return $arrReturn;
         }
 
-        public static function arrayFromGet($getParams)
+        /**
+         * @param array $getParams
+         *
+         * @return mixed
+         */
+        public static function arrayFromGet(array $getParams)
         {
             $parts = explode('&', $getParams);
 
@@ -625,7 +727,13 @@
             return $param;
         }
 
-        public static function exists($array, $key)
+        /**
+         * @param mixed $array
+         * @param string $key
+         *
+         * @return bool
+         */
+        public static function exists($array, string $key): bool
         {
             if ($array instanceof \ArrayAccess) {
                 return $array->offsetExists($key);
@@ -634,18 +742,32 @@
             return array_key_exists($key, $array);
         }
 
-        public static function indexReverse(array $tab, $index = 1)
+        /**
+         * @param array $tab
+         * @param int $index
+         *
+         * @return mixed|null
+         */
+        public static function indexReverse(array $tab, int $index = 1)
         {
             if (!empty($tab)) {
-                if (isset($tab[count($tab) - $index])) {
-                    return $tab[count($tab) - $index];
+                $needle = count($tab) - $index;
+
+                if (isset($tab[$needle])) {
+                    return $tab[$needle];
                 }
             }
 
             return null;
         }
 
-        public static function index(array $tab, $index = 1)
+        /**
+         * @param array $tab
+         * @param int $index
+         *
+         * @return mixed|null
+         */
+        public static function index(array $tab, int $index = 1)
         {
             if (!empty($tab)) {
                 if (isset($tab[$index])) {
@@ -661,7 +783,13 @@
             return coll($array)->sortBy($callback)->all();
         }
 
-        public static function where($array, \Closure $callback)
+        /**
+         * @param array $array
+         * @param Closure $callback
+         *
+         * @return array
+         */
+        public static function where(array $array, Closure $callback)
         {
             $filtered = [];
 
@@ -674,7 +802,17 @@
             return $filtered;
         }
 
-        public static function stringParams($array)
+        /**
+         * @param array $array
+         *
+         * @return Collection
+         */
+        public static function toCollection(array $array): Collection
+        {
+            return new Collection($array);
+        }
+
+        public static function stringParams(array $array)
         {
             return static::where(
                 $array,
@@ -938,7 +1076,14 @@
             return $array;
         }
 
-        public static function add($array, $key, $value)
+        /**
+         * @param array $array
+         * @param string $key
+         * @param $value
+         *
+         * @return array
+         */
+        public static function add(array $array, string $key, $value)
         {
             if (is_null(static::get($array, $key))) {
                 static::set($array, $key, $value);
@@ -947,30 +1092,28 @@
             return $array;
         }
 
-        public static function findBy($array, $key, $value)
+
+        /**
+         * @param array $array
+         * @param string $key
+         * @param $value
+         *
+         * @return array
+         */
+        public static function findBy(array $array, string $key, $value): array
         {
-            $collection = [];
-
-            foreach ($array as $row) {
-                if (isset($row[$key]) && $row[$key] == $value) {
-                    $collection[] = $row;
-                }
-            }
-
-            return $collection;
+            return static::toCollection($array)->where($key, $value)->all();
         }
 
-        public static function reduce($array, callable $callable)
+        /**
+         * @param array $array
+         * @param callable $callable
+         *
+         * @return mixed
+         */
+        public static function reduce(array $array, callable $callable)
         {
-            $collection = [];
-
-            foreach ($array as $row) {
-                if ($check = call_user_func_array($callable, [$row])) {
-                    $collection[] = $row;
-                }
-            }
-
-            return $collection;
+            return static::toCollection($array)->reduce($callable)->all();
         }
 
         /**
@@ -1004,7 +1147,7 @@
                 return false;
             }
 
-            if (!$value) {
+            if (empty($value)) {
                 return $allowEmpty;
             }
 
@@ -1012,18 +1155,18 @@
         }
 
         /**
-         * @param \SplFixedArray $arr
+         * @param SPA $arr
          * @param int $size
          *
-         * @return \SplFixedArray
+         * @return SPA
          */
-        public static function chunk_fixed(\SplFixedArray $arr, $size)
+        public static function chunk_fixed(SPA $arr, $size)
         {
-            $chunks = new \SplFixedArray(ceil(count($arr) / $size));
+            $chunks = new SPA(ceil(count($arr) / $size));
 
             foreach ($arr as $idx => $value) {
                 if ($idx % $size === 0) {
-                    $chunks[$idx / $size] = $chunk = new \SplFixedArray($size);
+                    $chunks[$idx / $size] = $chunk = new SPA($size);
                 }
 
                 $chunk[$idx % $size] = $value;
@@ -1071,11 +1214,94 @@
 
                 $response = call_user_func_array($callback, $params);
 
-                if ($response) {
+                if (true === $response) {
                     $output[$key] = $value;
                 }
             }
 
             return $output;
+        }
+
+        /**
+         * @param array $fields
+         * @param string $delimiter
+         * @param string $enclosure
+         * @param bool $encloseAll
+         * @param bool $nullToMysqlNull
+         *
+         * @return string
+         */
+        public static function toCsv(
+            array $fields,
+            string $delimiter = ';',
+            string $enclosure = '"',
+            bool $encloseAll = false,
+            bool $nullToMysqlNull = false
+        ): string {
+            $delimiter_esc = preg_quote($delimiter, '/');
+            $enclosure_esc = preg_quote($enclosure, '/');
+
+            $output = [];
+
+            foreach ($fields as $field) {
+                if (null === $field && true === $nullToMysqlNull) {
+                    $output[] = 'NULL';
+
+                    continue;
+                }
+
+                if (true === $encloseAll || preg_match("/(?:${delimiter_esc}|${enclosure_esc}|\s)/", $field)) {
+                    $output[] = $enclosure . str_replace(
+                        $enclosure,
+                        $enclosure . $enclosure,
+                        $field
+                    ) . $enclosure;
+                } else {
+                    $output[] = $field;
+                }
+            }
+
+            return implode($delimiter, $output);
+        }
+
+        /**
+         * @param array $rows
+         *
+         * @return string
+         */
+        public static function toHtml(array $rows): string
+        {
+            $html = "";
+
+            if (!empty($rows)) {
+                $labels = array_keys(current($rows));
+                $html .= '<table>';
+
+                $html .= '<thead>';
+                $html .= '<tr>';
+
+                foreach ($labels as $label) {
+                    $html .= '<th>' . $label . '</th>';
+                }
+
+                $html .= '</tr>';
+                $html .= '</thead>';
+
+                $html .= '<tbody>';
+
+                foreach ($rows as $row) {
+                    $html .= '<tr>';
+
+                    foreach ($row as $label => $value) {
+                        $html .= '<td>' . $value . '</td>';
+                    }
+
+                    $html .= '</tr>';
+                }
+
+                $html .= '</tbody></table>';
+            }
+
+            return $html;
         }
     }

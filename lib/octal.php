@@ -20,6 +20,10 @@
         protected $entityFields = [];
         protected static $booted = [];
 
+        /**
+         * @param null $newRow
+         * @throws \ReflectionException
+         */
         public function __construct($newRow = null)
         {
             $class = get_called_class();
@@ -57,16 +61,20 @@
             if (!isset(static::$booted[$class])) {
                 static::$booted[$class] = true;
 
+                if (in_array('boot', $methods)) {
+                    instanciator()->call($this, 'boot');
+                }
+
                 if (in_array('events', $methods)) {
-                    static::events($this);
+                    instanciator()->call($this, 'events');
                 }
 
                 if (in_array('policies', $methods)) {
-                    static::policies($this);
+                    instanciator()->call($this, 'policies');
                 }
 
-                if (in_array('boot', $methods)) {
-                    static::boot($this);
+                if (in_array('rules', $methods)) {
+                    instanciator()->call($this, 'rules');
                 }
 
                 $this->fire('booting');
@@ -80,7 +88,7 @@
                         $method     = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
 
                         if (in_array($method, $methods)) {
-                            call_user_func_array([$this, $method], []);
+                            instanciator()->call($this, $method);
                         }
 
                         $method = lcfirst(Strings::camelize('boot_' . $traitName));
@@ -129,7 +137,7 @@
 
         public function __set($key, $value)
         {
-            if ('row' == $key) {
+            if ('row' === $key) {
                 Registry::set('row.' . $this->__instance, $value);
             } else {
                 $this->$key = $value;
@@ -138,7 +146,7 @@
 
         public function __get($key)
         {
-            if ('row' == $key) {
+            if ('row' === $key) {
                 return Registry::get('row.' . $this->__instance);
             } else {
                 if (isset($this->$key)) {
@@ -151,7 +159,7 @@
 
         public function __isset($key)
         {
-            if ('row' == $key) {
+            if ('row' === $key) {
                 return 'octodummy' != Registry::get('row.' . $this->__instance, 'octodummy');
             }
 
@@ -160,7 +168,7 @@
 
         public function __unset($key)
         {
-            if ('row' == $key) {
+            if ('row' === $key) {
                 Registry::delete('row.' . $this->__instance);
             } else {
                 unset($this->$key);
@@ -269,7 +277,7 @@
             }
 
             if (is_array($concern)) {
-                return $this->orm()->store((array) $concern);
+                return $this->orm()->findMany((array) $concern);
             }
 
             return $this;

@@ -186,9 +186,9 @@
         /**
          * @return Collection
          */
-        public function except($keys)
+        public function except()
         {
-            $keys = is_array($keys) ? $keys : func_get_args();
+            $keys = func_get_args();
 
             return $this->new(Arrays::except($this->items, $keys));
         }
@@ -506,13 +506,13 @@
         /**
          * @return Collection
          */
-        public function only($keys)
+        public function only()
         {
-            if (is_null($keys)) {
+            $keys = func_get_args();
+
+            if (empty($keys)) {
                 return $this->new($this->items);
             }
-
-            $keys = is_array($keys) ? $keys : func_get_args();
 
             return $this->new(Arrays::only($this->items, $keys));
         }
@@ -559,7 +559,11 @@
             $this->offsetSet($key, $value);
         }
 
-        public function random($amount = 1)
+        /**
+         * @param int $amount
+         * @return array|mixed
+         */
+        public function random(int $amount = 1)
         {
             if ($this->isEmpty()) {
                 return;
@@ -572,6 +576,12 @@
             : $this->items[$keys];
         }
 
+        /**
+         * @param callable $callback
+         * @param null $initial
+         *
+         * @return mixed
+         */
         public function reduce(callable $callback, $initial = null)
         {
             return array_reduce($this->items, $callback, $initial);
@@ -1029,9 +1039,16 @@
             return $this->where($field, 'is not', 'null');
         }
 
-        public function where($key, $operator = null, $value = null)
+        /**
+         * @param string $key
+         * @param null|string $operator
+         * @param null $value
+         *
+         * @return Collection
+         */
+        public function where(string $key, ?string $operator = null, $value = null): self
         {
-            if (func_num_args() == 1) {
+            if (func_num_args() === 1) {
                 if (is_array($key)) {
                     list($key, $operator, $value) = $key;
                     $operator = strtolower($operator);
@@ -1398,5 +1415,30 @@
 
                 return $this->new($res);
             }
+        }
+
+        /**
+         * @return string
+         */
+        public function toHtml(): string
+        {
+            return Arrays::toHtml($this->items);
+        }
+
+        /**
+         * @param string $delimiter
+         * @param string $enclosure
+         * @param bool $encloseAll
+         * @param bool $nullToMysqlNull
+         *
+         * @return string
+         */
+        public function toCsv(
+            string $delimiter = ';',
+            string $enclosure = '"',
+            bool $encloseAll = false,
+            bool $nullToMysqlNull = false
+        ): string {
+            return Arrays::toCsv($this->items, $delimiter, $enclosure, $encloseAll, $nullToMysqlNull);
         }
     }

@@ -1,10 +1,14 @@
 <?php
 
 use Octo\Courrier;
+use Octo\Exception;
 use Octo\Registrymail;
 
 class MailTest extends TestCase
 {
+    /**
+     * @throws Exception
+     */
     public function testMail()
     {
         $courrier = new Courrier();

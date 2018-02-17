@@ -29,6 +29,7 @@
         DelegateInterface,
         ContainerInterface
     {
+        use Hookable;
         /**
          * @var Fastcontainer
          */
@@ -261,7 +262,7 @@
         }
 
         /**
-         * @return Session
+         * @return Session|Live
          *
          * @throws TypeError
          */
@@ -592,6 +593,8 @@
 
         /**
          * @return mixed|object
+         *
+         * @throws \ReflectionException
          */
         public function resolve()
         {
@@ -600,6 +603,8 @@
 
         /**
          * @return mixed|object
+         *
+         * @throws \ReflectionException
          */
         public function resolveOnce()
         {
@@ -713,7 +718,8 @@
          *
          * @return mixed|null|ResponseInterface
          *
-         * @throws TypeError
+         * @throws TypeError         *
+         * @throws \ReflectionException
          */
         public function process(ServerRequestInterface $request)
         {
@@ -795,6 +801,11 @@
             return $this;
         }
 
+        /**
+         * @return mixed|null|object
+         *
+         * @throws \ReflectionException
+         */
         private function getMiddleware()
         {
             $middlewares    = $this->middlewares;
@@ -821,6 +832,8 @@
          * @param string $moduleClass
          *
          * @return Fast
+         *
+         * @throws \ReflectionException
          */
         public function addModule(string $moduleClass): self
         {
@@ -1620,6 +1633,53 @@
         {
             return app(...func_get_args());
         }
+
+        /**
+         * @param null|Live $live
+         *
+         * @return null|Live
+         */
+        public function live(?Live $live = null)
+        {
+            return live($live);
+        }
+
+        /**
+         * @return \Swift_Mailer
+         */
+        public function mailer(): \Swift_Mailer
+        {
+            return mailer();
+        }
+
+        public function registry(string $key, $value = 'octodummy')
+        {
+            /* Polymorphism  */
+            if (is_array($key)) {
+                foreach ($key as $k => $v) {
+                    Registry::set($k, $v);
+                }
+
+                return true;
+            }
+
+            if ('octodummy' === $value) {
+                return Registry::get($key);
+            }
+
+            Registry::set($key, $value);
+        }
+
+        /**
+         * @param string $key
+         * @param null $default
+         *
+         * @return mixed
+         */
+        public function registered(string $key, $default = null)
+        {
+            return Registry::get($key, $default);
+        }
     }
 
     trait Framework
@@ -1739,7 +1799,7 @@
             $gates = Registry::get('fast.gates', []);
 
             if (false === $paste) {
-                $rule = isAke($gates, $key, false);
+                $rule = aget($gates, $key, false);
 
                 if (is_callable($rule)) {
                     throw new NativeException("The rule {$key} ever exists.");
@@ -1760,7 +1820,7 @@
         public static function get(string $key, $default = null)
         {
             if ($user = self::user()) {
-                return isAke($user, $key, $default);
+                return dataget($user, $key, $default);
             }
 
             return $default;
@@ -1810,7 +1870,6 @@
          */
         public static function has(string $key): bool
         {
-
             $gates  = Registry::get('fast.gates', []);
             $rule   = isAke($gates, $key, false);
 
@@ -1818,7 +1877,9 @@
         }
 
         /**
-         * @return bool
+         * @return bool|mixed|null
+         *
+         * @throws \ReflectionException
          */
         public static function can()
         {
@@ -1852,8 +1913,9 @@
 
         /**
          * @param string $key
-         *
          * @return bool
+         *
+         * @throws \ReflectionException
          */
         public static function cannot(string $key): bool
         {
@@ -1960,7 +2022,7 @@
         }
 
         /**
-         * @return array
+         * @return Collection
          *
          * @throws NativeException
          */
@@ -2008,11 +2070,11 @@
                 $results[] = $this->entity->create(array_merge($data, $params));
             }
 
-            return $results;
+            return coll($results);
         }
 
         /**
-         * @return array
+         * @return Collection
          *
          * @throws NativeException
          */
@@ -2065,7 +2127,7 @@
                 }
             }
 
-            return $results;
+            return coll($results);
         }
     }
 
@@ -2271,6 +2333,10 @@
 
     class FastBladeCompiler extends BladeCompiler
     {
+        /**
+         * @param null $files
+         * @param null $cachePath
+         */
         public function __construct($files = null, $cachePath = null)
         {
             $this->files        = is_null($files) ? new Filesystem() : $files;
@@ -2567,6 +2633,8 @@
          * @param null $default
          *
          * @return array|mixed|null
+         *
+         * @throws \ReflectionException
          */
         public function flash(?string $key = null, $default = null)
         {
@@ -2642,7 +2710,7 @@
          *
          * @return string
          */
-        public function path($routeName, array $params = [])
+        public function path(string $routeName, array $params = [])
         {
             /**
              * @var $fastRouter FastRouter

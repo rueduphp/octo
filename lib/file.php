@@ -45,9 +45,16 @@
             return static::exists($file) ? static::read($file) : static::value($default);
         }
 
+        /**
+         * @param $value
+         *
+         * @return mixed|null
+         *
+         * @throws \ReflectionException
+         */
         public static function value($value)
         {
-            return $value instanceof Closure ? $value() : $value;
+            return $value instanceof Closure ? callCallable($value) : $value;
         }
 
         public static function put($file, $data, $chmod = 0777)

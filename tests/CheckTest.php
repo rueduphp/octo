@@ -4,7 +4,10 @@
 
     class CheckTest extends TestCase
     {
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkingIsSuccess()
         {
             $data = [
@@ -36,7 +39,11 @@
 
             $this->assertTrue($validator->success());
         }
-        /** @test */
+
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkingIsFail()
         {
             $data = [
@@ -52,7 +59,7 @@
 
             $validator->add('lastname')->maxLength(10);
 
-            $validator->add('firstname')->required()->minLength(10);
+            $validator->add('firstname')->required()->notEmpty()->minLength(10);
 
             $validator->add('email')->required()->email();
             $validator->add('slug')->required()->slug();
@@ -70,13 +77,14 @@
             $this->assertTrue($validator->fail());
 
             $this->assertCount(2, $validator->getErrors()['firstname']);
+            $this->assertCount(1, $validator->getErrors()['age']);
 
-            $this->assertEquals(
-                'firstname is required',
+            $this->assertSame(
+                'firstname is empty',
                 (string) current($validator->getErrors()['firstname'])
             );
 
-            $this->assertEquals(
+            $this->assertSame(
                 'firstname is too short',
                 (string) end($validator->getErrors()['firstname'])
             );

@@ -45,6 +45,11 @@ class Lock implements FastAuthInterface
         getContainer()->define('lock', $this);
     }
 
+    /**
+     * @return mixed|null
+     *
+     * @throws \TypeError
+     */
     public function user()
     {
         $user = getContainer()->defined('user');

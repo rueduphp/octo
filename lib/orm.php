@@ -467,6 +467,7 @@
         /**
          * @param bool $make
          * @param bool $reset
+         *
          * @return \PDOStatement
          */
         public function get($make = true, $reset = true)
@@ -674,19 +675,19 @@
             $operator   = array_shift($args);
             $value      = array_shift($args);
 
-            if ($nargs == 1) {
+            if ($nargs === 1) {
                 if (is_array($key)) {
-                    if (count($key) == 1) {
+                    if (count($key) === 1) {
                         $operator   = '=';
                         $value      = array_values($key);
                         $key        = array_keys($key);
-                    } elseif (count($key) == 3) {
+                    } elseif (count($key) === 3) {
                         list($key, $operator, $value) = $key;
                     }
                 }
-            } elseif ($nargs == 2) {
+            } elseif ($nargs === 2) {
                 list($value, $operator) = [$operator, '='];
-            } elseif ($nargs == 3) {
+            } elseif ($nargs === 3) {
                 list($key, $operator, $value) = $a;
             } else {
                 exception('orm', "This method requires at least one argument to proceed.");
@@ -2096,6 +2097,11 @@
             return $entity;
         }
 
+        /**
+         * @param $row
+         *
+         * @return Record
+         */
         public function model($row)
         {
             $row = arrayable($row) ? $row->toArray() : $row;
@@ -2103,6 +2109,9 @@
             return new Record($row, $this->getEntity());
         }
 
+        /**
+         * @return Ormiterator
+         */
         public function cursor()
         {
             $instance   = clone $this;
@@ -2120,7 +2129,15 @@
             }
         }
 
-        public function findWith($id, $table)
+        /**
+         * @param int $id
+         * @param $table
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
+        public function findWith(int $id, $table)
         {
             return $this
             ->where($this->getEntity()->pk(), $id)
@@ -2129,6 +2146,13 @@
             ->first();
         }
 
+        /**
+         * @param $relations
+         *
+         * @return object
+         *
+         * @throws \ReflectionException
+         */
         public function with($relations)
         {
             if (!is_array($relations)) {
@@ -2137,13 +2161,18 @@
 
             $thisEntity = $this->getEntity();
             $collection = $this->collection();
-            $first      = $collection->first();
             $rel        = [];
             $related    = [];
             $entities   = [];
 
+            if ($collection->isEmpty()) {
+                return $collection;
+            }
+
+            $first = $collection->first();
+
             foreach ($relations as $relation) {
-                $class               = call_user_func([$thisEntity, $relation]);
+                $class               = instanciator()->call($thisEntity, $relation);
                 $entity              = instanciator()->factory($class);
                 $entities[$relation] = $entity;
 
@@ -2151,7 +2180,7 @@
 
                 $exists = 'octodummy' !== isAke($first, $pk, 'octodummy');
 
-                if ($exists) {
+                if (true === $exists) {
                     $related[$relation] = 'single';
                     $ids                = $collection->pluck($pk);
                     $rel[$relation]     = $entity->in($entity->pk(), $ids)->collection();
@@ -2173,11 +2202,11 @@
                     $type = $related[$relation];
                     $coll = $rel[$relation];
 
-                    if ('single' == $type) {
+                    if ('single' === $type) {
                         $getter             = getter($entity->table() . '_id');
                         $record             = $coll->where($entity->pk(), $model->$getter())->first();
                         $model->$relation   = $entity->model($record);
-                    } elseif ('many' == $type) {
+                    } elseif ('many' === $type) {
                         $getter = getter($thisEntity->pk());
                         $rows   = $coll->where($thisEntity->table() . '_id', $model->$getter());
                         $models = [];
@@ -2215,11 +2244,17 @@
             return $collection;
         }
 
-        public function collection($model = false, $reset = true)
+        /**
+         * @param bool $model
+         * @param bool $reset
+         *
+         * @return Collection
+         */
+        public function collection(bool $model = false, bool $reset = true): Collection
         {
             $rows = $this->select()->run(true, $reset)->fetchAll();
 
-            if ($model) {
+            if (true === $model) {
                 $rows = $this->models($rows);
             }
 
@@ -2258,7 +2293,13 @@
             return $this->limit(($page - 1) * $count, $count);
         }
 
-        public function each(callable $callback, $count = 1000)
+        /**
+         * @param callable $callback
+         * @param int $count
+         *
+         * @return bool
+         */
+        public function each(callable $callback, int $count = 1000)
         {
             if (empty($this->orders)) {
                 $this->orderBy($this->getEntity()->pk());
@@ -2371,6 +2412,7 @@
         /**
          * @param $field
          * @param null $key
+         *
          * @return array
          */
         public function pluck($field, $key = null)
@@ -2378,38 +2420,49 @@
             return $this->collection()->pluck($field, $key);
         }
 
-        public function __call($m, $a)
+        /**
+         * @param string $m
+         * @param array $a
+         * @return mixed|Orm
+         *
+         * @throws \ReflectionException
+         */
+        public function __call(string $m, array $a)
         {
             $entity     = $this->getEntity();
             $methods    = get_class_methods($entity);
             $method     = 'scope' . ucfirst(Strings::camelize($m));
 
             if (in_array($method, $methods)) {
-                return call_user_func_array([$entity, $method], array_merge([$this], $a));
+                $params = array_merge([$entity, $method], array_merge([$this], $a));
+
+                return instanciator()->call(...$params);
             }
 
             $method = 'query' . ucfirst(Strings::camelize($m));
 
             if (in_array($method, $methods)) {
-                return call_user_func_array([$entity, $method], array_merge([$this], $a));
+                $params = array_merge([$entity, $method], array_merge([$this], $a));
+
+                return instanciator()->call(...$params);
             }
 
-            if ($m == 'is' && count($a) == 2) {
+            if ($m === 'is' && count($a) === 2) {
                 return $this->where(
                     current($a),
                     end($a)
                 );
             }
 
-            if ($m == 'list') {
+            if ($m === 'list') {
                 return call_user_func_array([$this, 'pluck'], $a);
             }
 
-            if ($m == 'or') {
+            if ($m === 'or') {
                 return call_user_func_array([$this, 'orWhere'], $a);
             }
 
-            if ($m == 'and') {
+            if ($m === 'and') {
                 return call_user_func_array([$this, 'where'], $a);
             }
 
@@ -2418,7 +2471,7 @@
 
                 $op = '=';
 
-                if (count($a) == 2) {
+                if (count($a) === 2) {
                     $op     = array_shift($a);
                     $value  = array_shift($a);
                 } else {
@@ -2433,7 +2486,7 @@
 
                 $op = '=';
 
-                if (count($a) == 2) {
+                if (count($a) === 2) {
                     $op     = array_shift($a);
                     $value  = array_shift($a);
                 } else {
@@ -2490,7 +2543,7 @@
 
                 $op = '=';
 
-                if (count($a) == 2) {
+                if (count($a) === 2) {
                     $op     = array_shift($a);
                     $value  = array_shift($a);
                 } else {

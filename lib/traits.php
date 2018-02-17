@@ -7,16 +7,18 @@
     use BadMethodCallException;
     use Closure;
     use Exception as PHPException;
-    use const JSON_PRETTY_PRINT;
+    use function func_get_args;
+    use function get_called_class;
     use ReflectionClass;
     use ReflectionMethod;
     use SplFixedArray as FA;
 
     trait Tractor
     {
-        public function bootTrait()
+        public function bootTraits()
         {
-            $traits = class_uses();
+            $called = get_called_class();
+            $traits = class_uses($called);
 
             foreach ($traits as $trait) {
                 $class = str_replace('\\', '_', $trait);
@@ -24,7 +26,8 @@
                 $function = Inflector::camelize('boot_' . $class);
 
                 try {
-                    self::$function();
+                    $i =  instanciator()->singleton($called);
+                    instanciator()->call($i, $function);
                 } catch (PHPException $e) {}
             }
         }
@@ -34,9 +37,18 @@
     {
         protected static $instance;
 
+        /**
+         * @return mixed|object
+         *
+         * @throws \ReflectionException
+         */
         final public static function instance()
         {
-            return isset(static::$instance) ? static::$instance : static::$instance = new static;
+            $called = get_called_class();
+
+            return isset(static::$instance) ?
+                static::$instance :
+                static::$instance = instanciator()->singleton($called);
         }
 
         final protected function __construct()
@@ -48,17 +60,22 @@
 
         public function __clone()
         {
-            trigger_error('Cloning ' . __CLASS__ . ' is not allowed.', E_USER_ERROR);
+            trigger_error('Cloning ' . get_called_class() . ' is not allowed.', E_USER_ERROR);
         }
 
         public function __wakeup()
         {
-            trigger_error('Unserializing ' . __CLASS__ . ' is not allowed.', E_USER_ERROR);
+            trigger_error('Unserializing ' . get_called_class() . ' is not allowed.', E_USER_ERROR);
         }
     }
 
     trait Instantiable
     {
+        /**
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         public static function getInstance()
         {
             $class = get_called_class();
@@ -66,7 +83,10 @@
             if (!Registry::exists('instances.' . $class)) {
                 $ref    = new Reflectionclass($class);
                 $args   = func_get_args();
-                Registry::set('instances.' . $class, $args ? $ref->newinstanceargs($args) : new $class);
+                Registry::set('instances.' . $class, $args
+                    ? $ref->newinstanceargs($args)
+                    : instanciator()->singleton($class)
+                );
             }
 
             return Registry::get('instances.' . $class);
@@ -268,6 +288,11 @@
             static::$macros[$name] = $macro;
         }
 
+        /**
+         * @param $mixin
+         *
+         * @throws \ReflectionException
+         */
         public static function mixin($mixin)
         {
             $methods = (new ReflectionClass($mixin))->getMethods(
@@ -288,6 +313,14 @@
             return isset(static::$macros[$name]);
         }
 
+        /**
+         * @param string $method
+         * @param array $parameters
+         *
+         * @return mixed|null
+         *
+         * @throws \ReflectionException
+         */
         public static function __callStatic(string $method, array $parameters)
         {
             if (!static::hasMacro($method)) {
@@ -295,12 +328,30 @@
             }
 
             if (static::$macros[$method] instanceof Closure) {
-                return call_user_func_array(Closure::bind(static::$macros[$method], null, static::class), $parameters);
+                $params = array_merge(
+                    [Closure::bind(static::$macros[$method], null, static::class)],
+                    $parameters
+                );
+
+                return instanciator()->makeClosure(...$params);
             }
 
-            return call_user_func_array(static::$macros[$method], $parameters);
+            $params = array_merge(
+                [static::$macros[$method]],
+                $parameters
+            );
+
+            return instanciator()->call(...$params);
         }
 
+        /**
+         * @param string $method
+         * @param array $parameters
+         *
+         * @return mixed|null
+         *
+         * @throws \ReflectionException
+         */
         public function __call(string $method, array $parameters)
         {
             if (! static::hasMacro($method)) {
@@ -310,10 +361,20 @@
             $macro = static::$macros[$method];
 
             if ($macro instanceof Closure) {
-                return call_user_func_array($macro->bindTo($this, static::class), $parameters);
+                $params = array_merge(
+                    [$macro->bindTo($this, static::class)],
+                    $parameters
+                );
+
+                return instanciator()->makeClosure(...$params);
             }
 
-            return call_user_func_array($macro, $parameters);
+            $params = array_merge(
+                [$macro],
+                $parameters
+            );
+
+            return instanciator()->call(...$params);
         }
     }
 
@@ -538,6 +599,9 @@
         /** @var array */
         private $data = [];
 
+        /**
+         * @return \ArrayIterator
+         */
         public function getIterator()
         {
             return new \ArrayIterator($this->data);
@@ -595,6 +659,9 @@
 
     trait Arrayable
     {
+        /**
+         * @var array
+         */
         protected $data = [];
 
         public function __construct($data = null)
@@ -796,7 +863,9 @@
          * @param string $event
          * @param callable $callable
          *
-         * @return Listener
+         * @return mixed
+         *
+         * @throws \ReflectionException
          */
         public function on(string $event, callable $callable)
         {
@@ -805,10 +874,12 @@
 
         /**
          * @param string $event
-         * @param mixed|null $concern
+         * @param null $concern
          * @param bool $return
          *
-         * @return mixed|null
+         * @return null
+         *
+         * @throws \ReflectionException
          */
         public function fire(string $event, $concern = null, bool $return = false)
         {
@@ -821,9 +892,117 @@
          * @param string $event
          *
          * @return bool
+         *
+         * @throws \ReflectionException
          */
         public function hasEvent(string $event): bool
         {
             return getEventManager()->has($event);
+        }
+    }
+
+    trait Hookable
+    {
+        /**
+         * The alternative implementation of hooked methods.
+         *
+         * @var array
+         */
+        public static $hooks = [];
+
+        /**
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
+        public static function callHook()
+        {
+            $parameters = func_get_args();
+            $hook = array_shift($parameters);
+
+            return static::interact($hook, $parameters);
+        }
+
+        /**
+         * @param string $hook
+         * @param array $parameters
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
+        public static function interact(string $hook, array $parameters = [])
+        {
+            if (!fnmatch('*@*', $hook)) {
+                $hook = $hook . '@handle';
+            }
+
+            list($class, $method) = explode('@', $hook);
+
+            if (isset(static::$hooks[$hook])) {
+                return static::callHookedInteraction($hook, $parameters, $class);
+            }
+
+            $base = static::base($class);
+
+            if (isset(static::$hooks[$base . '@' . $method])) {
+                return static::callHookedInteraction($base . '@' . $method, $parameters, $class);
+            }
+
+            $params = array_merge([app($class), $method],$parameters);
+
+            return instanciator()->call(...$params);
+        }
+
+        /**
+         * @param string $concern
+         *
+         * @return string
+         */
+        protected static function base(string $concern): string
+        {
+            $concern = is_object($concern) ? get_class($concern) : $concern;
+
+            return basename(str_replace('\\', '/', $concern));
+        }
+
+        /**
+         * @param string $hook
+         * @param array $parameters
+         * @param string $class
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
+        protected static function callHookedInteraction(string $hook, array $parameters, string $class)
+        {
+            if (is_string($closure = static::$hooks[$hook])) {
+                return static::interact($closure, $parameters);
+            }
+
+            $instance = app($class);
+
+            /** @var Closure $closure */
+            $closure = static::$hooks[$hook];
+
+            $method = $closure->bindTo($instance, $instance);
+
+            $args = array_merge([$method], $parameters);
+
+            return instanciator()->makeClosure(...$args);
+        }
+
+        /**
+         * Hook the implementation of an interaction method.
+         *
+         * @param  string  $interaction
+         * @param  mixed  $callback
+         *
+         * @return void
+         */
+        public static function hook(string $hook, $callback): void
+        {
+            static::$hooks[$hook] = $callback;
         }
     }
