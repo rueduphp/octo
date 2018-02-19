@@ -202,26 +202,35 @@ class Caching implements FastCacheInterface
     }
 
     /**
-     * @param $k
+     * @param string $k
      * @param callable $c
      * @param null $e
      *
-     * @return mixed
+     * @return mixed|null
      *
      * @throws \ReflectionException
      */
-    public function getOr($k, callable $c, $e = null)
+    public function getOr(string $k, callable $c, $e = null)
     {
         $res = $this->get($k, 'octodummy');
 
         if ('octodummy' === $res) {
-            $this->set($k, $res = instanciator()->makeClosure($c), $e);
+            $this->set($k, $res = callCallable($c), $e);
         }
 
         return $res;
     }
 
-    public function remember($k, $c, $e = null)
+    /**
+     * @param string $k
+     * @param $c
+     * @param null $e
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    public function remember(string $k, $c, $e = null)
     {
         if (!is_callable($c)) {
             $c = function () use ($c) {return $c;};
@@ -230,15 +239,24 @@ class Caching implements FastCacheInterface
         return $this->getOr($k, $c, $e);
     }
 
-    public function watch($k, callable $exists = null, callable $notExists = null)
+    /**
+     * @param string $k
+     * @param callable|null $exists
+     * @param callable|null $notExists
+     *
+     * @return bool|mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    public function watch(string $k, ?callable $exists = null, ?callable $notExists = null)
     {
         if ($this->has($k)) {
             if (is_callable($exists)) {
-                return $exists($this->get($k));
+                return callCallable($exists, $this->get($k));
             }
         } else {
             if (is_callable($notExists)) {
-                return $notExists();
+                return callCallable($notExists);
             }
         }
 
@@ -378,17 +396,26 @@ class Caching implements FastCacheInterface
         return $this->decr($k, $by);
     }
 
-    private function cleanCache()
+    /**
+     * @return mixed
+     */
+    public function cleanCache()
     {
-        CachingModel::where('e', '>', 0)->where('e', '<', time())->delete();
+        return CachingModel::where('e', '>', 0)->where('e', '<', time())->delete();
     }
 
     /**
      * @return array
      */
-    public function all()
+    public function all(): array
     {
-        return $this->keys();
+        $collection = [];
+
+        foreach($this->keys() as $key) {
+            $collection[$key] = $this->get($key);
+        }
+
+        return $collection;
     }
 
     /**
@@ -963,6 +990,20 @@ class Caching implements FastCacheInterface
     public function getTtl($e = null)
     {
         return $e ?: Registry::get('cache.ttl.' . $this->id, $e);
+    }
+
+    /**
+     * @param string $key
+     * @param $value
+     * @return Caching
+     */
+    public function append(string $key, $value)
+    {
+        $array = $this->get($key, []);
+
+        $array[] = $value;
+
+        return $this->set($key, $array);
     }
 
     private function _delete(string $k)

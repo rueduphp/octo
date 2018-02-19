@@ -18,7 +18,7 @@ class MyGuard extends Trust
         $this->providers['login'] = function () {
             $session = $this->session();
 
-            $session['user'] = ['id' => 1, 'name' => 'foo', 'email' => 'foo@bar.com'];
+            $session[$this->getUserKey()] = ['id' => 1, 'name' => 'foo', 'email' => 'foo@bar.com'];
 
             return true;
         };
@@ -26,10 +26,12 @@ class MyGuard extends Trust
         $this->providers['logout'] = function () {
             $session = $this->session();
 
-            unset($session['user']);
+            unset($session[$this->getUserKey()]);
 
             return true;
         };
+
+        parent::__construct();
     }
 }
 
@@ -111,6 +113,7 @@ class SimpleTest extends TestCase
             $session['trust.logout.event'] = $status;
         });
 
+        /** @var Live $session */
         $session = MyGuard::session();
 
         $session['trust.login.event'] = false;
@@ -139,6 +142,20 @@ class SimpleTest extends TestCase
 
         $this->assertFalse(MyGuard::isAuth());
         $this->assertTrue(MyGuard::isGuest());
+
+        MyGuard::login();
+
+        $guard = MyGuard::forUser(['id' => 2, 'name' => 'bar', 'email' => 'bar@foo.com']);
+
+        $this->assertSame(2, $guard->user('id'));
+        $this->assertSame('bar', $guard->user('name'));
+        $this->assertSame('bar@foo.com', $guard->user('email'));
+
+        MyGuard::recoverUser();
+
+        $this->assertSame(1, MyGuard::user('id'));
+        $this->assertSame('foo', MyGuard::user('name'));
+        $this->assertSame('foo@bar.com', MyGuard::user('email'));
     }
 
     /**

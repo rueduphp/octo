@@ -1401,11 +1401,10 @@
         public function paired()
         {
             $res    = [];
-
             $args   = $this->items;
             $max    = $this->count();
 
-            if (0 < $max && $max % 2 == 0) {
+            if (0 < $max && $max % 2 === 0) {
                 for ($i = 0; $i < $max; $i += 2) {
                     $key = $args[$i];
                     $value = $args[$i + 1];

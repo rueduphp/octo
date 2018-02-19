@@ -860,32 +860,21 @@
     trait Eventable
     {
         /**
-         * @param string $event
-         * @param callable $callable
-         *
-         * @return mixed
-         *
+         * @return Listener
          * @throws \ReflectionException
          */
-        public function on(string $event, callable $callable)
+        public function on(): Listener
         {
-            return getEventManager()->on($event, $callable);
+            return getEventManager()->on(...func_get_args());
         }
 
         /**
-         * @param string $event
-         * @param null $concern
-         * @param bool $return
-         *
-         * @return null
-         *
+         * @return mixed
          * @throws \ReflectionException
          */
-        public function fire(string $event, $concern = null, bool $return = false)
+        public function fire()
         {
-            $value = getEventManager()->fire($event, $concern);
-
-            return $return ? $value : $concern;
+            return getEventManager()->fire(...func_get_args());
         }
 
         /**

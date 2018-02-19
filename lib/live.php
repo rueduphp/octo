@@ -7,7 +7,7 @@ use Psr\Http\Message\ServerRequestInterface;
 class Live implements ArrayAccess, FastSessionInterface
 {
     /**
-     * @var Cache
+     * @var FastCacheInterface
      */
     private $driver;
 
@@ -32,7 +32,12 @@ class Live implements ArrayAccess, FastSessionInterface
     private $logoutProvider;
 
     /**
-     * @param null $driver
+     * @var string
+     */
+    private $sid;
+
+    /**
+     * @param null|FastCacheInterface $driver
      * @throws Exception
      */
     public function __construct($driver = null)
@@ -41,9 +46,36 @@ class Live implements ArrayAccess, FastSessionInterface
             $driver = fmr(sessionKey());
         }
 
-        $this->driver = $driver;
+        $this->driver   = $driver;
+        $this->sid      = sessionKey();
 
         live($this);
+    }
+
+    /**
+     * @return string
+     */
+    public function sid(): string
+    {
+        return $this->sid;
+    }
+
+    /**
+     * @return bool
+     */
+    public function open(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return bool
+     */
+    public function close(): bool
+    {
+        $this->sid = null;
+
+        return true;
     }
 
     /**

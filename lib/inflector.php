@@ -1107,4 +1107,15 @@
         {
             return preg_replace("/\<br\s*\/?\>/i", "\n", $str);
         }
+
+        /**
+         * @param string $subject
+         * @param string $search
+         *
+         * @return string
+         */
+        public static function after(string $subject, string $search): string
+        {
+            return $search === '' ? $subject : array_reverse(explode($search, $subject, 2))[0];
+        }
     }

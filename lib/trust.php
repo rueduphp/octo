@@ -6,6 +6,8 @@ use Exception;
 
 class Trust
 {
+    use Eventable;
+
     /**
      * @var string
      */
@@ -25,7 +27,25 @@ class Trust
         'login'     => null,
         'logout'    => null,
         'session'   => null,
+        'user'      => null,
     ];
+
+    public function __construct()
+    {
+        trust($this);
+        getContainer()->define('trust', $this);
+    }
+
+    /**
+     * @return bool
+     *
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    public static function init(): bool
+    {
+        return static::isAuth();
+    }
 
     /**
      * @return Trust
@@ -48,17 +68,6 @@ class Trust
     }
 
     /**
-     * @param $user
-     *
-     * @throws Exception
-     * @throws \ReflectionException
-     */
-    public static function force($user)
-    {
-        static::session()[static::called()->getUserKey()] = $user;
-    }
-
-    /**
      * @return bool
      *
      * @throws Exception
@@ -66,7 +75,7 @@ class Trust
      */
     public static function isAuth():bool
     {
-        return null !== static::session()[static::called()->getUserKey()];
+        return null !== static::user();
     }
 
     /**
@@ -77,36 +86,17 @@ class Trust
      */
     public static function isGuest():bool
     {
-        return null === static::session()[static::called()->getUserKey()];
+        return null === static::user();
     }
 
     /**
      * @param null|string $key
      *
-     * @return array|mixed|null
-     *
-     * @throws Exception
-     * @throws \ReflectionException
-     */
-    public static function user(?string $key = null)
-    {
-        $user = static::session()[static::called()->getUserKey()];
-
-        if (!is_null($user)) {
-            if (!is_null($key)) {
-                return dataget($user, $key, null);
-            }
-        }
-
-        return $user;
-    }
-
-    /**
-     * @param null|string $key
+     * @return Trust
      *
      * @throws \ReflectionException
      */
-    public function setToken(?string $key = null)
+    public function setToken(?string $key = null): self
     {
         if (false === isCli()) {
             $name = SITE_NAME . '_' . static::called()->getNamespace();
@@ -117,6 +107,8 @@ class Trust
 
             setcookie($name, $key, strtotime('+1 hour'), '/');
         }
+
+        return $this;
     }
 
     /**
@@ -146,6 +138,22 @@ class Trust
      */
     public static function __callStatic(string $m, array $a)
     {
+        $called = static::called();
+
+        $params = array_merge([$m], $a);
+
+        $callable = isAke($called->providers, $m, null);
+
+        if (is_callable($callable)) {
+            return $called->callProvider(...$params);
+        }
+
+        $magicMethod = 'getDefault' . ucfirst(Inflector::camelize($m));
+
+        if (in_array($magicMethod, get_class_methods($called))) {
+            return $called->callProvider(...$params);
+        }
+
         $params = array_merge([static::session(), $m], $a);
 
         return instanciator()->call(...$params);
@@ -161,11 +169,12 @@ class Trust
 
     /**
      * @param string $type
-     * @param callable $callable
+     *
+     * @param callable|null $callable
      *
      * @return Trust
      */
-    public function setProvider(string $type, callable $callable): self
+    public function setProvider(string $type, ?callable $callable = null): self
     {
         $this->providers[$type] = $callable;
 
@@ -174,11 +183,8 @@ class Trust
 
     /**
      * @return Closure
-     *
-     * @throws \Octo\Exception
-     * @throws \ReflectionException
      */
-    protected function getDefaultSession()
+    protected function getDefaultSession(): Closure
     {
         return function () {
             $driver = instanciator()->singleton(
@@ -187,6 +193,28 @@ class Trust
             );
 
             return new Live($driver);
+        };
+    }
+
+    /**
+     * @return Closure
+     */
+    protected function getDefaultUser(): Closure
+    {
+        return function ($key = null) {
+            if (!is_string($key)) {
+                $key = null;
+            }
+
+            $user = $this->session()[$this->called()->getUserKey()];
+
+            if (!is_null($user)) {
+                if (!is_null($key)) {
+                    return dataget($user, $key, null);
+                }
+            }
+
+            return $user;
         };
     }
 
@@ -208,7 +236,10 @@ class Trust
         }
 
         if (is_callable($callable)) {
-            $params = array_merge([$callable], array_merge($args, [$this]));
+            $params = !is_array($callable)
+                ? array_merge([$callable], array_merge($args, [$this]))
+                : array_merge($callable, array_merge($args, [$this]))
+            ;
 
             return callCallable(...$params);
         }
@@ -218,30 +249,43 @@ class Trust
 
     /**
      * @return mixed|null
+     * @throws Exception
      * @throws \ReflectionException
      */
     public static function login()
     {
-        $params = array_merge(['login'], func_get_args());
-
-        $status = static::called()->callProvider(...$params);
-
-        getEventManager()->fire('trust.login.' . static::called()->getNamespace(), $status, static::session());
-
-        return $status;
+        return static::connexion('login');
     }
 
     /**
      * @return mixed|null
+     * @throws Exception
      * @throws \ReflectionException
      */
     public static function logout()
     {
-        $params = array_merge(['logout'], func_get_args());
+        return static::connexion('logout');
+    }
 
-        $status = static::called()->callProvider(...$params);
+    /**
+     * @param string $type
+     * @return mixed|null
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    protected static function connexion(string $type)
+    {
+        $params = array_merge([$type], func_get_args());
 
-        getEventManager()->fire('trust.logout.' . static::called()->getNamespace(), $status, static::session());
+        $called = static::called();
+
+        $status = $called->callProvider(...$params);
+
+        $called->fire('trust.' . $type . '.' . $called->getNamespace(), $status, static::session());
+
+        $user = static::user();
+
+        getContainer()->setUser($user);
 
         return $status;
     }
@@ -255,6 +299,105 @@ class Trust
         $params = array_merge(['session'], func_get_args());
 
         return static::called()->callProvider(...$params);
+    }
+
+    /**
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    public static function user()
+    {
+        $params = array_merge(['user'], func_get_args());
+
+        return static::called()->callProvider(...$params);
+    }
+
+    /**
+     * @param $user
+     *
+     * @return Trust
+     *
+     * @throws \ReflectionException
+     */
+    public static function force($user)
+    {
+        $callback = function ($key = null) use ($user) {
+            if (!is_string($key)) {
+                $key = null;
+            }
+
+            if (!is_null($user)) {
+                if (!is_null($key)) {
+                    return dataget($user, $key, null);
+                }
+            }
+
+            return $user;
+        };
+
+        $called = static::called();
+
+        $called->setProvider('user', $callback);
+
+        return $called;
+    }
+
+    /**
+     * @param $user
+     *
+     * @return Trust
+     *
+     * @throws \ReflectionException
+     */
+    public static function forUser($user): Trust
+    {
+        $callback = function ($key = null) use ($user) {
+            if (!is_string($key)) {
+                $key = null;
+            }
+
+            if (!is_null($user)) {
+                if (!is_null($key)) {
+                    return dataget($user, $key, null);
+                }
+            }
+
+            return $user;
+        };
+
+        $oldUser = static::user();
+
+        Registry::set('trust.old.user', $oldUser);
+
+        /** @var Trust $new */
+        $new = instanciator()->factory(get_called_class());
+
+        $new->setProvider('user', $callback);
+
+        return $new;
+    }
+
+    /**
+     * @return Trust
+     *
+     * @throws \ReflectionException
+     */
+    public static function recoverUser(): Trust
+    {
+        $oldUser = Registry::get('trust.old.user', null);
+
+        return static::forUser($oldUser);
+    }
+
+    /**
+     * @return array
+     *
+     * @throws \ReflectionException
+     */
+    public static function policies(): array
+    {
+        return Registry::get('trust.policies.' . static::called()->getNamespace(), []);
     }
 
     /**
@@ -290,7 +433,7 @@ class Trust
      */
     public static function can(): bool
     {
-        if (static::isAuth()) {
+        if (true === static::isAuth()) {
             $args   = func_get_args();
             $key    = array_shift($args);
             $policies  = Registry::get('trust.policies.' . static::called()->getNamespace(), []);
@@ -309,7 +452,9 @@ class Trust
 
                         return instanciator()->call(...$params);
                     } else {
-                        return $policy(...$params);
+                        $args = array_merge([$policy], $params);
+
+                        return callCallable(...$args);
                     }
                 }
             }
@@ -340,6 +485,32 @@ class Trust
      * @throws \ReflectionException
      */
     public static function cant(string $key): bool
+    {
+        return static::cannot(...func_get_args());
+    }
+
+    /**
+     * @param string $key
+     *
+     * @return bool
+     *
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    public static function allows(string $key): bool
+    {
+        return static::can(...func_get_args());
+    }
+
+    /**
+     * @param string $key
+     *
+     * @return bool
+     *
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    public static function denies(string $key): bool
     {
         return static::cannot(...func_get_args());
     }

@@ -5,6 +5,7 @@
     use ArrayObject;
     use Closure;
     use Exception as NativeException;
+    use function func_get_args;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
     use Illuminate\Filesystem\Filesystem;
@@ -2616,14 +2617,31 @@
                 new Twig_SimpleFunction('logout', [$this, 'logout']),
                 new Twig_SimpleFunction('login', [$this, 'login']),
                 new Twig_SimpleFunction('user', [$this, 'user']),
+                new Twig_SimpleFunction('mix', [$this, 'mix'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('input_csrf', [$this, 'csrf'], ['is_safe' => ['html']])
             ];
         }
 
+        /**
+         * @return string
+         *
+         * @throws NativeException
+         */
+        public function mix()
+        {
+            return mix(...func_get_args());
+        }
+
+        /**
+         * @param string $key
+         * @param null $default
+         * @return mixed
+         * @throws TypeError
+         */
         public function old(string $key, $default = null)
         {
             /** @var array $inputs */
-            $inputs = getContainer()->getSession()->get('old_inputs', []);
+            $inputs = $this->getContainer()->getSession()->get('old_inputs', []);
 
             return isAke($inputs, $key, $default);
         }
@@ -2650,30 +2668,28 @@
 
         /**
          * @param null|string $key
-         *
-         * @return mixed
-         *
-         * @throws TypeError
+         * @return mixed|null
+         * @throws \ReflectionException
          */
         public function user(?string $key = null)
         {
-            /** @var Lock $lock */
-            $lock = $this->getContainer()->defined('lock');
+            /** @var Trust $trust */
+            $trust = $this->getContainer()->defined('trust');
 
-            return $lock->get($key);
+            return $trust->user($key);
         }
 
         /**
          * @return bool
-         *
-         * @throws TypeError
+         * @throws NativeException
+         * @throws \ReflectionException
          */
         public function can()
         {
-            /** @var Permission $permission */
-            $permission = $this->getContainer()->defined('permission');
+            /** @var Trust $trust */
+            $trust = $this->getContainer()->defined('trust');
 
-            return $permission->can(...func_get_args());
+            return $trust->can(...func_get_args());
         }
 
         /**

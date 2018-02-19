@@ -194,18 +194,20 @@
         }
 
         /**
-         * @param $k
+         * @param string $k
          * @param callable $c
          * @param null $e
-         * @return mixed
+         *
+         * @return mixed|null
+         *
          * @throws \ReflectionException
          */
-        public function getOr($k, callable $c, $e = null)
+        public function getOr(string $k, callable $c, $e = null)
         {
             $res = $this->get($k, 'octodummy');
 
             if ('octodummy' === $res) {
-                $this->set($k, $res = instanciator()->makeClosure($c), $e);
+                $this->set($k, $res = callCallable($c), $e);
             }
 
             return $res;
@@ -220,7 +222,7 @@
          *
          * @throws \ReflectionException
          */
-        public function remember($k, $c, $e = null)
+        public function remember(string $k, $c, $e = null)
         {
             if (!is_callable($c)) {
                 $c = function () use ($c) {return $c;};
@@ -229,15 +231,24 @@
             return $this->getOr($k, $c, $e);
         }
 
-        public function watch($k, callable $exists = null, callable $notExists = null)
+        /**
+         * @param string $k
+         * @param callable|null $exists
+         * @param callable|null $notExists
+         *
+         * @return bool|mixed|null
+         *
+         * @throws \ReflectionException
+         */
+        public function watch(string $k, ?callable $exists = null, ?callable $notExists = null)
         {
             if ($this->has($k)) {
                 if (is_callable($exists)) {
-                    return $exists($this->get($k));
+                    return callCallable($exists, $this->get($k));
                 }
             } else {
                 if (is_callable($notExists)) {
-                    return $notExists();
+                    return callCallable($notExists);
                 }
             }
 
@@ -269,6 +280,20 @@
             $k = sha1($this->dir) . '.' . $k;
 
             return $this->until($k, $c, $a);
+        }
+
+        /**
+         * @return array
+         */
+        public function all(): array
+        {
+            $collection = [];
+
+            foreach($this->keys() as $key) {
+                $collection[$key] = $this->get($key);
+            }
+
+            return $collection;
         }
 
         /**
@@ -395,7 +420,12 @@
             return $affected;
         }
 
-        public function getDel($key, $default = null)
+        /**
+         * @param string $key
+         * @param null $default
+         * @return mixed|null
+         */
+        public function getDel(string $key, $default = null)
         {
             if ($this->has($key)) {
                 $value = $this->get($key);
@@ -836,5 +866,20 @@
         public function getTtl($e = null)
         {
             return $e ? $e : Registry::get('cache.ttl.' . $this->id, $e);
+        }
+
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Cacheredis
+         */
+        public function append(string $key, $value)
+        {
+            $array = $this->get($key, []);
+
+            $array[] = $value;
+
+            return $this->set($key, $array);
         }
     }

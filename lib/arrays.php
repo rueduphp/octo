@@ -1188,7 +1188,7 @@
          */
         public static function filter(array $data, $callback, $flag = null)
         {
-            if (! is_callable($callback)) {
+            if (!is_callable($callback)) {
                 throw new \Exception(sprintf(
                     'Second parameter of %s must be callable',
                     __METHOD__

@@ -208,7 +208,7 @@ class Instanciator
         $ref        = new ReflectionFunction($closure);
         $params     = $ref->getParameters();
 
-        if (empty($args) || count($args) != count($params)) {
+        if (empty($args) || count($args) !== count($params)) {
             $instanceParams = [];
 
             foreach ($params as $param) {

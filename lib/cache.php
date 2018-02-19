@@ -250,6 +250,14 @@
             return $return;
         }
 
+        /**
+         * @param array $keys
+         *
+         * @return array
+         *
+         * @throws Exception
+         * @throws \Exception
+         */
         public function mget(array $keys)
         {
             $return = [];
@@ -303,7 +311,17 @@
             return false;
         }
 
-        public function at($k, $v, $timestamp)
+        /**
+         * @param string $k
+         * @param $v
+         * @param $timestamp
+         *
+         * @return Cache
+         *
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function at(string $k, $v, $timestamp)
         {
             return $this->setExpireAt($k, $v, $timestamp);
         }
@@ -450,7 +468,7 @@
             $res = $this->get($k, 'octodummy');
 
             if ('octodummy' === $res) {
-                $this->set($k, $res = instanciator()->makeClosure($c), $e);
+                $this->set($k, $res = callCallable($c), $e);
             }
 
             return $res;
@@ -480,21 +498,20 @@
          * @param $k
          * @param callable|null $exists
          * @param callable|null $notExists
-         *
-         * @return bool
-         *
+         * @return bool|mixed|null
          * @throws Exception
          * @throws \Exception
+         * @throws \ReflectionException
          */
-        public function watch($k, callable $exists = null, callable $notExists = null)
+        public function watch($k, ?callable $exists = null, ?callable $notExists = null)
         {
             if ($this->has($k)) {
                 if (is_callable($exists)) {
-                    return $exists($this->get($k));
+                    return callCallable($exists, $this->get($k));
                 }
             } else {
                 if (is_callable($notExists)) {
-                    return $notExists();
+                    return callCallable($notExists);
                 }
             }
 

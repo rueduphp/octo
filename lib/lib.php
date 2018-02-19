@@ -2633,13 +2633,108 @@
         (new Now)->set('octo.paths', $paths);
     }
 
+    function public_path(string $path = '')
+    {
+        return path('public') . ($path ? DS . ltrim($path, DS) : $path);
+    }
+
+    function cache_path(string $path = '')
+    {
+        return path('cache') . ($path ? DS . ltrim($path, DS) : $path);
+    }
+
+    function app_path(string $path = '')
+    {
+        return path('app') . ($path ? DS . ltrim($path, DS) : $path);
+    }
+
+    function storage_path(string $path = '')
+    {
+        return path('storage') . ($path ? DS . ltrim($path, DS) : $path);
+    }
+
     function paths()
     {
         return (new Now)->get('octo.paths', []);
     }
 
     /**
+     * @param string $path
+     * @param string $manifestDirectory
+     *
+     * @return string
+     *
+     * @throws \Exception
+     */
+    function mix(string $path, string $manifestDirectory = ''): string
+    {
+        static $manifests = [];
+
+        if (!startsWith($path, '/')) {
+            $path = "/{$path}";
+        }
+
+        if ($manifestDirectory && !startsWith($manifestDirectory, '/')) {
+            $manifestDirectory = "/{$manifestDirectory}";
+        }
+
+        if (file_exists(public_path($manifestDirectory . '/hot'))) {
+            $url = file_get_contents(public_path($manifestDirectory . '/hot'));
+
+            if (startsWith($url, ['http://', 'https://'])) {
+                return Inflector::after($url, ':') . $path;
+            }
+
+            return "//localhost:8080{$path}";
+        }
+
+        $manifestPath = public_path($manifestDirectory . '/mix-manifest.json');
+
+        if (!isset($manifests[$manifestPath])) {
+            if (!file_exists($manifestPath)) {
+                throw new \Exception('The Mix manifest does not exist.');
+            }
+
+            $manifests[$manifestPath] = json_decode(file_get_contents($manifestPath), true);
+        }
+
+        $manifest = $manifests[$manifestPath];
+
+        if (!isset($manifest[$path])) {
+            return $path;
+        }
+
+        return $manifestDirectory . $manifest[$path];
+    }
+
+    /**
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function nextable()
+    {
+        $args = func_get_args();
+
+        $first  = array_shift($args);
+        $next   = array_shift($args);
+
+        if (is_callable($first) && is_callable($next)) {
+            $params = array_merge([$first], $args);
+
+            $result = callCallable(...$params);
+
+            $params = array_merge([$next, $result], $args);
+
+            return callCallable(...$params);
+        }
+
+        return null;
+    }
+
+    /**
      * @param null|string $dir
+     *
      * @throws Exception
      */
     function systemBoot(?string $dir = null)
@@ -3062,6 +3157,7 @@
 
     /**
      * @param array $rows
+     *
      * @return Collection
      */
     function collectify(array $rows = [])
@@ -3088,6 +3184,7 @@
     /**
      * @param $class
      * @param array $array
+     *
      * @return Magic
      */
     function magic($class, array $array = [])
@@ -3098,6 +3195,7 @@
     /**
      * @param $context
      * @param array $array
+     *
      * @return Context
      */
     function context($context, array $array = [])
@@ -3136,6 +3234,10 @@
         return $mock;
     }
 
+    /**
+     * @param callable|null $callable
+     * @throws \ReflectionException
+     */
     function shutdown(callable $callable = null)
     {
         $callables = Registry::get('core.shutdown', []);
@@ -3146,7 +3248,7 @@
         } else {
             foreach ($callables as $callable) {
                 if (is_callable($callable)) {
-                    $callable();
+                    callCallable($callable);
                 }
             }
         }
@@ -3309,6 +3411,12 @@
         segment('core', $data);
     }
 
+    /**
+     * @param $k
+     * @param null $d
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
     function get($k, $d = null)
     {
         $data   = segment('core');
@@ -3317,6 +3425,12 @@
         return value($value);
     }
 
+    /**
+     * @param $k
+     * @param null $d
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
     function getDel($k, $d = null)
     {
         if (has($k)) {
@@ -3330,14 +3444,25 @@
         return $d;
     }
 
-    function getMacro($k, array $args = [], $d = null)
+    /**
+     * @param string $k
+     * @param array $args
+     * @param null $d
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function getMacro(string $k, array $args = [], $d = null)
     {
         if (has($k)) {
             $data   = segment('core');
             $cb     = aget($data, $k, $d);
 
             if (is_callable($cb)) {
-                return call_user_func_array($cb, $args);
+                $params = array_merge([$cb], $args);
+
+                return callCallable(...$params);
             }
         }
 
@@ -3402,7 +3527,7 @@
     {
         $res = get($k, 'octodummy');
 
-        if ('octodummy' == $res) {
+        if ('octodummy' === $res) {
             set($k, $res = $c());
         }
 
@@ -4399,9 +4524,25 @@
         return $value;
     }
 
-    function startsWith($str, $val)
+    /**
+     * @param string $haystack
+     * @param $needles
+     *
+     * @return bool
+     */
+    function startsWith(string $haystack, $needles)
     {
-        return fnmatch($val . '*', $str);
+        if (is_string($needles)) {
+            return fnmatch($needles . '*', $haystack) ? true : false;
+        }
+
+        foreach ((array) $needles as $needle) {
+            if ($needle !== '' && substr($haystack, 0, strlen($needle)) === (string) $needle) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     function endsWith($str, $val)
@@ -5414,6 +5555,11 @@
         return maker($class, $args);
     }
 
+    /**
+     * @param $type
+     * @param $message
+     * @param string $extends
+     */
     function exception($type, $message, $extends = '\\Exception')
     {
         $what   = ucfirst(Strings::camelize($type . '_exception'));
@@ -6672,6 +6818,20 @@
         }
 
         return actual('core.live');
+    }
+
+    /**
+     * @param null|Trust $trust
+     *
+     * @return Trust|null
+     */
+    function trust(?Trust $trust = null)
+    {
+        if ($trust instanceof Trust) {
+            actual('core.trust', $trust);
+        }
+
+        return actual('core.trust');
     }
 
     /**
@@ -8275,11 +8435,26 @@
         return lib('geo')->getCoordsMap($address);
     }
 
+    /**
+     * @param $concern
+     * @return bool
+     */
     function arrayable($concern)
     {
         return is_object($concern) && in_array('toArray', get_class_methods($concern));
     }
 
+    /**
+     * @param $key
+     * @param $minutes
+     * @param $ifNot
+     *
+     * @return mixed
+     *
+     * @throws Exception
+     * @throws \Exception
+     * @throws \ReflectionException
+     */
     function cacher($key, $minutes, $ifNot)
     {
         return fmr()->remember($key, $ifNot, 60 * $minutes);

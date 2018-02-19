@@ -367,21 +367,21 @@
         }
 
         /**
-         * @param \Closure $callback
+         * @param callable $callback
          * @param int $times
          *
-         * @return mixed
+         * @return mixed|null
          *
          * @throws \Exception
          * @throws \Throwable
          */
-        public function transaction(\Closure $callback, $times = 1)
+        public function transaction(callable $callback, $times = 1)
         {
             for ($t = 1; $t <= $times; $t++) {
                 $this->begin();
 
                 try {
-                    $result = $callback($this);
+                    $result = callCallable($callback, $this);
 
                     $this->commit();
                 } catch (\Exception $e) {
@@ -401,7 +401,7 @@
         /**
          * @return bool
          */
-        public function begin()
+        public function begin(): bool
         {
             return $this->pdo->beginTransaction();
         }
@@ -409,7 +409,7 @@
         /**
          * @return bool
          */
-        public function commit()
+        public function commit(): bool
         {
             return $this->pdo->commit();
         }
@@ -417,7 +417,7 @@
         /**
          * @return bool
          */
-        public function rollBack()
+        public function rollBack(): bool
         {
             return $this->pdo->rollBack();
         }
@@ -445,7 +445,7 @@
          * @param bool $reset
          * @return \PDOStatement
          */
-        public function run($make = true, $reset = true)
+        public function run(bool $make = true, bool $reset = true)
         {
             $stmt = $this->getStatement($make);
 
@@ -470,7 +470,7 @@
          *
          * @return \PDOStatement
          */
-        public function get($make = true, $reset = true)
+        public function get(bool $make = true, bool $reset = true)
         {
             return $this->run($make, $reset);
         }
@@ -478,7 +478,7 @@
         /**
          * @return string
          */
-        public function sql()
+        public function sql(): string
         {
             return $this->getStatement()->queryString;
         }
@@ -487,7 +487,7 @@
          * @param bool $make
          * @return \PDOStatement
          */
-        protected function getStatement($make = true)
+        protected function getStatement(bool $make = true)
         {
             if ($make) {
                 $this->makeQuery();
@@ -499,7 +499,7 @@
         /**
          * @return bool
          */
-        public function truncate()
+        public function truncate(): bool
         {
             if (empty($this->table)) {
                 exception('orm', 'No table set.');
@@ -511,7 +511,7 @@
         /**
          * @return bool
          */
-        public function drop()
+        public function drop(): bool
         {
             if (empty($this->table)) {
                 exception('orm', 'No table set.');
@@ -582,7 +582,7 @@
          * @param string $key
          * @return int
          */
-        public function count()
+        public function count(): int
         {
             return $this->aggregate('count');
         }
@@ -623,7 +623,7 @@
             return $this->aggregate('max', $key);
         }
 
-        protected function aggregate($type, $key = '*')
+        protected function aggregate(string $type, $key = '*')
         {
             if (empty($this->table)) {
                 exception('orm', 'No table set.');
@@ -642,12 +642,17 @@
             return $row['aggregate'];
         }
 
-        public function getQuery($make = true)
+        /**
+         * @param bool $make
+         *
+         * @return string
+         */
+        public function getQuery(bool $make = true)
         {
             $old = $this->query;
             $oldP = $this->prepares;
 
-            if ($make) {
+            if (true === $make) {
                 $this->makeQuery();
             }
 
@@ -659,6 +664,9 @@
             return $new;
         }
 
+        /**
+         * @return string
+         */
         public function lastId()
         {
             $this->reset();
@@ -666,10 +674,13 @@
             return $this->pdo->lastInsertId();
         }
 
+        /**
+         * @return array
+         */
         public function extractWhere()
         {
-            $nargs  = func_num_args();
-            $a = $args = func_get_args();
+            $nargs      = func_num_args();
+            $a = $args  = func_get_args();
 
             $key        = array_shift($args);
             $operator   = array_shift($args);
