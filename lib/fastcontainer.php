@@ -89,11 +89,13 @@ class Fastcontainer implements FastContainerInterface
     }
 
     /**
-     * @return mixed
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
      */
     public function call()
     {
-        return call_user_func_array('\\Octo\\callMethod', func_get_args());
+        return callMethod(...func_get_args());
     }
 
     /**
@@ -101,7 +103,7 @@ class Fastcontainer implements FastContainerInterface
      */
     public function factory()
     {
-        return call_user_func_array('\\Octo\\foundry', func_get_args());
+        return foundry(...func_get_args());
     }
 
     /**
@@ -195,13 +197,13 @@ class Fastcontainer implements FastContainerInterface
     }
 
     /**
-     * @param string $concern
+     * @param $concern
      * @param callable $callable
      * @param null $c
      *
-     * @return $this
+     * @return Fastcontainer
      */
-    public function register($concern, callable $callable, $c = null)
+    public function register($concern, callable $callable, $c = null): self
     {
         $data = Registry::get('core.Fastcontainer.registered', []);
 

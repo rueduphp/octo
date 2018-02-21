@@ -1,11 +1,15 @@
 <?php
     require_once __DIR__ . '/classes.php';
 
+    use Faker\Generator;
     use Illuminate\Database\Eloquent\Collection as CollectIll;
-use Octo\Caching;
-use Octo\Factory;
-use Octo\Inflector;
-use Octo\Orm;
+    use Illuminate\Database\Query\Builder;
+    use Octo\Caching;
+    use Octo\Capsule;
+    use Octo\Elegant;
+    use Octo\Factory;
+    use Octo\Inflector;
+    use Octo\Orm;
     use Octo\Ormmodel;
     use Octo\Record;
     use Octo\Strings;
@@ -67,6 +71,26 @@ use Octo\Orm;
         }
     }
 
+    class Posts extends Elegant
+    {
+        protected $table = 'post';
+
+        public function user()
+        {
+            return $this->belongsTo(UserModel::class, 'user_id');
+        }
+
+        public function pivots()
+        {
+            return $this->belongsToMany(UserModel::class, 'postuser', 'post_id', 'user_id');
+        }
+
+        public function comments()
+        {
+            return $this->morphMany(CommentModel::class, 'commentable');
+        }
+    }
+
     class OrmTest extends TestCase
     {
        /** @var  PDO */
@@ -94,11 +118,18 @@ use Octo\Orm;
 
             $this->db = new Orm($this->pdo);
 
-            /** @var PDO $p */
-            $p = $this->proxy($this->pdo);
+            Capsule::instance($this->pdo);
 
             Migrations::migrate($this->db->schema());
             Migrations::seeds($this->db);
+        }
+
+        /**
+         * @throws Exception
+         */
+        public function testElegant()
+        {
+            $this->assertInstanceOf(UserModel::class, Posts::first()->user);
         }
 
         /**
@@ -120,7 +151,10 @@ use Octo\Orm;
             $this->assertEquals(11, $this->db->from('post')->count());
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkSelect()
         {
             $q = $this->db->insert([
@@ -152,7 +186,10 @@ use Octo\Orm;
             $this->assertEquals('Lorem ipsum 2', $row['content']);
         }
 
-        /** @test */
+        /**
+         * @test
+         * @throws Exception
+         */
         public function checkUpdate()
         {
             $q = $this->db->insert([
@@ -249,6 +286,14 @@ use Octo\Orm;
         }
 
         /**
+         * @throws Exception
+         */
+        public function testOne()
+        {
+            $this->assertEquals(User::first(), User::one());
+        }
+
+        /**
          * @test
          * @throws Exception
          */
@@ -285,6 +330,7 @@ use Octo\Orm;
          */
         public function checkBuilder()
         {
+            /** @var Builder $query */
             $query = Post::builder();
             $query->where('id', '>', 2);
 
@@ -419,6 +465,7 @@ use Octo\Orm;
         /**
          * @test
          * @throws Exception
+         * @throws ReflectionException
          */
         public function checkAggregates()
         {
@@ -438,7 +485,7 @@ use Octo\Orm;
             $this->assertEquals(5.5, $avg);
 
             $this->assertEquals(
-                $this->foundry(User::class)(1),
+                $this->making()->factory(User::class)(1),
                 User::find(1)
             );
         }
@@ -488,6 +535,8 @@ use Octo\Orm;
 
             $user = UserModel::find($user->id);
 
+            $this->assertEquals('updated', $user->name);
+
             $posts = $user->posts();
 
             if ($post = $posts->first()) {
@@ -526,7 +575,7 @@ use Octo\Orm;
         /**
          * @throws Exception
          */
-        public function testCahing()
+        public function testCaching()
         {
             /** @var Caching $cache */
             $cache = $this->caching();
@@ -566,7 +615,7 @@ use Octo\Orm;
 
         private function factories()
         {
-            Factory::for(Post::class, function ($faker) {
+            Factory::for(Post::class, function (Generator $faker) {
                 return [
                     'content'   => $t = $faker->sentence,
                     'user_id'   => $u = rand(1, 10),
@@ -574,7 +623,7 @@ use Octo\Orm;
                 ];
             });
 
-            Factory::for(PostModel::class, function ($faker) {
+            Factory::for(PostModel::class, function (Generator $faker) {
                 return [
                     'content'   => $t = $faker->sentence,
                     'user_id'   => $u = rand(1, 10),

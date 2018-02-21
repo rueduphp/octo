@@ -1008,7 +1008,19 @@
 
     function request($k = null, $d = null)
     {
-        return getRequest()->getAttribute($k, $d);
+        if (is_string($k)) {
+            return getRequest()->getAttribute($k, $d);
+        } elseif (is_array($k)) {
+            $collection = [];
+
+            foreach ($k as $field) {
+                $collection[$k] = getRequest()->getAttribute($field, null);
+            }
+
+            return $collection;
+        }
+
+        return getRequest();
     }
 
     function customRequest($name, $cb = null)
@@ -6717,7 +6729,7 @@
         )->find((int) $object->polymorph_id);
     }
 
-    function polymorphs(Object $object, $parent)
+    function polymorphs(Objet $object, $parent)
     {
         return engine(
             $object->db(),
@@ -6731,6 +6743,12 @@
         );
     }
 
+    /**
+     * @param $timestamp
+     * @param null $tz
+     *
+     * @return mixed
+     */
     function tsToTime($timestamp, $tz = null)
     {
         return Date::createFromTimestamp($timestamp, $tz);
@@ -6741,6 +6759,8 @@
      * @param string $className
      *
      * @return mixed
+     *
+     * @throws \ReflectionException
      */
     function fire(string $className)
     {
@@ -6748,31 +6768,55 @@
     }
 
     /**
-     * @param string|null $className
-     * @param array $params
+     * @return mixed|null|FastEvent
      *
-     * @return FastEvent|Listener
+     * @throws \ReflectionException
      */
-    function event($className = null, array $params = [])
+    function event()
     {
+        $params     = func_get_args();
+        $className  = array_shift($params);
+
         $manager = getEventManager();
 
         if (is_null($className)) {
             return $manager;
         }
 
-        $callable = function () use ($className, $params) {
+        if (is_object($className)) {
+            $instance = $className;
+        } elseif (is_string($className)) {
             $instance = instanciator()->make($className, $params, false);
+        }
 
-            try {
-                $res = instanciator()->call($instance, 'fire');
-                instanciator()->call($instance, 'onSuccess', $res);
-            } catch (\Exception $e) {
-                instanciator()->call($instance, 'onFail');
+        try {
+            if (method_exists($instance, 'fire')) {
+                $args = array_merge([$instance, 'fire'], $params);
+            } elseif (method_exists($instance, 'handle')) {
+                $args = array_merge([$instance, 'handle'], $params);
             }
-        };
 
-        return $manager->on($className, $callable);
+            $res = instanciator()->call(...$args);
+
+            if (method_exists($instance, 'onSuccess')) {
+                instanciator()->call($instance, 'onSuccess', $res);
+            }
+
+            return $res;
+        } catch (\Exception $e) {
+            if (method_exists($instance, 'onFail')) {
+                return instanciator()->call($instance, 'onFail');
+            }
+        }
+    }
+
+    /**
+     * @return mixed|null|FastEvent
+     * @throws \ReflectionException
+     */
+    function dispatch()
+    {
+        return event(...func_get_args());
     }
 
     function objectifier()

@@ -5,7 +5,6 @@
     use ArrayObject;
     use Closure;
     use Exception as NativeException;
-    use function func_get_args;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
     use Illuminate\Filesystem\Filesystem;
@@ -52,12 +51,14 @@
          * @param $value
          *
          * @return Fast
+         *
+         * @throws \ReflectionException
          */
-        public function set_config(string $key, $value): self
+        public function setConfig(string $key, $value): self
         {
-            $configs = Registry::get('fast.config', []);
+            $configs = get('fast.config', []);
             aset($configs, $key, $value);
-            Registry::set('fast.config', $configs);
+            set('fast.config', $configs);
 
             return $this;
         }
@@ -66,11 +67,13 @@
          * @param string $key
          * @param null $value
          *
-         * @return mixed
+         * @return mixed|null
+         *
+         * @throws \ReflectionException
          */
-        public function get_config(string $key, $value = null)
+        public function getConfig(string $key, $value = null)
         {
-            $configs = Registry::get('fast.config', []);
+            $configs = get('fast.config', []);
 
             return aget($configs, $key, $value);
         }
@@ -1340,6 +1343,24 @@
 
             return $this;
         }
+
+        /**
+         * @return mixed|null|FastEvent
+         * @throws \ReflectionException
+         */
+        public function event()
+        {
+            return event(...func_get_args());
+        }
+
+        /**
+         * @return mixed|null|FastEvent
+         * @throws \ReflectionException
+         */
+        public function dispatch()
+        {
+            return event(...func_get_args());
+        }
     }
 
     trait FastRegistryTrait
@@ -1516,6 +1537,7 @@
 
         /**
          * @return FastLog
+         * @throws \ReflectionException
          */
         public function getLog()
         {
@@ -1532,6 +1554,7 @@
 
         /**
          * @return mixed|object
+         * @throws \ReflectionException
          */
         public function resolve()
         {
@@ -1540,6 +1563,7 @@
 
         /**
          * @return mixed|object
+         * @throws \ReflectionException
          */
         public function resolveOnce()
         {
@@ -1556,6 +1580,7 @@
 
         /**
          * @return FastEvent
+         * @throws \ReflectionException
          */
         public function getEventManager()
         {
@@ -1622,7 +1647,7 @@
          *
          * @return mixed|Tap
          */
-        public function same($value, callable $callback = null)
+        public function same($value, ?callable $callback = null)
         {
             return tap($value, $callback);
         }

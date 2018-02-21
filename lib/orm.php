@@ -2095,6 +2095,10 @@
             return $this->hook;
         }
 
+        /**
+         * @return mixed|null|Entity
+         * @throws \ReflectionException
+         */
         public function getEntity()
         {
             $entity = actual("orm.entity.$this->table");
@@ -2110,8 +2114,8 @@
 
         /**
          * @param $row
-         *
          * @return Record
+         * @throws \ReflectionException
          */
         public function model($row)
         {
@@ -2130,7 +2134,12 @@
             return new Ormiterator($this->select()->run(), $instance);
         }
 
-        public function rows($model = true)
+        /**
+         * @param bool $model
+         * @return \Generator
+         * @throws \ReflectionException
+         */
+        public function rows(bool $model = true)
         {
             $statement  = $this->select()->run();
 
@@ -2323,6 +2332,41 @@
                     }
                 }
             });
+        }
+
+        /**
+         * @param bool $model
+         *
+         * @return mixed|null|Record
+         *
+         * @throws \ReflectionException
+         */
+        public function one(bool $model = true)
+        {
+            $entity = $this->getEntity();
+            $row    = $this->first();
+
+            if ($row) {
+                return true === $model ? $entity->model($row) : $row;
+            }
+
+            return null;
+        }
+
+        /**
+         * @param null $conditions
+         * @param bool $model
+         *
+         * @return mixed|Record
+         *
+         * @throws \ReflectionException
+         */
+        public function oneOrFail($conditions = null, bool $model = true)
+        {
+            $entity = $this->getEntity();
+            $row    = $this->firstOrFail($conditions);
+
+            return true === $model ? $entity->model($row) : $row;
         }
 
         public function split($count, callable $callback)

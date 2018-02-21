@@ -1,4 +1,6 @@
 <?php
+    use function Octo\instanciator;
+
     abstract class TestCase extends Octo\TestCase
     {
         protected $baseUrl = 'http://localhost';
@@ -8,6 +10,14 @@
             parent::setUp();
             Octo\Dir::rmdir(__DIR__ . '/cache');
             Octo\Dir::mkdir(__DIR__ . '/cache');
+        }
+
+        /**
+         * @return \Octo\Instanciator
+         */
+        public function making()
+        {
+            return instanciator();
         }
 
         /**
