@@ -32,4 +32,9 @@
 
             return Octo\context('app');
         }
+
+        public function __invoke()
+        {
+            return get_called_class();
+        }
     }

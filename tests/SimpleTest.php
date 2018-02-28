@@ -101,6 +101,17 @@ class SimpleTest extends TestCase
 {
     /**
      * @throws Exception
+     */
+    public function testMakeResource()
+    {
+        $resource = $this->makeResource(new Subscriber);
+
+        $this->assertTrue(is_resource($resource));
+
+        $this->assertInstanceOf(Subscriber::class, $this->makeFromResource($resource));
+    }
+    /**
+     * @throws Exception
      * @throws ReflectionException
      */
     public function testTrust()

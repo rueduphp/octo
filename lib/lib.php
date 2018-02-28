@@ -5,6 +5,7 @@
     use Closure;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Support\Debug\Dumper;
+    use function is_object;
     use Psr\Http\Message\ServerRequestInterface;
     use ReflectionFunction;
     use Zend\Expressive\Router\FastRouteRouter;
@@ -767,6 +768,49 @@
         }
 
         return false;
+    }
+
+    /**
+     * @param null $concern
+     *
+     * @return bool|resource
+     *
+     * @throws \ReflectionException
+     */
+    function makeResource($concern = null)
+    {
+        $resource = fopen("php://memory", 'r+');
+
+        if (is_object($concern) && is_invokable($concern)) {
+            $concern = instanciator()->call([$concern, '__invoke']);
+        }
+
+//        try {
+            fwrite($resource, serialize($concern));
+//        } catch (\Exception $e) {
+//            return $resource;
+//        }
+
+        return $resource;
+    }
+
+    function makeFromResource($resource, $default = null, bool $unserialize = true)
+    {
+        if (is_resource($resource)) {
+            rewind($resource);
+
+            $cnt = [];
+
+            while (!feof($resource)) {
+                $cnt[] = fread($resource, 1024);
+            }
+
+            $data = implode('', $cnt);
+
+            return $unserialize ? unserialize($data) : $data;
+        }
+
+        return $default;
     }
 
     function cloudMail($to, $subject, $body, $headers, $sep = "\n")
