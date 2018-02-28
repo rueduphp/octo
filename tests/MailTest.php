@@ -8,6 +8,7 @@ class MailTest extends TestCase
 {
     /**
      * @throws Exception
+     * @throws \Exception
      */
     public function testMail()
     {

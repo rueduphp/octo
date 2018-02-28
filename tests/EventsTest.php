@@ -37,13 +37,13 @@ class EventsTest extends TestCase
         $this->manager = $this->getEventManager();
 
         $event = $this->manager->on('test', function ($num) {
-            set('eventval', get('eventval') + $num);
+            incr('eventval', $num);
         });
 
         $event->halt(true);
 
         $this->manager->on('test2', function ($num) {
-            set('eventval', get('eventval') + $num);
+            incr('eventval', $num);
         });
     }
 

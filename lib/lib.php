@@ -2046,6 +2046,37 @@
         return new $instanciate($class, $data);
     }
 
+    /**
+     * @param $event
+     *
+     * @return array
+     *
+     * @throws \ReflectionException
+     */
+    function payloadFromEvent($event)
+    {
+        if (method_exists($event, 'broadcastWith')) {
+            return array_merge(
+                $event->broadcastWith(), ['socket' => dataget($event, 'socket')]
+            );
+        }
+
+        $payload = [];
+
+        foreach ((new \ReflectionClass($event))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            $payload[$property->getName()] = formatProperty($property->getValue($event));
+        }
+
+        unset($payload['broadcastQueue']);
+
+        return $payload;
+    }
+
+    function formatProperty($value)
+    {
+        return arrayable($value) ? $value->toArray() : $value;
+    }
+
     function libonce($lib, $args = [])
     {
         return lib($lib, $args, true);
@@ -2061,6 +2092,8 @@
     function lib(string $lib, $args = [], bool $singleton = false)
     {
         $args = arrayable($args) ? $args->toArray() : $args;
+
+        $singleton = empty($args);
 
         try {
             $class = '\\Octo\\' . Strings::camelize($lib);
@@ -4254,6 +4287,15 @@
         return actual('fast.router');
     }
 
+    /**
+     * @param $target
+     * @param $key
+     * @param null $default
+     *
+     * @return array|mixed|null
+     *
+     * @throws \ReflectionException
+     */
     function dataget($target, $key, $default = null)
     {
         if (is_null($key)) {
@@ -4485,12 +4527,6 @@
 
     function appenv($key, $default = null)
     {
-        $env = getenv($key);
-
-        if (false !== $env) {
-            return $env;
-        }
-
         $env = path('base') . '/.env';
 
         if (File::exists($env)) {
@@ -4501,6 +4537,12 @@
             );
 
             return isAke($ini, $key, $default);
+        }
+
+        $env = getenv($key);
+
+        if (false !== $env) {
+            return $env;
         }
 
         return $default;
@@ -6754,6 +6796,10 @@
         return Date::createFromTimestamp($timestamp, $tz);
     }
 
+    function pois(string $address, $type = 'restaurant')
+    {
+        return lib('geo')->placesByAddress($address, $type);
+    }
 
     /**
      * @param string $className

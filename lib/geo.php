@@ -155,9 +155,16 @@
             return $res;
         }
 
+        /**
+         * @param $url
+         * @param null $max
+         * @return mixed
+         * @throws Exception
+         * @throws \Exception
+         */
         public function dwnCache($url, $max = null)
         {
-            if (APPLICATION_ENV == 'testing') {
+            if (APPLICATION_ENV === 'testing') {
                 return lib('geo')->dwn($url);
             } else {
                 return fmr('geo')->until('url.' . sha1($url), function () use ($url) {
@@ -244,6 +251,12 @@
             return $return;
         }
 
+        /**
+         * @param $address
+         * @return array
+         * @throws Exception
+         * @throws \Exception
+         */
         public function getCoordsMap($address)
         {
             $lat = $lng = 0;
@@ -276,6 +289,8 @@
                 $d = str_replace(["\t", "\n", "\r"], '', $d);
 
                 list($dummy, $segTab) = explode(")]}'", $d, 2);
+
+                $dtab = [];
 
                 eval('$dtab = ' . $segTab . ';');
 
@@ -566,6 +581,14 @@
             return $kmRender ? $km : ['km' => $km, 'miles' => $miles];
         }
 
+        /**
+         * @param $lat
+         * @param $lng
+         * @param string $type
+         * @return array
+         * @throws Exception
+         * @throws \Exception
+         */
         public function places($lat, $lng, $type = 'restaurant')
         {
             $url = "https://www.google.fr/search?tbm=map&fp=1&authuser=0&hl=fr&pb=!4m12!1m3!1d4073.5434512203738!2d$lng!3d$lat!2m3!1f0!2f0!3f0!3m2!1i1360!2i298!4f13.1!7i10!10b1!12m6!2m3!5m1!2b0!20e3!10b1!16b1!19m3!2m2!1i392!2i106!20m40!2m2!1i203!2i200!3m1!2i4!6m6!1m2!1i86!2i86!1m2!1i408!2i256!7m26!1m3!1e1!2b0!3e3!1m3!1e2!2b1!3e2!1m3!1e2!2b0!3e3!1m3!1e3!2b0!3e3!1m3!1e4!2b0!3e3!1m3!1e3!2b1!3e2!2b1!4b0!9b0!7e81!24m1!2b1!26m3!2m2!1i80!2i92!30m28!1m6!1m2!1i0!2i0!2m2!1i458!2i298!1m6!1m2!1i1310!2i0!2m2!1i1360!2i298!1m6!1m2!1i0!2i0!2m2!1i1360!2i20!1m6!1m2!1i0!2i278!2m2!1i1360!2i298!37m1!1e81&q=" . urlencode($type);
@@ -655,6 +678,15 @@
             return $collection;
         }
 
+        /**
+         * @param $address
+         * @param string $type
+         *
+         * @return array
+         *
+         * @throws Exception
+         * @throws \Exception
+         */
         public function placesByAddress($address, $type = 'restaurant')
         {
             $data = $this->getCoordsMap($address);

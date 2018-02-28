@@ -15,11 +15,17 @@ class SenderTest extends TestCase
             ->memory();
     }
 
+    /**
+     * @throws Exception
+     */
     public function testIsMailer()
     {
         $this->assertInstanceOf(Swift_Mailer::class, $this->getContainer()['mailer']);
     }
 
+    /**
+     * @throws Exception
+     */
     public function testSend()
     {
         $mailer = $this->mailer();
