@@ -722,7 +722,7 @@
          *
          * @return mixed|null|ResponseInterface
          *
-         * @throws TypeError         *
+         * @throws TypeError
          * @throws \ReflectionException
          */
         public function process(ServerRequestInterface $request)
@@ -730,10 +730,10 @@
             if (false === $this->started && true === $this->hasSession()) {
                 unset($this->getSession()['old_inputs']);
                 $this->started = true;
-            }
 
-            if ('post' === Inflector::lower($request->getMethod()) && true === $this->hasSession()) {
-                $this->getSession()->set('old_inputs', $request->getParsedBody() ?? []);
+                if ('post' === Inflector::lower($request->getMethod())) {
+                    $this->getSession()->set('old_inputs', $request->getParsedBody() ?? []);
+                }
             }
 
             $this->request = $request;
