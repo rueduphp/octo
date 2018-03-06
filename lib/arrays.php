@@ -1088,7 +1088,6 @@
             if (is_null(static::get($array, $key))) {
                 static::set($array, $key, $value);
             }
-
             return $array;
         }
 
@@ -1303,5 +1302,30 @@
             }
 
             return $html;
+        }
+
+        /**
+         * @param array ...$arrays
+         * @return array
+         */
+        public static function crossJoin(...$arrays)
+        {
+            $results = [[]];
+
+            foreach ($arrays as $index => $array) {
+                $append = [];
+
+                foreach ($results as $product) {
+                    foreach ($array as $item) {
+                        $product[$index] = $item;
+
+                        $append[] = $product;
+                    }
+                }
+
+                $results = $append;
+            }
+
+            return $results;
         }
     }

@@ -42,12 +42,13 @@ class Live implements ArrayAccess, FastSessionInterface
      */
     public function __construct($driver = null)
     {
+        $this->sid = sessionKey();
+
         if (is_null($driver)) {
-            $driver = fmr(sessionKey());
+            $driver = fmr($this->sid);
         }
 
-        $this->driver   = $driver;
-        $this->sid      = sessionKey();
+        $this->driver = $driver;
 
         live($this);
     }

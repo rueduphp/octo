@@ -7,7 +7,7 @@ class Memorytransporter extends Transporter
     /**
      * {@inheritdoc}
      */
-    public function send($message, &$failedRecipients = null)
+    public function send(\Swift_Mime_Message $message, &$failedRecipients = null)
     {
         $messages = $this->messages();
 

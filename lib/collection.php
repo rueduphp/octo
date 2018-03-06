@@ -5,6 +5,7 @@
     use ArrayAccess;
     use ArrayIterator;
     use CachingIterator;
+    use Illuminate\Support\Debug\Dumper;
     use JsonSerializable;
     use IteratorAggregate;
 
@@ -97,7 +98,7 @@
         {
             if (func_num_args() == 2) {
                 return $this->contains(function($k, $item) use ($key, $value) {
-                    return dget($item, $key) == $value;
+                    return dget($item, $key) === $value;
                 });
             }
 
@@ -1439,5 +1440,283 @@
             bool $nullToMysqlNull = false
         ): string {
             return Arrays::toCsv($this->items, $delimiter, $enclosure, $encloseAll, $nullToMysqlNull);
+        }
+
+        public static function wrap($value)
+        {
+            return $value instanceof self
+                ? new static($value)
+                : new static(wrap($value));
+        }
+
+        public static function unwrap($value)
+        {
+            return $value instanceof self ? $value->all() : $value;
+        }
+
+        /**
+         * @param $number
+         * @param callable|null $callback
+         *
+         * @return static
+         */
+        public static function times($number, ?callable $callback = null)
+        {
+            if ($number < 1) {
+                return new static;
+            }
+
+            if (is_null($callback)) {
+                return new static(range(1, $number));
+            }
+
+            return (new static(range(1, $number)))->map($callback);
+        }
+
+        /**
+         * @param null $key
+         * @return mixed|null
+         */
+        public function median($key = null)
+        {
+            $count = $this->count();
+
+            if ($count === 0) {
+                return;
+            }
+
+            $values = (isset($key) ? $this->pluck($key) : $this)
+                ->sort()->values();
+
+            if (!$values instanceof self) {
+                $values = new static($values);
+            }
+
+            $middle = (int) ($count / 2);
+
+            if ($count % 2) {
+                return $values->get($middle);
+            }
+
+            return (new static([
+                $values->get($middle - 1), $values->get($middle),
+            ]))->average();
+        }
+
+        /**
+         * @param null $key
+         * @return array
+         */
+        public function mode($key = null)
+        {
+            $count = $this->count();
+
+            if ($count === 0) {
+                return;
+            }
+
+            $collection = isset($key) ? $this->pluck($key) : $this;
+
+            $counts = new self;
+
+            $collection->each(function ($value) use ($counts) {
+                $counts[$value] = isset($counts[$value]) ? $counts[$value] + 1 : 1;
+            });
+
+            $sorted = $counts->sort();
+
+            $highestValue = $sorted->last();
+
+            return $sorted->filter(function ($value) use ($highestValue) {
+                return $value == $highestValue;
+            })->sort()->keys()->all();
+        }
+
+        /**
+         * @param array ...$args
+         */
+        public function dd(...$args)
+        {
+            http_response_code(500);
+
+            call_user_func_array([$this, 'dump'], $args);
+
+            die(1);
+        }
+
+        /**
+         * @return Collection
+         */
+        public function dump():self
+        {
+            (new static(func_get_args()))
+                ->push($this)
+                ->each(function ($item) {
+                    (new Dumper)->dump($item);
+                });
+
+            return $this;
+        }
+
+        /**
+         * @param callable $callback
+         * @return Collection
+         */
+        public function eachSpread(callable $callback)
+        {
+            return $this->each(function ($chunk, $key) use ($callback) {
+                $chunk[] = $key;
+
+                return $callback(...$chunk);
+            });
+        }
+
+        /**
+         * @param $value
+         * @param callable $callback
+         * @param callable|null $default
+         * @return $this
+         */
+        public function when($value, callable $callback, ?callable $default = null)
+        {
+            $value = value($value);
+
+            if ($value) {
+                return $callback($this, $value);
+            } elseif ($default) {
+                return $default($this, $value);
+            }
+
+            return $this;
+        }
+
+        /**
+         * @param $value
+         * @param callable $callback
+         * @param callable|null $default
+         * @return Collection
+         */
+        public function unless($value, callable $callback, ?callable $default = null)
+        {
+            return $this->when(!$value, $callback, $default);
+        }
+
+        /**
+         * @param array ...$args
+         * @return mixed|null
+         */
+        public function firstWhere(...$args)
+        {
+            return $this->where(...$args)->first();
+        }
+
+        /**
+         * @param array ...$args
+         * @return mixed|null
+         */
+        public function lastWhere(...$args)
+        {
+            return $this->where(...$args)->last();
+        }
+
+        /**
+         * @param $class
+         *
+         * @return Collection
+         */
+        public function hydrate($class)
+        {
+            return $this->map(function ($value, $key) use ($class) {
+                return new $class($value, $key);
+            });
+        }
+
+        protected function closureWhere($key, $operator, $value = null)
+        {
+            if (func_num_args() === 2) {
+                $value = $operator;
+
+                $operator = '=';
+            }
+
+            return function ($item) use ($key, $operator, $value) {
+                $operator = Inflector::lower($operator);
+                $actual = data_get($item, $key);
+
+                $strings = array_filter([$actual, $value], function ($value) {
+                    return is_string($value) || (is_object($value) && method_exists($value, '__toString'));
+                });
+
+                if (count($strings) < 2 && count(array_filter([$actual, $value], 'is_object')) == 1) {
+                    return in_array($operator, ['!=', '<>', '!==']);
+                }
+
+                switch ($operator) {
+                    default:
+                    case '=':
+                    case '==':  return $actual == $value;
+                    case '!=':
+                    case '<>':  return $actual != $value;
+                    case '<':   return $actual < $value;
+                    case '>':   return $actual > $value;
+                    case '<=':  return $actual <= $value;
+                    case '>=':  return $actual >= $value;
+                    case '===': return $actual === $value;
+                    case '!==': return $actual !== $value;
+                    case 'between': return $actual >= $value[0] && $actual <= $value[1];
+                    case 'not between': return $actual < $value[0] || $actual > $value[1];
+                    case 'in': return in_array($actual, $value);
+                    case 'not in': return !in_array($actual, $value);
+                    case 'is': return null === $actual;
+                    case 'is not': return null !== $actual;
+                    case 'like':
+                        $value  = str_replace("'", '', $value);
+                        $value  = str_replace('%', '*', $value);
+
+                        return fnmatch($value, $actual);
+                    case 'not like':
+                        $value  = str_replace("'", '', $value);
+                        $value  = str_replace('%', '*', $value);
+
+                        $check  = fnmatch($value, $actual);
+
+                        return !$check;
+                }
+            };
+        }
+
+        public function partition($key, $operator = null, $value = null)
+        {
+            $partitions = [new static, new static];
+
+            $callback = func_num_args() === 1
+                ? $this->makeClosure($key)
+                : $this->closureWhere(...func_get_args());
+
+            foreach ($this->items as $key => $item) {
+                $partitions[(int) ! $callback($item, $key)][$key] = $item;
+            }
+
+            return new static($partitions);
+        }
+
+        public function peoxy(callable $callback)
+        {
+            return $callback($this);
+        }
+
+        /**
+         * @param $source
+         * @return Collection
+         */
+        public function concat($source)
+        {
+            $result = clone $this;
+
+            foreach ($source as $item) {
+                $result->push($item);
+            }
+
+            return $result;
         }
     }

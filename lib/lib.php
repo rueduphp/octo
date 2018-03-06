@@ -8605,6 +8605,25 @@
         return json_last_error() === JSON_ERROR_NONE;
     }
 
+    /**
+     * @param array ...$args
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function getClass(...$args)
+    {
+        $class = array_shift($args);
+
+        if (is_object($class)) {
+            return $class;
+        }
+
+        return new $class(...$args);
+    }
+
+
     class OctoLab
     {
         public static function __callStatic($m, $a)

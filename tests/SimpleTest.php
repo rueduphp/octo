@@ -7,6 +7,7 @@ use Octo\InternalEvents;
 use Octo\Live;
 use Octo\Now;
 use Octo\On;
+use Octo\Proxify;
 use Octo\Registry;
 use function Octo\sessionKey;
 use Octo\Trust;
@@ -99,6 +100,18 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    public function testProxify()
+    {
+        $proxy = new Proxify(Subscriber::class);
+
+        $proxy->_override('getEvents', function () {
+            return 1;
+        });
+
+        $this->assertSame(1, $proxy->getEvents());
+        $this->assertSame(1, $proxy->_called('getEvents'));
+    }
+
     /**
      * @throws Exception
      */

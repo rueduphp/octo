@@ -14,6 +14,10 @@ class Proxy
      */
     protected $id;
 
+    /**
+     * @param $concern
+     * @throws \ReflectionException
+     */
     public function __construct($concern)
     {
         $this->id = get_class($concern) . '_' . token();
