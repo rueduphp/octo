@@ -45,7 +45,30 @@ class Capsule
         return static::$instance;
     }
 
-    public function model($class)
+    /**
+     * @return Capsule
+     */
+    public static function getInstance(): Capsule
+    {
+        return static::$instance;
+    }
+
+    /**
+     * @param $class
+     * @return Schema
+     */
+    public function make($class)
+    {
+        $this->model($class);
+
+        return $this->schema();
+    }
+
+    /**
+     * @param $class
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function model($class): Builderer
     {
         /** @var Elegant $model */
         $model = is_string($class) && class_exists($class) ? new $class() : $class;
@@ -89,6 +112,9 @@ class Capsule
         return $this->pdo;
     }
 
+    /**
+     * @return Schema
+     */
     public function schema()
     {
         $connection = new Connection($this->pdo);

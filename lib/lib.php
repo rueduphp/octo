@@ -4846,6 +4846,14 @@
         return Strings::snake($value, $delimiter);
     }
 
+    /**
+     * @param $target
+     * @param $key
+     * @param null $default
+     * @param string $sep
+     * @return array|mixed|null
+     * @throws \ReflectionException
+     */
     function dget($target, $key, $default = null, $sep = '.')
     {
         if (is_null($key)) {
@@ -4879,6 +4887,14 @@
         return $target;
     }
 
+    /**
+     * @param $target
+     * @param $key
+     * @param $value
+     * @param bool $overwrite
+     * @param string $sep
+     * @return array
+     */
     function dset(&$target, $key, $value, $overwrite = true, $sep = '.')
     {
         $segments = is_array($key) ? $key : explode($sep, $key);

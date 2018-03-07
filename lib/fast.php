@@ -2039,7 +2039,7 @@
 
         /**
          * @param string $model
-         * @param FastOrmInterface|Ormmodel|Entity|Octal $entity
+         * @param FastOrmInterface|Ormmodel|Elegant|Elegantmemory|Entity|Octal $entity
          */
         public function __construct(string $model, $entity)
         {
@@ -2048,11 +2048,13 @@
         }
 
         /**
+         * @param array ...$args
+         *
          * @return Collection
          *
          * @throws NativeException
          */
-        public function create()
+        public function create(...$args)
         {
             $factories = Registry::get('fast.factories', []);
 
@@ -2061,8 +2063,6 @@
             if (!class_exists($this->model) || false === $factory) {
                 throw new NativeException("The factory {$this->model} does not exist.");
             }
-
-            $args = func_get_args();
 
             $count  = 1;
             $params = [];
@@ -2100,11 +2100,13 @@
         }
 
         /**
+         * @param array ...$args
+         *
          * @return Collection
          *
          * @throws NativeException
          */
-        public function make()
+        public function make(...$args)
         {
             $factories = Registry::get('fast.factories', []);
 
@@ -2113,8 +2115,6 @@
             if (!class_exists($this->model) || false === $factory) {
                 throw new NativeException("The factory {$this->model} does not exist.");
             }
-
-            $args = func_get_args();
 
             $count  = 1;
             $params = [];
@@ -2146,7 +2146,10 @@
             for ($i = 0; $i < $count; $i++) {
                 $data = $factory($faker, $this->entity);
 
-                if ($this->entity instanceof Ormmodel) {
+                if (
+                    $this->entity instanceof Ormmodel ||
+                    $this->entity instanceof Elegant ||
+                    $this->entity instanceof Elegantmemory) {
                     $results[] = new $this->model(array_merge($data, $params));
                 } else {
                     $results[] = $this->entity->model(array_merge($data, $params));

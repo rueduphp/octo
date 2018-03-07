@@ -100,6 +100,13 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    public function testBreeze()
+    {
+        $breeze = new \Octo\Breeze();
+        $breeze->set('foo', 'bar');
+        $this->assertSame('bar', $breeze->get('foo'));
+    }
+
     public function testProxify()
     {
         $proxy = new Proxify(Subscriber::class);

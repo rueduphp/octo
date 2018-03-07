@@ -1631,12 +1631,17 @@
             });
         }
 
-        protected function closureWhere($key, $operator, $value = null)
+        /**
+         * @param string $key
+         * @param string $operator
+         * @param null $value
+         * @return \Closure
+         */
+        protected function closureWhere(string $key, string $operator, $value = null)
         {
             if (func_num_args() === 2) {
-                $value = $operator;
-
-                $operator = '=';
+                $value      = $operator;
+                $operator   = '=';
             }
 
             return function ($item) use ($key, $operator, $value) {
@@ -1647,7 +1652,7 @@
                     return is_string($value) || (is_object($value) && method_exists($value, '__toString'));
                 });
 
-                if (count($strings) < 2 && count(array_filter([$actual, $value], 'is_object')) == 1) {
+                if (count($strings) < 2 && count(array_filter([$actual, $value], 'is_object')) === 1) {
                     return in_array($operator, ['!=', '<>', '!==']);
                 }
 
@@ -1685,6 +1690,12 @@
             };
         }
 
+        /**
+         * @param string $key
+         * @param null $operator
+         * @param null $value
+         * @return Collection
+         */
         public function partition($key, $operator = null, $value = null)
         {
             $partitions = [new static, new static];
@@ -1694,12 +1705,16 @@
                 : $this->closureWhere(...func_get_args());
 
             foreach ($this->items as $key => $item) {
-                $partitions[(int) ! $callback($item, $key)][$key] = $item;
+                $partitions[(int) !$callback($item, $key)][$key] = $item;
             }
 
             return new static($partitions);
         }
 
+        /**
+         * @param callable $callback
+         * @return mixed
+         */
         public function peoxy(callable $callback)
         {
             return $callback($this);
