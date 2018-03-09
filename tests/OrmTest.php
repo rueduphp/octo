@@ -133,6 +133,21 @@
         }
 
         /**
+         * @throws ReflectionException
+         */
+        public function testCustomModel()
+        {
+            $model = new \Octo\Custom(Posts::class);
+            $this->assertEquals($model::find(1), Posts::find(1));
+
+            $model->override('find', function ($id, $row) {
+                return $row->toArray();
+            });
+
+            $this->assertArrayHasKey('id', $model->withNative("find", 2));
+        }
+
+        /**
          * @test
          * @throws Exception
          */

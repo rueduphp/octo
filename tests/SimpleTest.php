@@ -1,5 +1,6 @@
 <?php
 
+use Octo\Breeze;
 use Octo\Config;
 use Octo\Emit;
 use Octo\Inflector;
@@ -100,9 +101,25 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    public function testMonkey()
+    {
+        /** @var \Octo\Monkeypatch $patch */
+        $patch =  $this->monkeyPatch('App', 'strlen', function ($cobcerb) {
+            return strlen($cobcerb) * 3;
+        });
+
+        $patch->enable();
+
+        $this->assertSame(3, \App\strlen('a'));
+
+        $patch->disable();
+
+        $this->assertSame(1, \App\strlen('a'));
+    }
+
     public function testBreeze()
     {
-        $breeze = new \Octo\Breeze();
+        $breeze = new Breeze();
         $breeze->set('foo', 'bar');
         $this->assertSame('bar', $breeze->get('foo'));
     }

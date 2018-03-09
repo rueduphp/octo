@@ -13,17 +13,25 @@ class Elegant extends EloquentModel implements FastModelInterface
      * @param array $a
      *
      * @return mixed
+     *
+     * @throws \ReflectionException
      */
     public static function __callStatic($m, $a)
     {
-        return (new static)->$m(...$a);
+        $callable = [instanciator()->singleton(get_called_class()), $m];
+
+        $params = array_merge($callable, $a);
+
+        return instanciator()->call(...$params);
     }
 
     /**
      * @param string $m
      * @param array $a
      *
-     * @return mixed
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
      */
     public function __call($m, $a)
     {
@@ -37,7 +45,11 @@ class Elegant extends EloquentModel implements FastModelInterface
             return $this->$m(...$a);
         }
 
-        return $this->newQuery()->$m(...$a);
+        $callable = [$this->newQuery(), $m];
+
+        $params = array_merge($callable, $a);
+
+        return instanciator()->call(...$params);
     }
 
     /**

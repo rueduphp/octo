@@ -1,6 +1,7 @@
 <?php
 
 use Octo\App;
+use Octo\Custom;
 use Octo\Inflector;
 
 class testHook
@@ -16,6 +17,12 @@ class testHook
         return $a + $b;
     }
 
+    /**
+     * @param string $string
+     * @param Inflector $inflector
+     *
+     * @return string
+     */
     public function injection(string $string, Inflector $inflector): string
     {
         return $inflector::upper($string);
@@ -29,7 +36,7 @@ class HookTest extends TestCase
      */
     protected $app;
 
-    public function setUp()
+    public function setUp(): void
     {
         $this->app = App::create();
 
@@ -38,14 +45,37 @@ class HookTest extends TestCase
         });
     }
 
-    public function testClosure()
+    public function testCustom()
+    {
+        $custom = new Custom(testHook::class);
+
+        $this->assertSame('TEST', $custom->injection('test'));
+
+        $custom->override('injection', function (string $string, Inflector $inflector): string {
+            return $inflector::lower($string);
+        });
+
+        $this->assertSame('test', $custom->injection('TEST'));
+
+        $custom->override('injection', function (string $string, Inflector $inflector): string {
+            return $inflector::upper($string);
+        });
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testClosure(): void
     {
         $res = $this->app::callHook('Inflector@dummy', 5, 3);
 
         $this->assertSame(15, $res);
     }
 
-    public function testInjection()
+    /**
+     * @throws ReflectionException
+     */
+    public function testInjection(): void
     {
         $res = $this->app::callHook(testHook::class . '@injection', 'test');
 
@@ -60,7 +90,10 @@ class HookTest extends TestCase
         $this->assertSame('test', $res);
     }
 
-    public function testClass()
+    /**
+     * @throws ReflectionException
+     */
+    public function testClass(): void
     {
         $res = $this->app::callHook(testHook::class . '@test', 5, 3);
 

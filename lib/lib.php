@@ -8714,6 +8714,159 @@
         return coll(func_get_args())->paired()->toArray();
     }
 
+    /**
+     * @param $namespace
+     * @param $function
+     * @param $callback
+     *
+     * @return Monkeypatch
+     *
+     * @throws \Exception
+     */
+    function monkeyPatch($namespace, $function, $callback)
+    {
+        return new Monkeypatch($namespace, $function, $callback);
+    }
+
+    function dumper($value, $quote = '"')
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_null($value)) {
+            return 'null';
+        }
+
+        if (!$quote || !is_string($value)) {
+            return (string) $value;
+        }
+
+        if ($quote === '"') {
+            return $quote . _dump($value) . $quote;
+        }
+
+        return $quote . addcslashes($value, $quote) . $quote;
+    }
+
+    function _dump($string)
+    {
+        $es = ['0', 'x07', 'x08', 't', 'n', 'v', 'f', 'r'];
+        $unescaped = '';
+        $chars = str_split($string);
+
+        foreach ($chars as $char) {
+            if ($char === '') {
+                continue;
+            }
+
+            $value = ord($char);
+
+            if ($value >= 7 && $value <= 13) {
+                $unescaped .= '\\' . $es[$value - 6];
+            } elseif ($char === '"' || $char === '$' || $char === '\\') {
+                $unescaped .= '\\' . $char;
+            } else {
+                $unescaped .= $char;
+            }
+        }
+
+        return $unescaped;
+    }
+
+    function mysprintf($str, $data, $options = [])
+    {
+        $escape = $before = null;
+
+        $options += ['before' => '{:', 'after' => '}', 'escape' => '\\', 'clean' => false];
+
+        extract($options);
+
+        $begin = $escape ? '(?<!' . preg_quote($escape) . ')' . preg_quote($before) : preg_quote($before);
+        $end = preg_quote($options['after']);
+
+        foreach ($data as $placeholder => $val) {
+            $val = (is_array($val) || is_resource($val) || $val instanceof Closure) ? '' : $val;
+            $val = (is_object($val) && !method_exists($val, '__toString')) ? '' : (string) $val;
+            $str = preg_replace('/' . $begin . $placeholder . $end .'/', $val, $str);
+        }
+
+        if ($escape) {
+            $str = preg_replace('/' . preg_quote($escape) . preg_quote($before) . '/', $before, $str);
+        }
+
+        return $options['clean'] ? cleaner($str, $options) : $str;
+    }
+
+    function cleaner($str, $options = [])
+    {
+        $escape = $replacement = $gap = $before = $after = $word = null;
+
+        $options += [
+            'before'      => '{:',
+            'after'       => '}',
+            'escape'      => '\\',
+            'word'        => '[\w,.]+',
+            'gap'         => '(\s*(?:(?:and|or|,)\s*)?)',
+            'replacement' => ''
+        ];
+
+        extract($options);
+
+        $begin = $escape ? '(?<!' . preg_quote($escape) . ')' . preg_quote($before) : preg_quote($before);
+        $end = preg_quote($options['after']);
+
+        $callback = function ($matches) use ($replacement) {
+            if (isset($matches[2]) && isset($matches[3]) && trim($matches[2]) === trim($matches[3])) {
+                if (trim($matches[2]) || ($matches[2] && $matches[3])) {
+                    return $matches[2] . $replacement;
+                }
+            }
+
+            return $replacement;
+        };
+
+        $str = preg_replace_callback('/(' . $gap . $before . $word . $after . $gap .')+/', $callback, $str);
+
+        if ($escape) {
+            $str = preg_replace('/' . preg_quote($escape) . preg_quote($before) . '/', $before, $str);
+        }
+
+        return $str;
+    }
+
+    function getFrenchHolidays(int $year = null): array
+    {
+        if (null === $year) {
+            $year = intval(date('Y'));
+        }
+
+        $easterDate = (new \DateTime($year . '-03-21'))->modify('+' . easter_days($year) . ' days');
+        $easterDay   = (int) $easterDate->format('j');
+        $easterMonth = $easterDate->format('n');
+
+        $holidays = [
+            // Dates fixes
+            mktime(0, 0, 0, 1, 1, $year), // 1er janvier
+            mktime(0, 0, 0, 5, 1, $year), // Fête du travail
+            mktime(0, 0, 0, 5, 8, $year), // Victoire des alliés
+            mktime(0, 0, 0, 7, 14, $year), // Fête nationale
+            mktime(0, 0, 0, 8, 15, $year), // Assomption
+            mktime(0, 0, 0, 11, 1, $year), // Toussaint
+            mktime(0, 0, 0, 11, 11, $year), // Armistice
+            mktime(0, 0, 0, 12, 25, $year), // Noel
+
+            // Dates variables
+            mktime(0, 0, 0, $easterMonth, $easterDay + 1, $year), //Lundi de pâques
+            mktime(0, 0, 0, $easterMonth, $easterDay + 39, $year), //Ascension
+            mktime(0, 0, 0, $easterMonth, $easterDay + 50, $year), //Pentecôte
+        ];
+
+        sort($holidays);
+
+        return $holidays;
+    }
+
     function ip($trusted = [])
     {
         $realIp = $_SERVER['REMOTE_ADDR'];

@@ -290,53 +290,58 @@ class Instanciator
         $method     = array_shift($args);
         $fnParams   = $args;
         $reflection = new Reflector(get_class($object));
-        $ref        = $reflection->getMethod($method);
-        $params     = $ref->getParameters();
 
-        if (empty($args) || count($args) !== count($params)) {
-            foreach ($params as $param) {
-                if (!empty($args)) {
-                    $p = array_shift($args);
+        try {
+            $ref  = $reflection->getMethod($method);
+            $params = $ref->getParameters();
 
-                    if (is_null($p)) {
-                        try {
-                            $p = $param->getDefaultValue();
-                        } catch (PHPException $e) {
-                            $p = null;
-                        }
-                    }
-                } else {
-                    $classParam = $param->getClass();
+            if (empty($args) || count($args) !== count($params)) {
+                foreach ($params as $param) {
+                    if (!empty($args)) {
+                        $p = array_shift($args);
 
-                    if ($classParam) {
-                        $p = $this->factory($classParam->getName());
-                    } else {
-                        try {
-                            $p = $param->getDefaultValue();
-                        } catch (PHPException $e) {
-                            $attr = getContainer()->getRequest()->getAttribute($param->getName());
-
-                            if ($attr) {
-                                $p = $attr;
-                            } else {
-                                exception(
-                                    'Instanciator',
-                                    $param->getName() . " parameter has no default value."
-                                );
+                        if (is_null($p)) {
+                            try {
+                                $p = $param->getDefaultValue();
+                            } catch (PHPException $e) {
+                                $p = null;
                             }
                         }
-                    }
+                    } else {
+                        $classParam = $param->getClass();
 
-                    $fnParams[] = $p;
+                        if ($classParam) {
+                            $p = $this->factory($classParam->getName());
+                        } else {
+                            try {
+                                $p = $param->getDefaultValue();
+                            } catch (PHPException $e) {
+                                $attr = getContainer()->getRequest()->getAttribute($param->getName());
+
+                                if ($attr) {
+                                    $p = $attr;
+                                } else {
+                                    exception(
+                                        'Instanciator',
+                                        $param->getName() . " parameter has no default value."
+                                    );
+                                }
+                            }
+                        }
+
+                        $fnParams[] = $p;
+                    }
                 }
             }
+
+            $closure = $ref->getClosure($object);
+
+            $args = array_merge([$closure], $fnParams);
+
+            return $this->resolve(...$args);
+        } catch (\ReflectionException $e) {
+            return $object->{$method}(...$args);
         }
-
-        $closure = $ref->getClosure($object);
-
-        $args = array_merge([$closure], $fnParams);
-
-        return $this->resolve(...$args);
     }
 
     /**

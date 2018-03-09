@@ -897,7 +897,7 @@
          *
          * @var array
          */
-        public static $hooks = [];
+        public static $__hooks = [];
 
         /**
          * @return mixed
@@ -928,13 +928,13 @@
 
             list($class, $method) = explode('@', $hook);
 
-            if (isset(static::$hooks[$hook])) {
+            if (isset(static::$__hooks[$hook])) {
                 return static::callHookedInteraction($hook, $parameters, $class);
             }
 
             $base = static::base($class);
 
-            if (isset(static::$hooks[$base . '@' . $method])) {
+            if (isset(static::$__hooks[$base . '@' . $method])) {
                 return static::callHookedInteraction($base . '@' . $method, $parameters, $class);
             }
 
@@ -966,14 +966,14 @@
          */
         protected static function callHookedInteraction(string $hook, array $parameters, string $class)
         {
-            if (is_string($closure = static::$hooks[$hook])) {
+            if (is_string($closure = static::$__hooks[$hook])) {
                 return static::interact($closure, $parameters);
             }
 
             $instance = app($class);
 
             /** @var Closure $closure */
-            $closure = static::$hooks[$hook];
+            $closure = static::$__hooks[$hook];
 
             $method = $closure->bindTo($instance, $instance);
 
@@ -992,6 +992,6 @@
          */
         public static function hook(string $hook, $callback): void
         {
-            static::$hooks[$hook] = $callback;
+            static::$__hooks[$hook] = $callback;
         }
     }

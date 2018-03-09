@@ -15,8 +15,8 @@ class Elegantmemory extends EloquentModel implements FastModelInterface
     /**
      * @param string $m
      * @param array $a
-     *
      * @return mixed
+     * @throws \ReflectionException
      */
     public static function __callStatic($m, $a)
     {
@@ -24,7 +24,11 @@ class Elegantmemory extends EloquentModel implements FastModelInterface
             $m = '__schema';
         }
 
-        return (new static)->$m(...$a);
+        $callable = [instanciator()->singleton(get_called_class()), $m];
+
+        $params = array_merge($callable, $a);
+
+        return instanciator()->call(...$params);
     }
 
     /**
@@ -64,7 +68,11 @@ class Elegantmemory extends EloquentModel implements FastModelInterface
             return $this->$m(...$a);
         }
 
-        return $this->newQuery()->$m(...$a);
+        $callable = [$this->newQuery(), $m];
+
+        $params = array_merge($callable, $a);
+
+        return instanciator()->call(...$params);
     }
 
     /**
