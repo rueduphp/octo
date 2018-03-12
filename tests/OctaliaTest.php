@@ -1,8 +1,7 @@
 <?php
 
-use Octo\CachingModel;
-use Octo\Config;
 use Octo\ActiveRecord as AR;
+use Octo\Config;
 use Octo\Factory;
 
 class PostEntity extends Octo\Octal {}
@@ -81,6 +80,7 @@ class OctaliaTest extends TestCase
 
         $this->assertEquals(1, UserEntity::count());
         $this->assertTrue('123456' !== $user->password);
+        $this->assertSame(1, $user->getKey());
     }
 
     /**
@@ -139,7 +139,7 @@ class OctaliaTest extends TestCase
     }
 
     /**
-     * @throws Exception
+     * @throws \Octo\Exception
      */
     public function testRelations()
     {
@@ -150,8 +150,8 @@ class OctaliaTest extends TestCase
         $this->assertSame(1,    UserEntity::min("id"));
         $this->assertSame(20,   UserEntity::max("id"));
         $this->assertSame(10.5, UserEntity::avg("id"));
-        $this->assertSame(1,    UserEntity::first()->getId());
-        $this->assertSame(20,   UserEntity::last()->getId());
+        $this->assertSame(1,    UserEntity::first()->getKey());
+        $this->assertSame(20,   UserEntity::last()->getKey());
 
         $this->assertEquals(PostEntity::first()->user(), UserEntity::find(20));
         $this->assertEquals(PostEntity::first(), UserEntity::find(20)->posts()->first());

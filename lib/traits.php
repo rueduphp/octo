@@ -95,9 +95,31 @@
 
     trait Notifiable
     {
-        public function notify($driver = null)
+        /**
+         * @param array ...$args
+         *
+         * @return mixed|null|Alert
+         *
+         * @throws \ReflectionException
+         */
+        public function notify(...$args)
         {
-            return new Notification($driver);
+            $class      = array_shift($args);
+            $instance   = instanciator()->factory($class, $this);
+            $params     = array_merge([$instance, 'handle'], array_merge([$this], $args));
+            $driver     = instanciator()->call(...$params);
+
+            if ('database' === $driver) {
+                $data = instanciator()->call($instance, 'toDatabase', $this);
+
+                return Alert::sendToDatabase($instance, $this, $data);
+            } elseif ('mail' === $driver) {
+                return instanciator()->call($instance, 'sendToMail', $this);
+            } elseif ('redis' === $driver) {
+                $data = instanciator()->call($instance, 'toDatabase', $this);
+
+                return Alert::sendToRedis($instance, $this, $data);
+            }
         }
     }
 

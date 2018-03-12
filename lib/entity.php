@@ -101,26 +101,50 @@
             return $this;
         }
 
+        /**
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         public static function table()
         {
             return static::called()->table;
         }
 
+        /**
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public static function pk()
         {
             return static::called()->primaryKey;
         }
 
+        /**
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         public static function guarded()
         {
             return static::called()->guarded;
         }
 
+        /**
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         public static function fillable()
         {
             return static::called()->fillable;
         }
 
+        /**
+         * @return mixed|null
+         *
+         * @throws \ReflectionException
+         */
         public static function called()
         {
             $class  = get_called_class();
@@ -142,6 +166,13 @@
             return actual("orm.entity.$table", $i);
         }
 
+        /**
+         * @param array $data
+         *
+         * @return Record
+         *
+         * @throws \ReflectionException
+         */
         public static function model(array $data = [])
         {
             return new Record($data, static::called());
@@ -176,6 +207,10 @@
             return static::create($data);
         }
 
+        /**
+         * @param array $data
+         * @throws \ReflectionException
+         */
         public static function validate(array $data)
         {
             $model = static::model($data);
@@ -184,6 +219,11 @@
             $model->validate();
         }
 
+        /**
+         * @param array $data
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public static function create(array $data)
         {
             unset($data[static::pk()]);
@@ -225,11 +265,24 @@
             return ['morphto'];
         }
 
+        /**
+         * @param $record
+         * @param $entityClass
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function pivot($record, $entityClass)
         {
             return $this->pivots($record, $entityClass, false);
         }
 
+        /**
+         * @param $record
+         * @param $entityClass
+         * @param bool $many
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function pivots($record, $entityClass, $many = true)
         {
             $otherEntity = maker($entityClass);
@@ -257,6 +310,12 @@
             return $query->first();
         }
 
+        /**
+         * @param $m
+         * @param $a
+         * @return mixed|null|Record
+         * @throws \ReflectionException
+         */
         public static function __callStatic($m, $a)
         {
             $instance = static::db();
@@ -278,6 +337,12 @@
             return $result;
         }
 
+        /**
+         * @param $m
+         * @param $a
+         * @return mixed|null|Record
+         * @throws \ReflectionException
+         */
         public function __call($m, $a)
         {
             $instance = static::db();
@@ -301,6 +366,7 @@
 
         /**
          * @return FastFactory
+         * @throws \ReflectionException
          */
         public static function factory()
         {

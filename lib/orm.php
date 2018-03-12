@@ -300,6 +300,7 @@
 
         /**
          * @return Builder
+         * @throws \ReflectionException
          */
         public function builder(): Builder
         {
@@ -784,6 +785,12 @@
             return $this->values($values)->_between($key, 'OR', true);
         }
 
+        /**
+         * @param string $key
+         * @param array $values
+         *
+         * @return Orm
+         */
         public function in(string $key, array $values)
         {
             return $this->values($values)
@@ -791,6 +798,12 @@
             ->_whereIn($key, $this->prepares());
         }
 
+        /**
+         * @param string $key
+         * @param array $values
+         *
+         * @return Orm
+         */
         public function notIn(string $key, array $values)
         {
             return $this->values($values)
@@ -798,6 +811,12 @@
             ->_whereIn($key, $this->prepares(), 'AND', true);
         }
 
+        /**
+         * @param string $key
+         * @param array $values
+         *
+         * @return Orm
+         */
         public function orIn(string $key, array $values)
         {
             return $this->values($values)
@@ -805,6 +824,12 @@
             ->_whereIn($key, $this->prepares(), 'OR');
         }
 
+        /**
+         * @param string $key
+         * @param array $values
+         *
+         * @return Orm
+         */
         public function orNotIn(string $key, array $values)
         {
             return $this->values($values)
@@ -812,6 +837,12 @@
             ->_whereIn($key, $this->prepares(), 'OR', true);
         }
 
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Orm
+         */
         public function like(string $key, $value)
         {
             $this->values[] = $value;
@@ -819,6 +850,12 @@
             return $this->_whereLike($key);
         }
 
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Orm
+         */
         public function notLike(string $key, $value)
         {
             $this->values[] = $value;
@@ -826,6 +863,12 @@
             return $this->_whereLike($key, 'AND', true);
         }
 
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Orm
+         */
         public function orLike(string $key, $value)
         {
             $this->values[] = $value;
@@ -833,6 +876,12 @@
             return $this->_whereLike($key, 'OR');
         }
 
+        /**
+         * @param string $key
+         * @param $value
+         *
+         * @return Orm
+         */
         public function orNotLike(string $key, $value)
         {
             $this->values[] = $value;
@@ -840,21 +889,41 @@
             return $this->_whereLike($key, 'OR', true);
         }
 
+        /**
+         * @param string $key
+         *
+         * @return Orm
+         */
         public function isNull(string $key)
         {
             return $this->_whereNull($key);
         }
 
+        /**
+         * @param string $key
+         *
+         * @return Orm
+         */
         public function isNotNull(string $key)
         {
             return $this->_whereNull($key, 'AND', true);
         }
 
+        /**
+         * @param string $key
+         *
+         * @return Orm
+         */
         public function orIsNull(string $key)
         {
             return $this->_whereNull($key, 'OR');
         }
 
+        /**
+         * @param string $key
+         *
+         * @return Orm
+         */
         public function orIsNotNull(string $key)
         {
             return $this->_whereNull($key, 'OR', true);
@@ -879,7 +948,12 @@
             return get_class($this->getEntity());
         }
 
-        public function query($conditions)
+        /**
+         * @param $conditions
+         *
+         * @return Orm
+         */
+        public function query($conditions): self
         {
             $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
 
@@ -890,7 +964,14 @@
             return $this;
         }
 
-        protected function _whereNull($key, $type = 'AND', $not = false)
+        /**
+         * @param $key
+         * @param string $type
+         * @param bool $not
+         *
+         * @return Orm
+         */
+        protected function _whereNull($key, $type = 'AND', $not = false): self
         {
             $verb = 'NULL';
 
@@ -903,7 +984,14 @@
             return $this;
         }
 
-        protected function _whereLike($key, $type = 'AND', $not = false)
+        /**
+         * @param $key
+         * @param string $type
+         * @param bool $not
+         *
+         * @return Orm
+         */
+        protected function _whereLike($key, $type = 'AND', $not = false): self
         {
             $verb = 'LIKE';
 
@@ -971,7 +1059,10 @@
             return $this;
         }
 
-        public function whereClause()
+        /**
+         * @return string
+         */
+        public function whereClause(): string
         {
             if (empty($this->wheres)) {
                 return '';
@@ -1054,7 +1145,12 @@
             return $this->table($table);
         }
 
-        protected function columns($columns = null)
+        /**
+         * @param array|null $columns
+         *
+         * @return array|Orm
+         */
+        protected function columns(?array $columns = null)
         {
             if (empty($columns)) {
                 return $this->columns;
@@ -1065,7 +1161,12 @@
             return $this;
         }
 
-        public function values($values = null)
+        /**
+         * @param array|null $values
+         *
+         * @return array|Orm
+         */
+        public function values(?array $values = null)
         {
             if (empty($values)) {
                 return $this->values;
@@ -1076,7 +1177,12 @@
             return $this;
         }
 
-        protected function prepares($values = null)
+        /**
+         * @param array|null $values
+         *
+         * @return string|Orm
+         */
+        protected function prepares(?array $values = null)
         {
             if (empty($values)) {
                 $prepares = $this->prepares;
@@ -1096,7 +1202,14 @@
             return $this;
         }
 
-        protected function prepare($value, $count = 0, $sep = ' , ')
+        /**
+         * @param $value
+         * @param int $count
+         * @param string $sep
+         *
+         * @return string
+         */
+        protected function prepare($value, $count = 0, $sep = ' , '): string
         {
             $render = [];
 
@@ -1109,6 +1222,9 @@
             return implode($sep, $render);
         }
 
+        /**
+         * @return mixed
+         */
         public function getTable()
         {
             return $this->table;
@@ -1128,6 +1244,7 @@
 
         /**
          * @param string $table
+         *
          * @return mixed
          */
         public function firstWith(string $table)
@@ -1139,6 +1256,14 @@
             return $this->limit(1)->with($table)->first();
         }
 
+        /**
+         * @param array $ids
+         * @param mixed $columns
+         *
+         * @return mixed|object|Ormiterator
+         *
+         * @throws \ReflectionException
+         */
         public function findMany(array $ids, $columns = ['*'])
         {
             if (is_string($columns)) {
@@ -1149,6 +1274,13 @@
             return $this->select($columns)->in($this->getEntity()->pk(), $ids)->all();
         }
 
+        /**
+         * @param $id
+         * @param mixed $columns
+         * @return mixed|Record
+         *
+         * @throws \ReflectionException
+         */
         public function findOrNew($id, $columns = ['*'])
         {
             if (is_string($columns)) {
@@ -1163,6 +1295,12 @@
             return $this->getEntity()->model();
         }
 
+        /**
+         * @param $id
+         * @param mixed $columns
+         *
+         * @return mixed
+         */
         public function findOrFail($id, $columns = ['*'])
         {
             if (is_string($columns)) {
@@ -1184,7 +1322,7 @@
          *
          * @return bool
          */
-        public function exists($id)
+        public function exists($id): bool
         {
             return $this->find($id) !== null;
         }
@@ -1212,6 +1350,24 @@
             $this->reset();
 
             return $row ?: null;
+        }
+
+        /**
+         * @param $id
+         *
+         * @return Orm
+         *
+         * @throws \ReflectionException
+         */
+        public function whereKey($id)
+        {
+            $id = arrayable($id) ? $id->toArray() : $id;
+
+            if (is_array($id)) {
+                return $this->in($this->getEntity()->pk(), $id);
+            }
+
+            return $this->where($this->getEntity()->pk(), $id);
         }
 
         /**
@@ -1595,15 +1751,6 @@
         public function latest($column = 'created_at')
         {
             return $this->orderBy($column, 'DESC');
-        }
-
-        /**
-         * @param string $column
-         * @return Orm
-         */
-        public function oldest($column = 'created_at')
-        {
-            return $this->orderBy($column, 'ASC');
         }
 
         /**
@@ -2465,14 +2612,43 @@
         }
 
         /**
-         * @param $field
+         * @param string $column
          * @param null $key
          *
          * @return array
          */
-        public function pluck($field, $key = null)
+        public function pluck(string $column, $key = null)
         {
-            return $this->collection()->pluck($field, $key);
+            return $this->collection()->pluck($column, $key);
+        }
+
+        /**
+         * @param string $column
+         * @param string $glue
+         *
+         * @return string
+         */
+        public function implode(string $column, string $glue = ''): string
+        {
+            return coll($this->pluck($column))->implode($glue);
+        }
+
+        /**
+         * @return Orm
+         * @throws \ReflectionException
+         */
+        public function newest()
+        {
+            return $this->sortByDesc($this->getEntity()->pk());
+        }
+
+        /**
+         * @return Orm
+         * @throws \ReflectionException
+         */
+        public function oldest()
+        {
+            return $this->sortBy($this->getEntity()->pk());
         }
 
         /**

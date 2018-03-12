@@ -3,7 +3,6 @@
 
     use ArrayAccess;
     use ArrayObject;
-    use function func_get_args;
 
     class Record extends ArrayObject implements ArrayAccess
     {
@@ -514,6 +513,9 @@
             return date('Y-m-d H:i:s');
         }
 
+        /**
+         * @throws \ReflectionException
+         */
         public function clean()
         {
             $this->entity()->fire('cleaning', $this);
@@ -533,6 +535,9 @@
             $this->entity()->fire('cleaned', $this);
         }
 
+        /**
+         * @throws \ReflectionException
+         */
         public function validate()
         {
             $this->entity()->fire('validating', $this);
@@ -574,6 +579,11 @@
             $this->entity()->fire('validated', $this);
         }
 
+        /**
+         * @return $this|mixed|Record
+         *
+         * @throws \ReflectionException
+         */
         public function save()
         {
             $this->clean();
@@ -630,6 +640,11 @@
             });
         }
 
+        /**
+         * @param bool $fire
+         * @return bool|mixed|null
+         * @throws \ReflectionException
+         */
         public function delete($fire = true)
         {
             if ($this->exists()) {
@@ -650,6 +665,11 @@
             return false;
         }
 
+        /**
+         * @param array $only
+         * @return mixed|Record
+         * @throws \ReflectionException
+         */
         public function post($only = [])
         {
             foreach ($_POST as $key => $value) {
@@ -664,6 +684,10 @@
             return $this->save();
         }
 
+        /**
+         * @return mixed|null
+         * @throws \ReflectionException
+         */
         public function copy()
         {
             if ($this->exists()) {
@@ -679,6 +703,10 @@
             return null;
         }
 
+        /**
+         * @param $records
+         * @throws \ReflectionException
+         */
         public function sync($records)
         {
             $records = !is_array($records) ? func_get_args() : $records;
@@ -721,16 +749,32 @@
             }
         }
 
+        /**
+         * @param $entityClass
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function morphOne($entityClass)
         {
             return $this->morphs($entityClass, false);
         }
 
+        /**
+         * @param $entityClass
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function morphMany($entityClass)
         {
             return $this->morphs($entityClass);
         }
 
+        /**
+         * @param $entityClass
+         * @param bool $many
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function morphs($entityClass, $many = true)
         {
             $morphEntity = instanciator()->factory($entityClass);
@@ -753,6 +797,10 @@
             return $query->first();
         }
 
+        /**
+         * @return null
+         * @throws \ReflectionException
+         */
         public function morph()
         {
             if ($this->exists()) {
@@ -764,11 +812,22 @@
             return null;
         }
 
+        /**
+         * @param $entityClass
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function pivot($entityClass)
         {
             return $this->pivots($entityClass, false);
         }
 
+        /**
+         * @param $entityClass
+         * @param bool $many
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function pivots($entityClass, $many = true)
         {
             $otherEntity = instanciator()->factory($entityClass);
@@ -802,6 +861,11 @@
             return $query->first();
         }
 
+        /**
+         * @param $class
+         * @return Record
+         * @throws \ReflectionException
+         */
         public function morphTo($class)
         {
             if ($this->exists()) {
@@ -815,6 +879,11 @@
             }
         }
 
+        /**
+         * @param Record $model
+         * @return $this
+         * @throws \ReflectionException
+         */
         public function morphWith(Record $model)
         {
             if ($model->exists()) {
@@ -827,5 +896,15 @@
             }
 
             return $this;
+        }
+
+        /**
+         * @return bool|\DateTime|mixed|null|Time
+         *
+         * @throws \ReflectionException
+         */
+        public function getKey()
+        {
+            return $this->get($this->entity->pk());
         }
     }

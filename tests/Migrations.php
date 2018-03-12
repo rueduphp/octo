@@ -53,6 +53,16 @@ class Migrations
             $table->longText('v')->nullable();
             $table->unsignedBigInteger('e')->index();
         });
+
+        $schema->create('notification', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('type');
+            $table->morphs('notifiable');
+            $table->text('data');
+            $table->timestamp('read_at')->nullable();
+            $table->timestamp('created_at')->nullable()->useCurrent();
+            $table->timestamp('updated_at')->nullable()->useCurrent();
+        });
     }
 
     public static function seeds(Orm $orm)
@@ -98,6 +108,5 @@ class Migrations
 
             $orm->insert($row)->into('user')->run();
         }
-
     }
 }

@@ -18,4 +18,14 @@
 
             $this->entity = $entity;
         }
+
+        /**
+         * @return mixed|null|static
+         *
+         * @throws Exception
+         */
+        public function getKey()
+        {
+            return $this->get('id');
+        }
     }

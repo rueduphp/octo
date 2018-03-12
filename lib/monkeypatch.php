@@ -71,9 +71,7 @@ class Monkeypatch
         $instance = isAke(static::$instances, $key, null);
 
         if ($instance instanceof static) {
-            $enabled = $instance->isEnabled();
-
-            if (true === $enabled) {
+            if (true === $instance->isEnabled()) {
                 $callback = $instance->getCallback();
 
                 if (is_array($callback)) {

@@ -1,17 +1,47 @@
 <?php
 
+use Octo\Alert;
 use Octo\Breeze;
 use Octo\Config;
 use Octo\Emit;
 use Octo\Inflector;
 use Octo\InternalEvents;
 use Octo\Live;
+use Octo\Monkeypatch;
 use Octo\Now;
 use Octo\On;
 use Octo\Proxify;
 use Octo\Registry;
 use function Octo\sessionKey;
 use Octo\Trust;
+
+class Notifier
+{
+    public function handle($post)
+    {
+        return 'database';
+    }
+
+    public function toDatabase($post)
+    {
+        return $post->toArray();
+    }
+}
+
+class PostNotify
+{
+    use \Octo\Notifiable;
+
+    public function toArray()
+    {
+        return ['name' => 'foo', 'type' => 'bar'];
+    }
+
+    public function getKey()
+    {
+        return 1;
+    }
+}
 
 class MyGuard extends Trust
 {
@@ -101,9 +131,28 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    /**
+     * @throws ReflectionException
+     */
+    public function testNotification()
+    {
+        $post = new PostNotify;
+        $post->notify(Notifier::class);
+
+        $this->assertEquals(1, Alert::count());
+
+        $notification = Alert::first();
+
+        $this->assertSame($post->toArray(), unserialize($notification->data));
+
+        $post->notify(Notifier::class);
+
+        $this->assertEquals(2, Alert::count());
+    }
+
     public function testMonkey()
     {
-        /** @var \Octo\Monkeypatch $patch */
+        /** @var Monkeypatch $patch */
         $patch =  $this->monkeyPatch('App', 'strlen', function ($cobcerb) {
             return strlen($cobcerb) * 3;
         });

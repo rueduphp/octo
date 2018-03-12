@@ -2,16 +2,17 @@
     namespace Octo;
 
     /**
+     * @method Entity getEntity()
      * @method static Octal all()
      * @method static Octal get()
-     * @method static Octal count()
-     * @method static Octal find($id)
+     * @method static int count()
+     * @method static Activerecord find($id)
      * @method static Octal min($field)
      * @method static Octal max($field)
      * @method static Octal avg($field)
-     * @method static Octal first()
-     * @method static Octal last()
-     * @method static Octal where($concern, $op = null, $value = null)
+     * @method static Activerecord|null first()
+     * @method static Activerecord|null last()
+     * @method static Octalia where($concern, $op = null, $value = null)
      */
     class Octal implements FastModelInterface
     {
@@ -140,7 +141,7 @@
             if ('row' === $key) {
                 Registry::set('row.' . $this->__instance, $value);
             } else {
-                $this->$key = $value;
+                $this->{$key} = $value;
             }
         }
 
@@ -149,8 +150,8 @@
             if ('row' === $key) {
                 return Registry::get('row.' . $this->__instance);
             } else {
-                if (isset($this->$key)) {
-                    return $this->$key;
+                if (isset($this->{$key})) {
+                    return $this->{$key};
                 }
             }
 
@@ -163,7 +164,7 @@
                 return 'octodummy' != Registry::get('row.' . $this->__instance, 'octodummy');
             }
 
-            return isset($this->$key);
+            return isset($this->{$key});
         }
 
         public function __unset($key)
@@ -171,7 +172,7 @@
             if ('row' === $key) {
                 Registry::delete('row.' . $this->__instance);
             } else {
-                unset($this->$key);
+                unset($this->{$key});
             }
         }
 
@@ -227,17 +228,7 @@
 
         public static function __callStatic($m, $a)
         {
-            $instance = maker(get_called_class(), [], false);
-
-            if ('new' === $m) {
-                return static::store(current($a));
-            } elseif ('oldest' === $m) {
-                return static::sortBy('id');
-            } elseif ('newest' === $m) {
-                return static::sortByDesc('id');
-            }
-
-            return call_user_func_array([$instance, $m], $a);
+            return call_user_func_array([static::called(), $m], $a);
         }
 
         public function __call($m, $a)
