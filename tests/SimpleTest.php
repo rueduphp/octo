@@ -108,8 +108,6 @@ class Middleware2
     {
         $_SERVER['REQUEST_URI'] = '/test';
 
-        $request = context('app')->request();
-
         context('app')->uri2 = $request->getUri()->getPath();
 
         return $next(
@@ -142,10 +140,31 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    public function testOctoRenderer()
+    {
+        $html = $this->html(__DIR__ . '/views/demo', ['name' => 'foo']);
+
+        $this->assertSame('<h1>Hello foo</h1>', $html);
+    }
+
+    public function testBladeRenderer()
+    {
+        $html = $this->blade(__DIR__ . '/blade/test', ['name' => 'foo']);
+
+        $this->assertSame('<h1>Test foo</h1>', $html);
+    }
+
+    public function testTwigRenderer()
+    {
+        $html = $this->twig(__DIR__ . '/twig/hello', ['name' => 'foo']);
+
+        $this->assertSame('<h1>Hello foo <a href="/slug/foo">link</a></h1>', $html);
+    }
+
     /**
      * @throws Exception
      */
-    function testFinder()
+    public function testFinder()
     {
         $finder = new Finder();
         $finder->in(__DIR__)->date('<= now - 3600 seconds');
@@ -153,7 +172,7 @@ class SimpleTest extends TestCase
         $this->assertInstanceOf(Generator::class, $finder->get());
     }
 
-    function testShare()
+    public function testShare()
     {
         $this->setInstance($this->getPdo());
 

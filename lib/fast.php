@@ -2688,8 +2688,9 @@
         }
     }
 
-    class FastTwigRenderer extends Twig_Environment implements FastRendererInterface, FastViewInterface
-    {
+    class FastTwigRenderer
+        extends Twig_Environment
+        implements FastRendererInterface, FastViewInterface {
         use Framework;
 
         /**

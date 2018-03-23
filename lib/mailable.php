@@ -303,6 +303,57 @@
          * @param array $args
          *
          * @return Mailable
+         *
+         * @throws \Twig_Error_Loader
+         * @throws \Twig_Error_Runtime
+         * @throws \Twig_Error_Syntax
+         */
+        public function twig(string $path, array $args = []): self
+        {
+            $body = twig($path, $args);
+
+            $this->swift
+                ->setBody(
+                    $body,
+                    'text/html'
+                )->addPart(
+                    strip_tags($body),
+                    'text/plain'
+                );
+
+            return $this;
+        }
+
+        /**
+         * @param string $path
+         * @param array $args
+         *
+         * @return Mailable
+         *
+         * @throws \Exception
+         * @throws \ReflectionException
+         */
+        public function blade(string $path, array $args = []): self
+        {
+            $body = blade($path, $args);
+
+            $this->swift
+                ->setBody(
+                    $body,
+                    'text/html'
+                )->addPart(
+                    strip_tags($body),
+                    'text/plain'
+                );
+
+            return $this;
+        }
+
+        /**
+         * @param string $path
+         * @param array $args
+         *
+         * @return Mailable
          */
         public function view(string $path, array $args = []): self
         {

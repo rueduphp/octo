@@ -4,6 +4,7 @@
     use Carbon\Carbon;
     use Closure;
     use GuzzleHttp\Psr7\Response;
+    use Illuminate\Filesystem\Filesystem;
     use Illuminate\Support\Debug\Dumper;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Psr\Http\Message\ServerRequestInterface;
@@ -39,7 +40,16 @@
         return (new Autoloader)->loader($class);
     });
 
-    function view($html = null, $code = 200, $title = 'Octo')
+    /**
+     * @param null|string $html
+     * @param int $code
+     * @param string $title
+     *
+     * @return null|Objet
+     *
+     * @throws \ReflectionException
+     */
+    function view(?string $html = null, int $code = 200, string $title = 'Octo')
     {
         static $viewClass = null;
 
@@ -67,7 +77,14 @@
         abort($code, $html);
     }
 
-    function render($file, $context = 'controller', $args = [], $code = 200)
+    /**
+     * @param string $file
+     * @param string $context
+     * @param array $args
+     * @param int $code
+     * @throws \ReflectionException
+     */
+    function render(string $file, string $context = 'controller', array $args = [], int $code = 200)
     {
         if (fnmatch('*#*', $file)) {
             list($c, $a) = explode('#', $file, 2);
@@ -137,7 +154,12 @@
         return $instanciator;
     }
 
-    function phpRenderer($folder = null)
+    /**
+     * @param null|string $folder
+     *
+     * @return mixed|object
+     */
+    function phpRenderer(?string $folder = null)
     {
         $folder = is_null($folder) ? actual('fast.view.path') : $folder;
 
@@ -154,7 +176,38 @@
         exception("FastPhpRenderer", "The folder $folder does not exist.");
     }
 
-    function twigRenderer($folder = null, array $config = [])
+    /**
+     * @param string $file
+     * @param array $context
+     *
+     * @return string
+     *
+     * @throws \ReflectionException
+     * @throws \Twig_Error_Loader
+     * @throws \Twig_Error_Runtime
+     * @throws \Twig_Error_Syntax
+     */
+    function twig(string $file, array $context = [])
+    {
+        $folder = dirname($file);
+        $name   = Arrays::last(explode(DS, $file));
+
+        $twig = twigRenderer($folder);
+
+        $twig->addExtension(
+            instanciator()->singleton(FastTwigExtension::class)
+        );
+
+        return $twig->render($name, $context);
+    }
+
+    /**
+     * @param null|string $folder
+     * @param array $config
+     *
+     * @return FastTwigRenderer
+     */
+    function twigRenderer(?string $folder = null, array $config = [])
     {
         $debug = 'production' !== appenv('APPLICATION_ENV', 'production');
 
@@ -192,11 +245,17 @@
         return Registry::get('app.controller', null);
     }
 
+    /**
+     * @return bool
+     */
     function is_home()
     {
         return !empty(Registry::get('is_home')) || isAke($_SERVER, 'REQUEST_URI', '') == '/';
     }
 
+    /**
+     * @return string
+     */
     function current_url()
     {
         return URLSITE . isAke($_SERVER, 'REQUEST_URI', '');
@@ -207,6 +266,12 @@
         return fnmatch("*$key*", $string);
     }
 
+    /**
+     * @param $pattern
+     * @param $string
+     *
+     * @return false|int
+     */
     function fnmatch($pattern, $string)
     {
         return preg_match(
@@ -224,7 +289,15 @@
         );
     }
 
-    function matchAll($subject, $pattern, $flags = 0, $offset = 0)
+    /**
+     * @param string $subject
+     * @param string $pattern
+     * @param int $flags
+     * @param int $offset
+     *
+     * @return array|null
+     */
+    function matchAll(string $subject, string $pattern, $flags = 0, $offset = 0)
     {
         if ($offset > strlen($subject)) {
             return [];
@@ -241,6 +314,11 @@
         return $m;
     }
 
+    /**
+     * @param $arg
+     *
+     * @return mixed|string
+     */
     function otype($arg)
     {
         $typeMap = [
@@ -327,7 +405,13 @@
         return array_values(coll($data)->sortByDesc($field)->toArray());
     }
 
-    function callField($val, $method)
+    /**
+     * @param string $val
+     * @param string $method
+     *
+     * @return string
+     */
+    function callField(string $val, string $method)
     {
         return Strings::uncamelize(str_replace($method, '', $val));
     }
@@ -786,11 +870,7 @@
             $concern = instanciator()->call([$concern, '__invoke']);
         }
 
-//        try {
-            fwrite($resource, serialize($concern));
-//        } catch (\Exception $e) {
-//            return $resource;
-//        }
+        fwrite($resource, serialize($concern));
 
         return $resource;
     }
@@ -1010,17 +1090,33 @@
         return $value;
     }
 
-    function dwn($url)
+    /**
+     * @param string $url
+     *
+     * @return mixed
+     */
+    function dwn(string $url)
     {
         return lib('geo')->dwn($url);
     }
 
-    function dwnCache($url)
+    /**
+     * @param string $url
+     *
+     * @return mixed
+     */
+    function dwnCache(string $url)
     {
         return lib('geo')->dwnCache($url);
     }
 
-    function server($key = null, $default = null)
+    /**
+     * @param null|string $key
+     * @param null $default
+     *
+     * @return mixed|object
+     */
+    function server(?string $key = null, $default = null)
     {
         if (empty($key)) {
             return lib('objet', [oclean($_SERVER)]);
@@ -1029,7 +1125,13 @@
         return isAke(oclean($_SERVER), $key, $default);
     }
 
-    function post($key = null, $default = null)
+    /**
+     * @param null|string $key
+     * @param null $default
+     *
+     * @return mixed
+     */
+    function post(?string $key = null, $default = null)
     {
         if (empty($key)) {
             return Post::notEmpty();
@@ -1038,14 +1140,22 @@
         return Post::get($key, $default);
     }
 
-    function item($attributes = [])
+    /**
+     * @param array $attributes
+     * @return Fluent
+     */
+    function item(array $attributes = [])
     {
         $attributes = arrayable($attributes) ? $attributes->toArray() : $attributes;
 
         return lib('fluent', [$attributes]);
     }
 
-    function q($attributes = [])
+    /**
+     * @param array $attributes
+     * @return Fluent
+     */
+    function q(array $attributes = [])
     {
         return item($attributes);
     }
@@ -1057,7 +1167,13 @@
         return lib('record', [$attributes]);
     }
 
-    function request($k = null, $d = null)
+    /**
+     * @param null|string $k
+     * @param mixed|null $d
+     *
+     * @return mixed|Collection|ServerRequestInterface
+     */
+    function request(?string $k = null, $d = null)
     {
         if (is_string($k)) {
             return getRequest()->getAttribute($k, $d);
@@ -1074,7 +1190,13 @@
         return getRequest();
     }
 
-    function customRequest($name, $cb = null)
+    /**
+     * @param string $name
+     * @param callable|null $cb
+     *
+     * @return mixed|bool
+     */
+    function customRequest(string $name, ?callable $cb = null)
     {
         $requests = Registry::get('core.requests', []);
 
@@ -1089,11 +1211,17 @@
         $request = isAke($requests, $name, null);
 
         if (is_callable($request)) {
-            $request();
+            return $request();
         }
     }
 
-    function sess($k = null, $d = null)
+    /**
+     * @param string|null $k
+     * @param mixed|null $d
+     *
+     * @return mixed|object
+     */
+    function sess(string $k = null, $d = null)
     {
         $data = [];
 
@@ -1147,7 +1275,11 @@
         return null;
     }
 
-    function src64($src)
+    /**
+     * @param string $src
+     * @return string
+     */
+    function src64(string $src)
     {
         $tab    = explode(".", $src);
         $ext    = Strings::lower(Arrays::last($tab));
@@ -1155,12 +1287,24 @@
         return 'data:image/' . $ext . ';base64,' . base64_encode(dwnCache($src));
     }
 
-    function base64($data, $mime = 'image/jpg')
+    /**
+     * @param string $data
+     * @param string $mime
+     *
+     * @return string
+     */
+    function base64(string $data, string $mime = 'image/jpg')
     {
         return 'data:' . $mime . ';base64,' . base64_encode($data);
     }
 
-    function upload($field, $dest = null)
+    /**
+     * @param string $field
+     * @param null|string $dest
+     *
+     * @return mixed|null|string
+     */
+    function upload(string $field, ?string $dest = null)
     {
         if (Arrays::exists($_FILES, $field)) {
             $fileupload         = $_FILES[$field]['tmp_name'];
@@ -1196,17 +1340,29 @@
         return null;
     }
 
-    function fgc($f)
+    /**
+     * @param string $f
+     * @return bool|string
+     */
+    function fgc(string $f)
     {
         return file_get_contents($f);
     }
 
+    /**
+     * @param string $context
+     * @return Session
+     */
     function session($context = 'web'): Session
     {
         return lib('session', [$context]);
     }
 
-    function my($context = 'web')
+    /**
+     * @param string $context
+     * @return My
+     */
+    function my(string $context = 'web')
     {
         return lib('my', [$context]);
     }
@@ -1243,7 +1399,17 @@
         }
     }
 
-    function ageCache($k, callable $c, $maxAge = null, $args = [])
+    /**
+     * @param string $k
+     * @param callable $c
+     * @param int|null $maxAge
+     * @param array $args
+     *
+     * @return mixed
+     *
+     * @throws \Exception
+     */
+    function ageCache(string $k, callable $c, ?int $maxAge = null, array $args = [])
     {
         $dir = Config::get('dir.ephemere', session_save_path()) . '/aged';
 
@@ -1532,6 +1698,12 @@
         return is_null($callback) ? $value : callCallable($callback, $value);
     }
 
+    /**
+     * @param $value
+     * @param callable $callback
+     *
+     * @return mixed|null
+     */
     function catchRollback($value, callable $callback)
     {
         try {
@@ -1541,6 +1713,12 @@
         }
     }
 
+    /**
+     * @param $value
+     * @param callable $callback
+     *
+     * @return \Exception|mixed|null
+     */
     function catchIt($value, callable $callback)
     {
         try {
@@ -1659,12 +1837,18 @@
         );
     }
 
-    function hr($str = null)
+    /**
+     * @param string|null $str
+     */
+    function hr(?string $str = null)
     {
         $str = is_null($str) ? '&nbsp;' : $str;
         echo $str . '<hr />';
     }
 
+    /**
+     * @return string
+     */
     function displayCodeLines()
     {
         $back   = '';
@@ -1710,7 +1894,10 @@
         return $back;
     }
 
-    function go($url)
+    /**
+     * @param string $url
+     */
+    function go(string $url)
     {
         if (!headers_sent()) {
             header('Location: ' . $url);
@@ -1998,6 +2185,11 @@
         }
     }
 
+    /**
+     * @param $class
+     *
+     * @return array
+     */
     function getQualifiedClass($class)
     {
         if (is_object($class)) {
@@ -2101,6 +2293,7 @@
 
     /**
      * @param string $context
+     *
      * @return string
      */
     function locale(string $context = 'web'): string
@@ -2388,7 +2581,13 @@
         return arrayable($value) ? $value->toArray() : $value;
     }
 
-    function libonce($lib, $args = [])
+    /**
+     * @param string $lib
+     * @param array $args
+     *
+     * @return mixed|object
+     */
+    function libonce(string $lib, array $args = [])
     {
         return lib($lib, $args, true);
     }
@@ -2400,11 +2599,13 @@
      *
      * @return mixed|object
      */
-    function lib(string $lib, $args = [], bool $singleton = false)
+    function lib(string $lib, array $args = [], bool $singleton = false)
     {
         $args = arrayable($args) ? $args->toArray() : $args;
 
-        $singleton = empty($args);
+        if (empty($args)) {
+            $singleton = true;
+        }
 
         try {
             $class = '\\Octo\\' . Strings::camelize($lib);
@@ -2807,13 +3008,31 @@
     }
 
     /**
+     * @param string $file
+     * @param array $args
+     * @return mixed
+     *
+     * @throws Exception
+     * @throws \Exception
+     */
+    function html(string $file, array $args = [])
+    {
+        $path = $file . '.phtml';
+        $age = File::age($path);
+
+        return fmr('html')->until(sha1($path), function () use ($path, $args) {
+            return vue($path, $args)->inline();
+        }, $age);
+    }
+
+    /**
      * @param $file
      * @param array $args
      * @param int $status
      *
      * @return Objet
      */
-    function vue($file, $args = [], $status = 200)
+    function vue(string $file, array $args = [], int $status = 200)
     {
         if (!File::exists($file)) {
             $path = searchVueFile($file);
@@ -9101,91 +9320,55 @@
         return $i;
     }
 
-    function guard($ns = 'web', $em = 'user')
+    /**
+     * @param string $directory
+     * @param bool $hidden
+     *
+     * @return array
+     */
+    function filer(string $directory, bool $hidden = false): array
     {
-        $class = o();
+        return iterator_to_array(
+            Finder::create()
+                ->files()
+                ->ignoreDotFiles(!$hidden)
+                ->in($directory)
+                ->depth(0)
+                ->sortByName(),
+            false
+        );
+    }
 
-        $class->macro('login', function ($user) use ($class) {
-            $user = arrayable($user) ? $user->toArray() : $user;
+    /**
+     * @return Filesystem
+     * @throws \ReflectionException
+     */
+    function files()
+    {
+        return instanciator()->singleton(Filesystem::class);
+    }
 
-            return $class->reveal()->login($user);
-        });
+    /**
+     * @param string $path
+     * @param array $data
+     *
+     * @return string
+     *
+     * @throws \Exception
+     * @throws \ReflectionException
+     */
+    function blade(string $path, array $data = []): string
+    {
+        $key        = sha1($path . serialize($data));
+        $age        = File::age($path . '.blade.php');
 
-        $class->macro('logout', function () use ($class) {
-            return $class->reveal()->logout();
-        });
+        $cache = fmr('blade');
 
-        $class->macro('id', function () use ($class) {
-            return $class->reveal()->id();
-        });
+        return $cache->until($key, function () use ($path, $data) {
+            $content    = File::read($path . '.blade.php');
 
-        $class->macro('email', function () use ($class) {
-            return $class->reveal()->email();
-        });
-
-        $class->macro('on', function () use ($class) {
-            return call_user_func_array([$class, 'policy'], func_get_args());
-        });
-
-        $class->macro('user', function ($model = true) use ($class) {
-            return $class->reveal()->user($model);
-        });
-
-        $class->macro('logWithId', function ($id, $route = 'home') use ($class)  {
-            $auth = $class->reveal();
-            $user = em($auth->entity)->find((int) $id);
-
-            if ($user) {
-                $auth->login($user);
-                go(urlFor($route));
-            } else {
-                exception('guard', "Unknown id.");
-            }
-        });
-
-        $class->macro('logByUser', function ($user, $route = 'home') use ($class) {
-            $user = arrayable($user) ? $user->toArray() : $user;
-
-            $class->reveal()->login($user);
-
-            go(urlFor($route));
-        });
-
-        $class->macro('reveal', function () {
-            $auth = actual('auth.class');
-
-            return is_object($auth) ? $auth : actual('auth.class', new Auth);
-        });
-
-        $class->macro('policy', function ($policy, callable $callable) use ($class) {
-            $policies           = Registry::get('guard.policies', []);
-            $policies[$policy]  = $callable;
-
-            Registry::set('guard.policies', $policies);
-
-            return $class;
-        });
-
-        $class->macro('allows', function () use ($class) {
-            $auth = $class->reveal();
-            $user = $auth->user();
-
-            if ($user) {
-                $user       = item($user);
-                $args       = func_get_args();
-                $policy     = array_shift($args);
-                $policies   = Registry::get('guard.policies', []);
-                $policy     = isAke($policies, $policy, null);
-
-                if (is_callable($policy)) {
-                    return call_user_func_array($policy, array_merge([$user], $args));
-                }
-            }
-
-            return false;
-        });
-
-        return $class;
+            return blader($content, $data);
+        }, $age);
     }
 
     /**

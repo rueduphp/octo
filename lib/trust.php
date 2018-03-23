@@ -220,12 +220,11 @@ class Trust
 
     /**
      * @return mixed|null
+     * 
      * @throws \ReflectionException
      */
-    public function callProvider()
+    public function callProvider(...$args)
     {
-        $args = func_get_args();
-
         $type = array_shift($args);
 
         $callable = isAke($this->providers, $type, null);
@@ -249,6 +248,7 @@ class Trust
 
     /**
      * @return mixed|null
+     *
      * @throws Exception
      * @throws \ReflectionException
      */
