@@ -7,6 +7,7 @@
 
         /**
          * @param string $class
+         * @throws \ReflectionException
          */
         public function middleware(string $class)
         {
@@ -38,7 +39,9 @@
          * @param string $action
          * @param null $module
          *
-         * @return mixed
+         * @return mixed|null
+         *
+         * @throws \ReflectionException
          */
         public function forward(string $action, $module = null)
         {
@@ -49,5 +52,15 @@
             }
 
             return instanciator()->call($module, $action);
+        }
+
+        /**
+         * @param callable $callable
+         *
+         * @return Moduleaction
+         */
+        public function action(callable $callable)
+        {
+            return new Moduleaction($callable);
         }
     }

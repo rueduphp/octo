@@ -33,14 +33,18 @@
         "http-interop/response-sender": "^1.0",
         "psr/log": "~1.0",
         "swiftmailer/swiftmailer": "~5.1",
-        "zendframework/zend-expressive-fastroute": "^2.1",
+        "zendframework/zend-expressive-fastroute": "2.2",
         "http-interop/http-middleware": "^0.4",
         "middlewares/utils": "@stable",
         "willdurand/geocoder": "^3.3",
-        "doctrine/dbal": "^2.6"
+        "doctrine/dbal": "^2.6",
+        "symfony/thanks": "^1.0",
+        "monolog/monolog": "~1.11"
     },
     "require-dev": {
-        "phpunit/phpunit": "@stable"
+        "phpunit/phpunit": "@stable",
+        "mockery/mockery": "~1.0",
+        "nunomaduro/collision": "~2.0"
     },
     "autoload": {
         "files": [

@@ -106,6 +106,9 @@
             }
         }
 
+        /**
+         * @method static string urlize()
+         */
         class Strings
         {
             public static function __callStatic($method, $args)

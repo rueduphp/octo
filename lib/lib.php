@@ -5,9 +5,10 @@
     use Closure;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Support\Debug\Dumper;
-    use function is_object;
+    use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use ReflectionFunction;
+    use Symfony\Component\Finder\Finder as FinderFile;
     use Zend\Expressive\Router\FastRouteRouter;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
@@ -899,7 +900,12 @@
         return $d;
     }
 
-    function logFile($path, $message, $type = 'INFO')
+    /**
+     * @param string $path
+     * @param string $message
+     * @param string $type
+     */
+    function logFile(string $path, string $message, string $type = 'INFO')
     {
         if (is_array($message)) $message = implode(PHP_EOL, $message);
 
@@ -931,9 +937,10 @@
         $db = em('systemLog');
 
         return $db
-        ->where('type', $type)
-        ->sortByDesc('id')
-        ->get();
+            ->where('type', $type)
+            ->sortByDesc('id')
+            ->get()
+        ;
     }
 
     function trackView($page, array $data = [])
@@ -1061,7 +1068,7 @@
                 $collection[$k] = getRequest()->getAttribute($field, null);
             }
 
-            return $collection;
+            return coll($collection);
         }
 
         return getRequest();
@@ -1305,10 +1312,191 @@
         return $default;
     }
 
-    function byRef()
+    /**
+     * @param array ...$args
+     *
+     * @return Instanciator
+     */
+    function share(...$args): Instanciator
     {
-        $args = func_get_args();
+        return instanciator()->share(...$args);
+    }
 
+    /**
+     * @param array ...$args
+     * @return mixed
+     */
+    function getInstance(...$args)
+    {
+        return instanciator()->get(...$args);
+    }
+
+    /**
+     * @param array ...$args
+     * @return Instanciator
+     */
+    function setInstance(...$args)
+    {
+        return instanciator()->set(...$args);
+    }
+
+    /**
+     * @param array ...$args
+     * @return bool
+     */
+    function hasInstance(...$args)
+    {
+        return instanciator()->has(...$args);
+    }
+
+    /**
+     * @param array ...$args
+     */
+    function delInstance(...$args)
+    {
+        instanciator()->del(...$args);
+    }
+
+    /**
+     * @param string $name
+     * @param $value
+     * @param null|string $key
+     *
+     * @throws \ReflectionException
+     */
+    function add(string $name, $value, ?string $key = null)
+    {
+        $list = get($name, []);
+
+        if (!is_null($key)) {
+            $list[$key] = $value;
+        } else {
+            $list[] = $value;
+        }
+
+        set($name, $list);
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return null
+     *
+     * @throws \ReflectionException
+     */
+    function shift(string $name)
+    {
+        $value = null;
+        $list = get($name, []);
+
+        if (!empty($list)) {
+            $value = array_shift($list);
+            set($name, $list);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return null
+     *
+     * @throws \ReflectionException
+     */
+    function pop(string $name)
+    {
+        $value = null;
+        $list = get($name, []);
+
+        if (!empty($list)) {
+            $value = array_pop($list);
+            set($name, $list);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param $callable
+     *
+     * @throws \ReflectionException
+     */
+    function pipe($middleware)
+    {
+        add('pipes', $middleware);
+    }
+
+    /**
+     * @param $middleware
+     *
+     * @return mixed|null|object
+     *
+     * @throws \ReflectionException
+     */
+    function checkMiddleware($middleware)
+    {
+        if (is_string($middleware)) {
+            return instanciator()->singleton($middleware);
+        } elseif (is_callable($middleware)) {
+            if ($middleware instanceof Closure) {
+                $middleware = instanciator()->makeClosure($middleware);
+            } else {
+                $middleware = callCallable($middleware);
+            }
+
+            if (is_string($middleware)) {
+                return instanciator()->singleton($middleware);
+            } else {
+                return $middleware;
+            }
+        } else {
+            return $middleware;
+        }
+    }
+
+    /**
+     * @param null|ServerRequestInterface $request
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function process(?ServerRequestInterface $request = null)
+    {
+        if (!$request instanceof ServerRequestInterface) {
+            $request = getContainer()->fromGlobals();
+        } else {
+            getContainer()->setRequest($request);
+        }
+
+        $middleware = checkMiddleware(shift('pipes'));
+
+        if (is_null($middleware)) {
+            exception('fast', 'no middleware intercepts request');
+        } elseif ($middleware instanceof MiddlewareInterface) {
+            $methods = get_class_methods($middleware);
+
+            if (in_array('process', $methods)) {
+                $response = callMethod($middleware, 'process', $request, new Processor);
+            } elseif (in_array('handle', $methods)) {
+                $response = callMethod($middleware, 'handle', $request, new Processor);
+            }
+        } elseif (is_callable($middleware)) {
+            $params = array_merge([$middleware], [$request, [new Processor, 'process']]);
+            $response = callCallable(...$params);
+        }
+
+        return $response;
+    }
+
+    /**
+     * @param array ...$args
+     * @return Tap
+     *
+     * @throws \ReflectionException
+     */
+    function byRef(...$args)
+    {
         return tap(...$args);
     }
 
@@ -1791,6 +1979,62 @@
     }
 
     /**
+     * @param $path
+     * @param $lifetime
+     *
+     * @throws \Exception
+     */
+    function gc($path, $lifetime)
+    {
+        $files = FinderFile::create()
+            ->in($path)
+            ->files()
+            ->ignoreDotFiles(true)
+            ->date('<= now - ' . $lifetime . ' seconds')
+        ;
+
+        foreach ($files as $file) {
+            File::delete($file->getRealPath());
+        }
+    }
+
+    function getQualifiedClass($class)
+    {
+        if (is_object($class)) {
+            $class = get_class($class);
+        }
+
+        $exploded   = explode('\\', $class);
+        $className  = array_pop($exploded);
+        $namespace  = implode('\\', $exploded);
+
+        return [$namespace, $className];
+    }
+
+    /**
+     * @param $class
+     * @param $facade
+     */
+    function makeFacade($class, $facade)
+    {
+        if (!class_exists($class)) {
+            list($namespace, $className) = getQualifiedClass($class);
+
+            $code = 'namespace ' . $namespace . ' {';
+            $code .= 'class ' . $className . ' extends \\Octo\\Facade';
+            $code .= '{';
+            $code .= 'public static function getNativeClass()
+            {
+                return ' . $facade . '::class;
+            }';
+            $code .= '}';
+            $code .= '}';
+
+            eval($code);
+        }
+    }
+
+    /**
      * @return bool
      */
     function isCli(): bool
@@ -2010,6 +2254,24 @@
         return preg_replace($from, $to, $subject, 1);
     }
 
+    /**
+     * @param string $search
+     * @param string $replace
+     * @param string $subject
+     *
+     * @return string
+     */
+    function str_replace_last(string $search, string $replace, string $subject): string
+    {
+        $position = strrpos($subject, $search);
+
+        if ($position !== false) {
+            return substr_replace($subject, $replace, $position, strlen($search));
+        }
+
+        return $subject;
+    }
+
     function replaceFirst($from, $to, $subject)
     {
         $parts = explode($from, $subject);
@@ -2032,6 +2294,11 @@
         }
 
         return implode('', $replaced);
+    }
+
+    function title($value)
+    {
+        return mb_convert_case($value, MB_CASE_TITLE, 'UTF-8');
     }
 
     function loadModel($class, $data)
@@ -2355,11 +2622,14 @@
     }
 
     /**
+     * @param array ...$args
+     *
      * @return mixed|null
+     *
+     * @throws \ReflectionException
      */
-    function makeFactory()
+    function makeFactory(...$args)
     {
-        $args = func_get_args();
         $closure = array_shift($args);
 
         if ($closure instanceof Closure) {
@@ -2370,12 +2640,13 @@
     }
 
     /**
+     * @param array ...$args
+     *
      * @return null|Lazy
      */
-    function lazyFactory()
+    function lazyFactory(...$args)
     {
-        $args       = func_get_args();
-        $closure    = array_shift($args);
+        $closure = array_shift($args);
 
         if ($closure instanceof Closure) {
             return lazy(function () use ($closure, $args) {
@@ -2386,6 +2657,9 @@
         return null;
     }
 
+    /**
+     * @param int $code
+     */
     function status($code = 200)
     {
         $headerMessage  = Api::getMessage($code);
@@ -2396,6 +2670,12 @@
         }
     }
 
+    /**
+     * @param int $code
+     * @param string $message
+     *
+     * @throws \ReflectionException
+     */
     function abort($code = 403, $message = 'Forbidden')
     {
         $message = value($message);
@@ -2412,11 +2692,19 @@
         die($message);
     }
 
+    /**
+     * @param string $message
+     * @param int $code
+     */
     function response($message = 'Forbidden', $code = 200)
     {
         abort($code, $message);
     }
 
+    /**
+     * @param $file
+     * @param array $args
+     */
     function partial($file, $args = [])
     {
         vue(
@@ -2427,6 +2715,11 @@
         );
     }
 
+    /**
+     * @param $file
+     * @param null $page
+     * @param null $sections
+     */
     function layout($file, $page = null, $sections = null)
     {
         $page = is_null($page) ? actual('vue') : $page;
@@ -2444,6 +2737,12 @@
         );
     }
 
+    /**
+     * @param $code
+     * @param array $args
+     *
+     * @return string
+     */
     function codeEvaluation($code, array $args = [])
     {
         ob_start();
@@ -2505,9 +2804,15 @@
         }
 
         return $path;
-
     }
 
+    /**
+     * @param $file
+     * @param array $args
+     * @param int $status
+     *
+     * @return Objet
+     */
     function vue($file, $args = [], $status = 200)
     {
         if (!File::exists($file)) {
@@ -2705,6 +3010,13 @@
         return $vue;
     }
 
+    /**
+     * @param null $k
+     * @param null $v
+     * @param null $d
+     *
+     * @return mixed|Collection
+     */
     function path($k = null, $v = null, $d = null)
     {
         $paths = paths();
@@ -2722,26 +3034,49 @@
         (new Now)->set('octo.paths', $paths);
     }
 
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
     function public_path(string $path = '')
     {
         return path('public') . ($path ? DS . ltrim($path, DS) : $path);
     }
 
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
     function cache_path(string $path = '')
     {
         return path('cache') . ($path ? DS . ltrim($path, DS) : $path);
     }
 
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
     function app_path(string $path = '')
     {
         return path('app') . ($path ? DS . ltrim($path, DS) : $path);
     }
 
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
     function storage_path(string $path = '')
     {
         return path('storage') . ($path ? DS . ltrim($path, DS) : $path);
     }
 
+    /**
+     * @return null
+     */
     function paths()
     {
         return (new Now)->get('octo.paths', []);
@@ -2797,14 +3132,32 @@
     }
 
     /**
+     * @param array ...$args
+     *
      * @return mixed|null
      *
      * @throws \ReflectionException
      */
-    function nextable()
+    function fluent(...$args)
     {
-        $args = func_get_args();
+        $result = null;
 
+        foreach ($args as $callable) {
+            $result = instanciator()->makeClosure($callable, $result);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function nextable(...$args)
+    {
         $first  = array_shift($args);
         $next   = array_shift($args);
 
@@ -2822,12 +3175,25 @@
     }
 
     /**
+     * @param array ...$args
+     * @return string
+     */
+    function buildPath(...$args): string
+    {
+        return implode(DIRECTORY_SEPARATOR, $args);
+    }
+
+    /**
      * @param null|string $dir
      *
      * @throws Exception
      */
     function systemBoot(?string $dir = null)
     {
+        ini_set("error_reporting", E_ALL & ~E_USER_DEPRECATED);
+        ini_set('display_errors', APPLICATION_ENV !== 'production');
+        ini_set('display_startup_errors', APPLICATION_ENV !== 'production');
+
         $whoops = new \Whoops\Run;
         $whoops->pushHandler(new \Whoops\Handler\PrettyPageHandler);
         $whoops->register();
@@ -3183,6 +3549,11 @@
         rights();
     }
 
+    /**
+     * @param $asset
+     *
+     * @return string
+     */
     function burst($asset)
     {
         if (!File::exists($asset)) {
@@ -3210,6 +3581,7 @@
      * @param Object $model
      * @param string $event
      * @param array $next
+     *
      * @return mixed|Object
      */
     function modelEvent(Object $model, string $event, $next = [])
@@ -3237,6 +3609,7 @@
 
     /**
      * @param $instance
+     *
      * @return Ghost
      */
     function getRow($instance)
@@ -3263,6 +3636,7 @@
     /**
      * @param array $array
      * @param null $instance
+     *
      * @return Ghost
      */
     function make(array $array = [], $instance = null)
@@ -3295,6 +3669,7 @@
     /**
      * @param $mock
      * @param array $args
+     *
      * @return Mockery
      */
     function mockery($mock, array $args = [])
@@ -3325,6 +3700,7 @@
 
     /**
      * @param callable|null $callable
+     *
      * @throws \ReflectionException
      */
     function shutdown(callable $callable = null)
@@ -3363,11 +3739,23 @@
         return call_user_func_array([lib('later'), 'background'], func_get_args());
     }
 
+    /**
+     * @param $segment
+     * @param array $args
+     * @param null $locale
+     */
     function _($segment, $args = [], $locale = null)
     {
         echo trans($segment, $args, $locale);
     }
 
+    /**
+     * @param $segment
+     * @param array $args
+     * @param null $locale
+     *
+     * @return mixed|null
+     */
     function trans($segment, $args = [], $locale = null)
     {
         $translation = $segment;
@@ -3425,6 +3813,12 @@
         return $rights;
     }
 
+    /**
+     * @param $instance
+     * @param array $array
+     *
+     * @return mixed
+     */
     function obj($instance, array $array = [])
     {
         $key = sha1($instance);
@@ -3453,6 +3847,12 @@
         return $object;
     }
 
+    /**
+     * @param $instance
+     * @param array $array
+     *
+     * @return mixed
+     */
     function classify($instance, array $array = [])
     {
         $class = Strings::camelize('octo_' . Strings::uncamelize($instance));
@@ -3467,6 +3867,11 @@
         return new $class($array, sha1($class));
     }
 
+    /**
+     * @param null $array
+     *
+     * @return array|null
+     */
     function inMemory($array = null)
     {
         static $inMemoryData = [];
@@ -3478,6 +3883,12 @@
         return $inMemoryData;
     }
 
+    /**
+     * @param string $ns
+     * @param null $array
+     *
+     * @return mixed|null
+     */
     function segment($ns = 'core', $array = null)
     {
         $data       = inMemory();
@@ -3492,6 +3903,10 @@
         return $segment;
     }
 
+    /**
+     * @param $k
+     * @param $v
+     */
     function set($k, $v)
     {
         $data = segment('core');
@@ -3503,7 +3918,9 @@
     /**
      * @param $k
      * @param null $d
+     *
      * @return mixed|null
+     *
      * @throws \ReflectionException
      */
     function get($k, $d = null)
@@ -3517,7 +3934,9 @@
     /**
      * @param $k
      * @param null $d
+     *
      * @return mixed|null
+     *
      * @throws \ReflectionException
      */
     function getDel($k, $d = null)
@@ -3675,6 +4094,11 @@
         return $provider;
     }
 
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     function eventer()
     {
         $made = Registry::get('eventer.made', false);
@@ -3778,6 +4202,11 @@
         return call_user_func_array([eventer(), 'listen'], func_get_args());
     }
 
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     function setting()
     {
         $made = Registry::get('settings.made', false);
@@ -3836,6 +4265,14 @@
         return single('settings', $cb);
     }
 
+    /**
+     * @param $instance
+     * @param array $array
+     *
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     function objectify($instance, array $array = [])
     {
         return single($instance, function () use ($instance, $array) {
@@ -3843,11 +4280,26 @@
         });
     }
 
+    /**
+     * @param $class
+     * @param array $args
+     *
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     function resolve($class, array $args = [])
     {
         return single($class, null, $args);
     }
 
+    /**
+     * @param $class
+     * @param null $resolver
+     * @param array $args
+     *
+     * @return mixed|object
+     */
     function singlify($class, $resolver = null, array $args = [])
     {
         $key = sha1($class);
@@ -3997,6 +4449,11 @@
         }
     }
 
+    /**
+     * @param $class
+     *
+     * @throws \ReflectionException
+     */
     function ioc($class)
     {
         $app            = context('app');
@@ -4070,6 +4527,12 @@
         return session('csrf')->getToken();
     }
 
+    /**
+     * @param string $name
+     * @param bool $echo
+     *
+     * @return string
+     */
     function csrf_field($name = 'octo_token', $echo = true)
     {
         $tokenName = Config::get('token_name', $name);
@@ -4119,11 +4582,24 @@
         return posted($tokenName) == session('csrf')->getToken();
     }
 
-    function slug($title, $separator = '-')
+    /**
+     * @param string $title
+     * @param string $separator
+     *
+     * @return string
+     */
+    function slug(string $title, string $separator = '-'): string
     {
         return Strings::urlize($title, $separator);
     }
 
+    /**
+     * @param $method
+     *
+     * @return string
+     *
+     * @throws \ReflectionException
+     */
     function findMethod($method)
     {
         $reflFunc = new \ReflectionFunction($method);
@@ -4131,6 +4607,14 @@
         return $reflFunc->getFileName() . ':' . $reflFunc->getStartLine();
     }
 
+    /**
+     * @param null $make
+     * @param array $params
+     *
+     * @return mixed|object|Fast
+     *
+     * @throws \ReflectionException
+     */
     function app($make = null, $params = [])
     {
         if (empty($make)) {
@@ -4140,11 +4624,21 @@
         return getContainer()->resolve($make, $params);
     }
 
+    /**
+     * @param $make
+     * @param array $params
+     *
+     * @return mixed|object
+     */
     function injector($make, $params = [])
     {
         return maker($make, $params, false);
     }
 
+    /**
+     * @return bool
+     * @throws \ReflectionException
+     */
     function sameClosures()
     {
         $closures = func_get_args();
@@ -4192,9 +4686,15 @@
         return $return;
     }
 
+    /**
+     * @param $concern
+     * @param string $callable
+     *
+     * @return mixed|object
+     */
     function container($concern, $callable = 'octodummy')
     {
-        if ('octodummy' != $callable) {
+        if ('octodummy' !== $callable) {
             wire($concern, $callable);
         } else {
             $what = autowire($concern, true);
@@ -4211,31 +4711,63 @@
         }
     }
 
+    /**
+     * @param array $args
+     *
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     function caller(array $args)
     {
         return instanciator()->factory(...$args);
     }
 
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     function foundry()
     {
         return instanciator()->factory(...func_get_args());
     }
 
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     function single()
     {
         return instanciator()->singleton(...func_get_args());
     }
 
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     function singleton()
     {
         return instanciator()->singleton(...func_get_args());
     }
 
+    /**
+     * @param $concern
+     * @param $callable
+     */
     function wire($concern, $callable)
     {
         instanciator()->wire($concern, $callable);
     }
 
+    /**
+     * @param $concern
+     * @param bool $raw
+     *
+     * @return mixed
+     */
     function autowire($concern, $raw = false)
     {
         return instanciator()->autowire($concern, $raw);
@@ -4592,7 +5124,15 @@
         return $default;
     }
 
-    function env($key, $default = null)
+    /**
+     * @param string $key
+     * @param null $default
+     *
+     * @return mixed
+     *
+     * @throws \ReflectionException
+     */
+    function env(string $key, $default = null)
     {
         $value = getenv($key);
 
@@ -4612,7 +5152,7 @@
                 return '';
             case 'null':
             case '(null)':
-                return;
+                return null;
         }
 
         if (strlen($value) > 1 && startsWith($value, '"') && endsWith($value, '"')) {
@@ -4630,10 +5170,6 @@
      */
     function startsWith(string $haystack, $needles)
     {
-        if (is_string($needles)) {
-            return fnmatch($needles . '*', $haystack) ? true : false;
-        }
-
         foreach ((array) $needles as $needle) {
             if ($needle !== '' && substr($haystack, 0, strlen($needle)) === (string) $needle) {
                 return true;
@@ -4643,9 +5179,21 @@
         return false;
     }
 
-    function endsWith($str, $val)
+    /**
+     * @param string $haystack
+     * @param $needles
+     *
+     * @return bool
+     */
+    function endsWith(string $haystack, $needles)
     {
-        return fnmatch('*' . $val, $str);
+        foreach ((array) $needles as $needle) {
+            if (substr($haystack, -strlen($needle)) === (string) $needle) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     function test(callable $function, array $args = [])
@@ -5379,6 +5927,16 @@
     function getEventManager()
     {
         return instanciator()->singleton(FastEvent::class);
+    }
+
+    /**
+     * @return FastEvent
+     *
+     * @throws \ReflectionException
+     */
+    function getDispatcher()
+    {
+        return getEventManager();
     }
 
     /**
@@ -6552,6 +7110,50 @@
                 );
             }
         }
+    }
+
+    /**
+     * @param null $value
+     * @return Nullable
+     */
+    function nullable($value = null)
+    {
+        return new Nullable($value);
+    }
+
+    /**
+     * @param $object
+     * @param $key
+     * @param null $default
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    function objget($object, $key, $default = null)
+    {
+        if (is_null($key) || trim($key) === '') {
+            return $object;
+        }
+
+        foreach (explode('.', $key) as $segment) {
+            $has = false;
+
+            if (!is_object($object) || !isset($object->{$segment})) {
+                $method = getter($segment);
+
+                if (in_array($method, get_class_methods($object))) {
+                    $object = $object->{$method}();
+                    $has = true;
+                } else {
+                    return value($default);
+                }
+            }
+
+            if (false === $has) {
+                $object = $object->{$segment};
+            }
+        }
+
+        return $object;
     }
 
     function reflectClosure(callable $closure)
@@ -7910,6 +8512,10 @@
         return $stream;
     }
 
+    /**
+     * @param $collection
+     * @return array|mixed
+     */
     function undot($collection)
     {
         $collection = (array) $collection;
@@ -7928,29 +8534,38 @@
         return $output;
     }
 
-    function notify($model, $instance, array $args = [])
+    /**
+     * @param array ...$args
+     *
+     * @return bool|mixed|null|Alert
+     *
+     * @throws \ReflectionException
+     */
+    function notify(...$args)
     {
-        if ($model->exists()) {
-            if (is_string($instance)) {
-                $instance = maker($instance);
-            }
+        $concern    = array_shift($args);
+        $class      = array_shift($args);
+        $instance   = instanciator()->factory($class, $concern);
+        $params     = array_merge([$instance, 'handle'], array_merge([$concern], $args));
+        $driver     = instanciator()->call(...$params);
 
-            $channels = $instance->channels();
+        if ('database' === $driver) {
+            $data = instanciator()->call($instance, 'toDatabase', $concern);
 
-            foreach ($channels as $channel) {
-                call_user_func_array([$instance, $channel], $args);
+            return Alert::sendToDatabase($instance, $concern, $data);
+        } elseif ('mail' === $driver) {
+            return instanciator()->call($instance, 'sendToMail', $concern);
+        } elseif ('redis' === $driver) {
+            $data = instanciator()->call($instance, 'toDatabase', $concern);
 
-                $dbRow = em('systemNotification')->store([
-                    'model'     => get_class($model),
-                    'model_id'  => $model->id,
-                    'type'      => get_class($instance),
-                    'channel'   => $channel,
-                    'read'      => false
-                ]);
-            }
+            return Alert::sendToRedis($instance, $concern, $data);
         }
     }
 
+    /**
+     * @param $concern
+     * @return bool
+     */
     function is_invokable($concern)
     {
         if (is_string($concern) && class_exists($concern)) {
@@ -7966,7 +8581,7 @@
      * @param string $class
      * @param string $sep
      *
-     * @return Closure|mixed|object
+     * @return callable
      *
      * @throws \ReflectionException
      */
@@ -7992,7 +8607,7 @@
         $app = context('app');
 
         if ($k) {
-            if ('octodummy' == $v) {
+            if ('octodummy' === $v) {
                 return $app[$k];
             }
 
@@ -8038,6 +8653,13 @@
         : $strArray;
     }
 
+    /**
+     * @param int $length
+     *
+     * @return null|Hashids
+     *
+     * @throws \Exception
+     */
     function kryptid($length = 15)
     {
         static $kryptid = null;
@@ -8107,11 +8729,17 @@
         return lib('arrays')->fetch($array, $key);
     }
 
-    function pluck($array, $key)
+    /**
+     * @param array $array
+     * @param string $key
+     *
+     * @return array
+     */
+    function pluck(array $array, string $key)
     {
         return array_map(
             function($row) use ($key)  {
-                return is_object($row) ? $row->$key : $row[$key];
+                return is_object($row) ? $row->{$key} : $row[$key];
             },
             $array
         );
@@ -8119,12 +8747,12 @@
 
     function is_false($bool)
     {
-        return false === $bool;
+        return false === (bool) $bool;
     }
 
     function is_true($bool)
     {
-        return true === $bool;
+        return true === (bool) $bool;
     }
 
     function evaluate($path, $args = [])
@@ -8186,10 +8814,12 @@
         return ltrim(ob_get_clean());
     }
 
-    function compactCallback()
+    /**
+     * @param array ...$args
+     * @return Closure
+     */
+    function compactCallback(...$args)
     {
-        $args = func_get_args();
-
         return function () use ($args) {
             return $args;
         };
@@ -8222,9 +8852,59 @@
         return isAke($handlers, $concern, null);
     }
 
-    function recall()
+    /**
+     * @param $test
+     * @param $operator
+     * @param $target
+     *
+     * @return bool
+     */
+    function compare($test, $operator, $target)
     {
-        $args       = func_get_args();
+        switch (Inflector::lower($operator)) {
+            case '===':         return $test > $target;
+            case '>':           return $test > $target;
+            case '>=':          return $test >= $target;
+            case '<':           return $test < $target;
+            case '<=':          return $test <= $target;
+            case '!==':         return $test !== $target;
+            case '!=':          return $test != $target;
+            case '<>':          return $test <> $target;
+            case 'between':     return $target >= $test[0] && $target <= $test[1];
+            case 'not between': return $target < $test[0] || $target > $test[1];
+            case 'in':          return in_array($target, (array) $test);
+            case 'not in':      return !in_array($target, (array) $test);
+            case 'is':          return null === $target;
+            case 'is not':      return null !== $target;
+            case 'regex':       return preg_match($test, $target);
+            case 'not regex':   return !preg_match($test, $target);
+            case 'match':       return preg_match($test, $target);
+            case 'not match':   return !preg_match($test, $target);
+            case 'like':
+                $test  = str_replace("'", '', $test);
+                $test  = str_replace('%', '*', $test);
+
+                return fnmatch($test, $target) ? true : false;
+            case 'not like':
+                $test  = str_replace("'", '', $test);
+                $test  = str_replace('%', '*', $test);
+
+                $check  = fnmatch($test, $target) ? true : false;
+
+                return !$check;
+        }
+
+        return $test == $target;
+    }
+
+    /**
+     * @param array ...$args
+     * @return mixed
+     * @throws Exception
+     * @throws \Exception
+     */
+    function recall(...$args)
+    {
         $callback   = array_shift($args);
 
         if (!is_callable($callback)) {

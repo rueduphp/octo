@@ -63,12 +63,10 @@ class Fastmiddlewaregeo extends FastMiddleware
     }
 
     /**
-     * Process a server request and return a response.
-     *
-     * @param ServerRequestInterface  $request
+     * @param ServerRequestInterface $request
      * @param DelegateInterface $next
      *
-     * @return ResponseInterface
+     * @return \Psr\Http\Message\ResponseInterface
      */
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {

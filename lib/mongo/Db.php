@@ -1,16 +1,15 @@
 <?php
     namespace Octo\Mongo;
 
-    use Octo\Alias;
-    use Octo\Arrays;
-    use Octo\Config as Conf;
-    use Octo\File;
-    use Octo\Exception;
-    use Octo\Instance;
-    use Octo\Inflector;
-    use Octo\Timer;
     use MongoBinData;
     use MongoClient as MGC;
+    use Octo\Alias;
+    use Octo\Config as Conf;
+    use Octo\Exception;
+    use Octo\File;
+    use Octo\Inflector;
+    use Octo\Instance;
+    use Octo\Timer;
 
     class Db
     {
@@ -121,6 +120,12 @@
             ]);
         }
 
+        /**
+         * @return array|bool
+         *
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         */
         private function delAge()
         {
             $coll = $this->getCollection($this->db . '.ages');
@@ -187,6 +192,13 @@
             return $this->model($data)->save();
         }
 
+        /**
+         * @param array $data
+         *
+         * @return mixed
+         *
+         * @throws Exception
+         */
         public function model($data = [])
         {
             $view = false;
@@ -284,6 +296,16 @@
             return !$id ? $this->add($data) : $this->edit($id, $data);
         }
 
+        /**
+         * @param array $data
+         *
+         * @return mixed
+         *
+         * @throws Exception
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         * @throws \MongoException
+         */
         public function saveView(array $data)
         {
             $keyTuple = sha1($this->db . $this->table . serialize($data));
@@ -292,7 +314,7 @@
 
             $db = $this->getCollection();
 
-            $row = $db->insert($data);
+            $db->insert($data);
 
             unset($data['_id']);
 
@@ -303,6 +325,16 @@
             return $this->model($data);
         }
 
+        /**
+         * @param array $data
+         *
+         * @return array|mixed|null
+         *
+         * @throws Exception
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         * @throws \MongoException
+         */
         private function add(array $data)
         {
             $keep = $data;
@@ -338,7 +370,7 @@
                 $data['updated_at'] = (int) time();
             }
 
-            $row = $db->insert($this->analyze($data));
+            $db->insert($this->analyze($data));
 
             unset($data['_id']);
 
@@ -351,6 +383,11 @@
             return $this->model($data);
         }
 
+        /**
+         * @param array $data
+         *
+         * @return array
+         */
         private function analyze(array $data)
         {
             $clean = [];
@@ -370,6 +407,17 @@
             return $clean;
         }
 
+        /**
+         * @param array $datas
+         * @param bool $checkTuple
+         *
+         * @return $this
+         *
+         * @throws Exception
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         * @throws \MongoException
+         */
         public function bulk(array $datas, $checkTuple = false)
         {
             foreach ($datas as $data) {
@@ -383,6 +431,16 @@
             return $this;
         }
 
+        /**
+         * @param $data
+         *
+         * @return mixed
+         *
+         * @throws Exception
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         * @throws \MongoException
+         */
         public function insert($data)
         {
             $id = $this->makeId();
@@ -399,13 +457,21 @@
                 $data['updated_at'] = time();
             }
 
-            $row = $db->insert($this->analyze($data));
+            $db->insert($this->analyze($data));
 
             redis()->set('must.backup', 1);
 
             return $this->model($data);
         }
 
+        /**
+         * @param $id
+         * @param array $data
+         *
+         * @return array|mixed|null
+         *
+         * @throws \MongoCursorException
+         */
         private function edit($id, array $data)
         {
             $keep = $data;
@@ -458,16 +524,16 @@
             $db = $this->getCollection();
 
             if (!empty($unset)) {
-                $row = $db->update(['id' => $id], ['$set' => $new]);
+                $db->update(['id' => $id], ['$set' => $new]);
 
                 foreach ($unset as $fu) {
-                    $row = $db->update(
+                    $db->update(
                         ['id' => $id],
                         ['$unset' => [$fu => '']]
                     );
                 }
             } else {
-                $row = $db->update(
+                $db->update(
                     ['id' => $id],
                     ['$set' => $this->analyze($new)]
                 );
@@ -480,6 +546,14 @@
             return $this->find($id);
         }
 
+        /**
+         * @param $query
+         * @param $update
+         *
+         * @return $this
+         *
+         * @throws \MongoCursorException
+         */
         public function update($query, $update)
         {
             $db = $this->getCollection();
@@ -490,22 +564,38 @@
                 ['multi' => true]
             );
 
-            redis()->set('must.backup', 1);
+            \Octo\redis()->set('must.backup', 1);
 
             return $this;
         }
 
+        /**
+         * @param $query
+         *
+         * @return $this
+         *
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         */
         public function remove($query)
         {
             $db = $this->getCollection();
 
             $db->remove($query);
 
-            redis()->set('must.backup', 1);
+            \Octo\redis()->set('must.backup', 1);
 
             return $this;
         }
 
+        /**
+         * @param $id
+         *
+         * @return bool
+         *
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         */
         public function delete($id)
         {
             $db = $this->getCollection();
@@ -516,7 +606,7 @@
 
             $this->setAge();
 
-            redis()->set('must.backup', 1);
+            \Octo\redis()->set('must.backup', 1);
 
             return true;
         }
@@ -810,11 +900,20 @@
             return $filter;
         }
 
+        /**
+         * @param bool $object
+         * @param bool $count
+         * @param bool $first
+         * @return mixed
+         *
+         * @throws Exception
+         * @throws \Exception
+         */
         public function _exec($object = false, $count = false, $first = false)
         {
             $hash = $this->getHash($object, $count, $first);
 
-            return fmr()->until('exec.' . $hash, function ($self, $object, $count, $first) {
+            return \Octo\fmr()->until('exec.' . $hash, function ($self, $object, $count, $first) {
                 $collection = [];
 
                 $self->model()->checkIndices();
@@ -1170,7 +1269,7 @@
                 $self->reset();
 
                 return true === $object ? new Collection($collection) : $collection;
-            }, $age, [$this, $object, $count, $first]);
+            }, $this->getAge(), [$this, $object, $count, $first]);
         }
 
         public function huge($object = false, $count = false, $first = false)
@@ -1178,6 +1277,16 @@
             return $this->exec($object, $count, $first, true);
         }
 
+        /**
+         * @param bool $object
+         * @param bool $count
+         * @param bool $first
+         * @param bool $huge
+         *
+         * @return array|Collection|Huge
+         *
+         * @throws Exception
+         */
         public function exec($object = false, $count = false, $first = false, $huge = false)
         {
             if ($this->hasJoin) {
@@ -1625,7 +1734,7 @@
 
                 switch ($op) {
                     case '=':
-                        $res = sha1($comp) == sha1($value);
+                        $res = sha1($comp) === sha1($value);
                         break;
 
                     case '>=':
@@ -1646,7 +1755,7 @@
 
                     case '<>':
                     case '!=':
-                        $res = sha1($comp) != sha1($value);
+                        $res = sha1($comp) !== sha1($value);
                         break;
 
                     case 'LIKE':
@@ -1914,11 +2023,11 @@
                         list($field, $operand, $value) = $condition;
                     }
 
-                    if (strtoupper($op) == 'AND') {
+                    if (strtoupper($op) === 'AND') {
                         $op = '&&';
-                    } elseif (strtoupper($op) == 'OR') {
+                    } elseif (strtoupper($op) === 'OR') {
                         $op = '||';
-                    } elseif (strtoupper($op) == 'XOR') {
+                    } elseif (strtoupper($op) === 'XOR') {
                         $op = '|';
                     }
 
@@ -2334,8 +2443,6 @@
         public function between($field, $min, $max)
         {
             return $this->where([$field, '>=', $min])->where([$field, '<=', $max]);
-
-            return $this;
         }
 
         public function firstOrNew($tab = [])
@@ -2678,7 +2785,7 @@
             return $collection;
         }
 
-        public function trick(Closure $condition, $op = 'AND', $results = [])
+        public function trick(\Closure $condition, $op = 'AND', $results = [])
         {
             $data = empty($results) ? $this->all() : $results;
             $res = [];

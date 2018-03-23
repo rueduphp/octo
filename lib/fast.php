@@ -11,7 +11,9 @@
     use Illuminate\View\Compilers\BladeCompiler;
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
+    use Psr\Container\ContainerExceptionInterface;
     use Psr\Container\ContainerInterface;
+    use Psr\Container\NotFoundExceptionInterface;
     use Psr\Http\Message\ResponseInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use Twig_Environment;
@@ -196,7 +198,11 @@
          */
         public function fromGlobals(): ServerRequestInterface
         {
-            return Psr7Request::fromGlobals();
+            $request = Psr7Request::fromGlobals();
+
+            $this->setRequest($request);
+
+            return $request;
         }
 
         /**
@@ -596,6 +602,18 @@
         }
 
         /**
+         * @param array ...$args
+         *
+         * @return mixed|null
+         *
+         * @throws \ReflectionException
+         */
+        public function call(...$args)
+        {
+            return instanciator()->call(...$args);
+        }
+
+        /**
          * @return mixed|object
          *
          * @throws \ReflectionException
@@ -603,6 +621,18 @@
         public function resolve()
         {
             return instanciator()->factory(...func_get_args());
+        }
+
+        /**
+         * @param string $driver
+         *
+         * @return Bcrypt
+         *
+         * @throws \ReflectionException
+         */
+        public function hasher($driver = Bcrypt::class)
+        {
+            return instanciator()->getOr($driver);
         }
 
         /**
@@ -632,6 +662,17 @@
                 'Octo\foundry',
                 array_merge([Psr7Response::class], func_get_args())
             );
+        }
+
+        /**
+         * @param int $code
+         * @param string $message
+         *
+         * @return Psr7Response
+         */
+        public function abort($code = 403, $message = 'Forbidden')
+        {
+            return $this->response($code, [], $message);
         }
 
         /**
@@ -692,7 +733,8 @@
          *
          * @return mixed|null|ResponseInterface
          *
-         * @throws TypeError
+         * @throws TypeError         *
+         * @throws \ReflectionException
          */
         public function run($request = null)
         {
@@ -823,7 +865,7 @@
                 $middleware = call_user_func_array($middleware, [$this]);
 
                 if (is_string($middleware)) {
-                    return instanciator()->singletoner($middleware);
+                    return instanciator()->singleton($middleware);
                 } else {
                     return $middleware;
                 }
@@ -1678,6 +1720,12 @@
             return mailer();
         }
 
+        /**
+         * @param string $key
+         * @param mixed $value
+         *
+         * @return mixed
+         */
         public function registry(string $key, $value = 'octodummy')
         {
             /* Polymorphism  */
@@ -1706,10 +1754,57 @@
         {
             return Registry::get($key, $default);
         }
+
+        /**
+         * @param array ...$args
+         * @return Instanciator
+         */
+        public function setInstance(...$args): Instanciator
+        {
+            return setInstance(...$args);
+        }
+
+        /**
+         * @param array ...$args
+         *
+         * @return mixed
+         */
+        public function getInstance(...$args)
+        {
+            return getInstance(...$args);
+        }
+
+        /**
+         * @param array ...$args
+         *
+         * @return bool
+         */
+        public function hasInstance(...$args): bool
+        {
+            return hasInstance(...$args);
+        }
+
+        /**
+         * @param array ...$args
+         */
+        public function delInstance(...$args)
+        {
+            delInstance(...$args);
+        }
+
+        /**
+         * @param array ...$args
+         * @return mixed
+         */
+        public function oneInstance(...$args)
+        {
+            return instanciator()->getOr(...$args);
+        }
     }
 
     trait Framework
     {
+        use Tapable;
         use FastTrait;
         use FastRegistryTrait;
     }
@@ -2812,6 +2907,21 @@
     }
 
     class FastException extends NativeException implements FastExceptionInterface {}
+
+    class Processor implements DelegateInterface
+    {
+        /**
+         * @param ServerRequestInterface $request
+         *
+         * @return mixed|null|ResponseInterface
+         *
+         * @throws \ReflectionException
+         */
+        public function process(ServerRequestInterface $request)
+        {
+            return process($request);
+        }
+    }
 
     class FastObject
     extends Objet

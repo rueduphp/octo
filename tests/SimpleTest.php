@@ -4,10 +4,13 @@ use Octo\Alert;
 use Octo\Breeze;
 use Octo\Config;
 use Octo\Emit;
+use Octo\Facade;
+use Octo\Finder;
 use Octo\Inflector;
 use Octo\InternalEvents;
 use Octo\Live;
 use Octo\Monkeypatch;
+use Octo\Notifiable;
 use Octo\Now;
 use Octo\On;
 use Octo\Proxify;
@@ -28,9 +31,17 @@ class Notifier
     }
 }
 
+class Stringy extends Facade
+{
+    public static function getNativeClass()
+    {
+        return Inflector::class;
+    }
+}
+
 class PostNotify
 {
-    use \Octo\Notifiable;
+    use Notifiable;
 
     public function toArray()
     {
@@ -131,6 +142,50 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    /**
+     * @throws Exception
+     */
+    function testFinder()
+    {
+        $finder = new Finder();
+        $finder->in(__DIR__)->date('<= now - 3600 seconds');
+        $this->assertGreaterThan(0, $finder->count());
+        $this->assertInstanceOf(Generator::class, $finder->get());
+    }
+
+    function testShare()
+    {
+        $this->setInstance($this->getPdo());
+
+        $this->assertInstanceOf(PDO::class, $this->getInstance(PDO::class));
+        $this->assertTrue($this->hasInstance(PDO::class));
+        $this->delInstance(PDO::class);
+        $this->assertFalse($this->hasInstance(PDO::class));
+        $this->assertFalse($this->hasInstance(MyEvent::class));
+        $this->assertInstanceOf(stdClass::class, $this->oneInstance(stdClass::class));
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testHasher()
+    {
+        $hasher = $this->getContainer()->hasher();
+
+        $crypt = $hasher->make('test');
+
+        $this->assertTrue($hasher->check('test', $crypt));
+    }
+
+    public function testFacade()
+    {
+        $this->assertSame(Inflector::upper('test'), Stringy::upper('test'));
+
+        $this->makeFacade('Stringify', Inflector::class);
+
+        $this->assertSame(Inflector::upper('test'), Stringify::upper('test'));
+    }
+
     /**
      * @throws ReflectionException
      */

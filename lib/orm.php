@@ -207,7 +207,10 @@
 
         /**
          * @param $class
-         * @return Builder
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
          */
         public function eloquent($class)
         {
@@ -230,18 +233,23 @@
             $model->setConnectionResolver($resolver);
 
             /** @var Builder $builder */
-            $builder    = foundry(Builder::class, $connection);
+            $builder = foundry(Builder::class, $connection);
 
             $builder->macro('all', function () use ($builder) {
                 return $builder->get();
             });
             
             /** @var Builderer $eloquent */
-            $eloquent   = foundry(Builderer::class, $builder);
+            $eloquent = foundry(Builderer::class, $builder);
 
             return $eloquent->setModel($model);
         }
 
+        /**
+         * @return Schema
+         *
+         * @throws \ReflectionException
+         */
         public function schema()
         {
             $this->connect();
