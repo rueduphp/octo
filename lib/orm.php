@@ -712,20 +712,6 @@
             return [$key, $operator, $value];
         }
 
-        public function orWhereRaw(string $sql): self
-        {
-            $this->orRaws[] = $sql;
-
-            return $this;
-        }
-
-        public function whereRaw(string $sql): self
-        {
-            $this->raws[] = $sql;
-
-            return $this;
-        }
-
         /**
          * @return Orm
          */
@@ -1057,6 +1043,29 @@
             $this->wheres[] = ' ' . $type . ' ' . $key . ' ' . $operator . ' ?';
 
             return $this;
+        }
+
+        /**
+         * @param string $sql
+         * @param string $type
+         *
+         * @return Orm
+         */
+        public function whereRaw(string $sql, string $type = 'AND'): self
+        {
+            $this->wheres[] = ' ' . $type . ' ' . $sql . ' ';
+
+            return $this;
+        }
+
+        /**
+         * @param string $sql
+         *
+         * @return Orm
+         */
+        public function orwhereRaw(string $sql): self
+        {
+            return $this->whereRaw($sql, 'OR');
         }
 
         /**

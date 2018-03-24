@@ -66,6 +66,23 @@
             }
         }
 
+        /**
+         * @param string $class
+         *
+         * @return Entity
+         *
+         * @throws \ReflectionException
+         */
+        public function observe(string $class): self
+        {
+            $observers = get('orm.observers', []);
+            $self = get_called_class();
+            $observers[$self] = maker($class);
+            set('orm.observers', $observers);
+
+            return $this;
+        }
+
         public static function clearBooted()
         {
             static::$booted = [];
@@ -76,7 +93,9 @@
          * @param null $concern
          * @param bool $return
          *
-         * @return null|mixed
+         * @return mixed|null
+         *
+         * @throws \ReflectionException
          */
         public function fire(string $event, $concern = null, bool $return = false)
         {
@@ -88,6 +107,23 @@
 
                 if ($return) {
                     return $result;
+                }
+            } else {
+                $observers = get('orm.observers', []);
+                $self = get_called_class();
+
+                $observer = isAke($observers, $self, null);
+
+                if (null !== $observer) {
+                    $methods = get_class_methods($observer);
+
+                    if (in_array($event, $methods)) {
+                        $result = instanciator()->call($observer, $event);
+
+                        if ($return) {
+                            return $result;
+                        }
+                    }
                 }
             }
 
