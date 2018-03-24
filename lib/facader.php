@@ -5,6 +5,14 @@ use Closure;
 
 class Facader
 {
+    /**
+     * @param string $name
+     * @param array $arguments
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
     public static function __callStatic(string $name, array $arguments)
     {
         $class = get_called_class();

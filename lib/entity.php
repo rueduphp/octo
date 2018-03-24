@@ -214,6 +214,10 @@
             return new Record($data, static::called());
         }
 
+        /**
+         * @return mixed
+         * @throws \ReflectionException
+         */
         protected static function db()
         {
             return foundry(Orm::class)->table(static::table());
@@ -238,6 +242,13 @@
             return get_called_class();
         }
 
+        /**
+         * @param array $data
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         public static function new(array $data = [])
         {
             return static::create($data);

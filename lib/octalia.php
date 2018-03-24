@@ -1531,6 +1531,8 @@
                         $sql .= $operator . ' \'' . \SQLite3::escapeString($value) . '\'';
                 }
 
+                $insensitive = in_array($operator, ['=i', 'like i', 'not like i']);
+
                 if ($insensitive) {
                     $sql .= ' COLLATE NOCASE';
                 }

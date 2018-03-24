@@ -1,5 +1,6 @@
 <?php
 namespace Octo;
+
 use Closure;
 
 /**
@@ -36,19 +37,17 @@ class Fire
      */
     protected static function called()
     {
-        $instance = instanciator()->singleton(get_called_class());
-
-        actual('fire.class', $instance);
-
-        return $instance;
+        return instanciator()->singleton(get_called_class());
     }
 
     /**
-     * @param string $event
+     * @param $event
      * @param $callable
      * @param int $priority
      *
      * @return Listener
+     *
+     * @throws \ReflectionException
      */
     public function on($event, $callable, $priority = 0)
     {
@@ -106,9 +105,8 @@ class Fire
      *
      * @throws \ReflectionException
      */
-    public function emit()
+    public function emit(...$args)
     {
-        $args   = func_get_args();
         $event  = array_shift($args);
 
         $events = Registry::get('fire.events.' . $this->ns, []);
@@ -206,34 +204,40 @@ class Fire
     /**
      * @param $m
      * @param $a
+     *
      * @return mixed
+     *
      * @throws \ReflectionException
      */
     public static function __callStatic($m, $a)
     {
-        $instance = static::called();
-
-        if ($m === 'listen') {
-            $m = 'on';
-        } elseif ($m === 'fire') {
+        if ($m === 'fire') {
             $m = 'emit';
+        } elseif ($m === 'listen') {
+            $m = 'on';
         } elseif ($m === 'subscribe') {
             $m = 'subscriber';
         }
 
-        return call_user_func_array([$instance, $m], $a);
+        return static::called()->{$m}(...$a);
     }
 
+    /**
+     * @param $m
+     * @param $a
+     *
+     * @return mixed
+     */
     public function __call($m, $a)
     {
-        if ($m === 'listen') {
-            $m = 'on';
-        } elseif ($m === 'fire') {
+        if ($m === 'fire') {
             $m = 'emit';
         } elseif ($m === 'subscribe') {
             $m = 'subscriber';
+        } elseif ($m === 'listen') {
+            $m = 'on';
         }
 
-        return call_user_func_array([$this, $m], $a);
+        return $this->{$m}(...$a);
     }
 }

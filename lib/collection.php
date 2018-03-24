@@ -493,7 +493,17 @@
          */
         public function mapWithKeys(callable $callback)
         {
-            return $this->flatMap($callback);
+            $result = [];
+
+            foreach ($this->items as $key => $value) {
+                $assoc = $callback($value, $key);
+
+                foreach ($assoc as $mapKey => $mapValue) {
+                    $result[$mapKey] = $mapValue;
+                }
+            }
+
+            return new static($result);
         }
 
         /**
@@ -1387,9 +1397,9 @@
         /**
          * @param callable $callback
          *
-         * @return $this
+         * @return Collection
          */
-        public function tap(callable $callback)
+        public function tap(callable $callback): self
         {
             $callback(new static($this->items));
 
@@ -1399,7 +1409,7 @@
         /**
          * @return Collection
          */
-        public function paired()
+        public function paired(): self
         {
             $res    = [];
             $args   = $this->items;
@@ -1444,23 +1454,24 @@
 
         public static function wrap($value)
         {
-            return $value instanceof self
+            return $value instanceof Collection
                 ? new static($value)
                 : new static(wrap($value));
         }
 
         public static function unwrap($value)
         {
-            return $value instanceof self ? $value->all() : $value;
+            return $value instanceof Collection ? $value->all() : $value;
         }
 
         /**
          * @param $number
+         *
          * @param callable|null $callback
          *
-         * @return static
+         * @return Collection
          */
-        public static function times($number, ?callable $callback = null)
+        public static function times($number, ?callable $callback = null): self
         {
             if ($number < 1) {
                 return new static;
@@ -1482,13 +1493,12 @@
             $count = $this->count();
 
             if ($count === 0) {
-                return;
+                return null;
             }
 
-            $values = (isset($key) ? $this->pluck($key) : $this)
-                ->sort()->values();
+            $values = (isset($key) ? $this->pluck($key) : $this)->sort()->values();
 
-            if (!$values instanceof self) {
+            if (!$values instanceof Collection) {
                 $values = new static($values);
             }
 
@@ -1499,20 +1509,22 @@
             }
 
             return (new static([
-                $values->get($middle - 1), $values->get($middle),
+                $values->get($middle - 1),
+                $values->get($middle),
             ]))->average();
         }
 
         /**
          * @param null $key
-         * @return array
+         *
+         * @return array|null
          */
         public function mode($key = null)
         {
             $count = $this->count();
 
             if ($count === 0) {
-                return;
+                return null;
             }
 
             $collection = isset($key) ? $this->pluck($key) : $this;
@@ -1545,21 +1557,22 @@
         }
 
         /**
+         * @param array ...$args
+         *
          * @return Collection
          */
-        public function dump():self
+        public function dump(...$args): self
         {
-            (new static(func_get_args()))
-                ->push($this)
-                ->each(function ($item) {
-                    (new Dumper)->dump($item);
-                });
+            (new static(...$args))->push($this)->each(function ($item) {
+                (new Dumper)->dump($item);
+            });
 
             return $this;
         }
 
         /**
          * @param callable $callback
+         *
          * @return Collection
          */
         public function eachSpread(callable $callback)
@@ -1575,9 +1588,10 @@
          * @param $value
          * @param callable $callback
          * @param callable|null $default
-         * @return $this
+         *
+         * @return Collection
          */
-        public function when($value, callable $callback, ?callable $default = null)
+        public function when($value, callable $callback, ?callable $default = null): self
         {
             $value = value($value);
 
@@ -1594,6 +1608,7 @@
          * @param $value
          * @param callable $callback
          * @param callable|null $default
+         *
          * @return Collection
          */
         public function unless($value, callable $callback, ?callable $default = null)
@@ -1603,6 +1618,7 @@
 
         /**
          * @param array ...$args
+         *
          * @return mixed|null
          */
         public function firstWhere(...$args)
@@ -1635,6 +1651,7 @@
          * @param string $key
          * @param string $operator
          * @param null $value
+         *
          * @return \Closure
          */
         protected function closureWhere(string $key, string $operator, $value = null)
@@ -1670,8 +1687,8 @@
                     case '!==': return $actual !== $value;
                     case 'between': return $actual >= $value[0] && $actual <= $value[1];
                     case 'not between': return $actual < $value[0] || $actual > $value[1];
-                    case 'in': return in_array($actual, $value);
-                    case 'not in': return !in_array($actual, $value);
+                    case 'in': return in_array($actual, (array) $value);
+                    case 'not in': return !in_array($actual, (array) $value);
                     case 'is': return null === $actual;
                     case 'is not': return null !== $actual;
                     case 'like':
@@ -1694,6 +1711,7 @@
          * @param string $key
          * @param null $operator
          * @param null $value
+         *
          * @return Collection
          */
         public function partition($key, $operator = null, $value = null)
@@ -1713,15 +1731,17 @@
 
         /**
          * @param callable $callback
+         *
          * @return mixed
          */
-        public function peoxy(callable $callback)
+        public function proxy(callable $callback)
         {
             return $callback($this);
         }
 
         /**
          * @param $source
+         *
          * @return Collection
          */
         public function concat($source)

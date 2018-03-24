@@ -325,10 +325,10 @@
 
         public static function slug($string, $replacement = '-')
         {
-            $map = static::$_transliteration + array(
-                '/[^\w\s]/' => ' ',
-                '/\\s+/' => $replacement,
-                '/(?<=[a-z])([A-Z])/' => $replacement . '\\1',
+            $map = static::$_transliteration + [
+                '/[^\w\s]/'             => ' ',
+                '/\\s+/'                => $replacement,
+                '/(?<=[a-z])([A-Z])/'   => $replacement . '\\1',
                 str_replace(
                     ':rep',
                     preg_quote(
@@ -337,7 +337,7 @@
                     ),
                     '/^[:rep]+|[:rep]+$/'
                 ) => ''
-            );
+            ];
 
             return preg_replace(
                 array_keys($map),
@@ -931,35 +931,56 @@
             return (int) substr(str_shuffle(str_repeat($pool, 5)), 0, $length);
         }
 
+        /**
+         * @param $value
+         * @return bool|mixed|null|string|string[]
+         * @throws \ReflectionException
+         */
+        public static function kebab($value)
+        {
+            return static::snake($value, '-');
+        }
+
+        /**
+         * @param $value
+         * @param string $delimiter
+         * @return bool|mixed|null|string|string[]
+         * @throws \ReflectionException
+         */
         public static function snake($value, $delimiter = '_')
         {
             $key = $value;
 
-            $cached = static::cache($key, 'snake');
-
-            if (false === $cached) {
-                $replace = '$1' . $delimiter . '$2';
-
-                if (!ctype_lower($value)) {
-                    $value = preg_replace('/\s+/u', '', $value);
-                    $value = static::lower(preg_replace('/(.)(?=[A-Z])/u', '$1' . $delimiter, $value));
-                }
-
-                static::cache($key, 'snake', $value);
-            } else {
-                $value = $cached;
+            if ($cached = static::cache($key, 'snake')) {
+                return $cached;
             }
+
+            if (!ctype_lower($value)) {
+                $value = preg_replace('/\s+/u', '', ucwords($value));
+
+                $value = static::lower(preg_replace('/(.)(?=[A-Z])/u', '$1'.$delimiter, $value));
+            }
+
+            static::cache($key, 'snake', $value);
 
             return $value;
         }
 
+        /**
+         * @param $key
+         * @param $type
+         * @param string $fill
+         *
+         * @return bool|mixed|null
+         *
+         * @throws \ReflectionException
+         */
         private static function cache($key, $type, $fill = 'octodummy')
         {
-            if ('octodummy' == $fill) {
+            if ('octodummy' === $fill) {
                 $value = Registry::get("inflector.$type.$key", 'octodummy');
-                $value = File::value($value);
 
-                return 'octodummy' == $value ? false : $value;
+                return 'octodummy' === $value ? false : $value;
             } else {
                 Registry::set("inflector.$type.$key", $fill);
             }

@@ -13,11 +13,10 @@ class Instanciator
 
     /**
      * @return Listener
+     * @throws \ReflectionException
      */
-    public function resolving()
+    public function resolving(...$args)
     {
-        $args = func_get_args();
-
         if (1 === count($args)) {
             $event = 'all.resolving';
 
@@ -34,10 +33,8 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
-    public function factory()
+    public function factory(...$args)
     {
-        $args   = func_get_args();
-
         $class  = array_shift($args);
 
         return is_string($class) ? $this->make($class, $args, false) : $this->makeClosure($class, $args);
@@ -48,10 +45,8 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
-    public function foundry()
+    public function foundry(...$args)
     {
-        $args   = func_get_args();
-
         return $this->factory(...$args);
     }
 
@@ -60,10 +55,8 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
-    public function singleton()
+    public function singleton(...$args)
     {
-        $args   = func_get_args();
-
         $class  = array_shift($args);
 
         return is_string($class) ? $this->make($class, $args, true) : $this->makeClosure($class, $args);
@@ -91,7 +84,6 @@ class Instanciator
         $callable   = isAke($binds, $make, null);
 
         if ($callable && is_callable($callable) && $singleton) {
-            if (\Container::class === $make) lvd($callable);
             return $callable();
         }
 
@@ -131,6 +123,10 @@ class Instanciator
                             if ($classParam) {
                                 try {
                                     $p = $this->factory($classParam->getName());
+
+                                    if ($p instanceof FastModelInterface) {
+                                        $p = $this->makeModel($p);
+                                    }
                                 } catch (\Exception $e) {
                                     exception('Instanciator', $e->getMessage());
                                 }
@@ -190,9 +186,45 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
-    public function invoker()
+    public function invoker(...$args)
     {
-        return $this->makeClosure(...func_get_args());
+        return $this->makeClosure(...$args);
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return mixed
+     *
+     * @throws \ReflectionException
+     */
+    public function callMethod(...$args)
+    {
+        return $this->makeClosure(...$args);
+    }
+
+    /**
+     * @param Octal $entity
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    private function makeModel($entity)
+    {
+        $key = 'id';
+
+        if ($entity instanceof \Illuminate\Database\Eloquent\Model) {
+            $key = $entity->getKeyName();
+        } elseif ($entity instanceof Entity) {
+            $key = $entity->pk();
+        }
+
+        $id = getContainer()->getRequest()->getAttribute($key);
+
+        if (!is_null($id)) {
+            return $entity->find($id);
+        }
+
+        return $entity;
     }
 
     /**
@@ -200,9 +232,8 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
-    public function makeClosure()
+    public function makeClosure(...$args)
     {
-        $args       = func_get_args();
         $closure    = array_shift($args);
 
         $ref        = new ReflectionFunction($closure);
@@ -230,6 +261,10 @@ class Instanciator
                     if ($classParam) {
                         try {
                             $p = $this->factory($classParam->getName());
+
+                            if ($p instanceof FastModelInterface) {
+                                $p = $this->makeModel($p);
+                            }
                         } catch (\Exception $e) {
                             exception('Instanciator', $e->getMessage());
                         }
@@ -269,9 +304,8 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
-    public function interact()
+    public function interact(...$args)
     {
-        $args   = func_get_args();
         $class  = array_shift($args);
         $params = array_merge([$this->factory($class)], $args);
 
@@ -283,9 +317,8 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
-    public function call()
+    public function call(...$args)
     {
-        $args       = func_get_args();
         $object     = array_shift($args);
         $method     = array_shift($args);
         $fnParams   = $args;
@@ -312,6 +345,10 @@ class Instanciator
 
                         if ($classParam) {
                             $p = $this->factory($classParam->getName());
+
+                            if ($p instanceof FastModelInterface) {
+                                $p = $this->makeModel($p);
+                            }
                         } else {
                             try {
                                 $p = $param->getDefaultValue();
@@ -423,7 +460,82 @@ class Instanciator
     }
 
     /**
-     * @param mixed $concern
+     * @param array ...$args
+     *
+     * @return Instanciator
+     */
+    public function set(...$args): self
+    {
+        return $this->share(...$args);
+    }
+
+    /**
+     * @param string $class
+     * @return mixed
+     */
+    public function getOr(string $class)
+    {
+        if (!$this->has($class)) {
+            return $this->set($class)->get($class);
+        }
+
+        return $this->get($class);
+    }
+
+    /**
+     * @param array ...$args
+     * @return bool
+     */
+    public function has(...$args): bool
+    {
+        return null !== $this->get(...$args);
+    }
+
+    /**
+     * @param $concern
+     */
+    public function del($concern)
+    {
+        $wires = $this->getWires();
+
+        if (is_object($concern)) {
+            $concern = get_class($concern);
+        }
+
+        unset($wires[$concern]);
+
+        Registry::set('core.wires', $wires);
+    }
+
+    /**
+     * @param array ...$args
+     */
+    public function delete(...$args)
+    {
+        $this->del(...$args);
+    }
+
+    /**
+     * @param array ...$args
+     */
+    public function remove(...$args)
+    {
+        $this->del(...$args);
+    }
+
+    /**
+     * @param $concern
+     * @param $alias
+     *
+     * @return mixed
+     */
+    public function alias($concern, $alias)
+    {
+        return $this->share($alias, $concern)->get($alias);
+    }
+
+    /**
+     * @param $concern
      *
      * @return Instanciator
      */
@@ -436,6 +548,11 @@ class Instanciator
         } elseif (is_string($concern)) {
             $args   = func_get_args();
             $key    = array_shift($args);
+
+            if (empty($args) && class_exists($key)) {
+                $args[] = $this->make($key);
+            }
+
             $value  = array_shift($args);
 
             $this->wire($key, $value);
@@ -450,6 +567,16 @@ class Instanciator
      * @return mixed
      */
     public function shared(string $concern)
+    {
+        return $this->autowire($concern);
+    }
+
+    /**
+     * @param string $concern
+     *
+     * @return mixed
+     */
+    public function get(string $concern)
     {
         return $this->autowire($concern);
     }
@@ -516,9 +643,9 @@ class Instanciator
     /**
      * @return mixed|null
      */
-    public function with()
+    public function with(...$args)
     {
-        return with(...func_get_args());
+        return with(...$args);
     }
 
     /**
@@ -526,9 +653,8 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
-    public function resolve()
+    public function resolve(...$args)
     {
-        $args       = func_get_args();
         $callable   = array_shift($args);
 
         if ($callable instanceof Closure) {

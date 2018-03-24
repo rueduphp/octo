@@ -3,13 +3,13 @@
 
     /**
      * @method Entity getEntity()
-     * @method static Octal all()
-     * @method static Octal get()
+     * @method static all()
+     * @method static get()
      * @method static int count()
-     * @method static Activerecord find($id)
-     * @method static Octal min($field)
-     * @method static Octal max($field)
-     * @method static Octal avg($field)
+     * @method static Activerecord find(int $id)
+     * @method static min(string $field)
+     * @method static max(string $field)
+     * @method static avg(string $field)
      * @method static Activerecord|null first()
      * @method static Activerecord|null last()
      * @method static Octalia where($concern, $op = null, $value = null)
@@ -22,10 +22,9 @@
         protected static $booted = [];
 
         /**
-         * @param null $newRow
          * @throws \ReflectionException
          */
-        public function __construct($newRow = null)
+        public function __construct()
         {
             $class = get_called_class();
 
