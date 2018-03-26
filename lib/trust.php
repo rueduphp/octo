@@ -206,7 +206,7 @@ class Trust
                 $key = null;
             }
 
-            $user = $this->session()[$this->called()->getUserKey()];
+            $user = $this->session()[$this->getUserKey()];
 
             if (!is_null($user)) {
                 if (!is_null($key)) {
@@ -273,9 +273,10 @@ class Trust
      * @throws Exception
      * @throws \ReflectionException
      */
-    protected static function connexion(string $type)
+    protected static function connexion(...$args)
     {
-        $params = array_merge([$type], func_get_args());
+        $type = array_shift($args);
+        $params = array_merge([$type], $args);
 
         $called = static::called();
 
@@ -291,24 +292,25 @@ class Trust
     }
 
     /**
+     * @param array ...$args
      * @return mixed|null
      * @throws \ReflectionException
      */
-    public static function session()
+    public static function session(...$args)
     {
-        $params = array_merge(['session'], func_get_args());
+        $params = array_merge(['session'], $args);
 
         return static::called()->callProvider(...$params);
     }
 
     /**
+     * @param array ...$args
      * @return mixed|null
-     *
      * @throws \ReflectionException
      */
-    public static function user()
+    public static function user(...$args)
     {
-        $params = array_merge(['user'], func_get_args());
+        $params = array_merge(['user'], $args);
 
         return static::called()->callProvider(...$params);
     }
@@ -410,7 +412,7 @@ class Trust
      */
     public static function policy(string $key, callable $callable, bool $paste = false)
     {
-        $policies = Registry::get('trust.policies.' . static::called()->getNamespace(), []);
+        $policies = static::policies();
 
         if (false === $paste) {
             $policy = aget($policies, $key, false);
@@ -431,16 +433,15 @@ class Trust
      * @throws Exception
      * @throws \ReflectionException
      */
-    public static function can(): bool
+    public static function can(...$args): bool
     {
         if (true === static::isAuth()) {
-            $args   = func_get_args();
-            $key    = array_shift($args);
-            $policies  = Registry::get('trust.policies.' . static::called()->getNamespace(), []);
-            $policy   = isAke($policies, $key, false);
+            $key        = array_shift($args);
+            $policies   = Registry::get('trust.policies.' . static::called()->getNamespace(), []);
+            $policy     = isAke($policies, $key, false);
 
             if (is_callable($policy)) {
-                $params = array_merge([self::user()], $args);
+                $params = array_merge([static::user()], $args);
 
                 if ($policy instanceof Closure) {
                     $params = array_merge([$policy], $params);
@@ -464,55 +465,55 @@ class Trust
     }
 
     /**
-     * @param string $key
+     * @param array ...$args
      *
      * @return bool
      *
      * @throws Exception
      * @throws \ReflectionException
      */
-    public static function cannot(string $key): bool
+    public static function cannot(...$args): bool
     {
-        return !static::can(...func_get_args());
+        return !static::can(...$args);
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return bool
+     *
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    public static function cant(...$args): bool
+    {
+        return static::cannot(...$args);
     }
 
     /**
      * @param string $key
      *
-     * @return bool
-     *
      * @throws Exception
      * @throws \ReflectionException
      */
-    public static function cant(string $key): bool
+    public static function allows(string $key)
     {
-        return static::cannot(...func_get_args());
+        static::policy($key, function () {
+            return true;
+        }, true);
     }
 
     /**
      * @param string $key
      *
-     * @return bool
-     *
      * @throws Exception
      * @throws \ReflectionException
      */
-    public static function allows(string $key): bool
+    public static function denies(string $key)
     {
-        return static::can(...func_get_args());
-    }
-
-    /**
-     * @param string $key
-     *
-     * @return bool
-     *
-     * @throws Exception
-     * @throws \ReflectionException
-     */
-    public static function denies(string $key): bool
-    {
-        return static::cannot(...func_get_args());
+        static::policy($key, function () {
+            return false;
+        }, true);
     }
 
     /**

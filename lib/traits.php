@@ -93,6 +93,63 @@ trait Instantiable
     }
 }
 
+trait RepositoryTrait
+{
+    /**
+     * @param array $data
+     * @return mixed
+     */
+    public function getModel(array $data = [])
+    {
+        if (!isset($this->model)) {
+            $this->model = $model = Strings::uncamelize(
+                str_replace(
+                    'Repository',
+                    '',
+                    Arrays::last(
+                        explode(
+                            '\\',
+                            get_called_class()
+                        )
+                    )
+                )
+            );
+        } else {
+            $model = $this->model;
+        }
+
+        return new $model($data);
+    }
+
+    /**
+     * @param $method
+     * @param $parameters
+     *
+     * @return mixed
+     */
+    public function __call($method, $parameters)
+    {
+        $model = $this->getModel();
+
+        return $model->{$method}(...$parameters);
+    }
+
+    /**
+     * @param $method
+     * @param $parameters
+     *
+     * @return mixed
+     * 
+     * @throws \ReflectionException
+     */
+    public static function __callStatic($method, $parameters)
+    {
+        $instance = instanciator()->singleton(get_called_class());
+
+        return $instance->{$method}(...$parameters);
+    }
+}
+
 trait Notifiable
 {
     /**

@@ -1,7 +1,7 @@
 <?php
 namespace Octo;
 
-class CachingModel extends Ormmodel
+class CachingModel extends Elegant
 {
     protected $table        = 'caching';
     public $timestamps      = false;

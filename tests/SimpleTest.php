@@ -2,9 +2,7 @@
 
 use Octo\Alert;
 use Octo\Breeze;
-use Octo\Capsule;
 use Octo\Config;
-use Octo\Db;
 use Octo\Emit;
 use Octo\Facade;
 use Octo\Finder;
@@ -17,8 +15,8 @@ use Octo\Now;
 use Octo\On;
 use Octo\Proxify;
 use Octo\Registry;
-use function Octo\sessionKey;
 use Octo\Trust;
+use function Octo\sessionKey;
 
 class Notifier
 {
@@ -307,16 +305,23 @@ class SimpleTest extends TestCase
         $this->assertFalse(MyGuard::session()['trust.login.event']);
         $this->assertFalse(MyGuard::session()['trust.logout.event']);
 
+        MyGuard::policy('foo', function ($user) {
+            return $user['id'] === 1;
+        });
+
         MyGuard::login();
+
+        $can = MyGuard::can('foo');
+        $this->assertTrue($can);
 
         $this->assertTrue(MyGuard::session()['trust.login.event']);
 
         $this->assertTrue(MyGuard::isAuth());
         $this->assertFalse(MyGuard::isGuest());
 
-        $this->assertSame(1, MyGuard::user('id'));
-        $this->assertSame('foo', MyGuard::user('name'));
-        $this->assertSame('foo@bar.com', MyGuard::user('email'));
+        $this->assertSame(1,                MyGuard::user('id'));
+        $this->assertSame('foo',            MyGuard::user('name'));
+        $this->assertSame('foo@bar.com',    MyGuard::user('email'));
 
         MyGuard::logout();
 
@@ -329,15 +334,18 @@ class SimpleTest extends TestCase
 
         $guard = MyGuard::forUser(['id' => 2, 'name' => 'bar', 'email' => 'bar@foo.com']);
 
-        $this->assertSame(2, $guard->user('id'));
-        $this->assertSame('bar', $guard->user('name'));
-        $this->assertSame('bar@foo.com', $guard->user('email'));
+        $this->assertSame(2,                $guard->user('id'));
+        $this->assertSame('bar',            $guard->user('name'));
+        $this->assertSame('bar@foo.com',    $guard->user('email'));
+
+        $can = MyGuard::can('foo');
+        $this->assertFalse($can);
 
         MyGuard::recoverUser();
 
-        $this->assertSame(1, MyGuard::user('id'));
-        $this->assertSame('foo', MyGuard::user('name'));
-        $this->assertSame('foo@bar.com', MyGuard::user('email'));
+        $this->assertSame(1,                MyGuard::user('id'));
+        $this->assertSame('foo',            MyGuard::user('name'));
+        $this->assertSame('foo@bar.com',    MyGuard::user('email'));
     }
 
     /**

@@ -4,6 +4,9 @@
 
     class GuardianTest extends TestCase
     {
+        /**
+         * @throws ReflectionException
+         */
         public function setUp()
         {
             parent::setUp();
