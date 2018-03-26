@@ -428,6 +428,32 @@ class Trust
     }
 
     /**
+     * @param $permissions
+     *
+     * @return bool
+     *
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    public static function canAtLeast($permissions)
+    {
+        if (true === static::isAuth()) {
+            $permissions = (array) $permissions;
+            $policies = static::policies();
+
+            foreach ($permissions as $permission) {
+                $policy = isAke($policies, $permission, false);
+
+                if (is_callable($policy) && true === $policy(static::user())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @return bool
      *
      * @throws Exception
