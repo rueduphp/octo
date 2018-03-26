@@ -1,97 +1,110 @@
 <?php
-    namespace Octo;
+namespace Octo;
 
-    use ReflectionClass;
+use ReflectionClass;
 
-    class Resolver
+class Resolver
+{
+    /**
+     * @param $singleton
+     * @return $this
+     * @throws \ReflectionException
+     */
+    public function setSingleton($singleton)
     {
-        public function setSingleton($singleton)
-        {
+        $singletons = Registry::get('octo.resolver.singletons', []);
+
+        $r = new ReflectionClass($singleton);
+
+        $singletons[$r->getName()] = $singleton;
+
+        Registry::set('octo.resolver.singletons', $singletons);
+
+        return $this;
+    }
+
+    public function set($class, callable $singleton)
+    {
+        $singletons = Registry::get('octo.resolver.singletons', []);
+
+        $singletons[$class] = $singleton;
+
+        Registry::set('octo.resolver.singletons', $singletons);
+
+        return $this;
+    }
+
+    public function setFactory($class, callable $factory)
+    {
+        $factories = Registry::get('octo.resolver.factories', []);
+
+        $factories[$class] = $factory;
+
+        Registry::set('octo.resolver.factories', $factories);
+
+        return $this;
+    }
+
+    /**
+     * @param $class
+     *
+     * @return object
+     *
+     * @throws Exception         *
+     * @throws \ReflectionException
+     */
+    public function get($class)
+    {
+        $factories = Registry::get('octo.resolver.factories', []);
+
+        $resolver = isAke($factories, $class, null);
+
+        if ($resolver) {
+            return $resolver();
+        } else {
             $singletons = Registry::get('octo.resolver.singletons', []);
 
-            $r = new ReflectionClass($singleton);
-
-            $singletons[$r->getName()] = $singleton;
-
-            Registry::set('octo.resolver.singletons', $singletons);
-
-            return $this;
-        }
-
-        public function set($class, callable $singleton)
-        {
-            $singletons = Registry::get('octo.resolver.singletons', []);
-
-            $singletons[$class] = $singleton;
-
-            Registry::set('octo.resolver.singletons', $singletons);
-
-            return $this;
-        }
-
-        public function setFactory($class, callable $factory)
-        {
-            $factories = Registry::get('octo.resolver.factories', []);
-
-            $factories[$class] = $factory;
-
-            Registry::set('octo.resolver.factories', $factories);
-
-            return $this;
-        }
-
-        public function get($class)
-        {
-            $factories = Registry::get('octo.resolver.factories', []);
-
-            $resolver = isAke($factories, $class, null);
+            $resolver = isAke($singletons, $class, null);
 
             if ($resolver) {
                 return $resolver();
             } else {
-                $singletons = Registry::get('octo.resolver.singletons', []);
+                if (class_exists($class)) {
+                    $r = new ReflectionClass($class);
+                    $constructor = $r->getConstructor();
 
-                $resolver = isAke($singletons, $class, null);
+                    $params = [];
 
-                if ($resolver) {
-                    return $resolver();
-                } else {
-                    if (class_exists($class)) {
-                        $r = new ReflectionClass($class);
-                        $constructor = $r->getConstructor();
+                    if ($constructor) {
+                        $parameters = $constructor->getParameters();
 
                         $params = [];
 
-                        if ($constructor) {
-                            $parameters = $constructor->getParameters();
-
-                            $params = [];
-
-                            foreach ($parameters as $parameter) {
-                                if ($parameter->getCalss()) {
-                                    $params[] = $this->get($parameter->getClass()->getName());
-                                } else {
-                                    $params[] = $parameter->getDefaultValue();
-                                }
+                        foreach ($parameters as $parameter) {
+                            if ($parameter->getCalss()) {
+                                $params[] = $this->get($parameter->getClass()->getName());
+                            } else {
+                                $params[] = $parameter->getDefaultValue();
                             }
                         }
-
-                        return (new App)->make($class, $params);
-                    } else {
-                        throw new Exception("The class $class is not saved.");
                     }
+
+                    return (new App)->make($class, $params);
+                } else {
+                    throw new Exception("The class $class is not saved.");
                 }
             }
         }
-
-        /**
-         * @param string $name
-         * @param array $arguments
-         *
-         * @return mixed
-         */
-        public static function __callStatic(string $name, array $arguments)
-        {
-            return call_user_func_array([instanciator(), $name], $arguments);
-        }
     }
+
+    /**
+     * @param string $name
+     * @param array $arguments
+     *
+     * @return mixed
+     */
+    public static function __callStatic(string $name, array $arguments)
+    {
+        return call_user_func_array([instanciator(), $name], $arguments);
+    }
+}

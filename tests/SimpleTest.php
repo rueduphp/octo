@@ -2,7 +2,9 @@
 
 use Octo\Alert;
 use Octo\Breeze;
+use Octo\Capsule;
 use Octo\Config;
+use Octo\Db;
 use Octo\Emit;
 use Octo\Facade;
 use Octo\Finder;
@@ -140,6 +142,15 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    /**
+     * @throws Exception
+     */
+    public function testHelpers()
+    {
+        $this->assertSame("'foo'", $this->quoteString('foo'));
+        $this->assertSame("'foo', 'bar'", $this->quoteString(['foo', 'bar']));
+    }
+
     public function testOctoRenderer()
     {
         $html = $this->html(__DIR__ . '/views/demo', ['name' => 'foo']);

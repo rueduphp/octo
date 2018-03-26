@@ -2,8 +2,6 @@
 
 namespace Octo;
 
-use function is_callable;
-
 class Lazy
 {
     /**

@@ -5245,6 +5245,19 @@
         return $superdi;
     }
 
+    /**
+     * @param string|string[] $value
+     * @return string
+     */
+    function quoteString($value)
+    {
+        if (is_array($value)) {
+            return implode(', ', array_map(__FUNCTION__, $value));
+        }
+
+        return "'$value'";
+    }
+
     function maker()
     {
         return instanciator()->make(...func_get_args());
@@ -6453,7 +6466,7 @@
      */
     function exception($type, $message, $extends = '\\Exception')
     {
-        $what   = ucfirst(Strings::camelize($type . '_exception'));
+        $what   = ucfirst(Inflector::camelize($type . '_exception'));
         $class  = 'Octo\\' . $what;
 
         if (!class_exists($class)) {

@@ -46,6 +46,19 @@ class Capsule
     }
 
     /**
+     * @return Connection
+     * @throws \ReflectionException
+     */
+    public static function connection()
+    {
+        if (!$connection = get('capsule.connection')) {
+            $connection = self::grammar(new Connection(getPdo()));
+        }
+
+        return $connection;
+    }
+
+    /**
      * @return Capsule
      */
     public static function getInstance(): Capsule
@@ -73,9 +86,11 @@ class Capsule
         /** @var Elegant $model */
         $model = is_string($class) && class_exists($class) ? new $class() : $class;
 
-        $connection = $this->grammar(new Connection($this->pdo));
+        $connection = self::grammar(new Connection($this->pdo), $this->pdo);
 
-        $resolver   = new ConnectionResolver(['octoconnection' => $connection]);
+        set('capsule.connection', $connection);
+
+        $resolver = new ConnectionResolver(['octoconnection' => $connection]);
 
         $resolver->setDefaultConnection('octoconnection');
 
@@ -138,17 +153,22 @@ class Capsule
 
         Schema::defaultStringLength(191);
 
-        return $this->grammar($connection)->getSchemaBuilder();
+        return self::grammar($connection, $this->pdo)->getSchemaBuilder();
     }
 
     /**
      * @param Connection $connection
+     * @param null|PDO $pdo
      *
      * @return Connection
      */
-    private function grammar(Connection $connection)
+    private static function grammar(Connection $connection, ?PDO $pdo = null)
     {
-        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if (!$pdo instanceof PDO) {
+            $pdo = getPdo();
+        }
+
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
         switch ($driver) {
             case 'mysql':
