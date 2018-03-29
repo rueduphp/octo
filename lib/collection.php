@@ -17,6 +17,10 @@
 
         public function __construct($items = [])
         {
+            if (is_string($items)) {
+                $items = [$items];
+            }
+
             $items = is_null($items) ? [] : $this->getArrays($items);
 
             $this->items = (array) $items;
@@ -167,7 +171,7 @@
         /**
          * @return Collection
          */
-        public function every($step, $offset = 0)
+        public function step($step, $offset = 0)
         {
             $new = [];
 
@@ -187,10 +191,8 @@
         /**
          * @return Collection
          */
-        public function except()
+        public function except(...$keys)
         {
-            $keys = func_get_args();
-
             return $this->new(Arrays::except($this->items, $keys));
         }
 
@@ -300,6 +302,10 @@
             return $this->new($results);
         }
 
+        /**
+         * @param $field
+         * @return mixed
+         */
         public function min($field)
         {
             $row = $this->sortBy($field)->first();
@@ -590,7 +596,6 @@
         /**
          * @param callable $callback
          * @param null $initial
-         *
          * @return mixed
          */
         public function reduce(callable $callback, $initial = null)
@@ -707,23 +712,22 @@
         {
             $results = [];
 
-            if (!$this->isClosure($callback)) {
-                $callback = $this->makeClosure($callback);
-            }
+            $callback = $this->makeClosure($callback);
 
             foreach ($this->items as $key => $value) {
-                $results[$key] = $callback($value);
+                $results[$key] = $callback($value, $key);
             }
 
-            $descending ? arsort($results, $options) : asort($results, $options);
+            $descending
+                ? arsort($results, $options)
+                : asort($results, $options)
+            ;
 
             foreach (array_keys($results) as $key) {
                 $results[$key] = $this->items[$key];
             }
 
-            $this->items = $results;
-
-            return $this;
+            return new static($results);
         }
 
         public function sortByDesc($callback, $options = SORT_REGULAR)
@@ -821,9 +825,18 @@
          */
         protected function makeClosure($value)
         {
-            return function($item) use ($value) {
-                return Arrays::data_get($item, $value);
+            if ($this->useAsCallable($value)) {
+                return $value;
+            }
+
+            return function ($item) use ($value) {
+                return dget($item, $value);
             };
+        }
+
+        protected function useAsCallable($value)
+        {
+            return ! is_string($value) && is_callable($value);
         }
 
         /**
@@ -1051,22 +1064,20 @@
         }
 
         /**
-         * @param string $key
+         * @param string|array $key
          * @param null|string $operator
          * @param null $value
          *
          * @return Collection
          */
-        public function where(string $key, ?string $operator = null, $value = null): self
+        public function where($key, ?string $operator = null, $value = null): self
         {
             if (func_num_args() === 1) {
                 if (is_array($key)) {
                     list($key, $operator, $value) = $key;
-                    $operator = strtolower($operator);
+                    $operator = Inflector::lower($operator);
                 }
-            }
-
-            if (func_num_args() === 2) {
+            } elseif (func_num_args() === 2) {
                 list($value, $operator) = [$operator, '='];
             }
 
@@ -1087,6 +1098,8 @@
                 if ($insensitive) {
                     $operator = str_replace(['=i', 'like i'], ['=', 'like'], $operator);
                 }
+
+                return compare($actual, $operator, $value);
 
                 switch ($operator) {
                     case '<>':
@@ -1387,21 +1400,29 @@
         /**
          * @param callable $callback
          *
-         * @return Collection
+         * @return Collection|Tap
+         *
+         * @throws \ReflectionException
          */
-        public function step(callable $callback)
+        public function clone(callable $callback)
         {
             return $this->tap($callback);
         }
 
         /**
-         * @param callable $callback
+         * @param callable|null $callback
          *
-         * @return Collection
+         * @return Collection|Tap
+         *
+         * @throws \ReflectionException
          */
-        public function tap(callable $callback): self
+        public function tap(?callable $callback = null)
         {
-            $callback(new static($this->items));
+            if (is_null($callback)) {
+                return new Tap($this);
+            }
+
+            callCallable($callback, new static($this->items));
 
             return $this;
         }
@@ -1676,21 +1697,21 @@
                 switch ($operator) {
                     default:
                     case '=':
-                    case '==':  return $actual == $value;
+                    case '==':              return $actual == $value;
                     case '!=':
-                    case '<>':  return $actual != $value;
-                    case '<':   return $actual < $value;
-                    case '>':   return $actual > $value;
-                    case '<=':  return $actual <= $value;
-                    case '>=':  return $actual >= $value;
-                    case '===': return $actual === $value;
-                    case '!==': return $actual !== $value;
-                    case 'between': return $actual >= $value[0] && $actual <= $value[1];
-                    case 'not between': return $actual < $value[0] || $actual > $value[1];
-                    case 'in': return in_array($actual, (array) $value);
-                    case 'not in': return !in_array($actual, (array) $value);
-                    case 'is': return null === $actual;
-                    case 'is not': return null !== $actual;
+                    case '<>':              return $actual != $value;
+                    case '<':               return $actual < $value;
+                    case '>':               return $actual > $value;
+                    case '<=':              return $actual <= $value;
+                    case '>=':              return $actual >= $value;
+                    case '===':             return $actual === $value;
+                    case '!==':             return $actual !== $value;
+                    case 'between':         return $actual >= $value[0] && $actual <= $value[1];
+                    case 'not between':     return $actual < $value[0] || $actual > $value[1];
+                    case 'in':              return in_array($actual, (array) $value);
+                    case 'not in':          return !in_array($actual, (array) $value);
+                    case 'is':              return null === $actual;
+                    case 'is not':          return null !== $actual;
                     case 'like':
                         $value  = str_replace("'", '', $value);
                         $value  = str_replace('%', '*', $value);
@@ -1705,6 +1726,29 @@
                         return !$check;
                 }
             };
+        }
+
+        public function every($key, $operator = null, $value = null)
+        {
+            if (func_num_args() === 1) {
+                $callback = $this->makeClosure($key);
+
+                foreach ($this->items as $k => $v) {
+                    if (!$callback($v, $k)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            if (func_num_args() === 2) {
+                $value = $operator;
+
+                $operator = '=';
+            }
+
+            return $this->every($this->closureWhere($key, $operator, $value));
         }
 
         /**
@@ -1722,8 +1766,8 @@
                 ? $this->makeClosure($key)
                 : $this->closureWhere(...func_get_args());
 
-            foreach ($this->items as $key => $item) {
-                $partitions[(int) !$callback($item, $key)][$key] = $item;
+            foreach ($this->items as $k => $item) {
+                $partitions[(int) !$callback($item, $k)][$k] = $item;
             }
 
             return new static($partitions);

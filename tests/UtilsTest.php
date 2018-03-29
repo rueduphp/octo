@@ -1,6 +1,6 @@
 <?php
+    use Octo\Inflector;
     use Octo\Redys;
-    use function Octo\em as dbo;
 
     class Foo {}
     class Dummy
@@ -82,9 +82,7 @@
 
             $this->assertEquals('bar', $c->first()['name']);
 
-            $c->sortByDesc('name');
-
-            $this->assertEquals('foo', $c->first()['name']);
+            $this->assertEquals('foo', $c->sortByDesc('name')->first()['name']);
         }
 
         /** @test */
@@ -141,13 +139,14 @@
         {
             Redys::set('test', 1);
 
+            /** @var \Octo\Time $dt */
             $dt     = $this->lib('time');
             $dt2    = $this->fromTs(Redys::age('test'));
 
 
-            $this->assertEquals(0, $dt->diff($dt2)->s);
-            $this->assertEquals(1, Redys::get('test'));
-            $this->assertEquals('default', Redys::get('test2', 'default'));
+            $this->assertSame(0, $dt->diff($dt2)->s);
+            $this->assertSame(1, (int) Redys::get('test'));
+            $this->assertSame('default', Redys::get('test2', 'default'));
             $this->assertCount(1, Redys::all());
 
             Redys::forget('test');
@@ -179,23 +178,23 @@
             sdi()->registry('test', 'dummy');
             $this->assertEquals('dummy', sdi()->registry('test'));
 
-            $pdo = sdi()->mock(Foo::class);
+            $foo = sdi()->mock(Foo::class);
 
-            $pdo->test(function () {
+            $foo->test(function () {
                 return 20;
             });
 
-            $this->assertEquals(200, $pdo->test());
+            $this->assertEquals(200, $foo->test());
 
             sdi()->register(Foo::class, function () {
                 return new Dummy;
             });
 
-            $pdo = sdi()->resolve(Foo::class);
+            $foo = sdi()->resolve(Foo::class);
 
-            $this->assertEquals(Dummy::class, get_class($pdo));
+            $this->assertEquals(Dummy::class, get_class($foo));
 
-            $this->assertEquals(200, $pdo->test());
+            $this->assertEquals(200, $foo->test());
 
             $app = sdi();
 
@@ -210,21 +209,21 @@
             $this->assertEquals('test2', sdi()->setTest('test2')->test);
             $this->assertEquals(20, sdi()->dummy());
 
-            sdi()->register(Octo\Inflector::class, function () {
-                return Octo\dyn(new Octo\Inflector);
+            sdi()->register(Inflector::class, function () {
+                return Octo\dyn(new Inflector);
             });
 
             $this->assertEquals(
                 Octo\Dyn::class,
                 get_class(
-                    sdi()->factory(Octo\Inflector::class)
+                    sdi()->factory(Inflector::class)
                 )
             );
 
             $this->assertEquals(
-                Octo\Inflector::class,
+                Inflector::class,
                 get_class(
-                    sdi()->factory(Octo\Inflector::class)->getNative()
+                    sdi()->factory(Inflector::class)->getNative()
                 )
             );
         }

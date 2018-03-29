@@ -69,11 +69,11 @@ class Bank implements FastOrmInterface, FastDbInterface
     /**
      * @return string
      */
-    protected function makeKey()
+    protected function makeKey(...$args)
     {
-        $args = array_merge([$this->database, $this->table], func_get_args());
+        $parameters = array_merge([$this->database, $this->table], $args);
 
-        return implode('.', $args);
+        return implode('.', $parameters);
     }
 
     /**
@@ -374,9 +374,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
         $operator = Strings::lower($operator);
 
-        $collection = coll($this->select($key));
-
-        $results    = $collection->filter(function($item) use ($key, $operator, $value) {
+        $results    = coll($this->select($key))->filter(function($item) use ($key, $operator, $value) {
             $item   = (object) $item;
             $actual = isset($item->{$key}) ? $item->{$key} : null;
 
@@ -406,57 +404,10 @@ class Bank implements FastOrmInterface, FastDbInterface
                 }
             }
 
-            switch ($operator) {
-                case '<>':
-                case '!=':
-                    return sha1(serialize($actual)) != sha1(serialize($value));
-                case '>':
-                    return $actual > $value;
-                case '<':
-                    return $actual < $value;
-                case '>=':
-                    return $actual >= $value;
-                case '<=':
-                    return $actual <= $value;
-                case 'between':
-                    return $actual >= $value[0] && $actual <= $value[1];
-                case 'not between':
-                    return $actual < $value[0] || $actual > $value[1];
-                case 'in':
-                    $value = !is_array($value)
-                        ? explode(',', str_replace([' ,', ', '], ',', $value))
-                        : $value;
-
-                    return in_array($actual, $value);
-                case 'not in':
-                    $value = !is_array($value)
-                        ? explode(',', str_replace([' ,', ', '], ',', $value))
-                        : $value;
-
-                    return !in_array($actual, $value);
-                case 'like':
-                    $value  = str_replace("'", '', $value);
-                    $value  = str_replace('%', '*', $value);
-
-                    return fnmatch($value, $actual);
-                case 'not like':
-                    $value  = str_replace("'", '', $value);
-                    $value  = str_replace('%', '*', $value);
-
-                    $check  = fnmatch($value, $actual);
-
-                    return !$check;
-                case 'is':
-                    return is_null($actual);
-                case 'is not':
-                    return !is_null($actual);
-                case '=':
-                default:
-                    return sha1(serialize($actual)) == sha1(serialize($value));
-            }
+            return compare($actual, $operator, $value);
         });
 
-        $this->computed = array_values($results->fetch('id')->toArray());
+        $this->computed = $results->fetch('id')->all();
 
         return $this;
     }
@@ -622,7 +573,7 @@ class Bank implements FastOrmInterface, FastDbInterface
     {
         $results = coll($this->select($field))->groupBy($field);
 
-        $this->computed = array_values($results->fetch('id')->toArray());
+        $this->computed = $results->fetch('id')->all();
 
         return $this;
     }
@@ -636,7 +587,7 @@ class Bank implements FastOrmInterface, FastDbInterface
     {
         $results = coll($this->select(array_keys($criteria)))->multisort($criteria);
 
-        $this->computed = array_values($results->fetch('id')->toArray());
+        $this->computed = $results->fetch('id')->all();
 
         return $this;
     }
@@ -650,7 +601,7 @@ class Bank implements FastOrmInterface, FastDbInterface
     {
         $results = coll($this->select($field))->sortBy($field);
 
-        $this->computed = array_values($results->fetch('id')->toArray());
+        $this->computed = $results->fetch('id')->all();
 
         return $this;
     }
@@ -663,7 +614,7 @@ class Bank implements FastOrmInterface, FastDbInterface
     {
         $results = coll($this->select($field))->sortByDesc($field);
 
-        $this->computed = array_values($results->fetch('id')->toArray());
+        $this->computed = $results->fetch('id')->all();
 
         return $this;
     }
@@ -747,7 +698,7 @@ class Bank implements FastOrmInterface, FastDbInterface
      */
     public function update(array $criteria)
     {
-        $criteria = is_object($criteria) ? $criteria->toArray() : $criteria;
+        $criteria = arrayable($criteria) ? $criteria->toArray() : $criteria;
 
         $affected = 0;
 
@@ -814,7 +765,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
         $results    = coll($data)->each($callback);
 
-        $this->computed = array_values($results->fetch('id')->toArray());
+        $this->computed = $results->fetch('id')->all();
 
         return $this;
     }
@@ -832,16 +783,16 @@ class Bank implements FastOrmInterface, FastDbInterface
 
         $results    = coll($data)->filter($callback);
 
-        $this->computed = array_values($results->fetch('id')->toArray());
+        $this->computed = $results->fetch('id')->all();
 
         return $this;
     }
 
     /**
-     * @param string $name
+     * @param $name
      * @param array $arguments
      *
-     * @return $this
+     * @return mixed|null|Bank
      */
     public function __call($name, array $arguments)
     {
@@ -883,15 +834,15 @@ class Bank implements FastOrmInterface, FastDbInterface
         }
 
         if ($name === 'and') {
-            return call_user_func_array([$this, 'where'], $arguments);
+            return $this->where(...$arguments);
         }
 
         if ($name === 'list') {
-            return call_user_func_array(coll($this->fetchAll()), pluck, $arguments);
+            return coll($this->fetchAll())->pluck(...$arguments);
         }
 
-        if (fnmatch('*Cache*', $name) && strlen($name) > 5) {
-            $method = str_replace('Cache', '', $name);
+        if (\fnmatch('*Cache*', $name) && strlen($name) > 5) {
+            $method = str_replace_last('Cache', '', $name);
 
             $keyCache = sha1(
                 $method .
@@ -906,7 +857,7 @@ class Bank implements FastOrmInterface, FastDbInterface
             }, $this->age());
         }
 
-        if (fnmatch('*Hydrate*', $name) && strlen($name) > 7) {
+        if (\fnmatch('*Hydrate*', $name) && strlen($name) > 7) {
             $method = str_replace('Hydrate', '', $name);
 
             $results = $this->{$method}(...$arguments);
@@ -914,7 +865,7 @@ class Bank implements FastOrmInterface, FastDbInterface
             return !is_null($results) ? $this->hydrator($results) : $results;
         }
 
-        if (fnmatch('findBy*', $name) && strlen($name) > 6) {
+        if (\fnmatch('findBy*', $name) && strlen($name) > 6) {
             $field = callField($name, 'findBy');
 
             $op = '=';
@@ -929,7 +880,7 @@ class Bank implements FastOrmInterface, FastDbInterface
             return $this->where($field, $op, $value);
         }
 
-        if (fnmatch('getBy*', $name) && strlen($name) > 5) {
+        if (\fnmatch('getBy*', $name) && strlen($name) > 5) {
             $field = callField($name, 'getBy');
 
             $op = '=';
@@ -944,7 +895,7 @@ class Bank implements FastOrmInterface, FastDbInterface
             return $this->where($field, $op, $value);
         }
 
-        if (fnmatch('where*', $name) && strlen($name) > 5) {
+        if (\fnmatch('where*', $name) && strlen($name) > 5) {
             $field = callField($name, 'where');
 
             $op = '=';
@@ -959,58 +910,58 @@ class Bank implements FastOrmInterface, FastDbInterface
             return $this->where($field, $op, $value);
         }
 
-        if (fnmatch('by*', $name) && strlen($name) > 2) {
+        if (\fnmatch('by*', $name) && strlen($name) > 2) {
             $field = callField($name, 'by');
             $value = array_shift($arguments);
 
             return $this->where($field, $value);
         }
 
-        if (fnmatch('like*', $name) && strlen($name) > 4) {
+        if (\fnmatch('like*', $name) && strlen($name) > 4) {
             $field = callField($name, 'like');
             $value = array_shift($arguments);
 
             return $this->like($field, $value);
         }
 
-        if (fnmatch('notLike*', $name) && strlen($name) > 47) {
+        if (\fnmatch('notLike*', $name) && strlen($name) > 47) {
             $field = callField($name, 'notLike');
 
             return $this->notLike($field, array_shift($arguments));
         }
 
-        if (fnmatch('between*', $name) && strlen($name) > 7) {
+        if (\fnmatch('between*', $name) && strlen($name) > 7) {
             $field = callField($name, 'between');
 
             return $this->between($field, current($arguments), end($arguments));
         }
 
-        if (fnmatch('sortWith*', $name)) {
+        if (\fnmatch('sortWith*', $name)) {
             $field = callField($name, 'sortWith');
 
             return $this->sortBy($field);
         }
 
-        if (fnmatch('asortWith*', $name)) {
+        if (\fnmatch('asortWith*', $name)) {
             $field = callField($name, 'sortWith');
 
             return $this->sortByDesc($field);
         }
 
-        if (fnmatch('sortDescWith*', $name)) {
+        if (\fnmatch('sortDescWith*', $name)) {
             $field = callField($name, 'sortDescWith');
 
             return $this->sortByDesc($field);
         }
 
-        if (fnmatch('firstBy*', $name) && strlen($name) > 7) {
+        if (\fnmatch('firstBy*', $name) && strlen($name) > 7) {
             $field = callField($name, 'firstBy');
             $value = array_shift($arguments);
 
             return $this->firstBy($field, $value);
         }
 
-        if (fnmatch('lastBy*', $name) && strlen($name) > 6) {
+        if (\fnmatch('lastBy*', $name) && strlen($name) > 6) {
             $field = callField($name, 'lastBy');
             $value = array_shift($arguments);
 
@@ -1021,7 +972,7 @@ class Bank implements FastOrmInterface, FastDbInterface
     protected function ids()
     {
         return is_null($this->computed) ?
-            array_values(coll($this->all())->fetch('id')->toArray()) :
+            coll($this->all())->fetch('id')->all() :
             $this->computed
         ;
     }

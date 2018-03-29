@@ -112,8 +112,27 @@
             $headers = [];
 
             foreach ($_SERVER as $name => $value) {
-                if ((substr($name, 0, 5) == 'HTTP_') || ($name == 'CONTENT_TYPE') || ($name == 'CONTENT_LENGTH')) {
-                    $headers[str_replace(array(' ', 'Http'), array('-', 'HTTP'), ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+                if (
+                    (substr($name, 0, 5) === 'HTTP_')
+                    || ($name === 'CONTENT_TYPE')
+                    || ($name === 'CONTENT_LENGTH')
+                ) {
+                    $headers[str_replace(
+                        [' ', 'Http'],
+                        ['-', 'HTTP'],
+                        ucwords(
+                            strtolower(
+                                str_replace(
+                                    '_',
+                                    ' ',
+                                    substr(
+                                        $name,
+                                        5
+                                    )
+                                )
+                            )
+                        )
+                    )] = $value;
                 }
             }
 
@@ -124,10 +143,10 @@
         {
             $method = $_SERVER['REQUEST_METHOD'];
 
-            if ($_SERVER['REQUEST_METHOD'] == 'HEAD') {
+            if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
                 ob_start();
                 $method = 'GET';
-            } elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $headers = self::headers();
 
                 if (isset($headers['X-HTTP-Method-Override']) && in_array($headers['X-HTTP-Method-Override'], ['PUT', 'DELETE', 'PATCH'])) {

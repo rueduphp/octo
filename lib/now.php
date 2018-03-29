@@ -251,9 +251,11 @@ class Now implements AA
 
     public function delete($k)
     {
+        $status = self::has($k);
+
         unset(self::$data[$this->ns][$k]);
 
-        return $this;
+        return $status;
     }
 
     public function forget($k)

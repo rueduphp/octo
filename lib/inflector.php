@@ -134,6 +134,17 @@
 
         protected static $_humanized = array();
 
+        public static function contains($haystack, $needles)
+        {
+            foreach ((array) $needles as $needle) {
+                if ($needle !== '' && mb_strpos($haystack, $needle) !== false) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public static function utf8($str)
         {
             if (false === isUtf8($str)) {

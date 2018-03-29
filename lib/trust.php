@@ -84,7 +84,29 @@ class Trust
      * @throws Exception
      * @throws \ReflectionException
      */
+    public static function check():bool
+    {
+        return null !== static::user();
+    }
+
+    /**
+     * @return bool
+     *
+     * @throws Exception
+     * @throws \ReflectionException
+     */
     public static function isGuest():bool
+    {
+        return null === static::user();
+    }
+
+    /**
+     * @return bool
+     *
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    public static function guest():bool
     {
         return null === static::user();
     }
@@ -294,13 +316,19 @@ class Trust
     /**
      * @param array ...$args
      * @return mixed|null
+     *
      * @throws \ReflectionException
+     * @throws \TypeError
      */
     public static function session(...$args)
     {
         $params = array_merge(['session'], $args);
 
-        return static::called()->callProvider(...$params);
+        $session = static::called()->callProvider(...$params);
+
+        getContainer()->setSession($session);
+
+        return $session;
     }
 
     /**

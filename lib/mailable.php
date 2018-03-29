@@ -7,18 +7,14 @@
     use Swift_Attachment;
     use Swift_Mime_Attachment;
 
-    class Mailable
+    class Mailable implements FastMailerInterface
     {
         /**
-         * The Swift Message instance.
-         *
          * @var \Swift_Message
          */
         protected $swift;
 
         /**
-         * Create a new message instance.
-         *
          * @param  \Swift_Message|null  $swift
          * @return void
          */
@@ -29,8 +25,6 @@
         }
 
         /**
-         * Add a "from" address to the message.
-         *
          * @param  string|array  $address
          * @param  string|null  $name
          *
@@ -44,8 +38,6 @@
         }
 
         /**
-         * Set the "sender" of the message.
-         *
          * @param  string|array  $address
          * @param  string|null  $name
          *
@@ -59,8 +51,6 @@
         }
 
         /**
-         * Set the "return path" of the message.
-         *
          * @param  string  $address
          *
          * @return $this
@@ -73,8 +63,6 @@
         }
 
         /**
-         * Add a recipient to the message.
-         *
          * @param  string|array  $address
          * @param  string|null  $name
          * @param  bool  $override
@@ -93,8 +81,6 @@
         }
 
         /**
-         * Add a carbon copy to the message.
-         *
          * @param  string|array  $address
          * @param  string|null  $name
          * @return $this
@@ -105,8 +91,6 @@
         }
 
         /**
-         * Add a blind carbon copy to the message.
-         *
          * @param  string|array  $address
          * @param  string|null  $name
          * @return $this
@@ -117,8 +101,6 @@
         }
 
         /**
-         * Add a reply to address to the message.
-         *
          * @param  string|array  $address
          * @param  string|null  $name
          * @return $this
@@ -129,8 +111,6 @@
         }
 
         /**
-         * Add a recipient to the message.
-         *
          * @param  string|array  $address
          * @param  string  $name
          * @param  string  $type
@@ -148,8 +128,6 @@
         }
 
         /**
-         * Set the subject of the message.
-         *
          * @param  string  $subject
          * @return $this
          */
@@ -161,8 +139,6 @@
         }
 
         /**
-         * Set the message priority level.
-         *
          * @param  int  $level
          * @return $this
          */
@@ -174,8 +150,6 @@
         }
 
         /**
-         * Attach a file to the message.
-         *
          * @param  string  $file
          * @param  array  $options
          * @return $this
@@ -197,8 +171,6 @@
         }
 
         /**
-         * Attach in-memory data as an attachment.
-         *
          * @param  string  $data
          * @param  string  $name
          * @param  array  $options
@@ -266,8 +238,6 @@
         }
 
         /**
-         * Get the underlying Swift Message instance.
-         *
          * @return \Swift_Message
          */
         public function getSwiftMessage(): Swift_Message
@@ -276,8 +246,6 @@
         }
 
         /**
-         * Get the underlying Swift Message instance.
-         *
          * @return \Swift_Message
          */
         public function __invoke(): Swift_Message
@@ -299,11 +267,61 @@
         }
 
         /**
+         * @return bool
+         */
+        public function curl()
+        {
+            $message    = $this->swift;
+
+            $to         = $message->getTo();
+            $subject    = $message->getSubject();
+            $body       = $message->getBody();
+            $from       = $message->getFrom();
+            $headers    = [];
+
+            foreach ($to as $email => $name) {
+                break;
+            }
+
+            foreach ($from as $fromemail => $fromname) {
+                $headers[] = "From: $fromemail";
+                break;
+            }
+
+            $headers[] = "Content-Type: text/html;";
+
+            try {
+                $ch = curl_init(Registry::get('mail.curl'));
+
+                $data = array(
+                    'to'        => base64_encode($email),
+                    'sujet'     => base64_encode($subject),
+                    'message'   => base64_encode($body),
+                    'entetes'   => base64_encode(implode("\n", $headers)),
+                    'f'         => base64_encode('')
+                );
+
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+
+                $resultat = curl_exec($ch);
+
+                curl_close($ch);
+
+                return ($resultat == 'OK') ? true : false;
+            } catch (\Exception $e) {
+                return false;
+            }
+        }
+
+        /**
          * @param string $path
          * @param array $args
          *
          * @return Mailable
          *
+         * @throws \ReflectionException
          * @throws \Twig_Error_Loader
          * @throws \Twig_Error_Runtime
          * @throws \Twig_Error_Syntax
@@ -374,8 +392,30 @@
         }
 
         /**
-         * Dynamically pass missing methods to the Swift instance.
+         * @param string $path
+         * @param array $args
          *
+         * @return Mailable
+         *
+         * @throws \ReflectionException
+         */
+        public function path(string $path, array $args = []): self
+        {
+            $body = evaluateInline($path, $args);
+
+            $this->swift
+                ->setBody(
+                    $body,
+                    'text/html'
+                )->addPart(
+                    strip_tags($body),
+                    'text/plain'
+                );
+
+            return $this;
+        }
+
+        /**
          * @param  string  $method
          * @param  array  $parameters
          *

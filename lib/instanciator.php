@@ -543,7 +543,6 @@ class Instanciator
     {
         if (is_object($concern)) {
             $class = get_class($concern);
-
             $this->wire($class, $concern);
         } elseif (is_string($concern)) {
             $args   = func_get_args();
@@ -597,6 +596,36 @@ class Instanciator
         }
 
         return $callable;
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return Closure
+     */
+    public function callable(...$args): Closure
+    {
+        $class = array_shift($args);
+
+        return function () use ($class, $args) {
+            return $this->make($class, $args, false);
+        };
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return mixed|Instanciator
+     */
+    public function invokable(...$args)
+    {
+        $class = array_shift($args);
+
+        if ($this->has($class)) {
+            return $this->get(...$args);
+        }
+
+        return $this->set($class, $this->callable(...$args));
     }
 
     /**

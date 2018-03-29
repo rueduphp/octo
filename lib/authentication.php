@@ -67,13 +67,12 @@
          *
          * @throws \ReflectionException
          */
-        public static function allows(): bool
+        public static function allows(...$args): bool
         {
-            if ($user = static::user()) {
+            if ($user       = static::user()) {
                 $user       = arrayable($user) ? $user->toArray() : $user;
                 $class      = static::called();
                 $user       = item($user);
-                $args       = func_get_args();
                 $policy     = array_shift($args);
                 $policies   = Registry::get('guard.policies.' . $class->actual, []);
                 $policy     = isAke($policies, $policy, null);

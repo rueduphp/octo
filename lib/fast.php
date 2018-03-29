@@ -1828,6 +1828,8 @@
     interface FastRegistryInterface {}
     interface FastDbInterface {}
     interface FastMailerInterface {}
+    interface FastTranslatorInterface {}
+    interface FastEventManagerInterface {}
     interface FastEventInterface
     {
         public function fire();
@@ -2186,9 +2188,14 @@
 
             $faker = $lng ? faker($lng) : faker();
 
-            for ($i = 0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; ++$i) {
                 $data = $factory($faker, $this->entity);
-                $results[] = $this->entity->create(array_merge($data, $params));
+
+                if ($this->entity instanceof Bank) {
+                    $results[] = $this->entity->store(array_merge($data, $params));
+                } else {
+                    $results[] = $this->entity->create(array_merge($data, $params));
+                }
             }
 
             return coll($results);
@@ -2238,7 +2245,7 @@
 
             $faker = $lng ? faker($lng) : faker();
 
-            for ($i = 0; $i < $count; $i++) {
+            for ($i = 0; $i < $count; ++$i) {
                 $data = $factory($faker, $this->entity);
 
                 if (
@@ -2246,6 +2253,8 @@
                     $this->entity instanceof Elegant ||
                     $this->entity instanceof Elegantmemory) {
                     $results[] = new $this->model(array_merge($data, $params));
+                } elseif ($this->entity instanceof Bank) {
+                    $results[] = $this->entity->hydrator(array_merge($data, $params));
                 } else {
                     $results[] = $this->entity->model(array_merge($data, $params));
                 }

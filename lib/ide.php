@@ -2,11 +2,19 @@
     namespace {
         exit("Only for IDE");
 
+        /**
+         * @method static mixed get(string $key, $default = null)
+         * @method static Octo\Now set(string $key, $value)
+         * @method static bool has(string $key)
+         * @method static bool del(string $key)
+         * @method static int incr(string $key)
+         * @method static int decr(string $key)
+         */
         class Registry
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Octo\Now), $method], $args);
+                return (new Octo\Now)->{$method}(...$args);
             }
         }
 
@@ -14,7 +22,7 @@
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Octo\Cache), $method], $args);
+                return (new Octo\Cache)->{$method}(...$args);
             }
         }
 
@@ -22,7 +30,7 @@
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Octo\Inflector), $method], $args);
+                return (new Octo\Inflector)->{$method}(...$args);
             }
         }
 
@@ -30,7 +38,7 @@
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Octo\Inflector), $method], $args);
+                return (new Octo\File)->{$method}(...$args);
             }
         }
 
@@ -38,7 +46,7 @@
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Octo\Arrays), $method], $args);
+                return (new Octo\Arrays)->{$method}(...$args);
             }
         }
 
@@ -46,7 +54,7 @@
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Octo\Timer), $method], $args);
+                return (new Octo\Timer)->{$method}(...$args);
             }
         }
 
@@ -54,7 +62,7 @@
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Octo\Time), $method], $args);
+                return (new Octo\Time)->{$method}(...$args);
             }
         }
 
@@ -80,11 +88,19 @@
     }
 
     namespace Octo {
+        /**
+         * @method static mixed get(string $key, $default = null)
+         * @method static Now set(string $key, $value)
+         * @method static bool has(string $key)
+         * @method static bool del(string $key)
+         * @method static int incr(string $key)
+         * @method static int decr(string $key)
+         */
         class Registry
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Now), $method], $args);
+                return (new Now)->{$method}(...$args);
             }
         }
 
@@ -107,13 +123,18 @@
         }
 
         /**
-         * @method static string urlize()
+         * @method static string unaccent(string $concern)
+         * @method static string camelize(string $concern)
+         * @method static string uncamelize(string $concern)
+         * @method static string upper(string $concern)
+         * @method static string lower(string $concern)
+         * @method static string urlize(string $concern, string $separator = '-')
          */
         class Strings
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Inflector), $method], $args);
+                return (new Inflector)->{$method}(...$args);
             }
         }
 
@@ -121,7 +142,7 @@
         {
             public static function __callStatic($method, $args)
             {
-                return call_user_func_array([(new Inflector), $method], $args);
+                return (new File)->{$method}(...$args);
             }
         }
     }

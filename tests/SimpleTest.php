@@ -15,6 +15,7 @@ use Octo\Now;
 use Octo\On;
 use Octo\Proxify;
 use Octo\Registry;
+use Octo\Remember;
 use Octo\Trust;
 use function Octo\sessionKey;
 
@@ -140,6 +141,22 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    function testTranslator()
+    {
+        /** @var \Octo\Trad $t */
+        $t = $this->setTranslator(__DIR__ . '/lang', 'fr');
+
+        $this->assertSame('maison', $t->get('test.home'));
+        $this->assertSame('bar', $t->get('test.foo', ['name' => 'bar']));
+    }
+
+    function testRemember()
+    {
+        Remember::set('foo', 'bar');
+
+        $this->assertSame('bar', Remember::get('foo'));
+    }
+
     /**
      * @throws Exception
      */
@@ -552,9 +569,9 @@ class SimpleTest extends TestCase
      */
     public function mail()
     {
-        $message = $this->message()
+        $message = Octo\message()
         ->from('test@test.com')
-        ->to('qa@test.com')
+        ->to('test@test.com')
         ->subject('test')
         ->attach(__DIR__ . '/mail.phtml')
         ->view(__DIR__ . '/mail.phtml', ['name' => 'John Doe']);

@@ -3,8 +3,16 @@
 
     class Redys
     {
+        /**
+         * @param $m
+         * @param $a
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         public static function __callStatic($m, $a)
         {
-            return call_user_func_array([maker(Redis::class), $m], $a);
+            return instanciator()->singleton(Redis::class)->{$m}(...$a);
         }
     }

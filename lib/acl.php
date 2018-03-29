@@ -134,7 +134,7 @@
 
             if (!empty($rights)) {
                 foreach ($rights as $right) {
-                    if ($right == $action || $right == '*') {
+                    if ($right === $action || $right === '*') {
                         return true;
                     }
                 }

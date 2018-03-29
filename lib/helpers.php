@@ -465,9 +465,9 @@
     }
 
     if (!function_exists('bgQueue')) {
-        function bgQueue()
+        function bgQueue(...$args)
         {
-            return call_user_func_array('\\Octo\\bgQueue', func_get_args());
+            return call_user_func_array('\\Octo\\bgQueue', $args);
         }
     }
 
@@ -512,9 +512,9 @@
                 return context('app');
             }
 
-            public static function __callStatic($m, $a)
+            public static function __callStatic($method, $args)
             {
-                return call_user_func_array([context('app'), $m], $a);
+                return call_user_func_array([context('app'), $method], $args);
             }
         }
     }
@@ -532,19 +532,27 @@
                 return context('app');
             }
 
-            public static function __callStatic($m, $a)
+            public static function __callStatic($method, $args)
             {
-                return call_user_func_array([context('app'), $m], $a);
+                return call_user_func_array([context('app'), $method], $args);
             }
         }
     }
 
     if (!class_exists('Registry')) {
+        /**
+         * @method static mixed get(string $key, $default = null)
+         * @method static Octo\Now set(string $key, $value)
+         * @method static bool has(string $key)
+         * @method static bool del(string $key)
+         * @method static int incr(string $key)
+         * @method static int decr(string $key)
+         */
         class Registry
         {
-            public static function __callStatic($m, $a)
+            public static function __callStatic($method, $args)
             {
-                return call_user_func_array([lib('now'), $m], $a);
+                return (new Octo\Now)->{$method}(...$args);
             }
         }
     }
@@ -552,9 +560,9 @@
     if (!class_exists('Strings')) {
         class Strings
         {
-            public static function __callStatic($m, $a)
+            public static function __callStatic($method, $args)
             {
-                return call_user_func_array([lib('inflector'), $m], $a);
+                return (new Octo\Inflector)->{$method}(...$args);
             }
         }
     }
@@ -562,9 +570,9 @@
     if (!class_exists('Dir')) {
         class Dir
         {
-            public static function __callStatic($m, $a)
+            public static function __callStatic($method, $args)
             {
-                return call_user_func_array([lib('file'), $m], $a);
+                return (new Octo\File)->{$method}(...$args);
             }
         }
     }
@@ -572,6 +580,12 @@
     if (!class_exists('Utils')) {
         class Utils
         {
+            /**
+             * @param $m
+             * @param $a
+             * @return mixed
+             * @throws Exception
+             */
             public static function __callStatic($m, $a)
             {
                 if (function_exists('\\Octo\\' . $m)) {

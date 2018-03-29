@@ -27,6 +27,10 @@ class BankTest extends TestCase
     {
         parent::setUp();
 
+        $this->gi(Octo\FastStorageInterface::class, function () {
+            return new FastNow('bank');
+        });
+
         $this->db           = new Bank('test', 'test', new FastNow('bank'));
         $this->udb = $udb   = new Bank('test', 'user', new FastNow('bank'));
         $this->postDb       = new Bank('test', 'post', new FastNow('bank'));
@@ -125,6 +129,9 @@ class BankTest extends TestCase
 
         $count = $this->db->where('price', '>', 100)->count();
         $this->assertEquals(999, $count);
+        $this->assertEquals(1, $this->db->where('price', 100)->count());
+        $this->assertEquals(1, $this->db->where('price', 200)->count());
+        $this->assertEquals(1, $this->db->where('price', 100000)->count());
 
         $count = $this->db->where('price', '>', 200)->count();
         $this->assertEquals(998, $count);
@@ -179,8 +186,9 @@ class BankTest extends TestCase
 
         $this->assertGreaterThan(0, $count);
 
-        $count = $this->db->likeSlug('*e*')->count();
+        $count2 = $this->db->likeSlug('*e*')->count();
 
-        $this->assertGreaterThan(0, $count);
+        $this->assertGreaterThan(0, $count2);
+        $this->assertSame($count, $count2);
     }
 }

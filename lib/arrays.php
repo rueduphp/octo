@@ -125,9 +125,9 @@
 
                 foreach ($array as $key => $value) {
                     if (static::is($value)) {
-                        $object->$key = static::setObject($value);
+                        $object->{$key} = static::setObject($value);
                     } else {
-                        $object->$key = $value;
+                        $object->{$key} = $value;
                     }
                 }
 
@@ -137,6 +137,13 @@
             return null;
         }
 
+        /**
+         * @param $array
+         * @param $key
+         * @param $value
+         * @param string $sep
+         * @return mixed
+         */
         public static function set(&$array, $key, $value, $sep = '.')
         {
             if (is_null($key)) return $array = $value;
@@ -158,6 +165,10 @@
             return $array;
         }
 
+        /**
+         * @param array $array
+         * @return bool
+         */
         public static function isAssoc(array $array)
         {
             $keys = array_keys($array);
@@ -165,16 +176,28 @@
             return array_keys($keys) !== $keys;
         }
 
+        /**
+         * @param array $array
+         * @return array
+         */
         public static function keys(array $array)
         {
             return array_keys($array);
         }
 
+        /**
+         * @param $value
+         * @return bool
+         */
         public static function is($value)
         {
             return static::isArray($value);
         }
 
+        /**
+         * @param $value
+         * @return bool
+         */
         public static function isArray($value)
         {
             if (is_array($value)) {
@@ -184,11 +207,21 @@
             }
         }
 
+        /**
+         * @param $needle
+         * @param $array
+         * @return bool
+         */
         public static function in($needle, $array)
         {
             return static::inArray($needle, $array);
         }
 
+        /**
+         * @param $needle
+         * @param $array
+         * @return bool
+         */
         public static function inArray($needle, $array)
         {
             if (static::is($array)) {
@@ -198,7 +231,14 @@
             return false;
         }
 
-        public static function path($array, $path, $default = null, $delimiter = null)
+        /**
+         * @param array $array
+         * @param $path
+         * @param null $default
+         * @param null $delimiter
+         * @return array|null
+         */
+        public static function path(array $array, $path, $default = null, $delimiter = null)
         {
             if (!static::is($array)) {
                 return $default;
@@ -261,6 +301,12 @@
             return $default;
         }
 
+        /**
+         * @param $array
+         * @param $path
+         * @param $value
+         * @param string $delimiter
+         */
         public static function setPath(&$array, $path, $value, $delimiter = '.')
         {
             $keys = explode($delimiter, $path);
@@ -272,7 +318,7 @@
                     $key = (int) $key;
                 }
 
-                if ( ! isset($array[$key])) {
+                if (!isset($array[$key])) {
                     $array[$key] = [];
                 }
 
@@ -282,6 +328,11 @@
             $array[array_shift($keys)] = $value;
         }
 
+        /**
+         * @param int $step
+         * @param int $max
+         * @return array
+         */
         public static function range($step = 10, $max = 100)
         {
             if ($step < 1) {
@@ -297,6 +348,13 @@
             return $array;
         }
 
+        /**
+         * @param $array
+         * @param $key
+         * @param null $default
+         * @param string $sep
+         * @return mixed|null
+         */
         public static function get($array, $key, $default = null, $sep = '.')
         {
             if (!static::accessible($array)) {
@@ -322,6 +380,14 @@
             return $array;
         }
 
+        /**
+         * @param $array
+         * @param $key
+         * @param null $default
+         * @param string $sep
+         *
+         * @return mixed|null
+         */
         public static function pull(&$array, $key, $default = null, $sep = '.')
         {
             $value = static::get($array, $key, $default, $sep);
@@ -812,6 +878,10 @@
             return new Collection($array);
         }
 
+        /**
+         * @param array $array
+         * @return array
+         */
         public static function stringParams(array $array)
         {
             return static::where(
@@ -821,6 +891,10 @@
         }
 
 
+        /**
+         * @param $array
+         * @return array
+         */
         public static function numericParams($array)
         {
             return static::where(
@@ -1107,12 +1181,11 @@
         /**
          * @param array $array
          * @param callable $callable
-         *
          * @return mixed
          */
         public static function reduce(array $array, callable $callable)
         {
-            return static::toCollection($array)->reduce($callable)->all();
+            return static::toCollection($array)->reduce($callable);
         }
 
         /**

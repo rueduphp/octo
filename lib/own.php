@@ -3,8 +3,16 @@
 
     class Own
     {
-        public static function __callStatic($m, $a)
+        /**
+         * @param $name
+         * @param $arguments
+         *
+         * @return mixed
+         *
+         * @throws Exception
+         */
+        public static function __callStatic($name, $arguments)
         {
-            return call_user_func_array([fmr(forever()), $ma], $a);
+            return fmr(forever())->{$name}(...$arguments);
         }
     }

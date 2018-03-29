@@ -250,7 +250,7 @@
      */
     function is_home()
     {
-        return !empty(Registry::get('is_home')) || isAke($_SERVER, 'REQUEST_URI', '') == '/';
+        return !empty(Registry::get('is_home')) || isAke($_SERVER, 'REQUEST_URI', '') === '/';
     }
 
     /**
@@ -263,7 +263,7 @@
 
     function contains($key, $string)
     {
-        return fnmatch("*$key*", $string);
+        return \fnmatch("*$key*", $string) ? true : false;
     }
 
     /**
@@ -279,11 +279,10 @@
                 preg_quote(
                     $pattern,
                     '#'
-                ),
-                array(
+                ), [
                     '\*' => '.*',
                     '\?' => '.'
-                )
+                ]
             ) . "$#i",
             $string
         );
@@ -1046,18 +1045,80 @@
      */
     function bank($table)
     {
-        /** @var Fast $app */
-        $app = actual("fast");
-
-        return new Bank('core', $table, $app->get(FastStorageInterface::class));
+        return new Bank(
+            'core',
+            $table,
+            gi(FastStorageInterface::class)
+        );
     }
 
-    function async($cmd)
+    /**
+     * @param null|string $path
+     *
+     * @return Trad
+     */
+    function translator(?string $path = null)
     {
-        return backgroundTask($cmd);
+        if (null === $path && $trans = gi(Trad::class)) {
+            return $trans;
+        }
+
+        $loader = new Fileloader(new Filesystem, $path);
+        /** @var Trad $trans */
+        $trans = instanciator()->make(Trad::class, [$loader, appconf('app.locale')], true);
+
+        return $trans->setFallback(appconf('app.fallback_locale'));
     }
 
-    function backgroundTask($cmd)
+    function setTranslator(string $path, ?string $locale = null)
+    {
+        if (null !== $locale) {
+            appConf('app.locale', $locale);
+            appConf('app.fallback_locale', $locale);
+        }
+
+        $trans = translator($path);
+
+        gi(Trad::class, function () use ($trans) {
+            return $trans;
+        });
+
+        return $trans;
+    }
+
+    /**
+     * Generate Instance
+     *
+     * @param null $concern
+     * @param string $value
+     *
+     * @return mixed|Instanciator
+     */
+    function gi($concern = null, $value = 'octoduumy')
+    {
+        if (null !== $concern) {
+            if ('octoduumy' === $value) {
+                return instanciator()->get($concern);
+            } else {
+                return instanciator()->set($concern, $value);
+            }
+        }
+
+        return instanciator();
+    }
+
+    /**
+     * @param string $cmd
+     */
+    function async(string $cmd)
+    {
+        backgroundTask($cmd);
+    }
+
+    /**
+     * @param string $cmd
+     */
+    function backgroundTask(string $cmd)
     {
         if (substr(php_uname(), 0, 7) == "Windows"){
             pclose(popen("start /B " . $cmd, "r"));
@@ -1066,19 +1127,39 @@
         }
     }
 
+    /**
+     * @param $array
+     * @param string $k
+     * @param null $d
+     * @return mixed|null
+     */
     function aget($array, string $k, $d = null)
     {
         return Arrays::get($array, $k, $d);
     }
 
+    /**
+     * @param $array
+     * @param string $k
+     * @param null $v
+     * @return mixed
+     */
     function aset(&$array, string $k, $v = null)
     {
         return Arrays::set($array, $k, $v);
     }
 
+    /**
+     * @param $array
+     * @param $k
+     *
+     * @return mixed
+     */
     function adel(&$array, $k)
     {
         Arrays::forget($array, $k);
+
+        return $array;
     }
 
     function apull(&$array, $key, $default = null)
@@ -1552,8 +1633,8 @@
      */
     function shift(string $name)
     {
-        $value = null;
-        $list = get($name, []);
+        $value  = null;
+        $list   = get($name, []);
 
         if (!empty($list)) {
             $value = array_shift($list);
@@ -1795,21 +1876,30 @@
         return !blank($value);
     }
 
-    function ldd()
+    /**
+     * @param array ...$args
+     */
+    function ldd(...$args)
     {
-        lvd(...func_get_args());
+        lvd(...$args);
 
         exit;
     }
 
-    function lvd()
+    /**
+     * @param array ...$args
+     */
+    function lvd(...$args)
     {
         array_map(function ($x) {
             (new Dumper)->dump($x);
-        }, func_get_args());
+        }, $args);
     }
 
-    function dd()
+    /**
+     * @param array ...$args
+     */
+    function dd(...$args)
     {
         array_map(
             function($str) {
@@ -1818,13 +1908,16 @@
                 echo '</pre>';
                 hr();
             },
-            func_get_args()
+            $args
         );
 
         exit;
     }
 
-    function vd()
+    /**
+     * @param array ...$args
+     */
+    function vd(...$args)
     {
         array_map(
             function($str) {
@@ -1833,8 +1926,31 @@
                 echo '</pre>';
                 hr();
             },
-            func_get_args()
+            $args
         );
+    }
+
+    /**
+     * @param $callback
+     *
+     * @return ReflectionFunction|\ReflectionMethod
+     *
+     * @throws \ReflectionException
+     */
+    function getCallReflector($callback)
+    {
+        if (is_string($callback) && false !== strpos($callback, '::')) {
+            $callback = explode('::', $callback, 2);
+        }
+
+        if (is_string($callback) && false !== strpos($callback, '@')) {
+            $callback = explode('@', $callback, 2);
+        }
+
+        return is_array($callback)
+            ? new \ReflectionMethod(current($callback), end($callback))
+            : new \ReflectionFunction($callback)
+        ;
     }
 
     /**
@@ -1904,7 +2020,7 @@
             exit;
         } else {
             echo '<script type="text/javascript">';
-            echo "\t" . 'window.location.href = "' . $url . '";';
+            echo "\t" . 'document.location.href = "' . $url . '";';
             echo '</script>';
             echo '<noscript>';
             echo "\t" . '<meta http-equiv="refresh" content="0;url=' . $url . '" />';
@@ -1918,7 +2034,7 @@
      *
      * @return bool
      */
-    function isUtf8($string)
+    function isUtf8($string): bool
     {
         if (!is_string($string)) {
             return false;
@@ -2041,6 +2157,38 @@
         }
 
         return $data;
+    }
+
+    /**
+     * @param $object
+     *
+     * @return array
+     *
+     * @throws \ReflectionException
+     */
+    function serializeObject($object)
+    {
+        $properties = (new \ReflectionClass($object))->getProperties();
+
+        foreach ($properties as $property) {
+            $property->setValue($this, getPropertyValue($property));
+        }
+
+        return array_map(function (\ReflectionProperty $p) {
+            return $p->getName();
+        }, $properties);
+    }
+
+    /**
+     * @param \ReflectionProperty $property
+     *
+     * @return mixed
+     */
+    function getPropertyValue(\ReflectionProperty $property)
+    {
+        $property->setAccessible(true);
+
+        return $property->getValue($this);
     }
 
     /**
@@ -4087,6 +4235,22 @@
     }
 
     /**
+     * @param string $concern
+     * @param $parameters
+     * @return null|string|string[]
+     */
+    function replaceNamedParameters(string $concern, &$parameters)
+    {
+        return preg_replace_callback('/\{(.*?)\??\}/', function ($m) use (&$parameters) {
+            if (isset($parameters[$m[1]])) {
+                return Arrays::pull($parameters, $m[1]);
+            } else {
+                return reset($m);
+            }
+        }, $concern);
+    }
+
+    /**
      * @param null $array
      *
      * @return array|null
@@ -4104,29 +4268,28 @@
 
     /**
      * @param string $ns
-     * @param null $array
-     *
-     * @return mixed|null
+     * @param array|null $array
+     * @return array|mixed|null
      */
-    function segment($ns = 'core', $array = null)
+    function segment(string $ns = 'core', ?array $array = null)
     {
-        $data       = inMemory();
+        $data       = Registry::get('all.segments', []);
         $segment    = aget($data, $ns, []);
 
-        if ($array) {
+        if (is_array($array)) {
             $segment = $array;
             aset($data, $ns, $segment);
-            inMemory($data);
+            Registry::set('all.segments', $data);
         }
 
         return $segment;
     }
 
     /**
-     * @param $k
+     * @param string $k
      * @param $v
      */
-    function set($k, $v)
+    function set(string $k, $v)
     {
         $data = segment('core');
         aset($data, $k, $v);
@@ -4135,14 +4298,12 @@
     }
 
     /**
-     * @param $k
+     * @param string $k
      * @param null $d
-     *
      * @return mixed|null
-     *
      * @throws \ReflectionException
      */
-    function get($k, $d = null)
+    function get(string $k, $d = null)
     {
         $data   = segment('core');
         $value  = aget($data, $k, $d);
@@ -4151,14 +4312,12 @@
     }
 
     /**
-     * @param $k
+     * @param string $k
      * @param null $d
-     *
      * @return mixed|null
-     *
      * @throws \ReflectionException
      */
-    function getDel($k, $d = null)
+    function getDel(string $k, $d = null)
     {
         if (has($k)) {
             $data   = segment('core');
@@ -4196,12 +4355,24 @@
         return $d;
     }
 
-    function has($k)
+    /**
+     * @param string $k
+     *
+     * @return bool
+     *
+     * @throws \ReflectionException
+     */
+    function has(string $k)
     {
-        return 'octodummy' != get($k, 'octodummy');
+        return 'octodummy' !== get($k, 'octodummy');
     }
 
-    function forget($k)
+    /**
+     * @param string $k
+     * @return bool
+     * @throws \ReflectionException
+     */
+    function forget(string $k)
     {
         if (has($k)) {
             $data = segment('core');
@@ -4215,7 +4386,11 @@
         return false;
     }
 
-    function del($k)
+    /**
+     * @param string $k
+     * @return bool
+     */
+    function del(string $k)
     {
         return forget($k);
     }
@@ -5041,15 +5216,16 @@
     }
 
     /**
-     * @return Session
+     * @return Live|Session
+     * @throws \TypeError
      */
     function getSession()
     {
-        return getContainer()->getSession();
+        return getContainer()->getSession() ? : trust()->session();
     }
 
     /**
-     * @return Octalia|Orm
+     * @return FastOrmInterface
      */
     function getDb()
     {
@@ -5057,7 +5233,8 @@
     }
 
     /**
-     * @return Cache
+     * @return mixed|object
+     * @throws \ReflectionException
      */
     function getCache()
     {
@@ -5080,6 +5257,15 @@
     function getRouter()
     {
         return actual('fast.router');
+    }
+
+    /**
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    function getUser()
+    {
+        return trust()->user();
     }
 
     /**
@@ -5160,11 +5346,11 @@
                 return isAke(Registry::get('core.superdi.data', []), $key, $default);
             });
 
-            $superdi->macro('datahas', function ($key) {
+            $superdi->macro('datahas', function ($key): bool {
                 return 'octodummy' !== isAke(Registry::get('core.superdi.data', []), $key, 'octodummy');
             });
 
-            $superdi->macro('dataset', function ($key, $value) use ($superdi) {
+            $superdi->macro('dataset', function ($key, $value) use ($superdi): Objet {
                 $data = Registry::get('core.superdi.data', []);
 
                 $data[$key] = $value;
@@ -5184,29 +5370,25 @@
                 return $superdi;
             });
 
-            $superdi->macro('call', function () {
-                $args = func_get_args();
+            $superdi->macro('call', function (...$args) {
                 array_pop($args);
 
                 return call_user_func_array('\\Octo\\callMethod', $args);
             });
 
-            $superdi->macro('resolve', function () {
-                $args = func_get_args();
+            $superdi->macro('resolve', function (...$args) {
                 array_pop($args);
 
                 return call_user_func_array('\\Octo\\foundry', $args);
             });
 
-            $superdi->macro('factory', function () {
-                $args = func_get_args();
+            $superdi->macro('factory', function (...$args) {
                 array_pop($args);
 
                 return call_user_func_array('\\Octo\\foundry', $args);
             });
 
-            $superdi->macro('singleton', function () {
-                $args = func_get_args();
+            $superdi->macro('singleton', function (...$args) {
                 array_pop($args);
 
                 return call_user_func_array('\\Octo\\maker', $args);
@@ -5230,8 +5412,7 @@
                 return $superdi->register($concern, $callable);
             });
 
-            $superdi->macro('mock', function () use ($superdi) {
-                $args = func_get_args();
+            $superdi->macro('mock', function (...$args) use ($superdi) {
                 array_pop($args);
 
                 $mock = $superdi->resolve(...$args);
@@ -5258,18 +5439,21 @@
         return "'$value'";
     }
 
-    function maker()
+    /**
+     * @return mixed|object
+     */
+    function maker(...$args)
     {
-        return instanciator()->make(...func_get_args());
+        return instanciator()->make(...$args);
     }
 
     /**
      * @return mixed|null
      * @throws \ReflectionException
      */
-    function callMethod()
+    function callMethod(...$args)
     {
-        return instanciator()->call(...func_get_args());
+        return instanciator()->call(...$args);
     }
 
     /**
@@ -5296,16 +5480,21 @@
         return instanciator()->resolver($object);
     }
 
-    function makeOnce(\Closure $callable)
+    /**
+     * @param array ...$args
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    function makeOnce(...$args)
     {
-        $key        = lib('closures')->makeId($callable);
+        $key        = lib('closures')->makeId(current($args));
         $records    = Registry::get('make.once', []);
         $dummy      = sha1('octodummy' . date('dmY'));
 
         $result     = isAke($records, $key, $dummy);
 
-        if ($result == $dummy) {
-            $result         = $callable();
+        if ($result === $dummy) {
+            $result         = instanciator()->makeClosure(...$args);
             $records[$key]  = $result;
 
             Registry::set('make.once', $records);
@@ -5724,6 +5913,41 @@
         }
 
         return $target;
+    }
+
+    /**
+     * @param null|string $key
+     * @param string $value
+     *
+     * @return array|bool|mixed|null
+     */
+    function appconf(?string $key = null, $value = 'octodummy')
+    {
+        /** @var array $confs */
+        $confs = Registry::get('core.config', []);
+
+        if (null === $confs) {
+            return $confs;
+        }
+
+        /* Polymorphism  */
+        if (is_array($key)) {
+            foreach ($key as $k => $v) {
+                $confs[$k] = $v;
+            }
+
+            Registry::set('core.config', $confs);
+
+            return true;
+        }
+
+        if ('octodummy' === $value) {
+            return aget($confs, $key);
+        }
+
+        $confs[$key] = $value;
+
+        Registry::set('core.config', $confs);
     }
 
     function config($key, $value = 'octodummy')
@@ -8709,27 +8933,69 @@
         return role()->getLabel() == 'admin';
     }
 
-    function can($resource)
+    /**
+     * @param string $name
+     * @param $callable
+     *
+     * @throws \ReflectionException
+     */
+    function policy(string $name, $callable)
     {
-        $role = role();
+        $policies = get('core.policies', []);
+        $policies[$name] = $callable;
 
-        if ($role->getLabel() == 'admin') {
-            return true;
+        set('core.policies', $policies);
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return bool
+     *
+     * @throws \ReflectionException
+     */
+    function can(...$args)
+    {
+        $name       = array_shift($args);
+        $policies   = get('core.policies', []);
+        $policy     = isAke($policies, $name, false);
+
+        if (is_string($policy)) {
+            $policy = resolverClass($policy);
         }
 
-        $row = acl()
-        ->where('resource', $resource)
-        ->where('role_id', $role)
-        ->first();
+        if (is_callable($policy)) {
+            $user = trust()->user();
 
-        return $row ? true : false;
+            if (is_callable($policy)) {
+                $params = array_merge([$user], $args);
+
+                if ($policy instanceof Closure) {
+                    $params = array_merge([$policy], $params);
+
+                    return instanciator()->makeClosure(...$params);
+                } else {
+                    if (is_array($policy)) {
+                        $params = array_merge($policy, $params);
+
+                        return instanciator()->call(...$params);
+                    } else {
+                        $args = array_merge([$policy], $params);
+
+                        return callCallable(...$args);
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     function stream($name, $contents = 'octodummy')
     {
         $streams = Registry::get('core.streams', []);
 
-        if ('octodummy' == $contents) {
+        if ('octodummy' === $contents) {
             $stream = isAke($streams, $name, null);
         } else {
             $stream = fopen('php://memory','r+');
@@ -9016,7 +9282,15 @@
         return ltrim(ob_get_clean());
     }
 
-    function evaluateInline($path, $args = [])
+    /**
+     * @param string $path
+     * @param array $args
+     *
+     * @return string
+     *
+     * @throws \ReflectionException
+     */
+    function evaluateInline(string $path, array $args = [])
     {
         $ob_get_level = ob_get_level();
 
@@ -9085,48 +9359,90 @@
     }
 
     /**
+     * @param $a
+     * @param $b
+     * @return bool
+     */
+    function same($a, $b)
+    {
+        return $a === $b;
+    }
+
+    /**
+     * @param $a
+     * @param $b
+     * @return bool
+     */
+    function notSame($a, $b)
+    {
+        return false === same($a, $b);
+    }
+
+    /**
      * @param $test
      * @param $operator
      * @param $target
      *
      * @return bool
      */
-    function compare($test, $operator, $target)
+    function compare($actual, $operator, $value = 'octodummy')
     {
-        switch (Inflector::lower($operator)) {
-            case '===':         return $test > $target;
-            case '>':           return $test > $target;
-            case '>=':          return $test >= $target;
-            case '<':           return $test < $target;
-            case '<=':          return $test <= $target;
-            case '!==':         return $test !== $target;
-            case '!=':          return $test != $target;
-            case '<>':          return $test <> $target;
-            case 'between':     return $target >= $test[0] && $target <= $test[1];
-            case 'not between': return $target < $test[0] || $target > $test[1];
-            case 'in':          return in_array($target, (array) $test);
-            case 'not in':      return !in_array($target, (array) $test);
-            case 'is':          return null === $target;
-            case 'is not':      return null !== $target;
-            case 'regex':       return preg_match($test, $target);
-            case 'not regex':   return !preg_match($test, $target);
-            case 'match':       return preg_match($test, $target);
-            case 'not match':   return !preg_match($test, $target);
-            case 'like':
-                $test  = str_replace("'", '', $test);
-                $test  = str_replace('%', '*', $test);
+        if ('octodummy' === $value) {
+            $value = $operator;
 
-                return fnmatch($test, $target) ? true : false;
-            case 'not like':
-                $test  = str_replace("'", '', $test);
-                $test  = str_replace('%', '*', $test);
-
-                $check  = fnmatch($test, $target) ? true : false;
-
-                return !$check;
+            return sha1(serialize($actual)) === sha1(serialize($value));
         }
 
-        return $test == $target;
+        switch ($operator) {
+            case '<>':
+            case '!=':
+                return sha1(serialize($actual)) != sha1(serialize($value));
+            case '>':
+                return $actual > $value;
+            case '<':
+                return $actual < $value;
+            case '>=':
+                return $actual >= $value;
+            case '<=':
+                return $actual <= $value;
+            case 'between':
+                return $actual >= $value[0] && $actual <= $value[1];
+            case 'not between':
+                return $actual < $value[0] || $actual > $value[1];
+            case 'in':
+                $value = !is_array($value)
+                    ? explode(',', str_replace([' ,', ', '], ',', $value))
+                    : $value;
+
+                return in_array($actual, $value);
+            case 'not in':
+                $value = !is_array($value)
+                    ? explode(',', str_replace([' ,', ', '], ',', $value))
+                    : $value;
+
+                return !in_array($actual, $value);
+            case 'like':
+                $value = str_replace("'", '', $value);
+                $value = str_replace('%', '*', $value);
+
+                return \fnmatch($value, $actual);
+            case 'not like':
+                $value = str_replace("'", '', $value);
+                $value = str_replace('%', '*', $value);
+
+                $check = \fnmatch($value, $actual);
+
+                return !$check;
+            case 'is':
+                return is_null($actual);
+            case 'is not':
+                return !is_null($actual);
+            case '=':
+            default:
+                return sha1(serialize($actual)) === sha1(serialize($value));
+        }
+
+        return sha1(serialize($actual)) === sha1(serialize($value));
     }
 
     /**

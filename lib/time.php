@@ -72,8 +72,6 @@
 
         public function __construct($time = null, $tz = null)
         {
-            // If the class has a test now set and we are trying to create a now()
-            // instance then override as required
             if (self::hasTestNow() && (empty($time) || $time === 'now' || self::hasRelativeKeywords($time))) {
                 $testInstance = clone self::getTestNow();
 
@@ -81,7 +79,6 @@
                     $testInstance->modify($time);
                 }
 
-                //shift the time according to the given time zone
                 if ($tz !== null && $tz != self::getTestNow()->tz) {
                     $testInstance->setTimezone($tz);
                 } else {
@@ -142,11 +139,18 @@
             return self::createFromTimestamp(~PHP_INT_MAX);
         }
 
-        public static function create($year = null, $month = null, $day = null, $hour = null, $minute = null, $second = null, $tz = null)
-        {
-            $year = ($year === null) ? date('Y') : $year;
-            $month = ($month === null) ? date('n') : $month;
-            $day = ($day === null) ? date('j') : $day;
+        public static function create(
+            $year = null,
+            $month = null,
+            $day = null,
+            $hour = null,
+            $minute = null,
+            $second = null,
+            $tz = null
+        ) {
+            $year = ($year === null)    ? date('Y') : $year;
+            $month = ($month === null)  ? date('n') : $month;
+            $day = ($day === null)      ? date('j') : $day;
 
             if ($hour === null) {
                 $hour = date('G');
@@ -157,7 +161,19 @@
                 $second = ($second === null) ? 0 : $second;
             }
 
-            return self::createFromFormat('Y-n-j G:i:s', sprintf('%s-%s-%s %s:%02s:%02s', $year, $month, $day, $hour, $minute, $second), $tz);
+            return self::createFromFormat(
+                'Y-n-j G:i:s',
+                sprintf(
+                    '%s-%s-%s %s:%02s:%02s',
+                    $year,
+                    $month,
+                    $day,
+                    $hour,
+                    $minute,
+                    $second
+                ),
+                $tz
+            );
         }
 
         public static function createFromDate($year = null, $month = null, $day = null, $tz = null)
@@ -205,62 +221,48 @@
         public function __get($name)
         {
             switch(true) {
-                case array_key_exists($name, $formats = array(
-                    'year' => 'Y',
-                    'month' => 'n',
-                    'day' => 'j',
-                    'hour' => 'G',
-                    'minute' => 'i',
-                    'second' => 's',
-                    'micro' => 'u',
-                    'dayOfWeek' => 'w',
-                    'dayOfYear' => 'z',
-                    'weekOfYear' => 'W',
-                    'daysInMonth' => 't',
-                    'timestamp' => 'U',
+                case array_key_exists(
+                    $name,
+                    $formats = array(
+                    'year'          => 'Y',
+                    'month'         => 'n',
+                    'day'           => 'j',
+                    'hour'          => 'G',
+                    'minute'        => 'i',
+                    'second'        => 's',
+                    'micro'         => 'u',
+                    'dayOfWeek'     => 'w',
+                    'dayOfYear'     => 'z',
+                    'weekOfYear'    => 'W',
+                    'daysInMonth'   => 't',
+                    'timestamp'     => 'U',
                 )):
                     return (int) $this->format($formats[$name]);
-
-                case $name === 'weekOfMonth':
-                    return (int) ceil($this->day / self::DAYS_PER_WEEK);
-
-                case $name === 'age':
-                    return (int) $this->diffInYears();
-
-                case $name === 'quarter':
-                    return (int) ceil($this->month / 3);
-
-                case $name === 'offset':
-                    return $this->getOffset();
-
+                case $name === 'weekOfMonth': return (int) ceil($this->day / self::DAYS_PER_WEEK);
+                case $name === 'age': return (int) $this->diffInYears();
+                case $name === 'quarter': return (int) ceil($this->month / 3);
+                case $name === 'offset': return $this->getOffset();
                 case $name === 'offsetHours':
                     return $this->getOffset() / self::SECONDS_PER_MINUTE / self::MINUTES_PER_HOUR;
-
-                case $name === 'dst':
-                    return $this->format('I') == '1';
-
+                case $name === 'dst': return $this->format('I') == '1';
                 case $name === 'local':
                     return $this->offset == $this->copy()->setTimezone(date_default_timezone_get())->offset;
-
-                case $name === 'utc':
-                    return $this->offset == 0;
-
-                case $name === 'timezone' || $name === 'tz':
-                    return $this->getTimezone();
-
-                case $name === 'timezoneName' || $name === 'tzName':
-                    return $this->getTimezone()->getName();
-
-                default:
-                    throw new InvalidArgumentException(sprintf("Unknown getter '%s'", $name));
+                case $name === 'utc': return $this->offset == 0;
+                case $name === 'timezone' || $name === 'tz': return $this->getTimezone();
+                case $name === 'timezoneName' || $name === 'tzName': return $this->getTimezone()->getName();
+                default: throw new InvalidArgumentException(sprintf("Unknown getter '%s'", $name));
             }
         }
 
-        public function __isset($name)
+        /**
+         * @param $name
+         * @return bool
+         */
+        public function __isset($name): bool
         {
             try {
                 $this->__get($name);
-            } catch (InvalidArgumentException $e) {
+            } catch (\InvalidArgumentException $e) {
                 return false;
             }
 
@@ -308,85 +310,149 @@
             }
         }
 
-        public function year($value)
+        /**
+         * @param $value
+         * @return Time
+         */
+        public function year($value): self
         {
             $this->year = $value;
 
             return $this;
         }
 
-        public function month($value)
+        /**
+         * @param $value
+         * @return Time
+         */
+        public function month($value): self
         {
             $this->month = $value;
 
             return $this;
         }
 
-        public function day($value)
+        /**
+         * @param $value
+         * @return Time
+         */
+        public function day($value): self
         {
             $this->day = $value;
 
             return $this;
         }
 
-        public function setDate($year, $month, $day)
+        /**
+         * @param int $year
+         * @param int $month
+         * @param int $day
+         *
+         * @return Time
+         */
+        public function setDate($year, $month, $day): self
         {
             parent::setDate($year, $month, $day);
 
             return $this;
         }
 
-        public function hour($value)
+        /**
+         * @param $value
+         * @return Time
+         */
+        public function hour($value): self
         {
             $this->hour = $value;
 
             return $this;
         }
 
-        public function minute($value)
+        /**
+         * @param $value
+         * @return Time
+         */
+        public function minute($value): self
         {
             $this->minute = $value;
 
             return $this;
         }
 
-        public function second($value)
+        /**
+         * @param $value
+         * @return Time
+         */
+        public function second($value): self
         {
             $this->second = $value;
 
             return $this;
         }
 
-        public function setTime($hour, $minute, $second = null, $microseconds = null)
+        /**
+         * @param int $hour
+         * @param int $minute
+         * @param null $second
+         * @param null $microseconds
+         *
+         * @return Time
+         */
+        public function setTime($hour, $minute, $second = null, $microseconds = null): self
         {
             parent::setTime($hour, $minute, $second, $microseconds);
 
             return $this;
         }
 
-        public function setDateTime($year, $month, $day, $hour, $minute, $second = 0)
+        /**
+         * @param $year
+         * @param $month
+         * @param $day
+         * @param $hour
+         * @param $minute
+         * @param int $second
+         * @return Time
+         */
+        public function setDateTime($year, $month, $day, $hour, $minute, $second = 0): self
         {
             return $this->setDate($year, $month, $day)->setTime($hour, $minute, $second);
         }
 
-        public function timestamp($value)
+        /**
+         * @param $value
+         * @return Time
+         */
+        public function timestamp($value): self
         {
             $this->timestamp = $value;
 
             return $this;
         }
 
+        /**
+         * @param $value
+         * @return Time|static
+         */
         public function timezone($value)
         {
             return $this->setTimezone($value);
         }
 
-        public function tz($value)
+        /**
+         * @param $value
+         * @return Time
+         */
+        public function tz($value): self
         {
             return $this->setTimezone($value);
         }
 
-        public function setTimezone($value)
+        /**
+         * @param DateTimeZone $value
+         * @return Time
+         */
+        public function setTimezone($value): self
         {
             parent::setTimezone(self::safeCreateDateTimeZone($value));
 
@@ -403,14 +469,20 @@
             return self::$testNow;
         }
 
+        /**
+         * @return bool
+         */
         public static function hasTestNow()
         {
             return self::getTestNow() !== null;
         }
 
+        /**
+         * @param $time
+         * @return bool
+         */
         public static function hasRelativeKeywords($time)
         {
-            // skip common format with a '-' in it
             if (preg_match('/[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}/', $time) !== 1) {
                 foreach (self::$relativeKeywords as $keyword) {
                     if (stripos($time, $keyword) !== false) {
@@ -422,10 +494,13 @@
             return false;
         }
 
+        /**
+         * @param $format
+         *
+         * @return string
+         */
         public function formatLocalized($format)
         {
-            // Check for Windows to find and replace the %e
-            // modifier correctly
             if (strtoupper(substr(PHP_OS, 0, 3)) == 'WIN') {
                  $format = preg_replace('#(?<!%)((?:%%)*)%e#', '\1%#d', $format);
             }
@@ -528,36 +603,67 @@
             return $this->format(self::W3C);
         }
 
+        /**
+         * @param Time $dt
+         * @return bool
+         */
         public function eq(Time $dt)
         {
-            return $this == $dt;
+            return $this === $dt;
         }
 
+        /**
+         * @param Time $dt
+         * @return bool
+         */
         public function ne(Time $dt)
         {
             return !$this->eq($dt);
         }
 
+        /**
+         * @param Time $dt
+         * @return bool
+         */
         public function gt(Time $dt)
         {
             return $this > $dt;
         }
 
+        /**
+         * @param Time $dt
+         * @return bool
+         */
         public function gte(Time $dt)
         {
             return $this >= $dt;
         }
 
+        /**
+         * @param Time $dt
+         * @return bool
+         */
         public function lt(Time $dt)
         {
             return $this < $dt;
         }
 
+        /**
+         * @param Time $dt
+         * @return bool
+         */
         public function lte(Time $dt)
         {
             return $this <= $dt;
         }
 
+        /**
+         * @param Time $dt1
+         * @param Time $dt2
+         * @param bool $equal
+         *
+         * @return bool
+         */
         public function between(Time $dt1, Time $dt2, $equal = true)
         {
             if ($dt1->gt($dt2)) {
@@ -573,6 +679,10 @@
             }
         }
 
+        /**
+         * @param Time|null $dt
+         * @return Time
+         */
         public function min(Time $dt = null)
         {
             $dt = ($dt === null) ? self::now($this->tz) : $dt;
@@ -580,6 +690,10 @@
             return $this->lt($dt) ? $this : $dt;
         }
 
+        /**
+         * @param Time|null $dt
+         * @return Time
+         */
         public function max(Time $dt = null)
         {
             $dt = ($dt === null) ? self::now($this->tz) : $dt;
@@ -587,26 +701,41 @@
             return $this->gt($dt) ? $this : $dt;
         }
 
+        /**
+         * @return bool
+         */
         public function isWeekday()
         {
             return ($this->dayOfWeek != self::SUNDAY && $this->dayOfWeek != self::SATURDAY);
         }
 
+        /**
+         * @return bool
+         */
         public function isWeekend()
         {
             return !$this->isWeekDay();
         }
 
+        /**
+         * @return bool
+         */
         public function isYesterday()
         {
             return $this->toDateString() === self::yesterday($this->tz)->toDateString();
         }
 
+        /**
+         * @return bool
+         */
         public function isToday()
         {
             return $this->toDateString() === self::now($this->tz)->toDateString();
         }
 
+        /**
+         * @return bool
+         */
         public function isTomorrow()
         {
             return $this->toDateString() === self::tomorrow($this->tz)->toDateString();

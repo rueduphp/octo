@@ -687,9 +687,6 @@ trait HasDataTrait
     }
 
     /**
-     * This method returns a reference to the variable to allow for indirect
-     * array modification (e.g., $foo['bar']['baz'] = 'qux').
-     *
      * @param $offset
      *
      * @return mixed|null
@@ -733,6 +730,47 @@ trait HasDataTrait
     public function count()
     {
         return count($this->data);
+    }
+}
+
+trait Sleepable
+{
+    /**
+     * @return array
+     * @throws \ReflectionException
+     */
+    public function __sleep()
+    {
+        $properties = (new \ReflectionClass($this))->getProperties();
+
+        foreach ($properties as $property) {
+            $property->setValue($this, $this->getPropertyValue($property));
+        }
+
+        return array_map(function (\ReflectionProperty $p) {
+            return $p->getName();
+        }, $properties);
+    }
+
+    /**
+     * @throws \ReflectionException
+     */
+    public function __wakeup()
+    {
+        foreach ((new \ReflectionClass($this))->getProperties() as $property) {
+            $property->setValue($this, $this->getPropertyValue($property));
+        }
+    }
+
+    /**
+     * @param  \ReflectionProperty  $property
+     * @return mixed
+     */
+    protected function getPropertyValue(\ReflectionProperty $property)
+    {
+        $property->setAccessible(true);
+
+        return $property->getValue($this);
     }
 }
 
@@ -942,18 +980,18 @@ trait Eventable
      * @return Listener
      * @throws \ReflectionException
      */
-    public function on(): Listener
+    public function on(...$args): Listener
     {
-        return getEventManager()->on(...func_get_args());
+        return getEventManager()->on(...$args);
     }
 
     /**
      * @return mixed
      * @throws \ReflectionException
      */
-    public function fire()
+    public function fire(...$args)
     {
-        return getEventManager()->fire(...func_get_args());
+        return getEventManager()->fire(...$args);
     }
 
     /**
@@ -983,12 +1021,11 @@ trait Hookable
      *
      * @throws \ReflectionException
      */
-    public static function callHook()
+    public static function callHook(...$args)
     {
-        $parameters = func_get_args();
-        $hook = array_shift($parameters);
+        $hook = array_shift($args);
 
-        return static::interact($hook, $parameters);
+        return static::interact($hook, $args);
     }
 
     /**

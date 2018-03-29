@@ -104,6 +104,9 @@ class OrmTest extends TestCase
     /** @var  Orm */
     protected $db;
 
+    /**
+     * @throws ReflectionException
+     */
     public function setUp()
     {
         parent::setUp();

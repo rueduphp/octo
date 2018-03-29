@@ -2,16 +2,14 @@
 
 namespace Octo;
 
-use function class_exists;
-use function func_get_args;
-
 class Fastcontainer implements FastContainerInterface
 {
     use FastTrait;
     
     /**
-     * @param string $key
+     * @param string|array $key
      * @param mixed $value
+     *
      * @return $this
      */
     public function registry($key, $value = 'octodummy')
@@ -25,7 +23,7 @@ class Fastcontainer implements FastContainerInterface
             return $this;
         }
 
-        if ('octodummy' == $value) {
+        if ('octodummy' === $value) {
             return $this->dataget($key);
         }
 
@@ -44,22 +42,22 @@ class Fastcontainer implements FastContainerInterface
     }
 
     /**
-     * @param string $key
+     * @param $key
      *
      * @return bool
      */
-    public function datahas($key)
+    public function datahas($key): bool
     {
-        return array_key_exists($key, Registry::get('core.Fastcontainer.data', []));
+        return 'octodummy' !== isAke(Registry::get('core.Fastcontainer.data', []), $key, 'octodummy');
     }
 
     /**
-     * @param string $key
-     * @param mixed $value
+     * @param $key
+     * @param $value
      *
-     * @return $this
+     * @return Fastcontainer
      */
-    public function dataset($key, $value)
+    public function dataset($key, $value): self
     {
         $data = Registry::get('core.Fastcontainer.data', []);
 
@@ -75,43 +73,55 @@ class Fastcontainer implements FastContainerInterface
      *
      * @return bool
      */
-    public function datadel($key)
+    public function datadel($key): bool
     {
-        if ($this->datahas($key)) {
+        if (true === $this->datahas($key)) {
             $data = Registry::get('core.Fastcontainer.data', []);
 
             unset($data[$key]);
 
             Registry::set('core.Fastcontainer.data', $data);
+
+            return true;
         }
 
         return false;
     }
 
     /**
+     * @param array ...$args
+     *
      * @return mixed|null
      *
      * @throws \ReflectionException
      */
-    public function call()
+    public function call(...$args)
     {
-        return callMethod(...func_get_args());
+        return callMethod(...$args);
     }
 
     /**
-     * @return mixed
+     * @param array ...$args
+     *
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
      */
-    public function factory()
+    public function factory(...$args)
     {
-        return foundry(...func_get_args());
+        return foundry(...$args);
     }
 
     /**
-     * @return mixed
+     * @param array ...$args
+     *
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
      */
-    public function resolve()
+    public function resolve(...$args)
     {
-        return call_user_func_array('\\Octo\\foundry', func_get_args());
+        return $this->factory(...$args);
     }
 
     /**
@@ -147,10 +157,12 @@ class Fastcontainer implements FastContainerInterface
     }
 
     /**
-     * @param string $concern
+     * @param $concern
      * @param null $singleton
      *
-     * @return mixed
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
      */
     public function get($concern, $singleton = null)
     {
@@ -191,9 +203,9 @@ class Fastcontainer implements FastContainerInterface
     /**
      * @return mixed
      */
-    public function singleton()
+    public function singleton(...$args)
     {
-        return call_user_func_array('\\Octo\\maker', func_get_args());
+        return maker(...$args);
     }
 
     /**

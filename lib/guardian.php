@@ -16,6 +16,10 @@
             static::$policies[$name][] = $callback;
         }
 
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
         public static function can()
         {
             $args   = func_get_args();

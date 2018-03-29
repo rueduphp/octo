@@ -10,6 +10,8 @@ abstract class TestCase extends Octo\TestCase
         parent::setUp();
         Octo\Dir::rmdir(__DIR__ . '/cache');
         Octo\Dir::mkdir(__DIR__ . '/cache');
+        Octo\Dir::rmdir(__DIR__ . '/storage/cache');
+        Octo\Dir::mkdir(__DIR__ . '/storage/cache');
     }
 
     /**

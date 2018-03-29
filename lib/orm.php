@@ -36,6 +36,7 @@
         protected $limit        = null;
         protected $offset       = null;
         protected $query        = null;
+        protected $time         = null;
         protected $hook         = null;
 
         public function __construct($pdo = null)
@@ -45,6 +46,8 @@
             } else {
                 $this->setPdo($pdo);
             }
+
+            $this->time = $this->microtime();
 
             orm($this);
         }
@@ -371,6 +374,7 @@
             $this->limit        = null;
             $this->offset       = null;
             $this->query        = null;
+            $this->time         = $this->microtime();
 
             return $this;
         }
@@ -453,6 +457,7 @@
          * @param bool $make
          * @param bool $reset
          * @return \PDOStatement
+         * @throws \ReflectionException
          */
         public function run(bool $make = true, bool $reset = true)
         {
@@ -464,6 +469,10 @@
 
             $queries[] = $this->query;
 
+            if (Registry::has('orm.listen')) {
+                self::listening($this->makeQueryLog());
+            }
+
             $this->queries($queries);
 
             if (true === $reset) {
@@ -471,6 +480,29 @@
             }
 
             return $stmt;
+        }
+
+        /**
+         * @return float
+         */
+        private function microtime(): float
+        {
+            list($usec, $sec) = explode(" ", microtime());
+
+            return (float) $usec + (float) $sec;
+        }
+
+        /**
+         * @return Objet
+         */
+        private function makeQueryLog()
+        {
+            $query              = o();
+            $query->sql         = str_replace(' , ', ', ', $this->query);
+            $query->bindings    = $this->values();
+            $query->time        = number_format($this->microtime() - $this->time, 6);
+
+            return $query;
         }
 
         /**
@@ -2832,7 +2864,7 @@
                 return $this->sortByDesc($field);
             }
 
-            return call_user_func_array([$this->builder(), $m], $a);
+            return $this->builder()->{$m}(...$a);
         }
 
         /**
@@ -2851,5 +2883,35 @@
         public function execRaw($sql)
         {
             return $this->getPdo()->exec($sql);
+        }
+
+        /**
+         * @param callable $callable
+         * @return Now
+         */
+        public static function listen(callable $callable)
+        {
+            return Registry::set('orm.listen', $callable);
+        }
+
+        /**
+         * @return bool
+         */
+        public static function removeListen()
+        {
+            return Registry::del('orm.listen');
+        }
+
+        /**
+         * @param $concern
+         * @throws \ReflectionException
+         */
+        public static function listening($concern)
+        {
+            $callable = Registry::get('orm.listen');
+
+            if (is_callable($callable)) {
+                instanciator()->makeClosure($callable, $concern);
+            }
         }
     }
