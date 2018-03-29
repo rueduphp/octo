@@ -1277,7 +1277,15 @@
 
         public function slice($offset, $length = null)
         {
-            $ids        = array_values(array_slice((array) $this->iterator(), $offset, $length, true));
+            $ids = array_values(
+                array_slice(
+                    (array) $this->iterator(),
+                    $offset,
+                    $length,
+                    true
+                )
+            );
+
             $this->ids  = SplFixedArray::fromArray($ids);
 
             return $this;
@@ -1341,10 +1349,10 @@
 
             $keyCache = sha1('multisort.' . $this->ns . serialize($criteria) . serialize($this->query));
 
-            $ids =  $this->driver->until($keyCache, function () use ($criteria) {
+            $ids = $this->driver->until($keyCache, function () use ($criteria) {
                 $results = coll($this->select(array_keys($criteria)))->multisort($criteria);
 
-                return array_values($results->fetch('id')->toArray());
+                return $results->fetch('id')->all();
             }, $this->age());
 
             $this->ids = SplFixedArray::fromArray($ids);
@@ -1361,7 +1369,7 @@
             $ids =  $this->driver->until($keyCache, function () use ($field) {
                 $results = coll($this->select($field))->groupBy($field);
 
-                return array_values($results->fetch('id')->toArray());
+                return $results->fetch('id')->all();
             }, $this->age());
 
             $this->ids = SplFixedArray::fromArray($ids);
@@ -1378,7 +1386,7 @@
             $ids =  $this->driver->until($keyCache, function () use ($field) {
                 $results = coll($this->select($field))->sortBy($field);
 
-                return array_values($results->fetch('id')->toArray());
+                return $results->fetch('id')->all();
             }, $this->age());
 
             $this->ids = SplFixedArray::fromArray($ids);
@@ -1395,7 +1403,7 @@
             $ids =  $this->driver->until($keyCache, function () use ($field) {
                 $results = coll($this->select($field))->sortByDesc($field);
 
-                return array_values($results->fetch('id')->toArray());
+                return $results->fetch('id')->all();
             }, $this->age());
 
             $this->ids = SplFixedArray::fromArray($ids);
@@ -1539,7 +1547,7 @@
 
                 $res = Wrapper::sql($sql);
 
-                return array_values(coll($res)->fetch('id')->toArray());
+                return coll($res)->fetch('id')->all();
             }, $this->age());
 
             $this->ids = SplFixedArray::fromArray($ids);
@@ -1665,7 +1673,7 @@
                 }
             });
 
-            $ids = array_values($results->fetch('id')->toArray());
+            $ids = $results->fetch('id')->all();
 
             $this->ids = SplFixedArray::fromArray($ids);
 
@@ -1787,57 +1795,10 @@
                         }
                     }
 
-                    switch ($operator) {
-                        case '<>':
-                        case '!=':
-                            return sha1(serialize($actual)) != sha1(serialize($value));
-                        case '>':
-                            return $actual > $value;
-                        case '<':
-                            return $actual < $value;
-                        case '>=':
-                            return $actual >= $value;
-                        case '<=':
-                            return $actual <= $value;
-                        case 'between':
-                            return $actual >= $value[0] && $actual <= $value[1];
-                        case 'not between':
-                            return $actual < $value[0] || $actual > $value[1];
-                        case 'in':
-                            $value = !is_array($value)
-                                ? explode(',', str_replace([' ,', ', '], ',', $value))
-                                : $value;
-
-                            return in_array($actual, $value);
-                        case 'not in':
-                            $value = !is_array($value)
-                                ? explode(',', str_replace([' ,', ', '], ',', $value))
-                                : $value;
-
-                            return !in_array($actual, $value);
-                        case 'like':
-                            $value  = str_replace("'", '', $value);
-                            $value  = str_replace('%', '*', $value);
-
-                            return fnmatch($value, $actual);
-                        case 'not like':
-                            $value  = str_replace("'", '', $value);
-                            $value  = str_replace('%', '*', $value);
-
-                            $check  = fnmatch($value, $actual);
-
-                            return !$check;
-                        case 'is':
-                            return is_null($actual);
-                        case 'is not':
-                            return !is_null($actual);
-                        case '=':
-                        default:
-                            return sha1(serialize($actual)) == sha1(serialize($value));
-                    }
+                    return compare($actual, $operator, $value);
                 });
 
-                $ids = array_values($results->fetch('id')->toArray());
+                $ids = $results->fetch('id')->all();
 
                 return $ids;
             }, $this->age());
@@ -1863,7 +1824,7 @@
 
         public function isEmpty()
         {
-            return $this->count() == 0;
+            return $this->count() === 0;
         }
 
         public function hasNoRows()
@@ -1888,7 +1849,7 @@
 
             $results    = coll($data)->each($callback);
 
-            $this->iterator(array_values($results->fetch('id')->toArray()));
+            $this->iterator($results->fetch('id')->all());
 
             return $this;
         }
@@ -1900,7 +1861,7 @@
 
             $results    = coll($data)->filter($callback);
 
-            $this->iterator(array_values($results->fetch('id')->toArray()));
+            $this->iterator($results->fetch('id')->all());
 
             return $this;
         }
@@ -2096,21 +2057,25 @@
 
         public function splice($offset, $length = null, $replacement = [])
         {
-            if (func_num_args() == 1) {
+            if (func_num_args() === 1) {
+                $iterator = (array) $this->getIterator();
+
                 return $this->new(
                     array_values(
                         array_splice(
-                            (array) $this->getIterator(),
+                            $iterator,
                             $offset
                         )
                     )
                 );
             }
 
+            $iterator = (array) $this->getIterator();
+
             return $this->new(
                 array_values(
                     array_splice(
-                        (array) $this->getIterator(),
+                        $iterator,
                         $offset,
                         $length,
                         $replacement

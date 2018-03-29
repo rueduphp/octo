@@ -1100,52 +1100,6 @@
                 }
 
                 return compare($actual, $operator, $value);
-
-                switch ($operator) {
-                    case '<>':
-                    case '!=':
-                        return sha1(serialize($actual)) != sha1(serialize($value));
-                    case '!==':
-                        return $actual !== $value;
-                    case '>':
-                        return $actual > $value;
-                    case '<':
-                        return $actual < $value;
-                    case '>=':
-                        return $actual >= $value;
-                    case '<=':
-                        return $actual <= $value;
-                    case 'between':
-                        return $actual >= $value[0] && $actual <= $value[1];
-                    case 'not between':
-                        return $actual < $value[0] || $actual > $value[1];
-                    case 'in':
-                        return in_array($actual, $value);
-                    case 'not in':
-                        return !in_array($actual, $value);
-                    case 'like':
-                        $value  = str_replace("'", '', $value);
-                        $value  = str_replace('%', '*', $value);
-
-                        return fnmatch($value, $actual);
-                    case 'not like':
-                        $value  = str_replace("'", '', $value);
-                        $value  = str_replace('%', '*', $value);
-
-                        $check  = fnmatch($value, $actual);
-
-                        return !$check;
-                    case 'is':
-                        return null === $actual;
-                    case 'is not':
-                        return null !== $actual;
-                    case '===':
-                        return $actual === $value;
-                    case '=':
-                    case '==':
-                    default:
-                        return sha1(serialize($actual)) == sha1(serialize($value));
-                }
             });
         }
 
