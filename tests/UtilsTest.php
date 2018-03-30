@@ -22,8 +22,14 @@
         /** @test */
         public function firstReturnsFirstItemInCollection()
         {
-            $c = $this->coll(['foo', 'bar']);
+            /** @var \Octo\Collection $c */
+            $c = $this->coll(['foo', 'bar', 'baz' => 'fooz']);
+
             $this->assertEquals('foo', $c->first());
+
+            $this->assertTrue($c->contains('foo'));
+            $this->assertFalse($c->contains('baz'));
+            $this->assertTrue($c->contains('fooz'));
         }
 
         /** @test */
@@ -36,6 +42,7 @@
         /** @test */
         public function firstWithCallback()
         {
+            /** @var \Octo\Collection $data */
             $data = $this->coll(['foo', 'bar', 'baz']);
 
             $result = $data->first(function ($key, $value) {

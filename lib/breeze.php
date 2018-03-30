@@ -31,6 +31,11 @@ class Breeze implements FastCacheInterface
         return $value;
     }
 
+    /**
+     * Breeze constructor.
+     * @param string $ns
+     * @throws \ReflectionException
+     */
     public function __construct(string $ns = 'core')
     {
         $this->dir  = $ns;
@@ -39,6 +44,10 @@ class Breeze implements FastCacheInterface
         $this->configure()->cleanCache();
     }
 
+    /**
+     * @return $this
+     * @throws \ReflectionException
+     */
     protected function configure()
     {
         if (!has('breeze.config')) {
@@ -56,6 +65,11 @@ class Breeze implements FastCacheInterface
         return $this;
     }
 
+    /**
+     * @param string $ns
+     * @return mixed|static
+     * @throws \ReflectionException
+     */
     public static function instance($ns = 'core')
     {
         $key = sha1(serialize(func_get_args()));
@@ -470,7 +484,7 @@ class Breeze implements FastCacheInterface
 
         foreach ($keys as $key) {
             $this->_delete($this->getPath($key));
-            $affected++;
+            ++$affected;
         }
 
         return $affected;
@@ -491,7 +505,7 @@ class Breeze implements FastCacheInterface
                 if (0 < $age && $age < time()) {
                     $this->_delete($this->getPath($key));
 
-                    $affected++;
+                    ++$affected;
                 }
             }
         }

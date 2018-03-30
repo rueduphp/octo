@@ -525,17 +525,6 @@ class Instanciator
 
     /**
      * @param $concern
-     * @param $alias
-     *
-     * @return mixed
-     */
-    public function alias($concern, $alias)
-    {
-        return $this->share($alias, $concern)->get($alias);
-    }
-
-    /**
-     * @param $concern
      *
      * @return Instanciator
      */
@@ -573,10 +562,31 @@ class Instanciator
     /**
      * @param string $concern
      *
-     * @return mixed
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
      */
     public function get(string $concern)
     {
+        $aliases = get('instanciator.aliases', []);
+        $alias = isAke($aliases, $concern, null);
+
+        if (is_string($alias) && class_exists($alias)) {
+            $params = func_get_args();
+            array_shift($params);
+
+            $closure = function () use ($alias, $params) {
+                return $this->make($alias, $params, true);
+            };
+
+            $aliases[$concern] = $closure;
+            set('instanciator.aliases', $aliases);
+
+            return $closure();
+        } elseif (is_callable($alias)) {
+            return $alias();
+        }
+
         return $this->autowire($concern);
     }
 
@@ -757,5 +767,22 @@ class Instanciator
     public function getCache()
     {
         return $this->cache;
+    }
+
+    /**
+     * @param string $name
+     * @param string $class
+     *
+     * @return Instanciator
+     *
+     * @throws \ReflectionException
+     */
+    public function alias(string $name, string $class): self
+    {
+        $aliases = get('instanciator.aliases', []);
+        $aliases[$name] = $class;
+        set('instanciator.aliases', $aliases);
+
+        return $this;
     }
 }

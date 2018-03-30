@@ -9,6 +9,7 @@ use Octo\Finder;
 use Octo\Inflector;
 use Octo\InternalEvents;
 use Octo\Live;
+use Octo\Memorylog;
 use Octo\Monkeypatch;
 use Octo\Notifiable;
 use Octo\Now;
@@ -141,6 +142,30 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    function testLog()
+    {
+        $this->gi('Log', function () {
+            return $this->gi()->singleton(Memorylog::class);
+        });
+
+        $this->log('foo');
+
+        $this->assertCount(1, Memorylog::all());
+
+        $this->assertTrue(
+            fnmatch(
+                '*foo',
+                $this->coll(Memorylog::all()['info'])->first())
+            ? true : false
+        );
+    }
+
+    function testAlias()
+    {
+        $this->gi()->alias('foo', __CLASS__);
+        $this->assertInstanceOf(__CLASS__, $this->gi('foo'));
+    }
+
     function testTranslator()
     {
         /** @var \Octo\Trad $t */

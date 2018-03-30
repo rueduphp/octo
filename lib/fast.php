@@ -636,13 +636,15 @@
         }
 
         /**
+         * @param array ...$args
+         *
          * @return mixed|object
          *
          * @throws \ReflectionException
          */
-        public function resolveOnce()
+        public function resolveOnce(...$args)
         {
-            return instanciator()->singleton(...func_get_args());
+            return instanciator()->singleton(...$args);
         }
 
         /**
@@ -654,13 +656,14 @@
         }
 
         /**
+         * @param array ...$args
          * @return Psr7Response
          */
-        public function response()
+        public function response(...$args)
         {
             return call_user_func_array(
                 'Octo\foundry',
-                array_merge([Psr7Response::class], func_get_args())
+                array_merge([Psr7Response::class], $args)
             );
         }
 
@@ -2249,8 +2252,8 @@
                 $data = $factory($faker, $this->entity);
 
                 if (
-                    $this->entity instanceof Ormmodel ||
-                    $this->entity instanceof Elegant ||
+                    $this->entity instanceof Ormmodel   ||
+                    $this->entity instanceof Elegant    ||
                     $this->entity instanceof Elegantmemory) {
                     $results[] = new $this->model(array_merge($data, $params));
                 } elseif ($this->entity instanceof Bank) {
@@ -2295,11 +2298,19 @@
          */
         public function setMethod(string $method): self
         {
-            $request = getContainer()->getRequest()->withMethod($method);
+            $request = getRequest()->withMethod($method);
 
             getContainer()->setRequest($request);
 
             return $this;
+        }
+
+        /**
+         * @return string
+         */
+        public function ip()
+        {
+            return ip();
         }
 
         /**
@@ -2313,7 +2324,7 @@
         public function old(string $key, $default = null)
         {
             /** @var array $inputs */
-            $inputs = getContainer()->getSession()->get('old_inputs', []);
+            $inputs = getSession()->get('old_inputs', []);
 
             return isAke($inputs, $key, $default);
         }
@@ -2333,7 +2344,7 @@
          */
         public function method(): string
         {
-            return getContainer()->getRequest()->getMethod();
+            return getRequest()->getMethod();
         }
 
         /**
@@ -2341,20 +2352,20 @@
          */
         public function isSecure(): bool
         {
-            return 'https' === Inflector::lower(getContainer()->getRequest()->getUri()->getScheme());
+            return 'https' === Inflector::lower(getRequest()->getUri()->getScheme());
         }
 
         /**
-         * @param string $key
-         * @param null|mixed $default
+         * @param null|string $key
+         * @param null $default
          *
-         * @return null|mixed
+         * @return array|mixed
          */
-        public function get(string $key, $default = null)
+        public function get(?string $key = null, $default = null)
         {
-            $attrs = getContainer()->getRequest()->getQueryParams();
+            $attrs = getRequest()->getQueryParams();
 
-            return isAke($attrs, $key, $default);
+            return !is_null($key) ? isAke($attrs, $key, $default) : $attrs;
         }
 
         /**
@@ -2365,7 +2376,7 @@
          */
         public function post(?string $key = null, $default = null)
         {
-            $attrs = getContainer()->getRequest()->getParsedBody();
+            $attrs = getRequest()->getParsedBody();
 
             return !is_null($key) ? isAke($attrs, $key, $default) : $attrs;
         }
@@ -2388,9 +2399,9 @@
          */
         public function all(): array
         {
-            $get    = getContainer()->getRequest()->getQueryParams();
-            $post   = getContainer()->getRequest()->getParsedBody();
-            $files  = getContainer()->getRequest()->getUploadedFiles();
+            $get    = getRequest()->getQueryParams();
+            $post   = getRequest()->getParsedBody();
+            $files  = getRequest()->getUploadedFiles();
 
             return array_merge($get, $post, $files);
         }
@@ -2398,11 +2409,10 @@
         /**
          * @return array
          */
-        public function only(): array
+        public function only(...$keys): array
         {
-            $keys = func_get_args();
             $inputs = [];
-            $attrs = getContainer()->getRequest()->getParsedBody();
+            $attrs = $this->all();
 
             foreach ($keys as $key) {
                 $inputs[$key] = isAke($attrs, $key, null);
@@ -2414,10 +2424,9 @@
         /**
          * @return array
          */
-        public function except(): array
+        public function except(...$keys): array
         {
-            $keys = func_get_args();
-            $attrs = getContainer()->getRequest()->getParsedBody();
+            $attrs = $this->all();
 
             foreach ($keys as $key) {
                 unset($attrs[$key]);
@@ -2444,7 +2453,7 @@
          */
         public function segments(): array
         {
-            $uri = getContainer()->getRequest()->getUri();
+            $uri = getRequest()->getUri();
             $segments = explode('/', $uri->getPath());
 
             return array_values(array_filter($segments, function ($segment) {
@@ -2460,7 +2469,25 @@
          */
         public function __call(string $method, array $params)
         {
-            return getContainer()->getRequest()->{$method}(...$params);
+            return getRequest()->{$method}(...$params);
+        }
+
+        /**
+         * @param $key
+         * @return mixed|null
+         */
+        public function __get($key)
+        {
+            return $this->input($key);
+        }
+
+        /**
+         * @param $key
+         * @return bool
+         */
+        public function __isset($key)
+        {
+            return !is_null($this->__get($key));
         }
     }
 
@@ -2731,6 +2758,79 @@
         public function process(ServerRequestInterface $request, DelegateInterface $next)
         {
             return $next->process($request);
+        }
+    }
+
+    class Redirector extends Facade
+    {
+        public static function getNativeClass(): string
+        {
+            return FastRedirector::class;
+        }
+    }
+
+    class FastRedirector
+    {
+        /**
+         * @var FastRouter
+         */
+        private $router;
+
+        public function __construct()
+        {
+            $this->router = getRouter();
+        }
+
+        /**
+         * @return \GuzzleHttp\Psr7\MessageTrait
+         */
+        public function home()
+        {
+            return $this->route('home');
+        }
+
+        /**
+         * @param string $name
+         * @param array $args
+         * @param int $status
+         * @return \GuzzleHttp\Psr7\MessageTrait
+         */
+        public function route(string $name, array $args = [], $status = 302)
+        {
+            return $this->to($this->router->generateUri($name, $args), $status);
+        }
+
+        /**
+         * @param int $status
+         * @return \GuzzleHttp\Psr7\MessageTrait
+         */
+        public function refresh($status = 302)
+        {
+            return $this->to(getRequest()->getUri(), $status);
+        }
+
+        /**
+         * @param string $path
+         * @param int $status
+         * @return \GuzzleHttp\Psr7\MessageTrait
+         */
+        public function away(string $path, $status = 302)
+        {
+            return $this->to($path, $status);
+        }
+
+        /**
+         * @param $path
+         * @param int $status
+         * @return \GuzzleHttp\Psr7\MessageTrait
+         */
+        public function to($path, $status = 302)
+        {
+            return getContainer()
+                ->response()
+                ->withStatus($status)
+                ->withHeader('Location', $path)
+            ;
         }
     }
 

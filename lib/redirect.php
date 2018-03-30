@@ -69,7 +69,7 @@
          */
         public static function route(string $route, array $params = [])
         {
-            $uri = getContainer()->router()->urlFor($route, $params);
+            $uri = getRouter()->urlFor($route, $params);
 
             return self::for($uri);
         }
@@ -77,7 +77,7 @@
         /**
          * @param string $uri
          *
-         * @return MessageTrait|static
+         * @return MessageTrait
          */
         public static function for(string $uri)
         {

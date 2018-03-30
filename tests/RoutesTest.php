@@ -36,4 +36,26 @@
             $this->foundry('router')->setBaseRoute('')->run();
             $this->assertEquals(16, $this->context('app')['test']);
         }
+
+        public function testRedirector()
+        {
+            $this->getRouter()
+                ->addRoute(
+                    new Zend\Expressive\Router\Route(
+                        '/',
+                        function () {
+                            return 'home';
+                        },
+                        ['GET'],
+                        'home'
+                    )
+                )
+            ;
+
+            /** @var \GuzzleHttp\Psr7\MessageTrait $response */
+            $response = $this->redirect()->home();
+
+            $this->assertEquals(302, $response->getStatusCode());
+            $this->assertEquals('/', current($response->getHeader('Location')));
+        }
     }

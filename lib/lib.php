@@ -474,22 +474,22 @@
         return $models[$model];
     }
 
-    function sdb($db, $table, $driver = null)
+    function sdb($db, $table)
     {
         return lib('octalia', [$db, $table, lib('cachesql', ["$db.$table"])]);
     }
 
-    function mdb($db, $table, $driver = null)
+    function mdb($db, $table)
     {
         return lib('octalia', [$db, $table, lib('cachemongo', ["$db.$table"])]);
     }
 
-    function rdb($db, $table, $driver = null)
+    function rdb($db, $table)
     {
         return lib('octalia', [$db, $table, lib('cacheredis', ["$db.$table"])]);
     }
 
-    function cachingDb($db, $table, $driver = null)
+    function cachingDb($db, $table)
     {
         return lib('octalia', [$db, $table, lib('caching', ["$db.$table"])]);
     }
@@ -995,18 +995,25 @@
         File::append($file, date('H:i:s') . ':' . $type . ' => ' . $message);
     }
 
+    /**
+     * @param $message
+     * @param string $type
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
     function log($message, $type = 'INFO')
     {
         if (is_array($message)) $message = implode(PHP_EOL, $message);
 
         $type = Strings::upper($type);
 
-        $db = em('systemLog');
+        $log = gi('Log');
 
-        $db->store([
-            'message'   => $message,
-            'type'      => $type
-        ]);
+//        return instanciator()->call($log, Inflector::lower($type), $message);
+
+        return $log->{Inflector::lower($type)}($message);
     }
 
     function logs($type = 'INFO')
@@ -1384,6 +1391,8 @@
      * @param null|string $dest
      *
      * @return mixed|null|string
+     *
+     * @throws \Exception
      */
     function upload(string $field, ?string $dest = null)
     {
@@ -1392,7 +1401,7 @@
             $fileuploadName     = $_FILES[$field]['name'];
 
             if (strlen($fileuploadName)) {
-                $data = file_get_contents($fileupload);
+                $data = fgc($fileupload);
 
                 if (!strlen($data)) {
                     return null;
@@ -1404,6 +1413,8 @@
                     $ext    = Strings::lower(Arrays::last($tab));
                     $res    = $bucket->data($data, $ext);
 
+                    File::delete($fileupload);
+
                     return $res;
                 } else {
                     $dest = realpath($dest);
@@ -1411,6 +1422,7 @@
                     if (is_dir($dest) && is_writable($dest)) {
                         $destFile = $dest . DS . $fileuploadName;
                         File::put($destFile, $data);
+                        File::delete($fileupload);
 
                         return $destFile;
                     }
@@ -1423,20 +1435,27 @@
 
     /**
      * @param string $f
-     * @return bool|string
+     * @return string
      */
     function fgc(string $f)
     {
-        return file_get_contents($f);
+        $result = file_get_contents($f);
+
+        if (!is_string($result)) {
+            $result = '';
+        }
+
+        return $result;
     }
 
     /**
      * @param string $context
-     * @return Session
+     * @return Live|Session
+     * @throws \TypeError
      */
-    function session($context = 'web'): Session
+    function session($context = 'web')
     {
-        return lib('session', [$context]);
+        return getSession();
     }
 
     /**
@@ -7167,11 +7186,24 @@
         return $back;
     }
 
-    function redirect($url)
+    /**
+     * @param null|string $url
+     * @param int $status
+     *
+     * @return \GuzzleHttp\Psr7\MessageTrait|FastRedirector
+     *
+     * @throws \ReflectionException
+     */
+    function redirect(?string $url = null, int $status = 302)
     {
-        $url = !fnmatch('*://*', $url) ? WEBROOT . '/' . trim($url, '/') : $url;
+        /** @var FastRedirector $redirector */
+        $redirector = instanciator()->singleton(FastRedirector::class);
 
-        return back($url);
+        if (null === $url) {
+            return $redirector;
+        }
+
+        return $redirector->to($url, $status);
     }
 
     function flasher()
@@ -9379,9 +9411,9 @@
     }
 
     /**
-     * @param $test
+     * @param $actual
      * @param $operator
-     * @param $target
+     * @param string $value
      *
      * @return bool
      */
@@ -9396,58 +9428,93 @@
         switch ($operator) {
             case '<>':
             case '!=':
-                return sha1(serialize($actual)) != sha1(serialize($value));
+            case '!==':
+                return sha1(serialize($actual)) !== sha1(serialize($value));
+            case 'gt':
             case '>':
                 return $actual > $value;
+            case 'lt':
             case '<':
                 return $actual < $value;
+            case 'gte':
             case '>=':
                 return $actual >= $value;
+            case 'lte':
             case '<=':
                 return $actual <= $value;
             case 'between':
-                return $actual >= $value[0] && $actual <= $value[1];
+                $value = !is_array($value)
+                    ? explode(',', str_replace([' ,', ', '], ',', $value))
+                    : $value
+                ;
+
+                return is_array($value) && $actual >= $value[0] && $actual <= $value[1];
             case 'not between':
-                return $actual < $value[0] || $actual > $value[1];
+                $value = !is_array($value)
+                    ? explode(',', str_replace([' ,', ', '], ',', $value))
+                    : $value
+                ;
+
+                return is_array($value) && ($actual < $value[0] || $actual > $value[1]);
             case 'in':
                 $value = !is_array($value)
                     ? explode(',', str_replace([' ,', ', '], ',', $value))
-                    : $value;
+                    : $value
+                ;
 
                 return in_array($actual, $value);
             case 'not in':
                 $value = !is_array($value)
                     ? explode(',', str_replace([' ,', ', '], ',', $value))
-                    : $value;
+                    : $value
+                ;
 
                 return !in_array($actual, $value);
             case 'like':
-                $value = str_replace("'", '', $value);
                 $value = str_replace('%', '*', $value);
 
-                return \fnmatch($value, $actual);
+                return \fnmatch($value, $actual) ? true : false;
             case 'not like':
-                $value = str_replace("'", '', $value);
                 $value = str_replace('%', '*', $value);
 
-                $check = \fnmatch($value, $actual);
+                $check = \fnmatch($value, $actual) ? true : false;
 
                 return !$check;
+            case 'instance':
+                return ($actual instanceof $value);
+            case 'not instance':
+                return (!$actual instanceof $value);
+            case 'true':
+                return true === $actual;
+            case 'false':
+                return false === $actual;
+            case 'empty':
+            case 'null':
+            case 'is null':
             case 'is':
                 return is_null($actual);
+            case 'not empty':
+            case 'not null':
+            case 'is not empty':
+            case 'is not null':
             case 'is not':
                 return !is_null($actual);
+            case 'regex':
+                return preg_match($value, $actual) ? true : false;
+            case 'not regex':
+                return !preg_match($value, $actual) ? true : false;
             case '=':
+            case '===':
             default:
                 return sha1(serialize($actual)) === sha1(serialize($value));
         }
-
-        return sha1(serialize($actual)) === sha1(serialize($value));
     }
 
     /**
      * @param array ...$args
+     *
      * @return mixed
+     *
      * @throws Exception
      * @throws \Exception
      */

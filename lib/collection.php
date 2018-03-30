@@ -98,19 +98,25 @@
          * @param null $value
          * @return bool
          */
-        public function contains($key, $value = null)
+        public function contains($key, $operator = null, $value = null)
         {
-            if (func_num_args() == 2) {
-                return $this->contains(function($k, $item) use ($key, $value) {
-                    return dget($item, $key) === $value;
-                });
+            if (func_num_args() === 1) {
+                if ($this->useAsCallable($key)) {
+                    $placeholder = new \stdClass;
+
+                    return $this->first($key, $placeholder) !== $placeholder;
+                }
+
+                return in_array($key, $this->items);
             }
 
-            if (is_callable($key)) {
-                return !is_null($this->first($key));
+            if (func_num_args() === 2) {
+                $value = $operator;
+
+                $operator = '=';
             }
 
-            return in_array($key, $this->items);
+            return $this->contains($this->closureWhere($key, $operator, $value));
         }
 
         /**
@@ -1087,11 +1093,11 @@
 
                 $insensitive = in_array($operator, ['=i', 'like i', 'not like i']);
 
-                if ((!is_array($actual) || !is_object($actual)) && $insensitive) {
+                if ((!is_array($actual) || !is_object($actual) || !is_numeric($actual)) && $insensitive) {
                     $actual = Strings::lower(Strings::unaccent($actual));
                 }
 
-                if ((!is_array($value) || !is_object($value)) && $insensitive) {
+                if ((!is_array($value) || !is_object($value) || !is_numeric($actual)) && $insensitive) {
                     $value  = Strings::lower(Strings::unaccent($value));
                 }
 
@@ -1647,6 +1653,8 @@
                 if (count($strings) < 2 && count(array_filter([$actual, $value], 'is_object')) === 1) {
                     return in_array($operator, ['!=', '<>', '!==']);
                 }
+
+                return compare($actual, $operator, $value);
 
                 switch ($operator) {
                     default:

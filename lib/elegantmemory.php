@@ -4,7 +4,6 @@ namespace Octo;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use PDO;
 /**
- * Class Elegantmemory
  * @method static \Illuminate\Database\Eloquent\Builder schema()
  */
 class Elegantmemory extends EloquentModel implements FastModelInterface
