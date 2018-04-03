@@ -87,6 +87,11 @@
             return !strlen($uri) ? '/' : $uri;
         }
 
+        /**
+         * @param null $namespace
+         * @param null $cb404
+         * @throws \ReflectionException
+         */
         public function run($namespace = null, $cb404 = null)
         {
             $namespace = empty($namespace) ? __NAMESPACE__ : $namespace;
@@ -329,11 +334,11 @@
             }
         }
 
-        private function is404($cb404)
+        private function is404($cb404 = null)
         {
             extract(Registry::get('views.vars', []));
 
-            if (isset($cb404) && is_callable($cb404)) {
+            if (is_callable($cb404)) {
                 Registry::set('page404', true);
 
                 call_user_func($cb404);
@@ -345,6 +350,14 @@
             }
         }
 
+        /**
+         * @param $route
+         * @param $params
+         *
+         * @return mixed
+         *
+         * @throws \ReflectionException
+         */
         private function params($route, $params)
         {
             $ref = new \ReflectionFunction($route['callback']);
@@ -364,7 +377,8 @@
                 $controllerFile = path('app') . DS . 'controllers' . DS . $controllerName . '.php';
 
                 if (!is_file($controllerFile)) {
-                    return $this->is404();
+                    $this->is404();
+                    return null;
                 }
 
                 $code = File::read($controllerFile);
@@ -463,6 +477,10 @@
             }
         }
 
+        /***
+         * @param $controller
+         * @throws \ReflectionException
+         */
         private function controllerunboot($controller)
         {
             $actions = get_class_methods($controller);
@@ -476,6 +494,10 @@
             }
         }
 
+        /**
+         * @param $controller
+         * @throws \ReflectionException
+         */
         private function controllerBoot($controller)
         {
             $actions = get_class_methods($controller);
@@ -558,7 +580,7 @@
                         }
                     }
 
-                    if ($quit) {
+                    if (true === $quit) {
                         if (is_callable($route['callback'])) {
                             $return = $this->route = call_user_func_array($route['callback'], $params);
 
@@ -570,7 +592,7 @@
                                 }
                             }
 
-                            if ($return instanceof Object) {
+                            if ($return instanceof Objet) {
                                 if ($return->hasModel()) {
                                     Api::renderJson($return->toArray());
                                 } else if ($return->getIsVue()) {
@@ -602,7 +624,7 @@
 
                     $found++;
 
-                    if ($quit) {
+                    if (true === $quit) {
                         break;
                     }
                 }

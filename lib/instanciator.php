@@ -485,6 +485,7 @@ class Instanciator
     /**
      * @param array ...$args
      * @return bool
+     * @throws \ReflectionException
      */
     public function has(...$args): bool
     {

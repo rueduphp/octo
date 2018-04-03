@@ -39,13 +39,16 @@
 
         protected $response, $request, $router, $middlewares = [], $extensionsLoaded = [], $started = false;
 
+        /**
+         * @throws \ReflectionException
+         */
         public function __construct()
         {
             $this->app = instanciator()->singleton(Fastcontainer::class);
 
             $this->request = $this->fromGlobals();
 
-            actual('fast', $this);
+            fast($this);
         }
 
         /**
@@ -127,7 +130,9 @@
          * @param string $key
          * @param null $value
          *
-         * @return mixed
+         * @return array|mixed|null
+         *
+         * @throws \ReflectionException
          */
         public function handled(string $key, $value = null)
         {
@@ -357,11 +362,24 @@
             return $this->request;
         }
 
+        /**
+         * @param string $concern
+         * @param null $sinleton
+         *
+         * @return mixed|object
+         *
+         * @throws \ReflectionException
+         */
         public function get($concern, $sinleton = null)
         {
             return $this->app->get($concern, $sinleton);
         }
 
+        /**
+         * @param $concern
+         * @param $value
+         * @return $this
+         */
         public function set($concern, $value)
         {
             $this->app->set($concern, $value);

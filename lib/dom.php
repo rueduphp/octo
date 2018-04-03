@@ -25,16 +25,39 @@ define('MAX_FILE_SIZE', 600000);
 // -----------------------------------------------------------------------------
 // get html dom from file
 // $maxlen is defined in the code as PHP_STREAM_COPY_ALL which is defined as -1.
-function file_get_html($url, $use_include_path = false, $context=null, $offset = -1, $maxLen=-1, $lowercase = true, $forceTagsClosed=true, $target_charset = DEFAULT_TARGET_CHARSET, $stripRN=true, $defaultBRText=DEFAULT_BR_TEXT, $defaultSpanText=DEFAULT_SPAN_TEXT)
-{
+function file_get_html(
+    $url,
+    $use_include_path = false,
+    $context=null,
+    $offset = -1,
+    $maxLen = -1,
+    $lowercase = true,
+    $forceTagsClosed = true,
+    $target_charset = DEFAULT_TARGET_CHARSET,
+    $stripRN = true,
+    $defaultBRText = DEFAULT_BR_TEXT,
+    $defaultSpanText = DEFAULT_SPAN_TEXT
+) {
 	// We DO force the tags to be terminated.
-	$dom = new simple_html_dom(null, $lowercase, $forceTagsClosed, $target_charset, $stripRN, $defaultBRText, $defaultSpanText);
+	$dom = new simple_html_dom(
+	    null,
+        $lowercase,
+        $forceTagsClosed,
+        $target_charset,
+        $stripRN,
+        $defaultBRText,
+        $defaultSpanText
+    );
 	// For sourceforge users: uncomment the next line and comment the retreive_url_contents line 2 lines down if it is not already done.
-	$contents = file_get_contents($url, $use_include_path, $context, $offset);
+	$contents = file_get_contents(
+	    $url,
+        $use_include_path,
+        $context,
+        $offset
+    );
 	// Paperg - use our own mechanism for getting the contents as we want to control the timeout.
 	//$contents = retrieve_url_contents($url);
-	if (empty($contents) || strlen($contents) > MAX_FILE_SIZE)
-	{
+	if (empty($contents) || strlen($contents) > MAX_FILE_SIZE) {
 		return false;
 	}
 	// The second parameter can force the selectors to all be lowercase.
@@ -43,20 +66,37 @@ function file_get_html($url, $use_include_path = false, $context=null, $offset =
 }
 
 // get html dom from string
-function str_get_html($str, $lowercase=true, $forceTagsClosed=true, $target_charset = DEFAULT_TARGET_CHARSET, $stripRN=true, $defaultBRText=DEFAULT_BR_TEXT, $defaultSpanText=DEFAULT_SPAN_TEXT)
-{
-	$dom = new simple_html_dom(null, $lowercase, $forceTagsClosed, $target_charset, $stripRN, $defaultBRText, $defaultSpanText);
-	if (empty($str) || strlen($str) > MAX_FILE_SIZE)
-	{
+function str_get_html(
+    $str,
+    $lowercase = true,
+    $forceTagsClosed = true,
+    $target_charset = DEFAULT_TARGET_CHARSET,
+    $stripRN = true,
+    $defaultBRText = DEFAULT_BR_TEXT,
+    $defaultSpanText = DEFAULT_SPAN_TEXT
+) {
+	$dom = new simple_html_dom(
+	    null,
+        $lowercase,
+        $forceTagsClosed,
+        $target_charset,
+        $stripRN,
+        $defaultBRText,
+        $defaultSpanText
+    );
+
+	if (empty($str) || strlen($str) > MAX_FILE_SIZE) {
 		$dom->clear();
 		return false;
 	}
+
 	$dom->load($str, $lowercase, $stripRN);
+
 	return $dom;
 }
 
 // dump html dom tree
-function dump_html_tree($node, $show_attr=true, $deep=0)
+function dump_html_tree($node, $show_attr = true, $deep=0)
 {
 	$node->dump($node);
 }
@@ -113,56 +153,55 @@ class simple_html_dom_node
 		$lead = str_repeat('	', $deep);
 
 		echo $lead.$this->tag;
-		if ($show_attr && count($this->attr)>0)
-		{
+
+		if ($show_attr && count($this->attr) > 0) {
 			echo '(';
-			foreach ($this->attr as $k=>$v)
-				echo "[$k]=>\"".$this->$k.'", ';
+			foreach ($this->attr as $k => $v) echo "[$k]=>\"".$this->$k.'", ';
 			echo ')';
 		}
+
 		echo "\n";
 
-		if ($this->nodes)
-		{
-			foreach ($this->nodes as $c)
-			{
-				$c->dump($show_attr, $deep+1);
+		if ($this->nodes) {
+			foreach ($this->nodes as $c) {
+				$c->dump($show_attr, $deep + 1);
 			}
 		}
 	}
 
 
 	// Debugging function to dump a single dom node with a bunch of information about it.
-	function dump_node($echo=true)
+	function dump_node($echo = true)
 	{
-
 		$string = $this->tag;
-		if (count($this->attr)>0)
-		{
+
+		if (count($this->attr) > 0) {
 			$string .= '(';
-			foreach ($this->attr as $k=>$v)
-			{
-				$string .= "[$k]=>\"".$this->$k.'", ';
+
+			foreach ($this->attr as $k => $v) {
+				$string .= "[$k]=>\"" . $this->$k . '", ';
 			}
+
 			$string .= ')';
 		}
-		if (count($this->_)>0)
-		{
+
+		if (count($this->_) > 0) {
 			$string .= ' $_ (';
-			foreach ($this->_ as $k=>$v)
-			{
-				if (is_array($v))
-				{
+
+			foreach ($this->_ as $k => $v) {
+				if (is_array($v)) {
 					$string .= "[$k]=>(";
-					foreach ($v as $k2=>$v2)
-					{
+
+					foreach ($v as $k2 => $v2) {
 						$string .= "[$k2]=>\"".$v2.'", ';
 					}
+
 					$string .= ")";
 				} else {
 					$string .= "[$k]=>\"".$v.'", ';
 				}
 			}
+
 			$string .= ")";
 		}
 
@@ -172,12 +211,10 @@ class simple_html_dom_node
 		}
 
 		$string .= " HDOM_INNER_INFO: '";
-		if (isset($node->_[HDOM_INFO_INNER]))
-		{
+
+		if (isset($node->_[HDOM_INFO_INNER])) {
 			$string .= $node->_[HDOM_INFO_INNER] . "'";
-		}
-		else
-		{
+		} else {
 			$string .= ' NULL ';
 		}
 
@@ -186,13 +223,10 @@ class simple_html_dom_node
 		$string .= " tag_start: " . $this->tag_start;
 		$string .= "\n";
 
-		if ($echo)
-		{
+		if ($echo) {
 			echo $string;
 			return;
-		}
-		else
-		{
+		} else {
 			return $string;
 		}
 	}
@@ -203,8 +237,7 @@ class simple_html_dom_node
 	{
 		// I am SURE that this doesn't work properly.
 		// It fails to unset the current node from it's current parents nodes or children list first.
-		if ($parent !== null)
-		{
+		if ($parent !== null) {
 			$this->parent = $parent;
 			$this->parent->nodes[] = $this;
 			$this->parent->children[] = $this;
@@ -220,57 +253,57 @@ class simple_html_dom_node
 	}
 
 	// returns children of node
-	function children($idx=-1)
+	function children($idx = -1)
 	{
-		if ($idx===-1)
-		{
+		if ($idx === -1) {
 			return $this->children;
 		}
-		if (isset($this->children[$idx]))
-		{
+
+		if (isset($this->children[$idx])) {
 			return $this->children[$idx];
 		}
+
 		return null;
 	}
 
 	// returns the first child of node
 	function first_child()
 	{
-		if (count($this->children)>0)
-		{
+		if (count($this->children) > 0) {
 			return $this->children[0];
 		}
+
 		return null;
 	}
 
 	// returns the last child of node
 	function last_child()
 	{
-		if (($count=count($this->children))>0)
-		{
-			return $this->children[$count-1];
+		if (($count = count($this->children)) > 0) {
+			return $this->children[$count - 1];
 		}
+
 		return null;
 	}
 
 	// returns the next sibling of node
 	function next_sibling()
 	{
-		if ($this->parent===null)
-		{
+		if ($this->parent === null) {
 			return null;
 		}
 
 		$idx = 0;
 		$count = count($this->parent->children);
-		while ($idx<$count && $this!==$this->parent->children[$idx])
-		{
+
+		while ($idx<$count && $this !== $this->parent->children[$idx]) {
 			++$idx;
 		}
-		if (++$idx>=$count)
-		{
+
+		if (++$idx >= $count) {
 			return null;
 		}
+
 		return $this->parent->children[$idx];
 	}
 
@@ -278,11 +311,14 @@ class simple_html_dom_node
 	function prev_sibling()
 	{
 		if ($this->parent===null) return null;
+
 		$idx = 0;
 		$count = count($this->parent->children);
-		while ($idx<$count && $this!==$this->parent->children[$idx])
-			++$idx;
-		if (--$idx<0) return null;
+
+		while ($idx < $count && $this !== $this->parent->children[$idx]) ++$idx;
+
+		if (--$idx < 0) return null;
+
 		return $this->parent->children[$idx];
 	}
 
@@ -295,16 +331,16 @@ class simple_html_dom_node
 		// Start by including ourselves in the comparison.
 		$returnDom = $this;
 
-		while (!is_null($returnDom))
-		{
+		while (!is_null($returnDom)) {
 			if (is_object($debug_object)) { $debug_object->debug_log(2, "Current tag is: " . $returnDom->tag); }
 
-			if ($returnDom->tag == $tag)
-			{
+			if ($returnDom->tag == $tag) {
 				break;
 			}
+
 			$returnDom = $returnDom->parent;
 		}
+
 		return $returnDom;
 	}
 
@@ -315,8 +351,9 @@ class simple_html_dom_node
 		if (isset($this->_[HDOM_INFO_TEXT])) return $this->dom->restore_noise($this->_[HDOM_INFO_TEXT]);
 
 		$ret = '';
-		foreach ($this->nodes as $n)
-			$ret .= $n->outertext();
+
+		foreach ($this->nodes as $n) $ret .= $n->outertext();
+
 		return $ret;
 	}
 
@@ -324,24 +361,23 @@ class simple_html_dom_node
 	function outertext()
 	{
 		global $debug_object;
-		if (is_object($debug_object))
-		{
+
+		if (is_object($debug_object)) {
 			$text = '';
-			if ($this->tag == 'text')
-			{
-				if (!empty($this->text))
-				{
+
+			if ($this->tag == 'text') {
+				if (!empty($this->text)) {
 					$text = " with text: " . $this->text;
 				}
 			}
+
 			$debug_object->debug_log(1, 'Innertext of tag: ' . $this->tag . $text);
 		}
 
 		if ($this->tag==='root') return $this->innertext();
 
 		// trigger callback
-		if ($this->dom && $this->dom->callback!==null)
-		{
+		if ($this->dom && $this->dom->callback!==null) {
 			call_user_func_array($this->dom->callback, array($this));
 		}
 
@@ -349,26 +385,21 @@ class simple_html_dom_node
 		if (isset($this->_[HDOM_INFO_TEXT])) return $this->dom->restore_noise($this->_[HDOM_INFO_TEXT]);
 
 		// render begin tag
-		if ($this->dom && $this->dom->nodes[$this->_[HDOM_INFO_BEGIN]])
-		{
+		if ($this->dom && $this->dom->nodes[$this->_[HDOM_INFO_BEGIN]]) {
 			$ret = $this->dom->nodes[$this->_[HDOM_INFO_BEGIN]]->makeup();
 		} else {
 			$ret = "";
 		}
 
 		// render inner text
-		if (isset($this->_[HDOM_INFO_INNER]))
-		{
+		if (isset($this->_[HDOM_INFO_INNER])) {
 			// If it's a br tag...  don't return the HDOM_INNER_INFO that we may or may not have added.
-			if ($this->tag != "br")
-			{
+			if ($this->tag != "br") {
 				$ret .= $this->_[HDOM_INFO_INNER];
 			}
 		} else {
-			if ($this->nodes)
-			{
-				foreach ($this->nodes as $n)
-				{
+			if ($this->nodes) {
+				foreach ($this->nodes as $n) {
 					$ret .= $this->convert_text($n->outertext());
 				}
 			}

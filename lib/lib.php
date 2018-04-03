@@ -2,11 +2,13 @@
     namespace Octo;
 
     use Carbon\Carbon;
+    use function class_exists;
     use Closure;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Filesystem\Filesystem;
     use Illuminate\Support\Debug\Dumper;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
+    use function is_object;
     use Psr\Http\Message\ServerRequestInterface;
     use ReflectionFunction;
     use Symfony\Component\Finder\Finder as FinderFile;
@@ -77,6 +79,15 @@
         abort($code, $html);
     }
 
+    function is_timestamp(int $timestamp): bool
+    {
+        if (strtotime(date('d-m-Y H:i:s', $timestamp)) === $timestamp) {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * @param string $file
      * @param string $context
@@ -84,8 +95,12 @@
      * @param int $code
      * @throws \ReflectionException
      */
-    function render(string $file, string $context = 'controller', array $args = [], int $code = 200)
-    {
+    function render(
+        string $file,
+        string $context = 'controller',
+        array $args = [],
+        int $code = 200
+    ) {
         if (fnmatch('*#*', $file)) {
             list($c, $a) = explode('#', $file, 2);
 
@@ -1094,18 +1109,34 @@
     }
 
     /**
-     * Generate Instance
-     *
      * @param null $concern
      * @param string $value
-     *
-     * @return mixed|Instanciator
+     * @return mixed|object|Instanciator
+     * @throws \ReflectionException
      */
-    function gi($concern = null, $value = 'octoduumy')
+    function gi($concern = null, $value = 'octodummy')
     {
         if (null !== $concern) {
-            if ('octoduumy' === $value) {
-                return instanciator()->get($concern);
+            if ('octodummy' === $value) {
+                if (!instanciator()->has($concern)) {
+                    instanciator()->set(
+                        $concern,
+                        instanciator()->singleton($concern)
+                    );
+                }
+
+                $object = instanciator()->get($concern);
+
+                if (is_string($object) && class_exists($object)) {
+                    $object = instanciator()->singleton($object);
+
+                    instanciator()->set(
+                        $concern,
+                        $object
+                    );
+                }
+
+                return $object;
             } else {
                 return instanciator()->set($concern, $value);
             }
@@ -2889,24 +2920,25 @@
     }
 
     /**
-     * @param Fast|null $context
+     * @param null $context
      *
-     * @return Fast
+     * @return mixed|null|Fast
+     *
+     * @throws \ReflectionException
      */
     function fast($context = null)
     {
         if ($context instanceof Fast) {
             actual('fast', $context);
+        } else {
+            $fast = actual('fast');
+
+            if (is_null($fast)) {
+                $fast = new Fast;
+            }
+
+            return $fast;
         }
-
-        $fast = actual('fast');
-
-        if (is_null($fast)) {
-            $fast = new Fast;
-            actual('fast', $fast);
-        }
-
-        return $fast;
     }
 
     /**
@@ -3063,6 +3095,7 @@
     /**
      * @param string $message
      * @param int $code
+     * @throws \ReflectionException
      */
     function response($message = 'Forbidden', $code = 200)
     {
@@ -8299,6 +8332,10 @@
         exception('system', 'This model ever exists.');
     }
 
+    /**
+     * @param string $from
+     * @param string $to
+     */
     function getHelpers($from = '', $to = 'octo')
     {
         static $methods = null;
@@ -8334,7 +8371,11 @@
 
     /**
      * @param null $default
+     *
      * @return mixed|null
+     *
+     * @throws Exception
+     * @throws \Exception
      */
     function cache_start($default = null)
     {
@@ -8348,20 +8389,29 @@
         return fmr()->start($key, $default);
     }
 
+    /**
+     * @return bool|string
+     *
+     * @throws Exception
+     * @throws \Exception
+     */
     function cache_end()
     {
         return fmr()->end();
     }
 
-    function input()
+    /**
+     * @param array ...$args
+     *
+     * @return mixed|object
+     */
+    function input(...$args)
     {
-        $args = func_get_args();
-
         $method = array_shift($args);
 
         $input = lib('input');
 
-        return $method ? call_user_func_array([$input, $method], $args) : $input;
+        return $method ? $input->{$method}(...$args) : $input;
     }
 
     /**
@@ -8426,11 +8476,7 @@
     {
         static $kh = [];
 
-        $k = $ns;
-
-        if (!$ns) {
-            $k = 'core';
-        }
+        $k = null === $ns ? 'core' : $ns;
 
         if (!isset($kh[$k])) {
             $kh[$k] = lib('redis', [$ns]);
@@ -8657,6 +8703,49 @@
     function dom()
     {
         require_once __DIR__ . DS . 'dom.php';
+    }
+
+    /**
+     * @param array $data
+     *
+     * @return Objet
+     */
+    function newRoute(array $data): Objet
+    {
+        return o($data);
+    }
+
+    /**
+     * @return array
+     * @throws \ReflectionException
+     */
+    function getRoutes(): array
+    {
+        return get('global.routes', []);
+    }
+
+    /**
+     * @param array $routes
+     */
+    function setRoutes(array $routes)
+    {
+        set('global.routes', $routes);
+    }
+
+    /**
+     * @param Objet $route
+     * @throws \ReflectionException
+     */
+    function setRoute(Objet $route)
+    {
+        $routes     = getRoutes();
+        $segment    = isAke($routes, $route->getMethod(), []);
+
+        $segment[]  = $route;
+
+        $routes[$route->getMethod()] = $segment;
+
+        setRoutes($routes);
     }
 
     function route(string $name, array $params = [])

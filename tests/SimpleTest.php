@@ -142,7 +142,10 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
-    function testLog()
+    /**
+     * @throws Exception
+     */
+    public function testLog()
     {
         $this->gi('Log', function () {
             return $this->gi()->singleton(Memorylog::class);
@@ -160,13 +163,20 @@ class SimpleTest extends TestCase
         );
     }
 
-    function testAlias()
+    /**
+     * @throws Exception
+     */
+    public function testAlias()
     {
         $this->gi()->alias('foo', __CLASS__);
-        $this->assertInstanceOf(__CLASS__, $this->gi('foo'));
+        $this->assertInstanceOf(__CLASS__, $this->gi()->get('foo'));
+        $this->assertInstanceOf(Inflector::class, $this->gi(Inflector::class));
     }
 
-    function testTranslator()
+    /**
+     * @throws Exception
+     */
+    public function testTranslator()
     {
         /** @var \Octo\Trad $t */
         $t = $this->setTranslator(__DIR__ . '/lang', 'fr');
@@ -175,7 +185,10 @@ class SimpleTest extends TestCase
         $this->assertSame('bar', $t->get('test.foo', ['name' => 'bar']));
     }
 
-    function testRemember()
+    /**
+     * @throws Exception
+     */
+    public function testRemember()
     {
         Remember::set('foo', 'bar');
 
@@ -191,6 +204,9 @@ class SimpleTest extends TestCase
         $this->assertSame("'foo', 'bar'", $this->quoteString(['foo', 'bar']));
     }
 
+    /**
+     * @throws Exception
+     */
     public function testOctoRenderer()
     {
         $html = $this->html(__DIR__ . '/views/demo', ['name' => 'foo']);
@@ -198,6 +214,9 @@ class SimpleTest extends TestCase
         $this->assertSame('<h1>Hello foo</h1>', $html);
     }
 
+    /**
+     * @throws Exception
+     */
     public function testBladeRenderer()
     {
         $html = $this->blade(__DIR__ . '/blade/test', ['name' => 'foo']);
@@ -205,6 +224,9 @@ class SimpleTest extends TestCase
         $this->assertSame('<h1>Test foo</h1>', $html);
     }
 
+    /**
+     * @throws Exception
+     */
     public function testTwigRenderer()
     {
         $html = $this->twig(__DIR__ . '/twig/hello', ['name' => 'foo']);
