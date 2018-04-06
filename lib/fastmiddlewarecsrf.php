@@ -27,12 +27,11 @@ class Fastmiddlewarecsrf extends FastMiddleware
     private $limit;
 
     /**
-     * CsrfMiddleware constructor.
-     *
-     * @param array|\ArrayAccess $session
-     * @param int                $limit
-     * @param string             $sessionKey
-     * @param string             $formKey
+     * @param $session
+     * @param int $limit
+     * @param string $sessionKey
+     * @param string $formKey
+     * @throws \TypeError
      */
     public function __construct(
         &$session,
@@ -58,7 +57,7 @@ class Fastmiddlewarecsrf extends FastMiddleware
                 exception('NoCsrfException', 'no csrf');
             }
 
-            if (!in_array($params[$this->formKey], $this->session[$this->sessionKey] ?? [], true)) {
+            if (false === $this->check($params[$this->formKey], $this->session[$this->sessionKey] ?? [])) {
                 exception('InvalidCsrfException', 'invalid csrf');
             }
 
@@ -69,8 +68,24 @@ class Fastmiddlewarecsrf extends FastMiddleware
     }
 
     /**
-     * @return string
+     * @param $csrf
+     * @param $tokens
      *
+     * @return bool
+     */
+    private function check($csrf, $tokens): bool
+    {
+        foreach ($tokens as $token) {
+            if ($csrf === $token) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return string
      * @throws \Exception
      */
     public function generateToken()

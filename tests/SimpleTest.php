@@ -17,8 +17,11 @@ use Octo\On;
 use Octo\Proxify;
 use Octo\Registry;
 use Octo\Remember;
+use Octo\Throttle;
 use Octo\Trust;
 use function Octo\sessionKey;
+use Octo\You;
+use Octo\Your;
 
 class Notifier
 {
@@ -142,13 +145,130 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    public function testLazyLoading()
+    {
+        $this->assertTrue($this->appli('foo', 'bar'));
+        $this->assertSame('bar', $this->appli('foo'));
+
+        $this->assertTrue($this->appli($this->gi()->singleton(Inflector::class)));
+        $this->assertInstanceOf(Inflector::class, $this->appli(Inflector::class));
+
+        $this->assertTrue($this->appli('i', function () {
+            return $this->gi()->singleton(Inflector::class);
+        }));
+
+        $this->assertInstanceOf(Inflector::class, $this->appli('i'));
+        $this->assertSame($this->appli(Inflector::class), $this->appli('i'));
+
+        $this->assertTrue($this->appli('baz', function ($a, $b = 0) {
+            return $a + $b;
+        }));
+        $this->assertSame(10, $this->appli('baz', 5, 5));
+        $this->assertSame(12, $this->appli('baz', 7, 5));
+        $this->assertSame(7, $this->appli('baz', 7));
+
+        $this->assertTrue($this->appli('bar', function (Inflector $i, $a): string {
+            return $i::lower($a);
+        }));
+        $this->assertSame('baz', $this->appli('bar', 'BAZ'));
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testThrottle()
+    {
+        /** @var Throttle $throttle */
+        $throttle = $this->gi()->singleton(Throttle::class)->get('resource');
+
+        $this->assertSame(0, $throttle->getAttempts());
+        $status = $throttle->attempt();
+
+        $this->assertTrue($status);
+        $this->assertSame(1, $throttle->getAttempts());
+        $status = $throttle->attempt(50);
+        $this->assertSame(51, $throttle->getAttempts());
+        $this->assertFalse($status);
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testYour()
+    {
+        $this->assertFalse(Your::has('foo'));
+
+        Your::set('foo', 'bar');
+
+        $this->assertTrue(Your::has('foo'));
+        $this->assertSame('bar', Your::get('foo'));
+        $this->assertSame(2, Your::incr('bar', 2));
+
+        $your = Your::getInstance();
+
+        $this->assertNull($your->baz);
+        $this->assertNull($your['baz']);
+
+        $your->baz = 'foo';
+        $this->assertSame('foo', Your::get('baz'));
+        $this->assertSame('foo', $your->baz);
+        $this->assertSame('foo', $your['baz']);
+
+        $your['baz'] = 'bar';
+        $this->assertSame('bar', Your::get('baz'));
+        $this->assertSame('bar', $your->baz);
+        $this->assertSame('bar', $your['baz']);
+        $this->assertSame('bar', $your->getBaz());
+        $this->assertSame('bar', Your::getBaz());
+    }
+
+    /**
+     * @throws ReflectionException
+     * @throws TypeError
+     */
+    public function testYou()
+    {
+        You::setProvider('logout', function () {
+            $session = You::getSession();
+
+            unset($session[You::called()->getUserKey()]);
+
+            return null;
+        });
+
+        You::setProvider('login', function () {
+            $session = You::getSession();
+
+            $session[You::called()->getUserKey()] = ['id' => 1, 'name' => 'foo', 'email' => 'foo@bar.com'];
+
+            return true;
+        });
+
+        You::logout();
+
+        $this->assertFalse(You::areAuth());
+        $this->assertTrue(You::areGuest());
+
+        You::login();
+
+        $this->assertFalse(You::areGuest());
+        $this->assertTrue(You::areAuth());
+    }
+
+    public function testRequest()
+    {
+        $request = $this->requestFromGlobals();
+
+        $this->assertSame(\Octo\Parameter::class, get_class($request));
+    }
+
     /**
      * @throws Exception
      */
     public function testLog()
     {
         $this->gi('Log', function () {
-            return $this->gi()->singleton(Memorylog::class);
+            return $this->gi(Memorylog::class);
         });
 
         $this->log('foo');

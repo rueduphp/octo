@@ -632,13 +632,13 @@
         }
 
         /**
+         * @param array ...$args
          * @return mixed|object
-         *
          * @throws \ReflectionException
          */
-        public function resolve()
+        public function resolve(...$args)
         {
-            return instanciator()->factory(...func_get_args());
+            return instanciator()->factory(...$args);
         }
 
         /**

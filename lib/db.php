@@ -1,6 +1,8 @@
 <?php
 namespace Octo;
 
+use Illuminate\Events\Dispatcher;
+
 class Db
 {
     /**
@@ -17,6 +19,25 @@ class Db
             $name = 'select';
         }
 
-        return Capsule::connection()->{$name}(...$arguments);
+        $connection = Capsule::connection();
+
+        $connection->setEventDispatcher(static::getEventDispatcher());
+
+        return $connection->{$name}(...$arguments);
+    }
+
+    /**
+     * @param string $ns
+     * @return Dispatcher
+     * @throws \ReflectionException
+     */
+    public static function getEventDispatcher($ns = 'capsule.dispatcher')
+    {
+        if (!$dispatcher = get($ns)) {
+            $dispatcher = new Dispatcher;
+            set($ns, $dispatcher);
+        }
+
+        return $dispatcher;
     }
 }

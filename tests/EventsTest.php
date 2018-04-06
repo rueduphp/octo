@@ -2,7 +2,6 @@
 
 use Octo\FastEvent;
 use Octo\Inflector;
-use function Octo\dispatch;
 use function Octo\get;
 use function Octo\incr;
 use function Octo\set;
@@ -36,15 +35,29 @@ class EventsTest extends TestCase
     {
         $this->manager = $this->getEventManager();
 
-        $event = $this->manager->on('test', function ($num) {
-            incr('eventval', $num);
+        $event = $this->manager->on('test', function ($by) {
+            incr('eventval', $by);
         });
 
         $event->halt(true);
 
-        $this->manager->on('test2', function ($num) {
-            incr('eventval', $num);
+        $this->manager->on('test2', function ($by) {
+            incr('eventval', $by);
         });
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function testDispatcher()
+    {
+        $this->listen('foo', function ($by) {
+            incr('foo', $by);
+        });
+
+        $this->dispatch('foo', [100]);
+
+        $this->assertSame(100, get('foo'));
     }
 
     /**
@@ -53,7 +66,7 @@ class EventsTest extends TestCase
      */
     public function testDispatch()
     {
-        $result = dispatch(DispatchJob::class, 5);
+        $result = $this->event(DispatchJob::class, 5);
         $this->assertInstanceOf(Inflector::class, $result);
         $this->assertSame(5, get('dispatcher'));
     }

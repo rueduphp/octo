@@ -124,7 +124,7 @@ class Fire
                 ];
             }
 
-            $listeners = array_values(coll($collection)->sortByDesc('priority')->toArray());
+            $listeners = coll($collection)->sortByDesc('priority')->all();
 
             foreach ($listeners as $listenerCalled) {
                 $result = null;
@@ -239,5 +239,99 @@ class Fire
         }
 
         return $this->{$m}(...$a);
+    }
+
+    /**
+     * Determine if a given event has listeners.
+     *
+     * @param  string $eventName
+     * @return bool
+     */
+    public function hasListeners($eventName)
+    {
+        $events = Registry::get('fire.events.' . $this->ns, []);
+
+        return 'octodummy' !== isAke($events, $eventName, 'octodummy');
+    }
+
+    /**
+     * @param object|string $event
+     * @param array $payload
+     * @return void
+     * @throws \ReflectionException
+     */
+    public function until($event, $payload = [])
+    {
+        $events = Registry::get('fire.events.' . $this->ns, []);
+
+        $ev = $events[$event];
+
+        if ($ev instanceof Listener) {
+            $ev->halt(true);
+            $events[$event] = $ev;
+            Registry::set('fire.events.' . $this->ns, $events);
+            $this->emit(...func_get_args());
+        }
+    }
+
+    /**
+     * @param object|string $event
+     * @param array $payload
+     * @param bool $halt
+     *
+     * @return array|null|void
+     *
+     * @throws \ReflectionException
+     */
+    public function dispatch($event, $payload = [], $halt = false)
+    {
+        $this->emit(...func_get_args());
+    }
+
+    /**
+     * @param string $event
+     * @param array $payload
+     *
+     * @throws \ReflectionException
+     */
+    public function push($event, $payload = [])
+    {
+        $this->on(...func_get_args());
+    }
+
+    /**
+     * @param string $event
+     * @throws \ReflectionException
+     */
+    public function flush($event)
+    {
+        $events = Registry::get('fire.events.' . $this->ns, []);
+
+        foreach ($events as $event) {
+            $this->emit($event);
+        }
+    }
+
+    /**
+     * Remove a set of listeners from the dispatcher.
+     *
+     * @param  string $event
+     * @return void
+     */
+    public function forget($event)
+    {
+        $events = Registry::get('fire.events.' . $this->ns, []);
+        unset($events[$event]);
+        Registry::set('fire.events.' . $this->ns, $events);
+    }
+
+    /**
+     * Forget all of the queued listeners.
+     *
+     * @return void
+     */
+    public function forgetPushed()
+    {
+        Registry::set('fire.events.' . $this->ns, []);
     }
 }

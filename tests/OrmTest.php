@@ -5,7 +5,6 @@ use Faker\Generator;
 use Illuminate\Database\Eloquent\Collection as CollectIll;
 use Illuminate\Database\Query\Builder;
 use Octo\Caching;
-use Octo\Capsule;
 use Octo\Elegant;
 use Octo\Factory;
 use Octo\Inflector;
@@ -14,12 +13,9 @@ use Octo\Ormmodel;
 use Octo\Record;
 use Octo\Strings;
 use Tests\Comment;
-use Tests\Migrations;
 use Tests\Post;
 use Tests\Postuser;
 use Tests\User;
-
-date_default_timezone_set('Europe/Paris');
 
 function testWithModel(UserModel $user)
 {
@@ -113,23 +109,7 @@ class OrmTest extends TestCase
 
         $this->factories();
 
-        $PDOoptions = [
-            PDO::ATTR_CASE                 => PDO::CASE_NATURAL,
-            PDO::ATTR_ERRMODE              => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_ORACLE_NULLS         => PDO::NULL_NATURAL,
-            PDO::ATTR_DEFAULT_FETCH_MODE   => PDO::FETCH_ASSOC,
-            PDO::ATTR_STRINGIFY_FETCHES    => false,
-            PDO::ATTR_EMULATE_PREPARES     => false
-        ];
-
-        $this->pdo = new PDO('sqlite::memory:', null, null, $PDOoptions);
-
-        $this->db = new Orm($this->pdo);
-
-        Capsule::instance($this->pdo);
-
-        Migrations::migrate($this->db->schema());
-        Migrations::seeds($this->db);
+        $this->db = new Orm($this->getPdo());
     }
 
     /**

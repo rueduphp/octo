@@ -42,6 +42,114 @@
         return (new Autoloader)->loader($class);
     });
 
+    function getRequestHeaders(Parameter $bag)
+    {
+        $headers = [];
+
+        $contentHeaders = array(
+            'CONTENT_LENGTH'    => true,
+            'CONTENT_MD5'       => true,
+            'CONTENT_TYPE'      => true
+        );
+
+        foreach ($bag as $key => $value) {
+            if (0 === strpos($key, 'HTTP_')) {
+                $headers[substr($key, 5)] = $value;
+            } elseif (isset($contentHeaders[$key])) {
+                $headers[$key] = $value;
+            }
+        }
+
+        if (isset($bag['PHP_AUTH_USER'])) {
+            $headers['PHP_AUTH_USER'] = $bag['PHP_AUTH_USER'];
+            $headers['PHP_AUTH_PW'] = isset($bag['PHP_AUTH_PW']) ? $bag['PHP_AUTH_PW'] : '';
+        } else {
+            $authorizationHeader = null;
+
+            if (isset($bag['HTTP_AUTHORIZATION'])) {
+                $authorizationHeader = $bag['HTTP_AUTHORIZATION'];
+            } elseif (isset($bag['REDIRECT_HTTP_AUTHORIZATION'])) {
+                $authorizationHeader = $bag['REDIRECT_HTTP_AUTHORIZATION'];
+            }
+
+            if (null !== $authorizationHeader) {
+                if (0 === stripos($authorizationHeader, 'basic ')) {
+                    $exploded = explode(
+                        ':',
+                        base64_decode(
+                            substr(
+                                $authorizationHeader,
+                                6
+                            )
+                        ),
+                        2
+                    );
+
+                    if (2 === count($exploded)) {
+                        list($headers['PHP_AUTH_USER'], $headers['PHP_AUTH_PW']) = $exploded;
+                    }
+                } elseif (empty($bag['PHP_AUTH_DIGEST']) && (0 === stripos($authorizationHeader, 'digest '))) {
+                    $headers['PHP_AUTH_DIGEST'] = $authorizationHeader;
+                    $bag['PHP_AUTH_DIGEST'] = $authorizationHeader;
+                } elseif (0 === stripos($authorizationHeader, 'bearer ')) {
+                    $headers['AUTHORIZATION'] = $authorizationHeader;
+                }
+            }
+        }
+
+        if (isset($headers['AUTHORIZATION'])) {
+            return $headers;
+        }
+
+        if (isset($headers['PHP_AUTH_USER'])) {
+            $headers['AUTHORIZATION'] = 'Basic '
+                . base64_encode($headers['PHP_AUTH_USER']
+                . ':'
+                . $headers['PHP_AUTH_PW'])
+            ;
+        } elseif (isset($headers['PHP_AUTH_DIGEST'])) {
+            $headers['AUTHORIZATION'] = $headers['PHP_AUTH_DIGEST'];
+        }
+
+        return $headers;
+    }
+
+    function requestFromGlobals(array $attributes = [])
+    {
+        $server = $_SERVER;
+
+        if ('cli-server' === PHP_SAPI) {
+            if (array_key_exists('HTTP_CONTENT_LENGTH', $server)) {
+                $server['CONTENT_LENGTH'] = $server['HTTP_CONTENT_LENGTH'];
+            }
+
+            if (array_key_exists('HTTP_CONTENT_TYPE', $server)) {
+                $server['CONTENT_TYPE'] = $server['HTTP_CONTENT_TYPE'];
+            }
+        }
+
+        $request                = new Parameter;
+        $request['attributes']  = new Parameter($attributes);
+        $request['request']     = new Parameter($_POST);
+        $request['query']       = new Parameter($_GET);
+        $request['cookies']     = new Parameter($_COOKIE);
+        $request['files']       = new Parameter($_FILES);
+        $request['server']      = new Parameter($server);
+        $request['headers']     = new Parameter(getRequestHeaders($request['server']));
+
+        if (0 === strpos($request['headers']->get('CONTENT_TYPE'), 'application/x-www-form-urlencoded')
+            && in_array(
+                strtoupper($request['server']->get('REQUEST_METHOD', 'GET')),
+                array('PUT', 'DELETE', 'PATCH')
+            )
+        ) {
+            parse_str($request['content'], $data);
+            $request->request = new Parameter($data);
+        }
+
+        return $request;
+    }
+
     /**
      * @param null|string $html
      * @param int $code
@@ -2491,8 +2599,8 @@
 
     /**
      * @param string $context
-     *
      * @return string
+     * @throws \TypeError
      */
     function locale(string $context = 'web'): string
     {
@@ -4360,7 +4468,7 @@
         $data   = segment('core');
         $value  = aget($data, $k, $d);
 
-        return value($value);
+        return $value;
     }
 
     /**
@@ -4376,7 +4484,7 @@
             $value  = aget($data, $k, $d);
             forget($k);
 
-            return value($value);
+            return $value;
         }
 
         return $d;
@@ -4958,16 +5066,32 @@
         return $zones;
     }
 
+    /**
+     * @param $class
+     * @param callable $resolver
+     * @return Fast
+     * @throws \ReflectionException
+     */
     function register($class, callable $resolver)
     {
         return app()->bind($class, $resolver);
     }
 
+    /**
+     * @param $key
+     * @param null $default
+     *
+     * @return mixed
+     */
     function old($key, $default = null)
     {
         return isAke($_REQUEST, $key, $default);
     }
 
+    /**
+     * @return mixed
+     * @throws \TypeError
+     */
     function csrf_token()
     {
         return session('csrf')->getToken();
@@ -4993,39 +5117,50 @@
     }
 
     /**
-     * @param string $tokenName
-     * @param string $sessionKey
-     *
      * @return string
+     *
+     * @throws \Exception     *
+     * @throws \TypeError
      */
     function csrf()
     {
-        $session        = instanciator()->singleton(FastSessionInterface::class);
-        $middleware     = new Fastmiddlewarecsrf($session);
+        $middleware     = new Fastmiddlewarecsrf(getSession());
         $token          = $middleware->generateToken();
         $tokenName      = $middleware->getFormKey();
 
         return '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
     }
 
+    /**
+     * @return string
+     * @throws \Exception
+     * @throws \TypeError
+     */
     function csrf_make()
     {
-        $token = token();
-
-        session('csrf')
-        ->setOldToken(
-            session('csrf')
-            ->getToken()
-        )->setToken($token);
+        $session    = getSession();
+        $middleware = new Fastmiddlewarecsrf($session);
+        $token      = $middleware->generateToken();
 
         return $token;
     }
 
-    function csrf_match($name = 'octo_token')
+    /**
+     * @return bool
+     * @throws \ReflectionException
+     * @throws \TypeError
+     */
+    function csrf_match()
     {
-        $tokenName = Config::get('token_name', $name);
+        /** @var FastRequest $request */
+        $request    = instanciator()->singleton(FastRequest::class);
+        $session    = getSession();
+        $middleware = new Fastmiddlewarecsrf($session);
+        $tokens     = $session[$middleware->getSessionKey()] ?? [];
 
-        return posted($tokenName) == session('csrf')->getToken();
+        $csrf = $request->post($middleware->getFormKey());
+
+        return in_array($csrf, $tokens);
     }
 
     /**
@@ -5273,7 +5408,7 @@
      */
     function getSession()
     {
-        return getContainer()->getSession() ? : trust()->session();
+        return getContainer()->getSession();
     }
 
     /**
@@ -6309,43 +6444,90 @@
         return $events;
     }
 
-    function listen($event, array $args = [])
+    /**
+     * @param string $ns
+     * @return \Illuminate\Events\Dispatcher
+     * @throws \ReflectionException
+     */
+    function dispatcher($ns = 'core.dispatcher')
     {
-        $events = Registry::get('core.events', []);
+        return Db::getEventDispatcher($ns);
+    }
 
-        $e = isAke($events, $event, null);
-
-        if ($e) {
-            return call_user_func_array($e, $args);
+    /**
+     * @return \Illuminate\Container\Container
+     * @throws \ReflectionException
+     */
+    function getApp()
+    {
+        if (!$app = store('core.app')) {
+            $d = dispatcher();
+            $ref = new \ReflectionClass($d);
+            $property = $ref->getProperty("container");
+            $property->setAccessible(true);
+            $app = $property->getValue($d);
+            $property->setAccessible(false);
+            store('core.app', $app);
         }
 
-        return null;
+        return $app;
+    }
+
+    /**
+     * @param array ...$args
+     * @return \Illuminate\Events\Dispatcher
+     * @throws \ReflectionException
+     */
+    function listen(...$args)
+    {
+        $dispatcher = dispatcher();
+        $dispatcher->listen(...$args);
+
+        return $dispatcher;
+    }
+
+    /**
+     * @param array ...$args
+     * @return \Illuminate\Events\Dispatcher
+     * @throws \ReflectionException
+     */
+    function push(...$args)
+    {
+        $dispatcher = dispatcher();
+
+        $dispatcher->push(...$args);
+
+        return $dispatcher;
+    }
+
+    /**
+     * @param array ...$args
+     * @return array|null
+     * @throws \ReflectionException
+     */
+    function dispatch(...$args)
+    {
+        return dispatcher()->dispatch(...$args);
     }
 
     /**
      * @return null|Listener
      */
-    function on()
+    function on(...$args)
     {
-        return subscribe(...func_get_args());
+        return subscribe(...$args);
     }
 
-    function only()
+    function only(...$keys)
     {
-        /** @var array $keys */
-        $keys = func_get_args();
-
         /** @var array $items */
         $items = array_shift($keys);
 
         return Arrays::only($items, $keys);
     }
 
-    function except()
+    function except(...$keys)
     {
-        /** @var array $keys */
-        $keys = func_get_args();
-
         /** @var array $items */
         $items = array_shift($keys);
 
@@ -6382,9 +6564,107 @@
             if (File::exists($controller) && File::exists($tpl)) {
                 $ages = [filemtime($controller), filemtime($tpl)];
 
-                return etag(max($ages));
+                etag(max($ages));
             }
         }
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return bool|mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function store(...$args)
+    {
+        if (!$bag = get('store.bag')) {
+            /** @var Parameter $bag */
+            $bag = gi()->factory(Parameter::class);
+            set('store.bag', $bag);
+        }
+
+        $nargs = count($args);
+
+        if ($nargs > 0) {
+            $key = array_shift($args);
+
+            if (is_string($key)) {
+                if ($bag->has($key)) {
+                    if (1 === $nargs) {
+                        return $bag->get($key);
+                    } elseif (3 === $nargs) {
+                        array_shift($args);
+
+                        return $bag->get($key, current($args));
+                    }
+                }
+
+                if (2 === $nargs) {
+                    $bag->set($key, current($args));
+
+                    return true;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array ...$args
+     * @return bool|mixed|null
+     * @throws \ReflectionException
+     */
+    function myApp(...$args)
+    {
+        if (!$bag = get('ll.bag')) {
+            /** @var Parameter $bag */
+            $bag = gi()->factory(Parameter::class);
+            set('ll.bag', $bag);
+        }
+
+        $nargs = count($args);
+
+        if ($nargs > 0) {
+            $first = array_shift($args);
+
+            if (is_object($first) && 1 === $nargs) {
+                $args[] = $first;
+                $nargs = 2;
+                $first = get_class($first);
+            }
+
+            if (is_string($first)) {
+                $key = 'll.' . $first;
+
+                $callable = $bag->get($key);
+
+                if (is_callable($callable)) {
+                    $params = array_merge([$callable], $args);
+
+                    return gi()->makeClosure(...$params);
+                }
+
+                if ($nargs === 2) {
+                    $value = array_shift($args);
+
+                    if (!is_callable($value)) {
+                        $callback = function () use ($value) {
+                            return $value;
+                        };
+
+                        $value = $callback;
+                    }
+
+                    $bag->set($key, $value);
+
+                    return true;
+                }
+            }
+        }
+
+        return null;
     }
 
     function etag($time)
@@ -6719,20 +6999,16 @@
         return maker($class, $args);
     }
 
-    function appli($lib, $args = [], $dir = null)
+    /**
+     * @param array ...$args
+     *
+     * @return bool|mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function appli(...$args)
     {
-        $dir    = empty($dir) ? path('app') . DS . 'lib' : $dir;
-        $class  = '\\Octo\\' . Strings::camelize($lib) . 'App';
-
-        if (!class_exists($class)) {
-            $file = $dir . DS . Strings::lower($lib) . '.php';
-
-            if (file_exists($file)) {
-                require_once $file;
-            }
-        }
-
-        return maker($class, $args);
+        return myApp(...$args);
     }
 
     /**
@@ -7976,10 +8252,15 @@
      */
     function tsToTime($timestamp, $tz = null)
     {
-        return Date::createFromTimestamp($timestamp, $tz);
+        return Time::createFromTimestamp($timestamp, $tz);
     }
 
-    function pois(string $address, $type = 'restaurant')
+    /**
+     * @param string $address
+     * @param string $type
+     * @return mixed
+     */
+    function pois(string $address, string $type = 'restaurant')
     {
         return lib('geo')->placesByAddress($address, $type);
     }
@@ -8037,15 +8318,6 @@
                 return instanciator()->call($instance, 'onFail');
             }
         }
-    }
-
-    /**
-     * @return mixed|null|FastEvent
-     * @throws \ReflectionException
-     */
-    function dispatch()
-    {
-        return event(...func_get_args());
     }
 
     function objectifier()

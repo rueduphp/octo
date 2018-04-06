@@ -117,6 +117,26 @@ class Instanciator
                                     $p = null;
                                 }
                             }
+
+                            $classParam = $param->getClass();
+
+                            if ($classParam) {
+                                $c = $classParam->getName();
+
+                                if (!$p instanceof $c) {
+                                    array_unshift($args, $p);
+
+                                    try {
+                                        $p = $this->factory($c);
+
+                                        if ($p instanceof FastModelInterface) {
+                                            $p = $this->makeModel($p);
+                                        }
+                                    } catch (\Exception $e) {
+                                        exception('Instanciator', $e->getMessage());
+                                    }
+                                }
+                            }
                         } else {
                             $classParam = $param->getClass();
 
@@ -255,6 +275,26 @@ class Instanciator
                             $p = null;
                         }
                     }
+
+                    $classParam = $param->getClass();
+
+                    if ($classParam) {
+                        $c = $classParam->getName();
+
+                        if (!$p instanceof $c) {
+                            array_unshift($args, $p);
+
+                            try {
+                                $p = $this->factory($c);
+
+                                if ($p instanceof FastModelInterface) {
+                                    $p = $this->makeModel($p);
+                                }
+                            } catch (\Exception $e) {
+                                exception('Instanciator', $e->getMessage());
+                            }
+                        }
+                    }
                 } else {
                     $classParam = $param->getClass();
 
@@ -338,6 +378,26 @@ class Instanciator
                                 $p = $param->getDefaultValue();
                             } catch (PHPException $e) {
                                 $p = null;
+                            }
+                        }
+
+                        $classParam = $param->getClass();
+
+                        if ($classParam) {
+                            $c = $classParam->getName();
+
+                            if (!$p instanceof $c) {
+                                array_unshift($args, $p);
+
+                                try {
+                                    $p = $this->factory($c);
+
+                                    if ($p instanceof FastModelInterface) {
+                                        $p = $this->makeModel($p);
+                                    }
+                                } catch (\Exception $e) {
+                                    exception('Instanciator', $e->getMessage());
+                                }
                             }
                         }
                     } else {
@@ -471,7 +531,8 @@ class Instanciator
 
     /**
      * @param string $class
-     * @return mixed
+     * @return mixed|object
+     * @throws \ReflectionException
      */
     public function getOr(string $class)
     {
@@ -625,8 +686,8 @@ class Instanciator
 
     /**
      * @param array ...$args
-     *
-     * @return mixed|Instanciator
+     * @return mixed|object|Instanciator
+     * @throws \ReflectionException
      */
     public function invokable(...$args)
     {

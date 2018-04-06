@@ -224,6 +224,7 @@
 
             /** @var  Connection $connection */
             $connection = $this->grammar(foundry(Connection::class, $this->pdo));
+            $connection->setEventDispatcher(Db::getEventDispatcher('orm.dispatcher'));
 
             /** @var ConnectionResolver $resolver */
             $resolver   = foundry(

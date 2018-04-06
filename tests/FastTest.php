@@ -5,6 +5,7 @@ use Octo\Config;
 use Octo\Facader;
 use Octo\Fast;
 use Octo\FastMiddleware;
+use Octo\Fastmiddlewarecsrf;
 use Octo\FastRendererInterface;
 use Octo\FastRequest;
 use Octo\FastUserOrmInterface;
@@ -236,7 +237,6 @@ class FastTest extends TestCase
     {
         parent::setUp();
 
-//            $this->session = new Octo\Sessionarray;
         $this->session = new Live(new Now(sessionKey()));;
 
         $this->app = App::create();
@@ -429,6 +429,30 @@ class FastTest extends TestCase
         $this->assertEquals(404, $response->getStatusCode());
         $this->assertEquals(404, $this->app->getResponse()->getStatusCode());
     }
+
+    /**
+     * @throws Exception
+     * @throws TypeError
+     */
+    public function testCsrf()
+    {
+        $middleware = new Fastmiddlewarecsrf($this->session);
+
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+
+        $csrf = $_POST[$middleware->getFormKey()] = $middleware->generateToken();
+
+        $this->app->fromGlobals();
+
+        $tokens = $this->session[$middleware->getSessionKey()] ?? [];
+
+        $this->assertCount(1, $tokens);
+        $this->assertTrue(in_array($csrf, $tokens));
+        $this->assertTrue($this->csrf_match());
+
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+    }
+
 
     /**
      * @throws Exception

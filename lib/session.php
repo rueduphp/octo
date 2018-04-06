@@ -44,7 +44,7 @@
 
                         return new self($this->_name);
                     } else {
-                        $_SESSION['infos_' . session_id()][$this->_name]['end']     = time() + Config::get('session.duration', 3600);
+                        $_SESSION['infos_' . session_id()][$this->_name]['end'] = time() + Config::get('session.duration', 3600);
                     }
                 }
             }
