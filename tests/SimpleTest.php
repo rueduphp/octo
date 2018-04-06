@@ -95,7 +95,7 @@ class MyEvent extends Octo\Fire {}
 
 class Middleware
 {
-    public function handle($request, $response, callable $next)
+    public function handle(\Psr\Http\Message\RequestInterface $request, $response, callable $next)
     {
         $uri = $request->getUri()->getPath();
         context('app')->uri = $uri;
