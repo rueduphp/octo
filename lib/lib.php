@@ -9634,6 +9634,39 @@
     }
 
     /**
+     * @param callable $callback
+     * @param int $times
+     * @param int $sleep
+     * @return mixed|null
+     * @throws \Exception
+     */
+    function retry(callable $callback, int $times = 2, int $sleep = 0)
+    {
+        $times--;
+
+        beginning:
+        try {
+            if ($callback instanceof Closure) {
+                return gi()->makeClosure($callback);
+            } elseif (is_array($callback)) {
+                return gi()->call($callback);
+            }
+        } catch (\Exception $e) {
+            if (0 === $times) {
+                throw $e;
+            }
+
+            $times--;
+
+            if (0 < $sleep) {
+                usleep($sleep * 1000);
+            }
+
+            goto beginning;
+        }
+    }
+
+    /**
      * @param array ...$args
      *
      * @return bool|mixed|null|Alert
@@ -9644,18 +9677,18 @@
     {
         $concern    = array_shift($args);
         $class      = array_shift($args);
-        $instance   = instanciator()->factory($class, $concern);
+        $instance   = gi()->factory($class, $concern);
         $params     = array_merge([$instance, 'handle'], array_merge([$concern], $args));
-        $driver     = instanciator()->call(...$params);
+        $driver     = gi()->call(...$params);
 
         if ('database' === $driver) {
-            $data = instanciator()->call($instance, 'toDatabase', $concern);
+            $data = gi()->call($instance, 'toDatabase', $concern);
 
             return Alert::sendToDatabase($instance, $concern, $data);
         } elseif ('mail' === $driver) {
-            return instanciator()->call($instance, 'sendToMail', $concern);
+            return gi()->call($instance, 'sendToMail', $concern);
         } elseif ('redis' === $driver) {
-            $data = instanciator()->call($instance, 'toDatabase', $concern);
+            $data = gi()->call($instance, 'toDatabase', $concern);
 
             return Alert::sendToRedis($instance, $concern, $data);
         }
@@ -9687,17 +9720,17 @@
     function resolverClass(string $class, string $sep = '@')
     {
         if (is_invokable($class)) {
-            return instanciator()->factory($class);
+            return gi()->factory($class);
         }
 
         return function() use ($class, $sep) {
             $segments   = explode($sep, $class);
             $method     = count($segments) === 2 ? $segments[1] : 'handle';
-            $callable   = [instanciator()->factory($segments[0]), $method];
+            $callable   = [gi()->factory($segments[0]), $method];
             $data       = func_get_args();
             $params     = array_merge($callable, $data);
 
-            return instanciator()->call(...$params);
+            return gi()->call(...$params);
         };
     }
 
