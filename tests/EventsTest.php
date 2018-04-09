@@ -47,6 +47,7 @@ class EventsTest extends TestCase
     }
 
     /**
+     * @throws Exception
      * @throws ReflectionException
      */
     public function testDispatcher()

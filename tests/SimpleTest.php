@@ -1,7 +1,9 @@
 <?php
 
 use Octo\Alert;
+use Octo\Arrays;
 use Octo\Breeze;
+use Octo\Component;
 use Octo\Config;
 use Octo\Emit;
 use Octo\Facade;
@@ -11,6 +13,7 @@ use Octo\InternalEvents;
 use Octo\Live;
 use Octo\Memorylog;
 use Octo\Monkeypatch;
+use Octo\Mvc;
 use Octo\Notifiable;
 use Octo\Now;
 use Octo\On;
@@ -145,8 +148,56 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    public function testComponent()
+    {
+        $mvc = new Mvc();
+        $app = new Component($mvc());
+        $app['foo'] = 'bar';
+        $this->assertSame('bar', $app['foo']);
+        $this->assertSame('bar', $app->foo);
+        $this->assertSame('bar', $app->foo());
+
+        $app->test(function (Inflector $i, $a) {
+            return $i::upper($a);
+        });
+
+        $app['baz'] = function ($x) {
+            return 10 * $x;
+        };
+
+        $this->assertSame('FOO', $app->test('foo'));
+        $this->assertSame('baz', $app->testing('BAZ'));
+        $this->assertSame(100, $app->baz(10));
+    }
+
+    /**
+     * @throws Exception
+     */
     public function testLazyLoading()
     {
+        $this->factorOnce(Inflector::class, function () {
+            return new Inflector;
+        });
+
+        $this->assertSame($this->factorOnce(Inflector::class), $this->factorOnce(Inflector::class));
+
+        $this->factorer(Arrays::class, function () {
+            return new Arrays;
+        });
+
+        $this->assertNotSame($this->factorer(Arrays::class), $this->factorer(Arrays::class));
+
+        $this->lazyCore('foo', 'bar');
+        $this->assertSame('bar', $this->lazyCore('foo'));
+        $this->assertSame('bar', $this->lazyCore('foo', 'baz'));
+        $this->delCore('foo');
+        $this->assertNull($this->lazyCore('foo'));
+        $this->assertSame(1, $this->incrCore('bar'));
+        $this->assertSame(10, $this->incrCore('bar', 9));
+        $this->assertSame(9, $this->decrCore('bar'));
+        $this->assertSame(1, $this->decrCore('bar', 8));
+        $this->assertTrue($this->hasCore('bar'));
+
         $this->assertTrue($this->appli('foo', 'bar'));
         $this->assertSame('bar', $this->appli('foo'));
 
@@ -174,6 +225,7 @@ class SimpleTest extends TestCase
     }
 
     /**
+     * @throws Exception
      * @throws ReflectionException
      */
     public function testThrottle()
@@ -192,6 +244,7 @@ class SimpleTest extends TestCase
     }
 
     /**
+     * @throws Exception
      * @throws ReflectionException
      */
     public function testYour()
