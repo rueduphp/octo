@@ -384,7 +384,12 @@
         return URLSITE . isAke($_SERVER, 'REQUEST_URI', '');
     }
 
-    function contains($key, $string)
+    /**
+     * @param string $key
+     * @param string $string
+     * @return bool
+     */
+    function contains(string $key, string $string)
     {
         return \fnmatch("*$key*", $string) ? true : false;
     }
@@ -2112,6 +2117,16 @@
     }
 
     /**
+     * @param string $callback
+     * @param null|string $default
+     * @return array
+     */
+    function parseCaller(string $callback, ?string $default = null): array
+    {
+        return false !== strpos($callback, '@') ? explode('@', $callback, 2) : [$callback, $default];
+    }
+
+    /**
      * @param string|null $str
      */
     function hr(?string $str = null)
@@ -2127,7 +2142,6 @@
     {
         $back   = '';
 
-        // $traces = Thin\Input::globals('dbg_stack', []);
         $traces = debug_backtrace();
         array_pop($traces);
 
@@ -2139,12 +2153,10 @@
                 if (false !== $file && false !== $line && $file != __FILE__) {
                     $start      = $line > 5 ? $line - 5 : $line;
                     $code       = File::readLines($file, $start, $line + 5);
-
                     $lines      = explode("\n", $code);
-
                     $codeLines  = [];
 
-                    $i          = $start;
+                    $i = $start;
 
                     foreach ($lines as $codeLine) {
                         if ($i == $line) {
@@ -3158,7 +3170,9 @@
 
         if ($closure instanceof Closure) {
             return lazy(function () use ($closure, $args) {
-                return instanciator()->makeClosure($closure, $args);
+                $params = array_merge([$closure], $args);
+
+                return instanciator()->makeClosure(...$params);
             });
         }
 
@@ -6612,6 +6626,195 @@
     }
 
     /**
+     * @param string $key
+     * @param array ...$args
+     *
+     * @return bool|mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function factorer(string $key, ...$args)
+    {
+        $value = array_shift($args);
+
+        if (null === $value) {
+            if ($class = getCore('instances.' . $key)) {
+                $params = array_merge([$class], $args);
+
+                return gi()->makeClosure(...$params);
+            }
+        } else {
+            if (is_callable($value)) {
+                setCore('instances.' . $key, $value);
+
+                return true;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param string $key
+     * @param array ...$args
+     *
+     * @return bool|mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function factorOnce(string $key, ...$args)
+    {
+        $value = array_shift($args);
+
+        if (null === $value) {
+            if ($singleton = getCore('singletons.' . $key)) {
+                return $singleton;
+            }
+        } else {
+            if (is_callable($value)) {
+                $params = array_merge([$value], $args);
+                $singleton = gi()->makeClosure(...$params);
+                setCore('singletons.' . $key, $singleton);
+
+                return true;
+            }
+        }
+
+        return null;
+    }
+
+    function coreData(? array $core = null)
+    {
+        static $data = [];
+
+        if (null === $core) {
+            return $data;
+        }
+
+        $data = $core;
+    }
+
+    /**
+     * @param string $key
+     * @param $value
+     */
+    function setCore(string $key, $value)
+    {
+        $data = coreData();
+        $k = 'core.' . $key;
+        $data[$k] = $value;
+
+        coreData($data);
+    }
+
+    /**
+     * @param string $key
+     * @param null $default
+     * @return mixed
+     */
+    function getCore(string $key, $default = null)
+    {
+        $data = coreData();
+        $k = 'core.' . $key;
+
+        return isAke($data, $k, $default);
+    }
+
+    /**
+     * @param string $key
+     * @return bool
+     */
+    function hasCore(string $key): bool
+    {
+        $data = coreData();
+        $k = 'core.' . $key;
+
+        return 'octodummy' !== isAke($data, $k, 'octodummy');
+    }
+
+    /**
+     * @param string $key
+     * @return bool
+     */
+    function delCore(string $key): bool
+    {
+        $status = hasCore($key);
+
+        if (true === $status) {
+            $data = coreData();
+            $k = 'core.' . $key;
+            unset($data[$k]);
+            coreData($data);
+        }
+
+        return $status;
+    }
+
+    /**
+     * @param string $key
+     * @param null $default
+     *
+     * @return mixed|null
+     */
+    function pullCore(string $key, $default = null)
+    {
+        if (true === hasCore($key)) {
+            $value = getCore($key);
+            delCore($key);
+
+            return $value;
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param string $key
+     * @param int $by
+     * @return int
+     */
+    function incrCore(string $key, $by = 1): int
+    {
+        $old = getCore($key, 0);
+        $new = $old + $by;
+
+        setCore($key, $new);
+
+        return $new;
+    }
+
+    /**
+     * @param string $key
+     * @param int $by
+     * @return int
+     */
+    function decrCore(string $key, $by = 1): int
+    {
+        $old = getCore($key, 0);
+        $new = $old - $by;
+
+        setCore($key, $new);
+
+        return $new;
+    }
+
+    /**
+     * @param string $key
+     * @param $cb
+     * @return mixed
+     */
+    function lazyCore(string $key, $cb = null)
+    {
+        $res = getCore($key, 'octodummy');
+
+        if ('octodummy' === $res) {
+            setCore($key, $res = is_callable($cb) ? $cb() : $cb);
+        }
+
+        return $res;
+    }
+
+    /**
      * @param array ...$args
      * @return bool|mixed|null
      * @throws \ReflectionException
@@ -7911,11 +8114,16 @@
 
     /**
      * @param null $value
+     * @param callable|null
      * @return Nullable
      */
-    function nullable($value = null)
+    function nullable($value = null, ?callable $callback = null)
     {
-        return new Nullable($value);
+        if (is_null($callback)) {
+            return new Nullable($value);
+        } elseif (!is_null($value)) {
+            return $callback($value);
+        }
     }
 
     /**
