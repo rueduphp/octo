@@ -774,6 +774,11 @@ trait Sleepable
     }
 }
 
+interface isArrayable
+{
+    public function toArray();
+}
+
 trait Arrayable
 {
     /**
@@ -972,6 +977,11 @@ trait Arrayable
     {
         return coll($this->data)->{$name}(...$arguments);
     }
+}
+
+interface Jsonable
+{
+    public function toJson($options = 0);
 }
 
 trait Eventable
