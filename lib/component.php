@@ -2,8 +2,7 @@
 namespace Octo;
 
 use ArrayAccess;
-use function get_class_methods;
-use function is_callable;
+use Closure;
 
 class Component implements ArrayAccess
 {
@@ -19,6 +18,24 @@ class Component implements ArrayAccess
     public function __construct(array $data = [])
     {
         $this->__bag = new Parametermemory($data);
+    }
+
+    /**
+     * @param string $class
+     * @param string $prefix
+     * @return Component
+     * @throws \ReflectionException
+     */
+    public function addClass(string $class, string $prefix = ''): self
+    {
+        $instance = gi()->make($class);
+        $methods = $instance($this);
+
+        foreach ($methods as $method => $callable) {
+            $this->__bag[$prefix . $method] = $callable;
+        }
+
+        return $this;
     }
 
     /**
@@ -49,7 +66,7 @@ class Component implements ArrayAccess
     {
         if ($callable = $this->__bag->{$method}) {
             if (is_callable($callable)) {
-                if ($callable instanceof \Closure) {
+                if ($callable instanceof Closure) {
                     $args = array_merge([$callable], $parameters);
 
                     return gi()->makeClosure(...$args);

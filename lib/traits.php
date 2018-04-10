@@ -779,6 +779,30 @@ interface isArrayable
     public function toArray();
 }
 
+trait Componentable
+{
+    public function __invoke($app)
+    {
+        $return = [];
+
+        $methods = get_class_methods(__CLASS__);
+
+        foreach ($methods as $method) {
+            if (!fnmatch('__*', $method)) {
+                $callback = function (...$args) use ($method, $app) {
+                    $params = array_merge([$this, $method], array_merge([$app], $args));
+
+                    return gi()->call(...$params);
+                };
+
+                $return[$method] = $callback;
+            }
+        }
+
+        return $return;
+    }
+}
+
 trait Arrayable
 {
     /**

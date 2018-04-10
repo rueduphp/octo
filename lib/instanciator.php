@@ -135,6 +135,16 @@ class Instanciator
                                     } catch (\Exception $e) {
                                         exception('Instanciator', $e->getMessage());
                                     }
+                                } else {
+                                    if ($param->hasType() && !$param->getType()->isBuiltin()) {
+                                        $t = (string) $param->getType()->getName();
+
+                                        if ((string) gettype($p) !== $t) {
+                                            if (true === $param->isDefaultValueAvailable()) {
+                                                $p = $param->getDefaultValue();
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         } else {
@@ -293,6 +303,16 @@ class Instanciator
                             } catch (\Exception $e) {
                                 exception('Instanciator', $e->getMessage());
                             }
+                        } else {
+                            if ($param->hasType() && !$param->getType()->isBuiltin()) {
+                                $t = (string) $param->getType()->getName();
+
+                                if ((string) gettype($p) !== $t) {
+                                    if (true === $param->isDefaultValueAvailable()) {
+                                        $p = $param->getDefaultValue();
+                                    }
+                                }
+                            }
                         }
                     }
                 } else {
@@ -365,7 +385,7 @@ class Instanciator
         $reflection = new Reflector(get_class($object));
 
         try {
-            $ref  = $reflection->getMethod($method);
+            $ref    = $reflection->getMethod($method);
             $params = $ref->getParameters();
 
             if (empty($args) || count($args) !== count($params)) {
@@ -397,6 +417,16 @@ class Instanciator
                                     }
                                 } catch (\Exception $e) {
                                     exception('Instanciator', $e->getMessage());
+                                }
+                            } else {
+                                if ($param->hasType() && !$param->getType()->isBuiltin()) {
+                                    $t = (string) $param->getType()->getName();
+
+                                    if ((string) gettype($p) !== $t) {
+                                        if (true === $param->isDefaultValueAvailable()) {
+                                            $p = $param->getDefaultValue();
+                                        }
+                                    }
                                 }
                             }
                         }

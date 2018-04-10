@@ -148,11 +148,13 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    /**
+     * @throws ReflectionException
+     */
     public function testComponent()
     {
-        $mvc = new Mvc();
-        $app = new Component($mvc());
-        $app['foo'] = 'bar';
+        $app = new Component;
+        $app->addClass(Mvc::class)['foo'] = 'bar';
         $this->assertSame('bar', $app['foo']);
         $this->assertSame('bar', $app->foo);
         $this->assertSame('bar', $app->foo());

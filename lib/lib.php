@@ -6814,6 +6814,57 @@
         return $res;
     }
 
+    function m(...$args)
+    {
+        return new \Mockery\Container(...$args);
+    }
+
+    /**
+     * @param $object
+     * @return array
+     * @throws \ReflectionException
+     */
+    function jsonobject($object)
+    {
+        $reflect    = new \ReflectionClass($object);
+        $props      = $reflect->getDefaultProperties();
+
+        foreach ($props as $key => $value) {
+            $check_references = explode("_", $key);
+            $getter = "";
+
+            if (!empty($check_references)) {
+                foreach ($check_references as $reference) {
+                    $getter .= ucfirst($reference);
+                }
+            } else {
+                $getter = ucfirst($key);
+            }
+
+            $getter = "get" . $getter;
+
+            if (is_object($object->$getter())) {
+                $props[$key] = jsonobject($object->$getter());
+            } else {
+                if (is_array($object->$getter())) {
+                    $props[$key] = [];
+
+                    foreach ($object->$getter() as $anObject) {
+                        if (is_object($anObject)) {
+                            $props[$key][] = jsonobject($anObject);
+                        } else {
+                            $props[$key][] = $anObject;
+                        }
+                    }
+                } else {
+                    $props[$key] = $object->$getter();
+                }
+            }
+        }
+
+        return $props;
+    }
+
     /**
      * @param array ...$args
      * @return bool|mixed|null
