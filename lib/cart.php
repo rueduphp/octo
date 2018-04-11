@@ -8,17 +8,26 @@
         protected $collection;
         protected $name = "Octocart";
 
+        /**
+         * @param null $name
+         * @throws Exception
+         * @throws \ReflectionException
+         */
         public function __construct($name = null)
         {
             $name = is_null($name) ? def('SITE_NAME', 'site') : $name;
 
-            $this->session = session('cart.' . $name);
+            $this->session = flew('cart.' . $name);
 
             $this->collection = lib('items');
 
             $this->setCart($name);
         }
 
+        /**
+         * @param $name
+         * @throws Exception
+         */
         public function setCart($name)
         {
             if (empty($name)) {
@@ -33,6 +42,11 @@
             return $this->name;
         }
 
+        /**
+         * @param $name
+         * @return $this
+         * @throws Exception
+         */
         public function named($name)
         {
             $this->setCart($name);
@@ -40,6 +54,10 @@
             return $this;
         }
 
+        /**
+         * @param array $product
+         * @return mixed
+         */
         public function add(array $product)
         {
             $this->collection->validateItem($product);
@@ -70,6 +88,11 @@
             return $this->collection->make($items);
         }
 
+        /**
+         * @param array $product
+         * @return mixed
+         * @throws Exception
+         */
         public function update(array $product)
         {
             $this->collection->setItems(
@@ -102,7 +125,13 @@
             return $this->collection->make($items);
         }
 
-        public function updateQty($id, $quantity)
+        /**
+         * @param $id
+         * @param int $quantity
+         * @return mixed
+         * @throws Exception
+         */
+        public function updateQty($id, int $quantity)
         {
             $item = (array) $this->get($id);
 

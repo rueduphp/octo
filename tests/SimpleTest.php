@@ -148,6 +148,60 @@ class Subscriber
 
 class SimpleTest extends TestCase
 {
+    public function testFlew()
+    {
+        $foo = $this->flew('foo', 15);
+        $bar = $this->flew('bar');
+
+        $this->assertNotSame($foo, $bar);
+        $this->assertSame($foo, $this->flew('foo'));
+
+        $foo['bar'] = 'baz';
+        $bar['bar'] = 'foo';
+
+        $this->assertSame('baz', $this->flew('foo')['bar']);
+        $this->assertSame('foo', $this->flew('bar')['bar']);
+        $this->assertNotSame($this->flew('foo')['bar'], $this->flew('bar')['bar']);
+
+        $this->assertSame('baz', $foo->get('bar'));
+        $this->assertSame('baz', $foo->getBar());
+        $this->assertSame('baz', $foo->bar);
+        $this->assertTrue($foo->has('bar'));
+        $this->assertTrue($foo->hasBar());
+        $foo->delete('bar');
+        $this->assertFalse($foo->hasBar());
+        $foo->set('bar', 'baz');
+        $this->assertTrue($foo->hasBar());
+        $foo->removeBar();
+        $this->assertFalse($foo->hasBar());
+        $foo->setBar('foo');
+        $this->assertTrue($foo->hasBar());
+
+        unset($foo['bar']);
+        unset($bar['bar']);
+
+        $this->assertNull($this->flew('foo')->bar);
+        $this->assertNull($this->flew('bar')->bar);
+    }
+
+    public function testMake()
+    {
+        $this->assertSame($this->make_singleton(Inflector::class), $this->make_singleton(Inflector::class));
+        $this->assertNotSame($this->make_new(stdClass::class), $this->make_new(stdClass::class));
+
+        $this->assertNotSame(
+            $this->make_factory(stdClass::class, function () {return new stdClass;}),
+            $this->make_factory(stdClass::class)
+        );
+
+        $this->assertEquals(
+            $this->make_factory(stdClass::class),
+            $this->make_factory(stdClass::class)
+        );
+
+        $this->assertTrue($this->ifnmatch('eli*', 'élIse'));
+    }
+
     /**
      * @throws ReflectionException
      */
@@ -203,7 +257,7 @@ class SimpleTest extends TestCase
         $this->assertTrue($this->appli('foo', 'bar'));
         $this->assertSame('bar', $this->appli('foo'));
 
-        $this->assertTrue($this->appli($this->gi()->singleton(Inflector::class)));
+        $this->assertTrue($this->appli($this->gi()->singleton(Component::class)));
         $this->assertInstanceOf(Inflector::class, $this->appli(Inflector::class));
 
         $this->assertTrue($this->appli('i', function () {
@@ -211,7 +265,7 @@ class SimpleTest extends TestCase
         }));
 
         $this->assertInstanceOf(Inflector::class, $this->appli('i'));
-        $this->assertSame($this->appli(Inflector::class), $this->appli('i'));
+        $this->assertEquals($this->appli(Inflector::class), $this->appli('i'));
 
         $this->assertTrue($this->appli('baz', function ($a, $b = 0) {
             return $a + $b;

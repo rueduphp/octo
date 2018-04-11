@@ -122,6 +122,7 @@ class Instanciator
 
                             if ($classParam) {
                                 $c = $classParam->getName();
+                                $made = false;
 
                                 if (!$p instanceof $c) {
                                     array_unshift($args, $p);
@@ -131,17 +132,35 @@ class Instanciator
 
                                         if ($p instanceof FastModelInterface) {
                                             $p = $this->makeModel($p);
+                                            $made = true;
                                         }
                                     } catch (\Exception $e) {
                                         exception('Instanciator', $e->getMessage());
                                     }
-                                } else {
-                                    if ($param->hasType() && !$param->getType()->isBuiltin()) {
+                                }
+
+                                if (false === $made) {
+                                    if ($param->hasType()) {
                                         $t = (string) $param->getType()->getName();
 
-                                        if ((string) gettype($p) !== $t) {
+                                        if (is_object($p) && !$p instanceof $t) {
                                             if (true === $param->isDefaultValueAvailable()) {
                                                 $p = $param->getDefaultValue();
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                if ($param->hasType()) {
+                                    if ($param->getType()->getName() !== (string) gettype($p)) {
+                                        if (!empty($args)) {
+                                            $found = false;
+
+                                            foreach ($args as $k => $a) {
+                                                if (!$found && $param->getType()->getName() === (string) gettype($a)) {
+                                                    $args[$k] = $p;
+                                                    $p = $a;
+                                                }
                                             }
                                         }
                                     }
@@ -290,6 +309,7 @@ class Instanciator
 
                     if ($classParam) {
                         $c = $classParam->getName();
+                        $made = false;
 
                         if (!$p instanceof $c) {
                             array_unshift($args, $p);
@@ -299,17 +319,35 @@ class Instanciator
 
                                 if ($p instanceof FastModelInterface) {
                                     $p = $this->makeModel($p);
+                                    $made = true;
                                 }
                             } catch (\Exception $e) {
                                 exception('Instanciator', $e->getMessage());
                             }
-                        } else {
-                            if ($param->hasType() && !$param->getType()->isBuiltin()) {
+                        }
+
+                        if (false === $made) {
+                            if ($param->hasType()) {
                                 $t = (string) $param->getType()->getName();
 
-                                if ((string) gettype($p) !== $t) {
+                                if (is_object($p) && !$p instanceof $t) {
                                     if (true === $param->isDefaultValueAvailable()) {
                                         $p = $param->getDefaultValue();
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        if ($param->hasType()) {
+                            if ($param->getType()->getName() !== (string) gettype($p)) {
+                                if (!empty($args)) {
+                                    $found = false;
+
+                                    foreach ($args as $k => $a) {
+                                        if (!$found && $param->getType()->getName() === (string) gettype($a)) {
+                                            $args[$k] = $p;
+                                            $p = $a;
+                                        }
                                     }
                                 }
                             }
@@ -405,6 +443,7 @@ class Instanciator
 
                         if ($classParam) {
                             $c = $classParam->getName();
+                            $made = false;
 
                             if (!$p instanceof $c) {
                                 array_unshift($args, $p);
@@ -414,17 +453,35 @@ class Instanciator
 
                                     if ($p instanceof FastModelInterface) {
                                         $p = $this->makeModel($p);
+                                        $made = true;
                                     }
                                 } catch (\Exception $e) {
                                     exception('Instanciator', $e->getMessage());
                                 }
-                            } else {
-                                if ($param->hasType() && !$param->getType()->isBuiltin()) {
+                            }
+
+                            if (false === $made) {
+                                if ($param->hasType()) {
                                     $t = (string) $param->getType()->getName();
 
-                                    if ((string) gettype($p) !== $t) {
+                                    if (is_object($p) && !$p instanceof $t) {
                                         if (true === $param->isDefaultValueAvailable()) {
                                             $p = $param->getDefaultValue();
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            if ($param->hasType()) {
+                                if ($param->getType()->getName() !== (string) gettype($p)) {
+                                    if (!empty($args)) {
+                                        $found = false;
+
+                                        foreach ($args as $k => $a) {
+                                            if (!$found && $param->getType()->getName() === (string) gettype($a)) {
+                                                $args[$k] = $p;
+                                                $p = $a;
+                                            }
                                         }
                                     }
                                 }

@@ -10,7 +10,7 @@ class Mvc
      * @param string $a
      * @return mixed|null|string|string[]
      */
-    public function testing(Component $app, Inflector $i,string  $a)
+    public function testing(string  $a, Inflector $i, Component $app)
     {
         return $i::lower($a);
     }

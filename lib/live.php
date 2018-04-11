@@ -358,4 +358,47 @@ class Live implements ArrayAccess, FastSessionInterface
     {
         getEventManager()->fire('live.registering', $this);
     }
+
+    /**
+     * @param string $key
+     * @return bool
+     * @throws Exception
+     * @throws \Exception
+     */
+    public function __isset(string $key)
+    {
+        return $this->driver->has($key);
+    }
+
+    /**
+     * @param string $key
+     * @throws Exception
+     * @throws \Exception
+     */
+    public function __unset(string $key)
+    {
+        $this->driver->delete($key);
+    }
+
+    /**
+     * @param string $key
+     * @param $value
+     * @throws Exception
+     * @throws \Exception
+     */
+    public function __set(string $key, $value)
+    {
+        $this->driver->set($key, $value, $this->ttl);
+    }
+
+    /**
+     * @param string $key
+     * @return mixed
+     * @throws Exception
+     * @throws \Exception
+     */
+    public function __get(string $key)
+    {
+        return $this->driver->get($key);
+    }
 }

@@ -395,10 +395,24 @@
     }
 
     /**
+     * @param string $key
+     * @param string $string
+     *
+     * @return bool
+     */
+    function ifnmatch(string $key, string $string)
+    {
+        $key    = Inflector::lower(Inflector::unaccent($key));
+        $string = Inflector::lower(Inflector::unaccent($string));
+
+        return \fnmatch($key, $string) ? true : false;
+    }
+
+    /**
      * @param $pattern
      * @param $string
      *
-     * @return false|int
+     * @return bool
      */
     function fnmatch($pattern, $string)
     {
@@ -413,7 +427,7 @@
                 ]
             ) . "$#i",
             $string
-        );
+        ) ? true : false;
     }
 
     /**
@@ -3990,7 +4004,7 @@
             return call_user_func_array($callable, [$app]);
         });
 
-        $app->run(function ($namespace = 'App', $cli = false) {
+        $app->run(function (string $namespace = 'App', bool $cli = false) {
             if (is_object($namespace)) {
                 $namespace = 'App';
             }
@@ -6814,9 +6828,50 @@
         return $res;
     }
 
+    /**
+     * @param array ...$args
+     * @return mixed
+     */
+    function unik(...$args)
+    {
+        return lazyCore(...$args);
+    }
+
     function m(...$args)
     {
         return new \Mockery\Container(...$args);
+    }
+
+    /**
+     * @param string $line
+     * @param array $replace
+     * @return string
+     */
+    function replaceWith(string $line, array $replace = []): string
+    {
+        if (empty($replace)) {
+            return $line;
+        }
+
+        $replace = coll($replace)->sortBy(function ($v, $key) {
+            return mb_strlen($key) * -1;
+        })->all();
+
+        foreach ($replace as $key => $value) {
+            $line = str_replace(
+                [':'.$key, ':'.Inflector::upper($key), ':'.Inflector::ucfirst($key)],
+                [$value, Inflector::upper($value), Inflector::ucfirst($value)],
+                $line
+            );
+
+            $line = str_replace(
+                ['%'.$key.'%', '%'.Inflector::upper($key).'%', '%'.Inflector::ucfirst($key).'%'],
+                [$value, Inflector::upper($value), Inflector::ucfirst($value)],
+                $line
+            );
+        }
+
+        return $line;
     }
 
     /**
@@ -6866,8 +6921,102 @@
     }
 
     /**
+     * @param string $ns
+     * @param null $token
+     *
+     * @return Flew
+     *
+     * @throws \ReflectionException
+     */
+    function flew($ns = 'core', $token = null)
+    {
+        static $sessions = [];
+
+        $instance = isAke($sessions, $ns, null);
+
+        if (!$instance instanceof Flew) {
+            $instance = gi()->make(Flew::class, [$ns, $token], false);
+
+            $sessions[$ns] = $instance;
+        }
+
+        return $instance;
+    }
+
+    /**
      * @param array ...$args
      * @return bool|mixed|null
+     * @throws \ReflectionException
+     */
+    function make_singleton(...$args)
+    {
+        $concern = current($args);
+        $status = false;
+
+        if (is_object($concern)) {
+            $status = myApp($concern);
+        } else {
+            if (is_string($concern)) {
+                if (class_exists($concern)) {
+                    array_shift($args);
+                    $object = gi()->make($concern, $args, false);
+                    $callback = function () use ($object) {
+                        return $object;
+                    };
+
+                    $status = myApp($concern, $callback);
+                }
+            }
+        }
+
+        if ($status) {
+            if (is_object($status)) {
+                return $status;
+            } else {
+                return make_singleton($concern);
+            }
+        }
+    }
+
+    /**
+     * @param string $class
+     * @param callable|null $callback
+     *
+     * @return bool|mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function make_factory(string $class, ?callable $callback = null)
+    {
+        $result = myApp($class, $callback);
+
+        if ($result) {
+            if (is_object($result)) {
+                return $result;
+            } else {
+                return make_factory($class);
+            }
+        }
+    }
+
+    /**
+     * @param string $class
+     * @param array ...$args
+     *
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
+    function make_new(string $class, ...$args)
+    {
+        return gi()->make($class, $args, false);
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return bool|mixed|null
+     *
      * @throws \ReflectionException
      */
     function myApp(...$args)
