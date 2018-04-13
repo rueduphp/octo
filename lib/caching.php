@@ -419,6 +419,30 @@ class Caching implements FastCacheInterface
     }
 
     /**
+     * @return Collection
+     */
+    public function toCollection()
+    {
+        return coll($this->all());
+    }
+
+    /**
+     * @return array
+     */
+    public function toArray()
+    {
+        return $this->all();
+    }
+
+    /**
+     * @return string
+     */
+    public function toJson()
+    {
+        return json_encode($this->all(), JSON_PRETTY_PRINT);
+    }
+
+    /**
      * @param string $pattern
      *
      * @return array
@@ -427,7 +451,7 @@ class Caching implements FastCacheInterface
     {
         $this->cleanCache();
 
-        $pattern    = str_replace('*', '%', $pattern);
+        $pattern = str_replace('*', '%', $pattern);
 
         $rows = CachingModel::select('k')
             ->where('k', 'like', $this->dir . '.' . $pattern)
@@ -443,6 +467,10 @@ class Caching implements FastCacheInterface
         return $collection;
     }
 
+    /**
+     * @param string $pattern
+     * @return int
+     */
     public function flush($pattern = '*')
     {
         $keys = $this->keys($pattern);
@@ -457,6 +485,10 @@ class Caching implements FastCacheInterface
         return $affected;
     }
 
+    /**
+     * @param string $pattern
+     * @return int
+     */
     public function clean($pattern = '*')
     {
         $keys = $this->keys($pattern);
@@ -480,7 +512,13 @@ class Caching implements FastCacheInterface
         return $affected;
     }
 
-    public function readAndDelete($key, $default = null)
+    /**
+     * @param string $key
+     * @param null $default
+     *
+     * @return mixed|null
+     */
+    public function readAndDelete(string $key, $default = null)
     {
         if ($this->has($key)) {
             $value = $this->get($key);
@@ -493,36 +531,66 @@ class Caching implements FastCacheInterface
         return $default;
     }
 
-    public function rename($keyFrom, $keyTo, $default = null)
+    /**
+     * @param string $keyFrom
+     * @param string $keyTo
+     * @param null $default
+     *
+     * @return Caching
+     */
+    public function rename(string $keyFrom, string $keyTo, $default = null)
     {
         $value = $this->readAndDelete($keyFrom, $default);
 
         return $this->set($keyTo, $value);
     }
 
-    public function copy($keyFrom, $keyTo)
+    /**
+     * @param string $keyFrom
+     * @param string $keyTo
+     *
+     * @return Caching
+     */
+    public function copy(string $keyFrom, string $keyTo)
     {
         return $this->set($keyTo, $this->get($keyFrom));
     }
 
-    public function getSize($key)
+    /**
+     * @param string $key
+     *
+     * @return int
+     */
+    public function getSize(string $key)
+    {
+        return $this->has($key) ? strlen($this->get($key)) : 0;
+    }
+
+    /**
+     * @param string $key
+     *
+     * @return int
+     */
+    public function length(string $key)
     {
         return strlen($this->get($key));
     }
 
-    public function length($key)
-    {
-        return strlen($this->get($key));
-    }
-
-    public function hset($hash, $key, $value)
+    /**
+     * @param string $hash
+     * @param string $key
+     * @param $value
+     *
+     * @return Caching
+     */
+    public function hset(string $hash, string $key, $value)
     {
         $key = "hash.$hash.$key";
 
         return $this->set($key, $value);
     }
 
-    public function hsetnx($hash, $key, $value)
+    public function hsetnx(string $hash, string $key, $value)
     {
         if (!$this->hexists($hash, $key)) {
             $this->hset($hash, $key, $value);
@@ -533,14 +601,14 @@ class Caching implements FastCacheInterface
         return false;
     }
 
-    public function hget($hash, $key, $default = null)
+    public function hget(string $hash, string $key, $default = null)
     {
         $key = "hash.$hash.$key";
 
         return $this->get($key, $default);
     }
 
-    public function hstrlen($hash, $key)
+    public function hstrlen(string $hash, string $key)
     {
         if ($value = $this->hget($hash, $key)) {
             return strlen($value);
@@ -549,24 +617,32 @@ class Caching implements FastCacheInterface
         return 0;
     }
 
-    public function hgetOr($hash, $k, callable $c)
+    public function hgetOr(string $hash, string $key, callable $c)
     {
-        if ($this->hexists($hash, $k)) {
-            return $this->hget($hash, $k);
+        if ($this->hexists($hash, $key)) {
+            return $this->hget($hash, $key);
         }
 
         $res = $c();
 
-        $this->hset($hash, $k, $res);
+        $this->hset($hash, $key, $res);
 
         return $res;
     }
 
-    public function hwatch($hash, $k, callable $exists = null, callable $notExists = null)
+    /**
+     * @param string $hash
+     * @param string $key
+     * @param callable|null $exists
+     * @param callable|null $notExists
+     *
+     * @return bool
+     */
+    public function hwatch(string $hash, string $key, ?callable $exists = null, ?callable $notExists = null)
     {
-        if ($this->hexists($hash, $k)) {
+        if ($this->hexists($hash, $key)) {
             if (is_callable($exists)) {
-                return $exists($this->hget($hash, $k));
+                return $exists($this->hget($hash, $key));
             }
         } else {
             if (is_callable($notExists)) {
@@ -577,7 +653,7 @@ class Caching implements FastCacheInterface
         return false;
     }
 
-    public function hReadAndDelete($hash, $key, $default = null)
+    public function hReadAndDelete(string $hash, string $key, $default = null)
     {
         if ($this->hexists($hash, $key)) {
             $value = $this->hget($hash, $key);
@@ -590,31 +666,31 @@ class Caching implements FastCacheInterface
         return $default;
     }
 
-    public function hdelete($hash, $key)
+    public function hdelete(string $hash, string $key)
     {
         $key = "hash.$hash.$key";
 
         return $this->delete($key);
     }
 
-    public function hdel($hash, $key)
+    public function hdel(string $hash, string $key)
     {
         return $this->hdelete($hash, $key);
     }
 
-    public function hhas($hash, $key)
+    public function hhas(string $hash, string $key)
     {
         $key = "hash.$hash.$key";
 
         return $this->has($key);
     }
 
-    public function hexists($hash, $key)
+    public function hexists(string $hash, string $key)
     {
         return $this->hhas($hash, $key);
     }
 
-    public function hincr($hash, $key, $by = 1)
+    public function hincr(string $hash, string $key, $by = 1)
     {
         $old = $this->hget($hash, $key, 1);
         $new = $old + $by;
@@ -624,7 +700,7 @@ class Caching implements FastCacheInterface
         return $new;
     }
 
-    public function hdecr($hash, $key, $by = 1)
+    public function hdecr(string $hash, string $key, $by = 1)
     {
         $old = $this->hget($hash, $key, 1);
         $new = $old - $by;
@@ -634,7 +710,7 @@ class Caching implements FastCacheInterface
         return $new;
     }
 
-    public function hgetall($hash)
+    public function hgetall(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
 
@@ -646,7 +722,7 @@ class Caching implements FastCacheInterface
         }
     }
 
-    public function hvals($hash)
+    public function hvals(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
 
@@ -655,14 +731,14 @@ class Caching implements FastCacheInterface
         }
     }
 
-    public function hlen($hash)
+    public function hlen(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
 
         return count($keys);
     }
 
-    public function hremove($hash)
+    public function hremove(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
 
@@ -673,7 +749,7 @@ class Caching implements FastCacheInterface
         return true;
     }
 
-    public function hkeys($hash)
+    public function hkeys(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
 
@@ -684,7 +760,7 @@ class Caching implements FastCacheInterface
         }
     }
 
-    public function sadd($key, $value)
+    public function sadd(string $key, $value)
     {
         $tab = $this->get($key, []);
         $tab[] = $value;
@@ -692,7 +768,7 @@ class Caching implements FastCacheInterface
         return $this->set($key, $tab);
     }
 
-    public function scard($key)
+    public function scard(string $key)
     {
         $tab = $this->get($key, []);
 
@@ -760,7 +836,7 @@ class Caching implements FastCacheInterface
      *
      * @return bool
      */
-    public function sismember($hash, $key)
+    public function sismember(string $hash, string $key)
     {
         return in_array($key, $this->get($hash, []));
     }
@@ -806,7 +882,7 @@ class Caching implements FastCacheInterface
         return false;
     }
 
-    public function smove($from, $to, $key)
+    public function smove(string $from, string $to, string $key)
     {
         if ($this->sismember($from, $key)) {
             $this->srem($from, $key);
@@ -860,7 +936,7 @@ class Caching implements FastCacheInterface
         return $data;
     }
 
-    public function flash($key, $val = 'octodummy')
+    public function flash(string $key, $val = 'octodummy')
     {
         $key = "flash_{$key}";
 
@@ -1030,5 +1106,18 @@ class Caching implements FastCacheInterface
     private function _exists(string $k)
     {
         return CachingModel::where('k', $k)->count() === 1;
+    }
+
+    /**
+     * @param array $rows
+     * @return Caching
+     */
+    public function fill(array $rows = []): self
+    {
+        foreach ($rows as $key => $value) {
+            $this->set($key, $value);
+        }
+
+        return $this;
     }
 }

@@ -14,7 +14,7 @@ class Facade
     public static function __callStatic($method, $args)
     {
         try {
-            $instance = instanciator()->singleton(static::getNativeClass());
+            $instance = instanciator()->make(static::getNativeClass());
 
             if (!$instance) {
                 throw new RuntimeException(get_called_class() . ' has not been set.');

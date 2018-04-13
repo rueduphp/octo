@@ -449,4 +449,12 @@
         {
             return is_numeric($value) ? $value : unserialize($value);
         }
+
+        /**
+         * @return pc
+         */
+        public function getClient()
+        {
+            return $this->client();
+        }
     }

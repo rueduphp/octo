@@ -768,6 +768,11 @@
             return $files;
         }
 
+        /**
+         * @param string $pattern
+         * @return int
+         * @throws \Exception
+         */
         public function flush($pattern = '*')
         {
             $keys = $this->glob($this->dir . DS . $pattern . '.kh', GLOB_NOSORT);
@@ -1659,5 +1664,37 @@
         public function getTtl($e = null)
         {
             return $e ? $e : Registry::get('cache.ttl.' . $this->id, $e);
+        }
+
+        /**
+         * @return array
+         *
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function all()
+        {
+            $collection = [];
+
+            foreach($this->keys() as $key) {
+                $collection[$key] = $this->get($key);
+            }
+
+            return $collection;
+        }
+
+        /**
+         * @param array $rows
+         * @return Cache
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function fill(array $rows = []): self
+        {
+            foreach ($rows as $key => $value) {
+                $this->set($key, $value);
+            }
+
+            return $this;
         }
     }

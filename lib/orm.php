@@ -797,16 +797,34 @@
             return $this->values($values)->_between($key);
         }
 
+        /**
+         * @param string $key
+         * @param array $values
+         *
+         * @return Orm
+         */
         public function notBetween(string $key, array $values)
         {
             return $this->values($values)->_between($key, 'AND', true);
         }
 
+        /**
+         * @param string $key
+         * @param array $values
+         *
+         * @return Orm
+         */
         public function orBetween(string $key, array $values)
         {
             return $this->values($values)->_between($key, 'OR');
         }
 
+        /**
+         * @param string $key
+         * @param array $values
+         *
+         * @return Orm
+         */
         public function orNotBetween(string $key, array $values)
         {
             return $this->values($values)->_between($key, 'OR', true);
@@ -956,6 +974,11 @@
             return $this->_whereNull($key, 'OR', true);
         }
 
+        /**
+         * @param null $concern
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function __invoke($concern = null)
         {
             if (!empty($concern)) {
@@ -967,7 +990,7 @@
                     }
                 }
             } else {
-                if ($concern == []) {
+                if ($concern === []) {
                     return $this;
                 }
             }
@@ -2151,7 +2174,10 @@
         /**
          * @param array $attributes
          * @param array $values
+         *
          * @return mixed|Record
+         *
+         * @throws \ReflectionException
          */
         public function updateOrCreate(array $attributes, array $values = [])
         {
@@ -2168,7 +2194,10 @@
 
         /**
          * @param $conditions
+         *
          * @return mixed
+         *
+         * @throws \ReflectionException
          */
         public function firstOrCreate($conditions)
         {

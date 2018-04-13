@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class Cacheredis implements FastCacheInterface
+    class Cacheredis implements \ArrayAccess, FastCacheInterface
     {
         use Notifiable;
 
@@ -9,12 +9,12 @@
         private $id;
         private static $instances = [];
 
-        private function getPath($k)
+        private function getPath(string $k)
         {
             return $this->dir . '.' . $k;
         }
 
-        public function pull($key, $default = null)
+        public function pull(string $key, $default = null)
         {
             $value = $this->get($key, $default);
 
@@ -23,18 +23,16 @@
             return $value;
         }
 
-        public function __construct($ns = 'core')
+        public function __construct(string $ns = 'core')
         {
-            $this->dir = $ns;
-
-            $this->id = sha1('redis' . $ns);
+            $this->dir  = $ns;
+            $this->id   = sha1('redis' . $ns);
         }
 
-        public static function instance($ns = 'core')
+        public static function instance(string $ns = 'core')
         {
-            $key = sha1(serialize(func_get_args()));
-
-            $instance = isAke(static::$instances, $key, null);
+            $key        = sha1(serialize(func_get_args()));
+            $instance   = isAke(static::$instances, $key, null);
 
             if (!$instance) {
                 $instance = new static($ns);
@@ -45,14 +43,14 @@
             return $instance;
         }
 
-        public function __call($m, $a)
+        public function __call(string $m, $a)
         {
             if ('if' === $m) {
                 return call_user_func_array([$this, 'cacheIf'], $a);
             }
         }
 
-        public function cacheIf($k, $condition, $value, $expire = null)
+        public function cacheIf(string $k, $condition, $value, $expire = null)
         {
             $condition  = value($condition);
             $value      = value($value);
@@ -64,7 +62,7 @@
             return $value;
         }
 
-        public function setDirectory($dir)
+        public function setDirectory(string $dir)
         {
             if (realpath($dir)) {
                 $this->dir = realpath($dir);
@@ -78,7 +76,7 @@
             return $this->dir;
         }
 
-        public function set($k, $v, $expire = null)
+        public function set(string $k, $v, $expire = null)
         {
             $file = $this->getPath($k);
 
@@ -101,7 +99,7 @@
             return $this;
         }
 
-        public function put($k, $v, $expire = null)
+        public function put(string $k, $v, $expire = null)
         {
             return $this->set($k, $v, $expire);
         }
@@ -126,7 +124,7 @@
             return $return;
         }
 
-        public function setnx($key, $value, $expire = null)
+        public function setnx(string $key, $value, $expire = null)
         {
             if (!$this->has($key)) {
                 $this->set($key, $value, $expire);
@@ -137,7 +135,7 @@
             return false;
         }
 
-        public function setExpireAt($k, $v, $timestamp)
+        public function setExpireAt(string $k, $v, $timestamp)
         {
             $file = $this->getPath($k);
             redis()->setex($file, serialize($v), $timestamp - time());
@@ -145,31 +143,31 @@
             return $this;
         }
 
-        public function setExp($k, $v, $expire)
+        public function setExp(string $k, $v, $expire)
         {
             return $this->set($k, $v, $expire);
         }
 
-        public function setExpire($k, $v, $expire)
+        public function setExpire(string $k, $v, $expire)
         {
             return $this->set($k, $v, $expire);
         }
 
-        public function expire($k, $expire)
+        public function expire(string $k, $expire)
         {
             $v = $this->get($k);
 
             return $this->set($k, $v, $expire);
         }
 
-        public function expireAt($k, $timestamp)
+        public function expireAt(string $k, $timestamp)
         {
             $v = $this->get($k);
 
             return $this->set($k, $v, $timestamp);
         }
 
-        public function get($k, $d = null)
+        public function get(string $k, $d = null)
         {
             $file = $this->getPath($k);
 
@@ -255,7 +253,7 @@
             return false;
         }
 
-        public function session($k, $v = 'dummyget', $e = null)
+        public function session(string $k, $v = 'dummyget', $e = null)
         {
             $user       = session('web')->getUser();
             $isLogged   = !is_null($user);
@@ -266,7 +264,7 @@
             return 'dummyget' === $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
-        public function my($k, $v = 'dummyget', $e = null)
+        public function my(string $k, $v = 'dummyget', $e = null)
         {
             $user       = my('web')->getUser();
             $isLogged   = !is_null($user);
@@ -275,7 +273,7 @@
             return 'dummyget' === $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
-        public function aged($k, callable $c, $a)
+        public function aged(string $k, callable $c, $a)
         {
             $k = sha1($this->dir) . '.' . $k;
 
@@ -308,10 +306,10 @@
             return 0 !== redis()->exists($file);
         }
 
-        public function age($k)
+        public function age(string $key)
         {
-            if ($this->has($k)) {
-                $file = $this->getPath($k);
+            if ($this->has($key)) {
+                $file = $this->getPath($key);
 
                 return redis()->get($file . '.u');
             }
@@ -319,10 +317,10 @@
             return null;
         }
 
-        public function delete($k)
+        public function delete(string $key)
         {
-            if ($this->has($k)) {
-                $file = $this->getPath($k);
+            if ($this->has($key)) {
+                $file = $this->getPath($key);
 
                 redis()->del($file);
                 redis()->del($file . '.c');
@@ -334,57 +332,61 @@
             return false;
         }
 
-        public function del($k)
+        public function del(string $key)
         {
-            return $this->delete($k);
+            return $this->delete($key);
         }
 
-        public function remove($k)
+        public function remove(string $key)
         {
-            return $this->delete($k);
+            return $this->delete($key);
         }
 
-        public function forget($k)
+        public function forget(string $key)
         {
-            return $this->delete($k);
+            return $this->delete($key);
         }
 
-        public function destroy($k)
+        public function destroy(string $key)
         {
-            return $this->delete($k);
+            return $this->delete($key);
         }
 
-        public function incr($k, $by = 1)
+        public function incr(string $key, $by = 1)
         {
-            $old = $this->get($k, 0);
+            $old = $this->get($key, 0);
             $new = $old + $by;
 
-            $this->set($k, $new);
+            $this->set($key, $new);
 
             return $new;
         }
 
-        public function increment($k, $by = 1)
+        public function increment(string $key, $by = 1)
         {
-            return $this->incr($k, $by);
+            return $this->incr($key, $by);
         }
 
-        public function decr($k, $by = 1)
+        public function decr(string $key, $by = 1)
         {
-            $old = $this->get($k, 0);
+            $old = $this->get($key, 0);
             $new = $old - $by;
 
-            $this->set($k, $new);
+            $this->set($key, $new);
 
             return $new;
         }
 
-        public function decrement($k, $by = 1)
+        public function decrement(string $key, $by = 1)
         {
-            return $this->decr($k, $by);
+            return $this->decr($key, $by);
         }
 
-        public function keys($pattern = '*')
+        /**
+         * @param string $pattern
+         * @return \Generator
+         */
+        public function keys(string $pattern = '*')
         {
             $keys = redis()->keys($this->dir . '.' . $pattern);
 
@@ -438,7 +440,7 @@
             return value($default);
         }
 
-        public function readAndDelete($key, $default = null)
+        public function readAndDelete(string $key, $default = null)
         {
             return $this->getDel($key, $default);
         }
@@ -455,24 +457,24 @@
             return $this->set($keyTo, $this->get($keyFrom));
         }
 
-        public function getSize($key)
+        public function getSize(string $key)
         {
             return $this->has($key) ? strlen($this->get($key)) : 0;
         }
 
-        public function length($key)
+        public function length(string $key)
         {
             return $this->has($key) ? strlen($this->get($key)) : 0;
         }
 
-        public function hset($hash, $key, $value)
+        public function hset(string $hash, string $key, $value)
         {
             $key = "hash.$hash.$key";
 
             return $this->set($key, $value);
         }
 
-        public function hsetnx($hash, $key, $value)
+        public function hsetnx(string $hash, string $key, $value)
         {
             if (!$this->hexists($hash, $key)) {
                 $this->hset($hash, $key, $value);
@@ -483,14 +485,14 @@
             return false;
         }
 
-        public function hget($hash, $key, $default = null)
+        public function hget(string $hash, string $key, $default = null)
         {
             $key = "hash.$hash.$key";
 
             return $this->get($key, $default);
         }
 
-        public function hstrlen($hash, $key)
+        public function hstrlen(string $hash, string $key)
         {
             if ($value = $this->hget($hash, $key)) {
                 return strlen($value);
@@ -499,24 +501,24 @@
             return 0;
         }
 
-        public function hgetOr($hash, $k, callable $c)
+        public function hgetOr(string $hash, string $key, callable $c)
         {
-            if ($this->hexists($hash, $k)) {
-                return $this->hget($hash, $k);
+            if ($this->hexists($hash, $key)) {
+                return $this->hget($hash, $key);
             }
 
             $res = $c();
 
-            $this->hset($hash, $k, $res);
+            $this->hset($hash, $key, $res);
 
             return $res;
         }
 
-        public function hwatch($hash, $k, callable $exists = null, callable $notExists = null)
+        public function hwatch(string $hash, string $key, callable $exists = null, callable $notExists = null)
         {
-            if ($this->hexists($hash, $k)) {
+            if ($this->hexists($hash, $key)) {
                 if (is_callable($exists)) {
-                    return $exists($this->hget($hash, $k));
+                    return $exists($this->hget($hash, $key));
                 }
             } else {
                 if (is_callable($notExists)) {
@@ -527,7 +529,7 @@
             return false;
         }
 
-        public function hReadAndDelete($hash, $key, $default = null)
+        public function hReadAndDelete(string $hash, string $key, $default = null)
         {
             if ($this->hexists($hash, $key)) {
                 $value = $this->hget($hash, $key);
@@ -540,31 +542,31 @@
             return $default;
         }
 
-        public function hdelete($hash, $key)
+        public function hdelete(string $hash, string $key)
         {
             $key = "hash.$hash.$key";
 
             return $this->delete($key);
         }
 
-        public function hdel($hash, $key)
+        public function hdel(string $hash, string $key)
         {
             return $this->hdelete($hash, $key);
         }
 
-        public function hhas($hash, $key)
+        public function hhas(string $hash, string $key)
         {
             $key = "hash.$hash.$key";
 
             return $this->has($key);
         }
 
-        public function hexists($hash, $key)
+        public function hexists(string $hash, string $key)
         {
             return $this->hhas($hash, $key);
         }
 
-        public function hincr($hash, $key, $by = 1)
+        public function hincr(string $hash, string $key, $by = 1)
         {
             $old = $this->hget($hash, $key, 1);
             $new = $old + $by;
@@ -574,7 +576,7 @@
             return $new;
         }
 
-        public function hdecr($hash, $key, $by = 1)
+        public function hdecr(string $hash, string $key, $by = 1)
         {
             $old = $this->hget($hash, $key, 1);
             $new = $old - $by;
@@ -584,7 +586,12 @@
             return $new;
         }
 
-        public function hgetall($hash)
+        /**
+         * @param string $hash
+         *
+         * @return \Generator
+         */
+        public function hgetall(string $hash)
         {
             $keys = redis()->keys($this->dir . '.hash.' . $hash . '.*');
 
@@ -661,32 +668,30 @@
             return count($tab);
         }
 
-        public function sinter()
+        public function sinter(...$args)
         {
             $tab = [];
 
-            foreach (func_get_args() as $key) {
+            foreach ($args as $key) {
                 $tab = array_intersect($tab, $this->get($key, []));
             }
 
             return $tab;
         }
 
-        public function sunion()
+        public function sunion(...$args)
         {
             $tab = [];
 
-            foreach (func_get_args() as $key) {
+            foreach ($args as $key) {
                 $tab = array_merge($tab, $this->get($key, []));
             }
 
             return $tab;
         }
 
-        public function sinterstore()
+        public function sinterstore(...$args)
         {
-            $args = func_get_args();
-
             $destination = array_shift($args);
 
             $tab = [];
@@ -698,10 +703,8 @@
             return $this->set($destination, $tab);
         }
 
-        public function sunionstore()
+        public function sunionstore(...$args)
         {
-            $args = func_get_args();
-
             $destination = array_shift($args);
 
             $tab = [];
@@ -881,5 +884,112 @@
             $array[] = $value;
 
             return $this->set($key, $array);
+        }
+
+        /**
+         * @return Collection
+         */
+        public function toCollection()
+        {
+            return coll($this->all());
+        }
+
+        /**
+         * @return array
+         */
+        public function toArray()
+        {
+            return $this->all();
+        }
+
+        /**
+         * @return string
+         */
+        public function toJson()
+        {
+            return json_encode($this->all(), JSON_PRETTY_PRINT);
+        }
+
+        /**
+         * @param array $rows
+         * @return Cacheredis
+         */
+        public function fill(array $rows = []): self
+        {
+            foreach ($rows as $key => $value) {
+                $this->set($key, $value);
+            }
+
+            return $this;
+        }
+
+        /**
+         * @param mixed $offset
+         * @return bool
+         */
+        public function offsetExists($offset)
+        {
+            return $this->has($offset);
+        }
+
+        /**
+         * @param mixed $offset
+         * @return mixed|null
+         */
+        public function offsetGet($offset)
+        {
+            return $this->get($offset);
+        }
+
+        /**
+         * @param mixed $offset
+         * @param mixed $value
+         */
+        public function offsetSet($offset, $value)
+        {
+            $this->set($offset, $value);
+        }
+
+        /**
+         * @param mixed $offset
+         */
+        public function offsetUnset($offset)
+        {
+            $this->delete($offset);
+        }
+
+        /**
+         * @param mixed $offset
+         * @return bool
+         */
+        public function __isset($offset)
+        {
+            return $this->has($offset);
+        }
+
+        /**
+         * @param mixed $offset
+         * @return mixed|null
+         */
+        public function __get($offset)
+        {
+            return $this->get($offset);
+        }
+
+        /**
+         * @param mixed $offset
+         * @param mixed $value
+         */
+        public function __set($offset, $value)
+        {
+            $this->set($offset, $value);
+        }
+
+        /**
+         * @param mixed $offset
+         */
+        public function __unset($offset)
+        {
+            $this->delete($offset);
         }
     }

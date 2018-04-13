@@ -401,4 +401,29 @@ class Live implements ArrayAccess, FastSessionInterface
     {
         return $this->driver->get($key);
     }
+
+    /**
+     * @return array
+     * @throws Exception
+     * @throws \Exception
+     */
+    public function all()
+    {
+        return $this->driver->all();
+    }
+
+    /**
+     * @param array $rows
+     * @return Live
+     * @throws Exception
+     * @throws \Exception
+     */
+    public function fill(array $rows = []): self
+    {
+        foreach ($rows as $key => $value) {
+            $this->driver->set($key, $value);
+        }
+
+        return $this;
+    }
 }

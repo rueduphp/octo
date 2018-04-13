@@ -9,6 +9,11 @@ class Flew implements ArrayAccess
      * @var Live
      */
     protected $__bag;
+    
+    /**
+     * @var string
+     */
+    protected $__key;
 
     /**
      * Flew constructor.
@@ -20,7 +25,29 @@ class Flew implements ArrayAccess
     {
         $token = is_null($token) ? You::init() : $token;
         $key = $ns . '.' . $token;
+        $this->__key = $key;
         $this->__bag = new Live(new Caching($key));
+    }
+
+    /**
+     * @param string $class
+     * @return Flew
+     * @throws Exception
+     * @throws \Exception
+     * @throws \ReflectionException
+     */
+    public function newDriver(string $class): self
+    {
+        $all = $this->__bag->all();
+        $instance = gi()->make($class, [$this->__key]);
+
+        if ($instance instanceof $class) {
+            $instance->fill($all);
+
+            $this->__bag = $instance;
+        }
+
+        return $this;
     }
 
     /**

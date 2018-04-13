@@ -9,7 +9,9 @@ use Octo\Emit;
 use Octo\Facade;
 use Octo\Finder;
 use Octo\Inflector;
+use Octo\Instanciator;
 use Octo\InternalEvents;
+use Octo\Iterator;
 use Octo\Live;
 use Octo\Memorylog;
 use Octo\Monkeypatch;
@@ -20,11 +22,12 @@ use Octo\On;
 use Octo\Proxify;
 use Octo\Registry;
 use Octo\Remember;
+use Octo\Sessionarray;
 use Octo\Throttle;
 use Octo\Trust;
-use function Octo\sessionKey;
 use Octo\You;
 use Octo\Your;
+use function Octo\sessionKey;
 
 class Notifier
 {
@@ -146,8 +149,90 @@ class Subscriber
     }
 }
 
+class TestIterator
+{
+    /**
+     * @param array $row
+     * @return array
+     */
+    public function __invoke(array $row): array
+    {
+        $row['price'] = $row['price'] * 2;
+
+        return $row;
+    }
+}
+
+class TestFactor
+{
+    /**
+     * @var string
+     */
+    private $test;
+
+    /**
+     * @param string $test
+     * @return testFactor
+     */
+    public function setTest(string $test): testFactor
+    {
+        $this->test = $test;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTest(): string
+    {
+        return $this->test;
+    }
+}
+
 class SimpleTest extends TestCase
 {
+    /**
+     * @throws ReflectionException
+     */
+    public function testIterator()
+    {
+        $rows = [
+            ['price' => 2],
+            ['price' => 4],
+            ['price' => 6],
+            ['price' => 10]
+        ];
+
+        $iterator = new Iterator($rows, new TestIterator());
+        $first = $iterator->first();
+        $last = $iterator->last();
+
+        $query = $iterator->where('price', '<', '10');
+
+        $this->assertSame(4, $first['price']);
+        $this->assertSame(20, $last['price']);
+        $this->assertSame(4, $iterator->count());
+        $this->assertSame(4, $query->first()['price']);
+        $this->assertSame(8, $query->last()['price']);
+        $this->assertSame(2, $query->count());
+    }
+
+    public function testFactor()
+    {
+        $gi = $this->factor(function () {
+            $i = new TestFactor;
+            $i->setTest('foo');
+
+            return $i;
+        });
+
+        $this->assertInstanceOf(Instanciator::class, $gi);
+        $this->assertSame($this->gi(), $gi);
+        $this->assertSame('foo', $this->gi(TestFactor::class)->getTest());
+        $this->assertSame('foo', $this->gi()->get(TestFactor::class)->getTest());
+    }
+
     public function testFlew()
     {
         $foo = $this->flew('foo', 15);
@@ -182,6 +267,11 @@ class SimpleTest extends TestCase
 
         $this->assertNull($this->flew('foo')->bar);
         $this->assertNull($this->flew('bar')->bar);
+
+        $foo['bar'] = 'baz';
+
+        $foo->newDriver(Sessionarray::class);
+        $this->assertSame('baz', $foo->bar);
     }
 
     public function testMake()

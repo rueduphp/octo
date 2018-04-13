@@ -2559,11 +2559,122 @@
     }
 
     /**
+     * @param $a
+     * @param $b
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function ifnull($a, $b)
+    {
+        if (null === $a) {
+            return value($b);
+        }
+
+        return $a;
+    }
+
+    /**
+     * @param $a
+     * @param $b
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function ifnotnull($a, $b)
+    {
+        if (null !== $a) {
+            return value($b);
+        }
+
+        return $a;
+    }
+
+    /**
+     * @param $a
+     * @param $b
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function iffalse($a, $b)
+    {
+        if (false === $a) {
+            return value($b);
+        }
+
+        return $a;
+    }
+
+    /**
+     * @param $a
+     * @param $b
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function iftrue($a, $b)
+    {
+        if (true === $a) {
+            return value($b);
+        }
+
+        return $a;
+    }
+
+    /**
+     * @param $a
+     * @param $b
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function ifempty($a, $b)
+    {
+        if (empty($a)) {
+            return value($b);
+        }
+
+        return $a;
+    }
+
+    /**
+     * @param $a
+     * @param $b
+     *
+     * @return mixed|null
+     *
+     * @throws \ReflectionException
+     */
+    function ifnotempty($a, $b)
+    {
+        if (!empty($a)) {
+            return value($b);
+        }
+
+        return $a;
+    }
+
+    /**
      * @return bool
      */
     function isCli(): bool
     {
         return PHP_SAPI === 'cli' || php_sapi_name() === 'cli' || defined('STDIN');
+    }
+
+    /**
+     * @param $concern
+     * @return bool
+     */
+    function  is_callable($concern): bool
+    {
+        return !is_string($concern) && \is_callable($concern);
     }
 
     /**
@@ -6979,6 +7090,25 @@
     }
 
     /**
+     * @param callable $callable
+     * @param bool $return
+     * @return mixed|null|Instanciator
+     * @throws \ReflectionException
+     */
+    function factor(callable $callable, bool $return = false)
+    {
+        if ($callable instanceof Closure) {
+            $result = gi()->makeClosure($callable);
+        } elseif (is_array($callable)) {
+            $result = gi()->call($callable);
+        } else {
+            $result = gi()->call($callable, '__invoke');
+        }
+
+        return $return ? $result : gi()->set($result);
+    }
+
+    /**
      * @param string $class
      * @param callable|null $callback
      *
@@ -9150,7 +9280,7 @@
 
     /**
      * @param string|null $ns
-     * @return \Predis\Client
+     * @return Redis
      */
     function redis($ns = null)
     {

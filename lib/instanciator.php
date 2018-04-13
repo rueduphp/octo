@@ -617,6 +617,35 @@ class Instanciator
     }
 
     /**
+     * @param callable $callable
+     * @param bool $return
+     * @return mixed|null|Instanciator
+     * @throws \ReflectionException
+     */
+    public function factor(callable $callable, bool $return = false)
+    {
+        if ($callable instanceof Closure) {
+            $result = $this->makeClosure($callable);
+        } elseif (is_array($callable)) {
+            $result = $this->call($callable);
+        } else {
+            $result = $this->call($callable, '__invoke');
+        }
+
+        return $return ? $result : $this->set($result);
+    }
+
+    /**
+     * @param array ...$args
+     *
+     * @return Instanciator
+     */
+    public function __invoke(...$args): self
+    {
+        return $this->share(...$args);
+    }
+
+    /**
      * @param string $class
      * @return mixed|object
      * @throws \ReflectionException

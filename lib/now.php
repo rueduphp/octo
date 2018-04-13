@@ -80,19 +80,31 @@ class Now implements AA
         return $this->copy($new, true);
     }
 
+    /**
+     * @param string $pattern
+     *
+     * @return array
+     */
     public function pattern($pattern = '*')
     {
         return Arrays::pattern(self::$data[$this->ns], $pattern);
     }
 
-    public function flush()
+    /**
+     * @return Now
+     */
+    public function flush(): self
     {
         self::$data[$this->ns] = [];
 
         return $this;
     }
 
-    public function fill($rows = [])
+    /**
+     * @param array $rows
+     * @return Now
+     */
+    public function fill(array $rows = []): self
     {
         $data = self::$data[$this->ns];
 
@@ -131,24 +143,30 @@ class Now implements AA
         return $this;
     }
 
-    public function set($k, $v)
+    /**
+     * @param string $k
+     * @param $v
+     *
+     * @return Now
+     */
+    public function set(string $k, $v): self
     {
         self::$data[$this->ns][$k] = $v;
 
         return $this;
     }
 
-    public function add($k, $v)
+    public function add(string $k, $v)
     {
         return $this->set($k, $v);
     }
 
-    public function put($k, $v)
+    public function put(string $k, $v)
     {
         return $this->set($k, $v);
     }
 
-    public function flash($k, $v = null)
+    public function flash(string $k, $v = null)
     {
         $k = 'flash.' . $k;
 
@@ -166,7 +184,7 @@ class Now implements AA
         return $this;
     }
 
-    public function get($k, $default = null)
+    public function get(string $k, $default = null)
     {
         if (isset(self::$data[$this->ns][$k])) {
             return self::$data[$this->ns][$k];
@@ -180,7 +198,7 @@ class Now implements AA
      * @param array $default
      * @return \Generator
      */
-    public function collection($k, $default = [])
+    public function collection(string $k, $default = [])
     {
         $data = !isset(self::$data[$this->ns][$k]) ? $default : self::$data[$this->ns][$k];
 
@@ -189,18 +207,18 @@ class Now implements AA
         }
     }
 
-    public function getOr($k, callable $c)
+    public function getOr(string $k, callable $c)
     {
         $res = $this->get($k, 'octodummy');
 
-        if ('octodummy' == $res) {
+        if ('octodummy' === $res) {
             $this->set($k, $res = $c());
         }
 
         return $res;
     }
 
-    public function listen($k, callable $c)
+    public function listen(string $k, callable $c)
     {
         $k = "event.$k";
         self::$data[$this->ns][$k] = $c;
@@ -208,7 +226,7 @@ class Now implements AA
         return $this;
     }
 
-    public function fire($k, $args = [], $d = null)
+    public function fire(string $k, array $args = [], $d = null)
     {
         $k = "event.$k";
         $c = isAke(self::$data[$this->ns], $k, $d);
@@ -229,12 +247,12 @@ class Now implements AA
         return null;
     }
 
-    public function has($k)
+    public function has(string $k)
     {
         return isset(self::$data[$this->ns][$k]);
     }
 
-    public function exists($k)
+    public function exists(string $k)
     {
         return isset(self::$data[$this->ns][$k]);
     }
@@ -249,7 +267,7 @@ class Now implements AA
         return $this->delete($k);
     }
 
-    public function delete($k)
+    public function delete(string $k)
     {
         $status = self::has($k);
 
@@ -258,27 +276,27 @@ class Now implements AA
         return $status;
     }
 
-    public function forget($k)
+    public function forget(string $k)
     {
         return $this->delete($k);
     }
 
-    public function remove($k)
+    public function remove(string $k)
     {
         return $this->delete($k);
     }
 
-    public function del($k)
+    public function del(string $k)
     {
         return $this->delete($k);
     }
 
-    public function erase($k)
+    public function erase(string $k)
     {
         return $this->delete($k);
     }
 
-    public function __call($m, $a)
+    public function __call(string $m, $a)
     {
         if (fnmatch('get*', $m)) {
             $key = Inflector::uncamelize(substr($m, 3));
@@ -318,7 +336,7 @@ class Now implements AA
                 }
 
                 if (!empty($a) && empty($closure)) {
-                    if (count($a) == 1) {
+                    if (count($a) === 1) {
                         return $this->set($m, current($a));
                     }
                 }
@@ -330,7 +348,7 @@ class Now implements AA
         }
     }
 
-    public static function getInstance($ns = 'core', array $data = [])
+    public static function getInstance(string $ns = 'core', array $data = [])
     {
         if (!isset(self::$data[$ns])) {
             self::$data[$ns] = new self($ns, $data);
@@ -339,7 +357,7 @@ class Now implements AA
         return self::$data[$ns];
     }
 
-    public function incr($name, $by = 1)
+    public function incr(string $name, $by = 1)
     {
         $old = $this->get($name, 0);
         $new = $old + $by;
@@ -349,7 +367,7 @@ class Now implements AA
         return (int) $new;
     }
 
-    public function decr($name, $by = 1)
+    public function decr(string $name, $by = 1)
     {
         $old = $this->get($name, 1);
         $new = $old - $by;
@@ -359,7 +377,7 @@ class Now implements AA
         return (int) $new;
     }
 
-    public function increment($name, $by = 1)
+    public function increment(string $name, $by = 1)
     {
         $old = $this->get($name, 0);
         $new = $old + $by;
@@ -369,7 +387,7 @@ class Now implements AA
         return (int) $new;
     }
 
-    public function decrement($name, $by = 1)
+    public function decrement(string $name, $by = 1)
     {
         $old = $this->get($name, 1);
         $new = $old - $by;
@@ -379,7 +397,7 @@ class Now implements AA
         return (int) $new;
     }
 
-    public function in($name, $data)
+    public function in(string $name, $data)
     {
         $key = 'tuples.' . $name;
         $check = sha1(serialize($data));
@@ -442,7 +460,11 @@ class Now implements AA
         return $new;
     }
 
-    public function keys($pattern = '*')
+    /**
+     * @param string $pattern
+     * @return \Generator
+     */
+    public function keys(string $pattern = '*')
     {
         $data = self::$data[$this->ns];
 
@@ -501,7 +523,7 @@ class Now implements AA
 
     public function toJson()
     {
-        return json_encode($this->toArray());
+        return json_encode($this->toArray(), JSON_PRETTY_PRINT);
     }
 
     public function toSerialize()
@@ -547,6 +569,15 @@ class Now implements AA
         return $this->bind($class, $resolver);
     }
 
+    /**
+     * @param $k
+     * @param array $args
+     * @param bool $singleton
+     *
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     public function make($k, array $args = [], $singleton = true)
     {
         $c = $this->get('binds.' . $k, null);
@@ -667,5 +698,16 @@ class Now implements AA
         $array[] = $value;
 
         return $this->set($key, $array);
+    }
+
+    public function all(): array
+    {
+        $collection = [];
+
+        foreach($this->keys() as $key) {
+            $collection[$key] = $this->get($key);
+        }
+
+        return $collection;
     }
 }

@@ -572,12 +572,21 @@
             $this->offsetSet(null, $value);
         }
 
-        public function pull($key, $default = null)
+        /**
+         * @param string $key
+         * @param null $default
+         * @return mixed|null
+         */
+        public function pull(string $key, $default = null)
         {
             return Arrays::pull($this->items, $key, $default);
         }
 
-        public function put($key, $value)
+        /**
+         * @param string $key
+         * @param $value
+         */
+        public function put(string $key, $value)
         {
             $this->offsetSet($key, $value);
         }
@@ -609,6 +618,10 @@
             return array_reduce($this->items, $callback, $initial);
         }
 
+        /**
+         * @param $callback
+         * @return Collection
+         */
         public function reject($callback)
         {
             if ($this->isClosure($callback)) {
@@ -618,7 +631,7 @@
             }
 
             return $this->filter(function($item) use ($callback) {
-                return $item != $callback;
+                return $item !== $callback;
             });
         }
 
@@ -632,7 +645,7 @@
 
         public function search($value, $strict = false)
         {
-            if (! $this->isClosure($value)) {
+            if (!$this->isClosure($value)) {
                 return array_search($value, $this->items, $strict);
             }
 
