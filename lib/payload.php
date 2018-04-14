@@ -3,7 +3,7 @@ namespace Octo;
 
 use Closure;
 
-class Iterator implements \ArrayAccess, \Iterator, ToArray
+class Payload implements \ArrayAccess, \Iterator
 {
     /**
      * @var array
@@ -23,21 +23,15 @@ class Iterator implements \ArrayAccess, \Iterator, ToArray
     /**
      * @var callable
      */
-    private $transformer;
+    private $encoder;
 
-    public function __construct($records, ?callable $transformer = null)
+    public function __construct($records, callable $encoder)
     {
         $records = arrayable($records) ? $records->toArray() : $records;
 
         $this->records = $records;
 
-        if (null === $transformer) {
-            $transformer = function ($row) {
-                return $row;
-            };
-        }
-
-        $this->transformer = $transformer;
+        $this->encoder = $encoder;
     }
 
     /**
@@ -53,15 +47,15 @@ class Iterator implements \ArrayAccess, \Iterator, ToArray
             $actual = $this->records[$index];
 
             if ($this->transformer instanceof Closure) {
-                $params = [$this->transformer, $actual];
+                $params = [$this->encoder, $actual];
 
                 $result = gi()->makeClosure(...$params);
-            } elseif (is_array($this->transformer)) {
-                $params = array_merge($this->transformer, [$actual]);
+            } elseif (is_array($this->encoder)) {
+                $params = array_merge($this->encoder, [$actual]);
 
                 $result = gi()->call(...$params);
             } else {
-                $result = gi()->call($this->transformer, '__invoke', $actual);
+                $result = gi()->call($this->encoder, '__invoke', $actual);
             }
 
             $this->changedRecords[$index] = $result;
@@ -151,35 +145,39 @@ class Iterator implements \ArrayAccess, \Iterator, ToArray
     /**
      * @param mixed $offset
      * @param mixed $value
-     * @throws \Exception
      */
     public function offsetSet($offset, $value)
     {
-        throw new \Exception("Can't alter records");
+        $this->records[$offset] = $value;
     }
 
     /**
      * @param mixed $offset
-     * @throws \Exception
      */
     public function offsetUnset($offset)
     {
-        throw new \Exception("Can't alter records");
+        unset($this->records[$offset]);
     }
 
     /**
-     * @return array
+     * @return string
      * @throws \ReflectionException
      */
-    public function toArray(): array
+    public function __toString(): string
     {
-        $records = [];
+        if ($this->transformer instanceof Closure) {
+            $params = [$this->encoder, $this->records];
 
-        foreach ($this->records as $k => $v) {
-            $records[] = $this->get($k);
+            $result = gi()->makeClosure(...$params);
+        } elseif (is_array($this->encoder)) {
+            $params = array_merge($this->encoder, [$this->records]);
+
+            $result = gi()->call(...$params);
+        } else {
+            $result = gi()->call($this->encoder, '__invoke', $this->records);
         }
 
-        return $records;
+        return $result;
     }
 
     public function count()
@@ -192,39 +190,10 @@ class Iterator implements \ArrayAccess, \Iterator, ToArray
      *
      * @return Iterator
      */
-    public function setTransformer(callable $transformer): self
+    public function setEncoder(callable $encoder): self
     {
-        $this->transformer = $transformer;
+        $this->encoder = $encoder;
 
         return $this;
-    }
-
-    /**
-     * @return Collection
-     * @throws \ReflectionException
-     */
-    public function toCollection()
-    {
-        return coll($this->toArray());
-    }
-
-    /**
-     * @param string $method
-     * @param array $parameters
-     * @return mixed|null|Iterator
-     * @throws \ReflectionException
-     */
-    public function __call(string $method, array $parameters)
-    {
-        $collection = $this->toCollection();
-
-        $params = array_merge([$collection, $method], $parameters);
-
-        $result = gi()->call(...$params);
-
-        return $result instanceof Collection
-            ? new self($result->all())
-            : $result
-        ;
     }
 }

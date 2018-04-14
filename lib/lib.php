@@ -7109,6 +7109,20 @@
     }
 
     /**
+     * @param array ...$factories
+     * @return mixed|null|Instanciator
+     * @throws \ReflectionException
+     */
+    function factories(...$factories)
+    {
+        foreach ($factories as $factory) {
+            $i = factor($factory);
+        }
+
+        return $i;
+    }
+
+    /**
      * @param string $class
      * @param callable|null $callback
      *

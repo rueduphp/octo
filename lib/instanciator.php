@@ -636,9 +636,58 @@ class Instanciator
     }
 
     /**
+     * @param array ...$factories
+     * @return Instanciator
+     * @throws \ReflectionException
+     */
+    public function factories(...$factories): self
+    {
+        foreach ($factories as $factory) {
+            $this->factor($factory);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param callable $callable
+     * @param bool $return
+     * @return mixed|null|Instanciator
+     * @throws \ReflectionException
+     */
+    public function newFactor(callable $callable, bool $return = false)
+    {
+        $new = $this->factor($callable, true);
+        $old = $this->get($class = get_class($new));
+
+        setCore('old.factors.' . $class, $old);
+
+        return $return ? $new : $this->set($new);
+    }
+
+    /**
+     * @param string $class
+     * @return $this|Instanciator
+     */
+    public function previousFactor(string $class)
+    {
+        $old = getCore('old.factors.' . $class);
+
+        if (null !== $old) {
+            delCore('old.factors.' . $class);
+
+            return $this->set($old);
+        }
+
+        return $this;
+    }
+
+    /**
      * @param array ...$args
      *
      * @return Instanciator
+     *
+     * @throws \ReflectionException
      */
     public function __invoke(...$args): self
     {

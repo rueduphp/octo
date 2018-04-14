@@ -204,7 +204,7 @@ class SimpleTest extends TestCase
             ['price' => 10]
         ];
 
-        $iterator = new Iterator($rows, new TestIterator());
+        $iterator = new Iterator($rows, new TestIterator);
         $first = $iterator->first();
         $last = $iterator->last();
 
@@ -230,7 +230,7 @@ class SimpleTest extends TestCase
         $this->assertInstanceOf(Instanciator::class, $gi);
         $this->assertSame($this->gi(), $gi);
         $this->assertSame('foo', $this->gi(TestFactor::class)->getTest());
-        $this->assertSame('foo', $this->gi()->get(TestFactor::class)->getTest());
+        $this->assertSame('foo', $gi->get(TestFactor::class)->getTest());
     }
 
     public function testFlew()
