@@ -779,6 +779,16 @@ interface isArrayable
     public function toArray();
 }
 
+interface Processable
+{
+    public function process(FastRequest $request, callable $next);
+}
+
+interface Handable
+{
+    public function handle(FastRequest $request, callable $next);
+}
+
 trait Componentable
 {
     public function __invoke($app)

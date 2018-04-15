@@ -59,7 +59,9 @@ class Instanciator
     {
         $class  = array_shift($args);
 
-        return is_string($class) ? $this->make($class, $args, true) : $this->makeClosure($class, $args);
+        $params = array_merge([$class], $args);
+
+        return is_string($class) ? $this->make($class, $args, true) : $this->makeClosure(...$params);
     }
 
     /**
@@ -83,7 +85,7 @@ class Instanciator
         $args       = arrayable($args) ? $args->toArray() : $args;
         $callable   = isAke($binds, $make, null);
 
-        if ($callable && is_callable($callable) && $singleton) {
+        if ($callable && is_callable($callable) && true === $singleton) {
             return $callable();
         }
 

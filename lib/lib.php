@@ -2,17 +2,19 @@
     namespace Octo;
 
     use Carbon\Carbon;
-    use function class_exists;
     use Closure;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Filesystem\Filesystem;
     use Illuminate\Support\Debug\Dumper;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
-    use function is_object;
     use Psr\Http\Message\ServerRequestInterface;
+    use Ramsey\Uuid\UuidInterface;
     use ReflectionFunction;
     use Symfony\Component\Finder\Finder as FinderFile;
     use Zend\Expressive\Router\FastRouteRouter;
+    use Ramsey\Uuid\UuidFactory;
+    use Ramsey\Uuid\Generator\CombGenerator;
+    use Ramsey\Uuid\Codec\TimestampFirstCombCodec;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
         include_once __DIR__ . "/../vendor/autoload.php";
@@ -10091,6 +10093,25 @@
         }
 
         return $app;
+    }
+
+    /**
+     * @return UuidInterface
+     */
+    function uuidtimed()
+    {
+        $factory = new UuidFactory;
+
+        $factory->setRandomGenerator(new CombGenerator(
+            $factory->getRandomGenerator(),
+            $factory->getNumberConverter()
+        ));
+
+        $factory->setCodec(new TimestampFirstCombCodec(
+            $factory->getUuidBuilder()
+        ));
+
+        return $factory->uuid4();
     }
 
     function aliasToApp($alias, $class, $action = 'construct')

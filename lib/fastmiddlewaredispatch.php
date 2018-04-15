@@ -1,13 +1,18 @@
 <?php
 namespace Octo;
 
-use function FastRoute\TestFixtures\empty_options_cached;
 use Interop\Http\ServerMiddleware\DelegateInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 class Fastmiddlewaredispatch extends FastMiddleware
 {
+    /**
+     * @param ServerRequestInterface $request
+     * @param DelegateInterface $next
+     * @return \GuzzleHttp\Psr7\Response|mixed|null|ResponseInterface
+     * @throws \ReflectionException
+     */
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {
         $app    = $this->getContainer();
@@ -21,7 +26,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
             if (is_array($middleware)) {
                 $module = $middleware[0];
                 $action = $middleware[1];
-                $response = callMethod($module, $action);
+                $response = gi()->call($module, $action);
             } else {
                 $module     = $this->maker($middleware);
                 $callable   = [$module, 'run'];

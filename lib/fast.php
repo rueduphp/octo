@@ -808,13 +808,20 @@
 
                 if (in_array('process', $methods)) {
                     $this->response = callMethod($middleware, 'process', $request, $this);
-                }
-
-                if (in_array('handle', $methods)) {
+                } elseif (in_array('handle', $methods)) {
                     $this->response = callMethod($middleware, 'handle', $request, $this);
                 }
             } elseif (is_callable($middleware)) {
-                $this->response = call_user_func_array($middleware, [$request, [$this, 'process']]);
+                if (is_array($middleware)) {
+                    $params = array_merge($middleware, [$request, [$this, 'process']]);
+                    $this->response = gi()->call(...$params);
+                } elseif ($middleware instanceof Closure) {
+                    $params = array_merge([$middleware], [$request, [$this, 'process']]);
+                    $this->response = gi()->makeClosure(...$params);
+                } else {
+                    $params = array_merge([$middleware, '__invoke'], [$request, [$this, 'process']]);
+                    $this->response = gi()->call(...$params);
+                }
             }
 
             return $this->response;
@@ -1421,6 +1428,17 @@
         public function dispatch()
         {
             return event(...func_get_args());
+        }
+
+        /**
+         * @param $response
+         * @return Fast
+         */
+        public function setResponse($response): self
+        {
+            $this->response = $response;
+
+            return $this;
         }
     }
 

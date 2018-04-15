@@ -114,7 +114,7 @@
          */
         public static function create($config = [])
         {
-            return instanciator()->singleton(Fast::class, $config);
+            return instanciator()->make(Fast::class, [$config], true);
         }
 
         protected function resolvable($toResolve)
