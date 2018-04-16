@@ -5,7 +5,7 @@ namespace Octo;
 class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
 {
     /**
-     * Parameter storage.
+     * @var array
      */
     protected $parameters;
 
@@ -18,9 +18,7 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns the parameters.
-     *
-     * @return array An array of parameters
+     * @return array
      */
     public function all()
     {
@@ -28,9 +26,7 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns the parameter keys.
-     *
-     * @return array An array of parameter keys
+     * @return array
      */
     public function keys()
     {
@@ -62,12 +58,9 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns a parameter by name.
-     *
-     * @param string $key     The key
-     * @param mixed  $default The default value if the parameter key does not exist
-     *
-     * @return mixed
+     * @param $key
+     * @param null $default
+     * @return mixed|null
      */
     public function get($key, $default = null)
     {
@@ -106,11 +99,8 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns true if the parameter is defined.
-     *
-     * @param string $key The key
-     *
-     * @return bool true if the parameter exists, false otherwise
+     * @param $key
+     * @return bool
      */
     public function has($key)
     {
@@ -149,12 +139,9 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns the alphabetic characters of the parameter value.
-     *
-     * @param string $key     The parameter key
-     * @param string $default The default value if the parameter key does not exist
-     *
-     * @return string The filtered value
+     * @param $key
+     * @param string $default
+     * @return null|string|string[]
      */
     public function getAlpha($key, $default = '')
     {
@@ -162,12 +149,9 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns the alphabetic characters and digits of the parameter value.
-     *
-     * @param string $key     The parameter key
-     * @param string $default The default value if the parameter key does not exist
-     *
-     * @return string The filtered value
+     * @param $key
+     * @param string $default
+     * @return null|string|string[]
      */
     public function getAlnum($key, $default = '')
     {
@@ -175,12 +159,9 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns the digits of the parameter value.
-     *
-     * @param string $key     The parameter key
-     * @param string $default The default value if the parameter key does not exist
-     *
-     * @return string The filtered value
+     * @param $key
+     * @param string $default
+     * @return mixed
      */
     public function getDigits($key, $default = '')
     {
@@ -196,12 +177,9 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns the parameter value converted to integer.
-     *
-     * @param string $key     The parameter key
-     * @param int    $default The default value if the parameter key does not exist
-     *
-     * @return int The filtered value
+     * @param $key
+     * @param int $default
+     * @return int
      */
     public function getInt($key, $default = 0)
     {
@@ -209,12 +187,9 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns the parameter value converted to boolean.
-     *
-     * @param string $key     The parameter key
-     * @param mixed  $default The default value if the parameter key does not exist
-     *
-     * @return bool The filtered value
+     * @param $key
+     * @param bool $default
+     * @return mixed
      */
     public function getBoolean($key, $default = false)
     {
@@ -222,15 +197,10 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Filter key.
-     *
-     * @param string $key     Key
-     * @param mixed  $default Default = null
-     * @param int    $filter  FILTER_* constant
-     * @param mixed  $options Filter options
-     *
-     * @see http://php.net/manual/en/function.filter-var.php
-     *
+     * @param $key
+     * @param null $default
+     * @param int $filter
+     * @param array $options
      * @return mixed
      */
     public function filter($key, $default = null, $filter = FILTER_DEFAULT, $options = [])
@@ -249,9 +219,7 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns an iterator for parameters.
-     *
-     * @return \ArrayIterator An \ArrayIterator instance
+     * @return \ArrayIterator|\Traversable
      */
     public function getIterator()
     {
@@ -259,9 +227,7 @@ class Parameter implements \IteratorAggregate, \Countable, \ArrayAccess
     }
 
     /**
-     * Returns the number of parameters.
-     *
-     * @return int The number of parameters
+     * @return int
      */
     public function count()
     {

@@ -10,6 +10,8 @@ abstract class TestCase extends Octo\TestCase
      */
     public function setUp()
     {
+        defined('testing') || define('testing', true);
+
         parent::setUp();
 
         date_default_timezone_set('Europe/Paris');

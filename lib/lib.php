@@ -7033,6 +7033,11 @@
         return $props;
     }
 
+    function ttc(float $vat, float $price)
+    {
+        return floor($price * (($vat + 100) / 100));
+    }
+
     /**
      * @param string $ns
      * @param null $token
@@ -7214,6 +7219,44 @@
         }
 
         return null;
+    }
+
+    /**
+     * @return \Illuminate\Database\Schema\Builder
+     */
+    function getSchema()
+    {
+        return Capsule::instance()->schema();
+    }
+
+    /**
+     * @param string $table
+     * @return bool
+     */
+    function hasTable(string $table)
+    {
+        return getSchema()->hasTable($table);
+    }
+
+    /**
+     * @param $table
+     * @param array ...$columns
+     * @return bool
+     */
+    function hasColumn($table, ...$columns)
+    {
+        return getSchema()->hasColumns($table, $columns);
+    }
+
+
+    /**
+     * @param $table
+     * @param array ...$columns
+     * @return bool
+     */
+    function hasColumns($table, ...$columns)
+    {
+        return getSchema()->hasColumns($table, $columns);
     }
 
     function etag($time)
@@ -10396,7 +10439,7 @@
             case '<>':
             case '!=':
             case '!==':
-                return sha1(serialize($actual)) !== sha1(serialize($value));
+                return sha1($actual) !== sha1($value);
             case 'gt':
             case '>':
                 return $actual > $value;
@@ -10473,7 +10516,7 @@
             case '=':
             case '===':
             default:
-                return sha1(serialize($actual)) === sha1(serialize($value));
+                return sha1($actual) === sha1($value);
         }
     }
 

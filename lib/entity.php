@@ -223,6 +223,11 @@
             return foundry(Orm::class)->table(static::table());
         }
 
+        /**
+         * @param null $concern
+         * @return $this|string
+         * @throws \ReflectionException
+         */
         public function __invoke($concern = null)
         {
             if (!empty($concern)) {

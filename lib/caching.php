@@ -899,6 +899,10 @@ class Caching implements FastCacheInterface
 
     public function until($k, callable $c, $maxAge = null, $args = [])
     {
+        if (defined('testing') && testing === true) {
+            return call_user_func_array($c, $args);
+        }
+
         $keyAge = $k . '.maxage';
         $v      = $this->get($k);
 

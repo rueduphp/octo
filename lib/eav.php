@@ -495,7 +495,7 @@
         {
             $key = $this->db . '.' . $this->table . '.' . $id . '.row';
 
-            return $this->getOrCache($key, function () use ($id) {
+            return $this->getOrCache($key, function () use ($id, $eager) {
                 $q = "SELECT ofield_id, ovalue FROM odata WHERE oid = $id AND odatabase_id = " . $this->db_id . " AND otable_id = " . $this->table_id;
                 $data = ['id' => $id];
 
@@ -578,6 +578,12 @@
             return $model;
         }
 
+        /**
+         * @param $id
+         * @param bool $model
+         * @return mixed|null|Objet
+         * @throws Exception
+         */
         public function findOrFail($id, $model = true)
         {
             $row = $this->find($id, false);

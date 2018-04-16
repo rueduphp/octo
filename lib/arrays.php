@@ -180,6 +180,19 @@
          * @param array $array
          * @return array
          */
+        public static function divide(array $array): array
+        {
+            if (static::isAssoc($array)) {
+                return [array_keys($array), array_values($array)];
+            }
+
+            return [[], []];
+        }
+
+        /**
+         * @param array $array
+         * @return array
+         */
         public static function keys(array $array)
         {
             return array_keys($array);

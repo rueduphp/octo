@@ -5,6 +5,11 @@ use Octo\Arrays;
 use Octo\Breeze;
 use Octo\Component;
 use Octo\Config;
+use Octo\Dynamicmodel;
+use Octo\EavAttribute;
+use Octo\EavEntity;
+use Octo\EavRow;
+use Octo\EavValue;
 use Octo\Emit;
 use Octo\Facade;
 use Octo\Finder;
@@ -192,6 +197,82 @@ class TestFactor
 
 class SimpleTest extends TestCase
 {
+    /**
+     * @throws ReflectionException
+     */
+    public function testEav()
+    {
+        Dynamicmodel::migrate();
+
+        $db = new Dynamicmodel('test.product');
+
+        $db->create(['name' => 'foo', 'price' => 25]);
+
+        $row = $db->find(1);
+
+        $this->assertSame(1, EavEntity::count());
+        $this->assertSame(1, EavRow::count());
+        $this->assertSame(2, EavAttribute::count());
+        $this->assertSame(2, EavValue::count());
+        $this->assertSame(1, $row['id']);
+        $this->assertSame(25, $row['price']);
+        $this->assertSame('foo', $row['name']);
+
+        $db->update(1, ['price' => 100, 'name' => 'bar']);
+
+        $row = $db->find(1);
+
+        $this->assertSame(1, EavEntity::count());
+        $this->assertSame(1, EavRow::count());
+        $this->assertSame(2, EavAttribute::count());
+        $this->assertSame(2, EavValue::count());
+        $this->assertSame(1, $row['id']);
+        $this->assertSame(100, $row['price']);
+        $this->assertSame('bar', $row['name']);
+
+        $query = $db->where('price', 100)->get();
+
+        $this->assertSame(1, $query->count());
+
+        $this->assertTrue($db->delete(1));
+
+        $this->assertSame(1, EavEntity::count());
+        $this->assertSame(0, EavRow::count());
+        $this->assertSame(0, EavValue::count());
+        $this->assertSame(0, EavAttribute::count());
+
+        $this->assertFalse($db->delete(1));
+
+        $db->create(['name' => 'foo', 'price' => 25]);
+        $db->create(['name' => 'bar', 'price' => 50]);
+        $db->create(['name' => 'baz', 'price' => 200]);
+
+        $this->assertSame(3, $db->count());
+        $this->assertame(2, $db->where('price', '<', 100)->count());
+        $this->assertame(2, $db->where('price', '<=', 100)->count());
+        $this->assertame(1, $db->where('price', '>', 100)->count());
+        $this->assertame(1, $db->where('price', '>=', 100)->count());
+
+        $this->assertSame('bar', $db->sortBy('name')->first()['name']);
+        $this->assertSame('foo', $db->sortBy('name')->last()['name']);
+        $this->assertSame(25, $db->sortBy('price')->first()['price']);
+        $this->assertSame(200, $db->sortBy('price')->last()['price']);
+
+        $this->assertSame('foo', $db->sortByDesc('name')->first()['name']);
+        $this->assertSame('bar', $db->sortByDesc('name')->last()['name']);
+        $this->assertSame(200, $db->sortByDesc('price')->first()['price']);
+        $this->assertSame(25, $db->sortByDesc('price')->last()['price']);
+
+        $models = $db->model();
+
+        $this->assertSame(25, $models->first()->getPrice());
+        $this->assertSame(25, $models->first()->price);
+        $this->assertSame(25, $models->first()->price());
+
+        $models->first()->price(123);
+        $this->assertSame(123, $models->first()->price());
+    }
+
     /**
      * @throws ReflectionException
      */

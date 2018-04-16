@@ -1,7 +1,7 @@
 <?php
     namespace Octo;
 
-    class Cursoreav implements Countable, Iterator
+    class Cursoreav implements \Countable, \Iterator
     {
         private $resource, $db, $position, $closure, $query = [];
 
@@ -99,7 +99,7 @@
             $cursor = Arrays::makeFromResource($this->resource);
             $cursor = is_array($cursor) ? $cursor : iterator_to_array($cursor);
 
-            return SplFixedArray::fromArray($cursor);
+            return \SplFixedArray::fromArray($cursor);
         }
 
         public function count($return = true)

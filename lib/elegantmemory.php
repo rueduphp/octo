@@ -23,7 +23,7 @@ class Elegantmemory extends EloquentModel implements FastModelInterface
             $m = '__schema';
         }
 
-        $callable = [instanciator()->singleton(get_called_class()), $m];
+        $callable = [instanciator()->make(get_called_class()), $m];
 
         $params = array_merge($callable, $a);
 

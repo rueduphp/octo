@@ -4,6 +4,8 @@ namespace Octo;
 use Closure;
 use Interop\Http\ServerMiddleware\DelegateInterface;
 use Interop\Http\ServerMiddleware\MiddlewareInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 class Smart implements DelegateInterface
 {
@@ -57,7 +59,7 @@ class Smart implements DelegateInterface
 
     /**
      * @param null $request
-     * @return mixed|null|\Psr\Http\Message\ResponseInterface
+     * @return mixed|null|ResponseInterface
      * @throws \ReflectionException
      */
     public function run($request = null)
@@ -75,11 +77,11 @@ class Smart implements DelegateInterface
     }
 
     /**
-     * @param \Psr\Http\Message\ServerRequestInterface $request
-     * @return mixed|null|\Psr\Http\Message\ResponseInterface
+     * @param ServerRequestInterface $request
+     * @return mixed|null|ResponseInterface
      * @throws \ReflectionException
      */
-    public function process($request)
+    public function process(ServerRequestInterface $request)
     {
         $this->app->setRequest($request);
 

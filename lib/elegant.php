@@ -18,7 +18,7 @@ class Elegant extends EloquentModel implements FastModelInterface
      */
     public static function __callStatic($m, $a)
     {
-        $callable = [instanciator()->singleton(get_called_class()), $m];
+        $callable = [gi()->make(get_called_class()), $m];
 
         $params = array_merge($callable, $a);
 
@@ -38,7 +38,7 @@ class Elegant extends EloquentModel implements FastModelInterface
         $class = get_called_class();
 
         if (!isset($this->__capsule)) {
-            $this->__capsule = Capsule::instance()->model($class);
+            $this->__capsule = Capsule::getInstance()->model($class);
         }
 
         if (in_array($m, ['increment', 'decrement'])) {

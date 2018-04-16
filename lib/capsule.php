@@ -38,7 +38,7 @@ class Capsule
      */
     public static function instance(?PDO $pdo = null): Capsule
     {
-        if ($pdo instanceof PDO) {
+        if (!static::$instance || $pdo instanceof PDO) {
             static::$instance = new static($pdo);
         }
 
@@ -52,7 +52,7 @@ class Capsule
     public static function connection()
     {
         if (!$connection = get('capsule.connection')) {
-            $connection = self::grammar(new Connection(getPdo()));
+            $connection = static::grammar(new Connection(getPdo()));
         }
 
         return $connection;
@@ -86,7 +86,7 @@ class Capsule
         /** @var Elegant $model */
         $model = is_string($class) && class_exists($class) ? new $class() : $class;
 
-        $connection = self::grammar(new Connection($this->pdo), $this->pdo);
+        $connection = static::grammar(new Connection($this->pdo), $this->pdo);
 
         set('capsule.connection', $connection);
 
