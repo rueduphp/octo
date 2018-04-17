@@ -22,8 +22,6 @@ class Dynamicentity
      */
     public function __construct()
     {
-        addDynamicEntity($this);
-
         $class  = get_called_class();
 
         $methods = get_class_methods($this);
@@ -67,6 +65,8 @@ class Dynamicentity
 
             $this->fire('booted');
         }
+
+        addDynamicEntity($this);
     }
 
     /**

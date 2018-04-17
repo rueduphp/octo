@@ -352,7 +352,7 @@ class Dynamicmodel
      */
     public function freshids()
     {
-        return EavRow::where('entity_id', $this->entity->id)->pluck('id')->all();
+        return EavRow::select('id')->where('entity_id', $this->entity->id)->pluck('id')->all();
     }
 
     /**
@@ -802,18 +802,219 @@ class Dynamicmodel
         return $this;
     }
 
+    /**
+     * @param string $method
+     * @param array $parameters
+     * @return mixed
+     * @throws \Exception
+     */
     public function __call(string $method, array $parameters)
     {
         if ('or' === $method) {
+            if (!empty($this->query)) {
+                $oldIds = $this->ids();
+
+                $self = $this->reset()->where(...$parameters);
+
+                $merged = array_merge($oldIds, $self->ids());
+
+                $this->ids = array_values($merged);
+
+                return $self;
+            } else {
+                throw new \Exception("You must provide at least one query.");
+            }
+        } elseif ($method === 'xor') {
+            if (empty($this->query)) {
+                exception('dynmodel', 'You must have at least one where clause before using the method xor.');
+            }
+
             $oldIds = $this->ids();
 
-            $self = $this->where(...$parameters);
+            $this->query[] = 'XOR';
 
-            $merged = array_merge($oldIds, $self->ids());
+            $this->reset()->where(...$parameters);
 
-            $this->ids = array_values($merged);
+            $this->ids = array_merge(array_diff($oldIds, $this->ids()), array_diff($this->ids(), $oldIds));
 
-            return $self;
+            return $this;
+        } elseif ($method === 'and') {
+            return $this->where(...$parameters);
+        }
+
+        if (fnmatch('like*', $method) && strlen($method) > 4) {
+            $field = callField($method, 'like');
+            $value = array_shift($parameters);
+
+            return $this->like($field, $value);
+        }
+
+        if ($method === 'list') {
+            $field = array_shift($parameters);
+
+            if (!$field) {
+                $field = ['id'];
+            } elseif (fnmatch('*|*', $field)) {
+                $field = explode('|', str_replace(" ", "", $field));
+            } elseif (fnmatch('*,*', $field)) {
+                $field = explode(',', str_replace(" ", "", $field));
+            }
+
+            if (!is_array($field)) {
+                $field = [$field];
+            }
+
+            $list = [];
+            $rows = $this->get();
+
+            foreach ($rows as $row) {
+                $value = ['id' => $row['id']];
+
+                foreach ($field as $f) {
+                    $value[$f] = isAke($row, $f, null);
+                }
+
+                $list[] = $value;
+            }
+
+            return coll($list);
+        }
+
+        if (fnmatch('findBy*', $method) && strlen($method) > 6) {
+            $field = callField($method, 'findBy');
+
+            $op = '=';
+
+            if (count($parameters) === 2) {
+                $op     = array_shift($parameters);
+                $value  = array_shift($parameters);
+            } else {
+                $value  = array_shift($parameters);
+            }
+
+            return $this->where($field, $op, $value);
+        }
+
+        if (fnmatch('getBy*', $method) && strlen($method) > 5) {
+            $field = callField($method, 'getBy');
+
+            $op = '=';
+
+            if (count($parameters) === 2) {
+                $op     = array_shift($parameters);
+                $value  = array_shift($parameters);
+            } else {
+                $value  = array_shift($parameters);
+            }
+
+            return $this->where($field, $op, $value);
+        }
+
+        if (fnmatch('where*', $method) && strlen($method) > 5) {
+            $field = callField($method, 'where');
+
+            $op = '=';
+
+            if (count($parameters) === 2) {
+                $op     = array_shift($parameters);
+                $value  = array_shift($parameters);
+            } else {
+                $value  = array_shift($parameters);
+            }
+
+            return $this->where($field, $op, $value);
+        }
+
+        if (fnmatch('by*', $method) && strlen($method) > 2) {
+            $field = callField($method, 'by');
+            $value = array_shift($parameters);
+
+            return $this->where($field, $value);
+        }
+
+        if (fnmatch('sortWith*', $method)) {
+            $field = callField($method, 'sortWith');
+
+            return $this->sortBy($field);
+        }
+
+        if (fnmatch('asortWith*', $method)) {
+            $field = callField($method, 'sortWith');
+
+            return $this->sortByDesc($field);
+        }
+
+        if (fnmatch('sortDescWith*', $method)) {
+            $field = callField($method, 'sortDescWith');
+
+            return $this->sortByDesc($field);
+        }
+
+        if (fnmatch('firstBy*', $method) && strlen($method) > 7) {
+            $field = callField($method, 'firstBy');
+            $value = array_shift($parameters);
+            $model = array_shift($parameters);
+
+            if (is_null($model)) {
+                $model = true;
+            }
+
+            return $this->firstBy($field, $value, $model);
+        }
+
+        if (fnmatch('notLike*', $method) && strlen($method) > 47) {
+            $field = callField($method, 'notLike');
+
+            return $this->notLike($field, array_shift($parameters));
+        }
+
+        if (fnmatch('between*', $method) && strlen($method) > 7) {
+            $field = callField($method, 'between');
+
+            return $this->between($field, current($parameters), end($parameters));
+        }
+
+        if (fnmatch('lastBy*', $method) && strlen($method) > 6) {
+            $field = callField($method, 'lastBy');
+            $value = array_shift($parameters);
+            $model = array_shift($parameters);
+
+            if (is_null($model)) {
+                $model = true;
+            }
+
+            return $this->lastBy($field, $value, $model);
+        }
+
+        $entity = getDynamicEntity($this->entity->name);
+
+        if (is_object($entity) && $entity instanceof Dynamicentity) {
+            $methods    = get_class_methods($entity);
+            $method     = 'scope' . ucfirst(Strings::camelize($method));
+
+            if (in_array($method, $methods)) {
+                $params = array_merge([$entity, $method], [$this]);
+
+                return gi()->call(...$params);
+            }
+
+            $method = 'query' . ucfirst(Strings::camelize($method));
+
+            if (in_array($method, $methods)) {
+                $params = array_merge([$entity, $method], [$this]);
+
+                return gi()->call(...$params);
+            }
+        }
+
+        if (count($parameters) === 1) {
+            $o = array_shift($parameters);
+
+            if ($o instanceof Dynamicrecord) {
+                $fk = Strings::uncamelize($method) . '_id';
+
+                return $this->where($fk, (int) $o->id);
+            }
         }
     }
 

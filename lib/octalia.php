@@ -925,6 +925,7 @@
          *
          * @return mixed|Octalia
          *
+         * @throws Exception
          * @throws \ReflectionException
          */
         public function __call($m, $a)
@@ -941,7 +942,7 @@
                 if (in_array($method, $methods)) {
                     $params = array_merge([$entity, $method], array_merge([$this], $a));
 
-                    return instanciator()->call(...$params);
+                    return gi()->call(...$params);
                 }
 
                 $method = 'query' . ucfirst(Strings::camelize($m));
@@ -949,7 +950,7 @@
                 if (in_array($method, $methods)) {
                     $params = array_merge([$entity, $method], array_merge([$this], $a));
 
-                    return instanciator()->call(...$params);
+                    return gi()->call(...$params);
                 }
             }
 
@@ -985,7 +986,7 @@
 
                 $this->query[] = 'OR';
 
-                call_user_func_array([$this, 'where'], $a);
+                call_user_func_array([$this->newQuery(), 'where'], $a);
 
                 $merged = $this->merge((array) $oldIds, (array) $this->ids);
 
@@ -2671,6 +2672,10 @@
             return count($datas);
         }
 
+        /**
+         * @return Octalia
+         * @throws Exception
+         */
         public function newQuery()
         {
             return new self($this->db, $this->table, $this->driver);
