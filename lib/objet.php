@@ -488,7 +488,7 @@
                 return $this->set($k . '_id', $v->id);
             }
 
-            if ($k == 'password') {
+            if ($k === 'password') {
                 $v = lib('hasher')->make($v);
             }
 

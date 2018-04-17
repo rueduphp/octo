@@ -178,6 +178,9 @@ class Dynamicmodel
     {
         $data = arrayable($data) ? $data->toArray() : $data;
 
+        $data['created_at'] = time();
+        $data['updated_at'] = time();
+
         list($keys, $values) = Arrays::divide($data);
 
         $row = EavRow::create(['entity_id' => $this->entity->id]);
@@ -208,11 +211,12 @@ class Dynamicmodel
     public function update(int $id, $data)
     {
         $data = arrayable($data) ? $data->toArray() : $data;
-        $row = $this->find($id);
+        $row = $this->find($id, false);
 
         unset($row['id']);
 
         $new = array_merge($row, $data);
+        $new['updated_at'] = time();
 
         foreach ($new as $key => $value) {
             $attribute = EavAttribute::firstOrCreate(['name' => $key, 'entity_id' => $this->entity->id]);
@@ -235,10 +239,44 @@ class Dynamicmodel
     }
 
     /**
+     * @return int
+     */
+    public function remove(): int
+    {
+        $affected = 0;
+
+        foreach ($this->ids() as $id) {
+            $this->delete($id);
+            $affected++;
+        }
+
+        $this->reset();
+
+        return $affected;
+    }
+
+    /**
+     * @return int
+     */
+    public function edit(array $parameters): int
+    {
+        $affected = 0;
+
+        foreach ($this->ids() as $id) {
+            $this->update($id,$parameters);
+            $affected++;
+        }
+
+        $this->reset();
+
+        return $affected;
+    }
+
+    /**
      * @param int $id
      * @return bool
      */
-    function delete(int $id)
+    public function delete(int $id): bool
     {
         $row = EavRow::find($id);
 
@@ -283,11 +321,11 @@ class Dynamicmodel
      * @param int $id
      * @return mixed|null
      */
-    public function find(int $id)
+    public function find(int $id, $model = true)
     {
         $key = 'eav.' . $this->entity->id . '.' . $id . '.find';
 
-        return $this->cache->until($key, function () use ($id) {
+        return $this->cache->until($key, function () use ($id, $model) {
             /** @var EavRow $row */
             $row = EavRow::find($id);
 
@@ -302,7 +340,7 @@ class Dynamicmodel
 
                 $found['id'] = (int) $value['row_id'];
 
-                return $found;
+                return true === $model ? new Dynamicrecord($found, $this) : $found;
             }
 
             return null;
@@ -314,7 +352,7 @@ class Dynamicmodel
      */
     public function freshids()
     {
-        return EavRow::all()->pluck('id')->all();
+        return EavRow::where('entity_id', $this->entity->id)->pluck('id')->all();
     }
 
     /**
@@ -415,21 +453,27 @@ class Dynamicmodel
     }
 
     /**
-     * @return mixed|null
+     * @param bool $model
+     * @return mixed|null|Dynamicrecord
      * @throws \ReflectionException
      */
-    public function first()
+    public function first($model = true)
     {
-        return $this->get()->first();
+        $row = $this->get()->first();
+
+        return $model && null !== $row ? new Dynamicrecord($row, $this) : $row;
     }
 
     /**
-     * @return mixed
+     * @param bool $model
+     * @return mixed|Dynamicrecord
      * @throws \ReflectionException
      */
-    public function last()
+    public function last($model = true)
     {
-        return $this->get()->last();
+        $row = $this->get()->last();
+
+        return $model && null !== $row ? new Dynamicrecord($row, $this) : $row;
     }
 
     /**
@@ -460,19 +504,19 @@ class Dynamicmodel
      */
     public function get(): Iterator
     {
-        return $this->each(function ($row) {
+        return $this->each(function (int $row) {
             return $this->find($row);
         });
     }
 
-
     /**
+     * @param null|Dynamicentity $entity
      * @return Iterator
      */
-    public function model(): Iterator
+    public function model(?Dynamicentity $entity = null): Iterator
     {
-        return $this->each(function ($row) {
-            return new Dynamicrecord($this->find($row), $this);
+        return $this->each(function ($row) use ($entity) {
+            return new Dynamicrecord($this->find($row), $this, $entity);
         });
     }
 
@@ -522,7 +566,7 @@ class Dynamicmodel
      */
     public function getFieldValueById(string $field, int $id, $default = null)
     {
-            $row = $this->find($id);
+            $row = $this->find($id, false);
 
             if (null !== $row) {
                 return isAke($row, $field, $default);
@@ -586,7 +630,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @param $value
-     * @return mixed|null
+     * @return mixed|null|Dynamicrecord
      * @throws \ReflectionException
      */
     public function firstBy(string $field, $value)
@@ -597,7 +641,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @param $value
-     * @return mixed
+     * @return mixed|Dynamicrecord
      * @throws \ReflectionException
      */
     public function lastBy(string $field, $value)
@@ -610,7 +654,7 @@ class Dynamicmodel
      * @param array $values
      * @return Dynamicmodel
      */
-    public function in(string $field, array $values)
+    public function in(string $field, array $values): self
     {
         return $this->where($field, 'in', $values);
     }
@@ -620,7 +664,7 @@ class Dynamicmodel
      * @param array $values
      * @return Dynamicmodel
      */
-    public function notIn(string $field, array $values)
+    public function notIn(string $field, array $values): self
     {
         return $this->where($field, 'not in', $values);
     }
@@ -650,7 +694,7 @@ class Dynamicmodel
      * @param $max
      * @return Dynamicmodel
      */
-    public function isBetween(string $field, $min, $max)
+    public function isBetween(string $field, $min, $max): self
     {
         return $this->where($field, 'between', [$min, $max]);
     }
@@ -661,7 +705,7 @@ class Dynamicmodel
      * @param $max
      * @return Dynamicmodel
      */
-    public function isNotBetween(string $field, $min, $max)
+    public function isNotBetween(string $field, $min, $max): self
     {
         return $this->where($field, 'not between', [$min, $max]);
     }
@@ -670,7 +714,7 @@ class Dynamicmodel
      * @param string $field
      * @return Dynamicmodel
      */
-    public function isNull(string $field)
+    public function isNull(string $field): self
     {
         return $this->where($field, 'is', 'null');
     }
@@ -679,7 +723,7 @@ class Dynamicmodel
      * @param string $field
      * @return Dynamicmodel
      */
-    public function isNotNull(string $field)
+    public function isNotNull(string $field): self
     {
         return $this->where($field, 'is not', 'null');
     }
@@ -773,8 +817,648 @@ class Dynamicmodel
         }
     }
 
-    public function getEntity()
+    /**
+     * @return string
+     */
+    public function getEntity(): string
     {
-        return $this->entity;
+        return $this->entity->name;
+    }
+
+    /**
+     * @return bool
+     */
+    public function exists(): bool
+    {
+        return $this->count() > 0;
+    }
+
+    /**
+     * @return null
+     */
+    public function getCache()
+    {
+        return $this->cache;
+    }
+
+    /**
+     * @return string
+     */
+    public function getCacheClass()
+    {
+        return get_class($this->cache);
+    }
+
+    /**
+     * @param string $field
+     * @param array $values
+     * @return Dynamicmodel
+     */
+    public function orIn(string $field, array $values): self
+    {
+        return $this->or($field, 'in', $values);
+    }
+
+    /**
+     * @param string $field
+     * @param array $values
+     * @return Dynamicmodel
+     */
+    public function orNotIn(string $field, array $values): self
+    {
+        return $this->or($field, 'not in', $values);
+    }
+
+    /**
+     * @param string $field
+     * @param array $values
+     * @return Dynamicmodel
+     */
+    public function WhereIn(string $field, array $values): self
+    {
+        return $this->where($field, 'in', $values);
+    }
+
+    /**
+     * @param string $field
+     * @param array $values
+     * @return Dynamicmodel
+     */
+    public function orWhereIn(string $field, array $values): self
+    {
+        return $this->or($field, 'in', $values);
+    }
+
+    /**
+     * @param string $field
+     * @param array $values
+     * @return Dynamicmodel
+     */
+    public function whereNotIn(string $field, array $values): self
+    {
+        return $this->where($field, 'not in', $values);
+    }
+
+    /**
+     * @param string $field
+     * @param array $values
+     * @return Dynamicmodel
+     */
+    public function orWhereNotIn(string $field, array $values): self
+    {
+        return $this->or($field, 'not in', $values);
+    }
+
+    /**
+     * @param string $field
+     * @param $min
+     * @param $max
+     * @return Dynamicmodel
+     */
+    public function between(string $field, $min, $max): self
+    {
+        return $this->where($field, 'between', [$min, $max]);
+    }
+
+    /**
+     * @param string $field
+     * @param $min
+     * @param $max
+     * @return Dynamicmodel
+     */
+    public function orBetween(string $field, $min, $max): self
+    {
+        return $this->or($field, 'between', [$min, $max]);
+    }
+
+    /**
+     * @param string $field
+     * @param $min
+     * @param $max
+     * @return Dynamicmodel
+     */
+    public function notBetween(string $field, $min, $max): self
+    {
+        return $this->where($field, 'not between', [$min, $max]);
+    }
+
+    /**
+     * @param string $field
+     * @param $min
+     * @param $max
+     * @return Dynamicmodel
+     */
+    public function orNotBetween(string $field, $min, $max): self
+    {
+        return $this->or($field, 'not between', [$min, $max]);
+    }
+
+    /**
+     * @param string $field
+     * @return Dynamicmodel
+     */
+    public function orIsNull(string $field): self
+    {
+        return $this->or($field, 'is', 'null');
+    }
+
+    /**
+     * @param string $field
+     * @return Dynamicmodel
+     */
+    public function orIsNotNull(string $field): self
+    {
+        return $this->or($field, 'is not', 'null');
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function startsWith(string $field, $value): self
+    {
+        return $this->where($field, 'Like', $value . '%');
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function orStartsWith(string $field, $value): self
+    {
+        return $this->or($field, 'Like', $value . '%');
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function endsWith(string $field, $value): self
+    {
+        return $this->where($field, 'Like', '%' . $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function orEndsWith(string $field, $value): self
+    {
+        return $this->or($field, 'Like', '%' . $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function lt(string $field, $value): self
+    {
+        return $this->where($field, '<', $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function orLt(string $field, $value): self
+    {
+        return $this->or($field, '<', $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function gt(string $field, $value): self
+    {
+        return $this->where($field, '>', $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function orGt(string $field, $value): self
+    {
+        return $this->or($field, '>', $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function lte(string $field, $value): self
+    {
+        return $this->where($field, '<=', $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function orLte(string $field, $value): self
+    {
+        return $this->or($field, '<=', $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function gte(string $field, $value): self
+    {
+        return $this->where($field, '>=', $value);
+    }
+
+    /**
+     * @param string $field
+     * @param $value
+     * @return Dynamicmodel
+     */
+    public function orGte(string $field, $value): self
+    {
+        return $this->or($field, '>=', $value);
+    }
+
+    /**
+     * @param $date
+     * @param bool $strict
+     * @return Dynamicmodel
+     */
+    public function before($date, bool $strict = true): self
+    {
+        if (!is_int($date)) {
+            $date = (int) $date->timestamp;
+        }
+
+        return $strict ? $this->lt('created_at', $date) : $this->lte('created_at', $date);
+    }
+
+    /**
+     * @param $date
+     * @param bool $strict
+     * @return Dynamicmodel
+     */
+    public function orBefore($date, bool $strict = true): self
+    {
+        if (!is_int($date)) {
+            $date = (int) $date->timestamp;
+        }
+
+        return $strict ? $this->orLt('created_at', $date) : $this->orLte('created_at', $date);
+    }
+
+    /**
+     * @param $date
+     * @param bool $strict
+     * @return Dynamicmodel
+     */
+    public function after($date, bool $strict = true): self
+    {
+        if (!is_int($date)) {
+            $date = (int) $date->timestamp;
+        }
+
+        return $strict ? $this->gt('created_at', $date) : $this->gte('created_at', $date);
+    }
+
+    /**
+     * @param $date
+     * @param bool $strict
+     * @return Dynamicmodel
+     */
+    public function orAfter($date, bool $strict = true): self
+    {
+        if (!is_int($date)) {
+            $date = (int) $date->timestamp;
+        }
+
+        return $strict ? $this->orGt('created_at', $date) : $this->orGte('created_at', $date);
+    }
+
+    /**
+     * @param string $field
+     * @param string $op
+     * @param $date
+     * @return Dynamicmodel
+     */
+    public function when(string $field, string $op, $date): self
+    {
+        if (!is_int($date)) {
+            $date = (int) $date->timestamp;
+        }
+
+        return $this->where($field, $op, $date);
+    }
+
+    /**
+     * @param string $field
+     * @param string $op
+     * @param $date
+     * @return Dynamicmodel
+     */
+    public function orWhen(string $field, string $op, $date): self
+    {
+        if (!is_int($date)) {
+            $date = (int) $date->timestamp;
+        }
+
+        return $this->or($field, $op, $date);
+    }
+
+    /**
+     * @return Dynamicmodel
+     */
+    public function deleted(): self
+    {
+        return $this->lte('deleted_at', microtime(true));
+    }
+
+    /**
+     * @return Dynamicmodel
+     */
+    public function orDeleted(): self
+    {
+        return $this->orLte('deleted_at', microtime(true));
+    }
+
+    /**
+     * @param $id
+     * @return bool
+     */
+    public function hasId($id): bool
+    {
+        $row = $this->find($id);
+
+        return $row ? true : false;
+    }
+
+    /**
+     * @param int $id
+     * @param bool $default
+     * @return bool|Dynamicrecord
+     */
+    public function findOr(int $id, $default = false)
+    {
+        $row = $this->find($id, false);
+
+        return $row ? new Dynamicrecord($row, $this) : $default;
+    }
+
+    /**
+     * @param int $id
+     * @return bool|Dynamicrecord
+     */
+    public function findOrFalse(int $id)
+    {
+        return $this->findOr($id, false);
+    }
+
+    /**
+     * @param int $id
+     * @return bool|Dynamicrecord
+     */
+    public function findOrNull(int $id)
+    {
+        return $this->findOr($id, null);
+    }
+
+    /**
+     * @param int $id
+     * @param bool $model
+     * @return mixed|null|Dynamicrecord
+     */
+    public function findOrFail(int $id, bool $model = true)
+    {
+        $row = $this->find($id, false);
+
+        if (!$row) {
+            exception('dynamicModel', "The row $id does not exist.");
+        } else {
+            return $model ? new Dynamicrecord($row, $this) : $row;
+        }
+    }
+
+    /**
+     * @param bool $default
+     * @return bool|Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function firstOr($default = false)
+    {
+        $row = $this->first(false);
+
+        return $row ? new Dynamicrecord($row, $this) : $default;
+    }
+
+    /**
+     * @return bool|Dynamicrecord
+     */
+    public function firstOrFalse()
+    {
+        return $this->firstOr(false);
+    }
+
+    /**
+     * @return bool|Dynamicrecord
+     */
+    public function firstOrNull()
+    {
+        return $this->firstOr(null);
+    }
+
+    /**
+     * @param bool $default
+     * @return bool|Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function lastOr($default = false)
+    {
+        $row = $this->last(false);
+
+        return $row ? new Dynamicrecord($row, $this) : $default;
+    }
+
+    /**
+     * @return bool|Dynamicrecord
+     */
+    public function lastOrFalse()
+    {
+        return $this->lastOr(false);
+    }
+
+    /**
+     * @return bool|Dynamicrecord
+     */
+    public function lastOrNull()
+    {
+        return $this->lastOr(null);
+    }
+
+    /**
+     * @param bool $model
+     * @return mixed|null|Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function firstOrFail(bool $model = true)
+    {
+        $row = $this->first(false);
+
+        if (!$row) {
+            exception('dynamicModel', "The row does not exist.");
+        } else {
+            return $model ? new Dynamicrecord($row, $this) : $row;
+        }
+    }
+
+    /**
+     * @param bool $model
+     * @return mixed|Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function lastOrFail(bool $model = true)
+    {
+        $row = $this->last(false);
+
+        if (!$row) {
+            exception('dynamicModel', "The row does not exist.");
+        } else {
+            return $model ? new Dynamicrecord($row, $this) : $row;
+        }
+    }
+
+    /**
+     * @param $conditions
+     * @return mixed|null|Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function noTuple($conditions)
+    {
+        $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
+
+        foreach ($conditions as $k => $v) {
+            $this->where($k, $v);
+        }
+
+        if ($this->count() === 0) {
+            $row = $this->create($conditions);
+
+            return new Dynamicrecord($row, $this);
+        } else {
+            return $this->first(true);
+        }
+    }
+
+    /**
+     * @param $conditions
+     * @return mixed|null|Dynamicrecord
+     */
+    public function unique($conditions)
+    {
+        return $this->noTuple($conditions);
+    }
+
+    /**
+     * @param $conditions
+     * @return Dynamicmodel
+     */
+    function search($conditions): self
+    {
+        $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
+
+        foreach ($conditions as $field => $value) {
+            $this->where($field, $value);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param $attributes
+     * @param bool $model
+     * @return mixed|null|Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function firstByAttributes($attributes, bool $model = true)
+    {
+        $attributes = arrayable($attributes) ? $attributes->toArray() : $attributes;
+
+        $q = $this;
+
+        foreach ($attributes as $field => $value) {
+            $q->where($field, $value);
+        }
+
+        return $q->first($model);
+    }
+
+    /**
+     * @param $conditions
+     * @return mixed|null|Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function firstOrCreate($conditions)
+    {
+        $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
+
+        $q = $this;
+
+        foreach ($conditions as $field => $value) {
+            $q->where($field, $value);
+        }
+
+        $exists = $q->first(true);
+
+        if (null === $exists) {
+            $row = $this->create($conditions);
+
+            return new Dynamicrecord($row, $this);
+        }
+
+        return $exists;
+    }
+
+    /**
+     * @param $conditions
+     * @return mixed|null|Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function firstOrNew($conditions)
+    {
+        $conditions = arrayable($conditions) ? $conditions->toArray() : $conditions;
+
+        $q = $this;
+
+        foreach ($conditions as $field => $value) {
+            $q->where($field, $value);
+        }
+
+        $exists = $q->first(true);
+
+        if (null === $exists) {
+            return new Dynamicrecord($conditions, $this);
+        }
+
+        return $exists;
+    }
+
+    /**
+     * @param bool $model
+     * @return Iterator
+     */
+    public function all(bool $model = true): Iterator
+    {
+        return $model ? $this->reset()->model() :$this->reset()->get();
     }
 }

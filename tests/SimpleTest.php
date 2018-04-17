@@ -5,6 +5,7 @@ use Octo\Arrays;
 use Octo\Breeze;
 use Octo\Component;
 use Octo\Config;
+use Octo\Dynamicentity;
 use Octo\Dynamicmodel;
 use Octo\EavAttribute;
 use Octo\EavEntity;
@@ -195,6 +196,16 @@ class TestFactor
     }
 }
 
+class ProductEntity extends Dynamicentity
+{
+    protected $entity = 'test.product';
+}
+
+class UsersEntity extends Dynamicentity
+{
+    protected $entity = 'test.user';
+}
+
 class SimpleTest extends TestCase
 {
     /**
@@ -203,6 +214,7 @@ class SimpleTest extends TestCase
     public function testEav()
     {
         Dynamicmodel::migrate();
+        ProductEntity::init();
 
         $db = new Dynamicmodel('test.product');
 
@@ -212,8 +224,8 @@ class SimpleTest extends TestCase
 
         $this->assertSame(1, EavEntity::count());
         $this->assertSame(1, EavRow::count());
-        $this->assertSame(2, EavAttribute::count());
-        $this->assertSame(2, EavValue::count());
+        $this->assertSame(4, EavAttribute::count());
+        $this->assertSame(4, EavValue::count());
         $this->assertSame(1, $row['id']);
         $this->assertSame(25, $row['price']);
         $this->assertSame('foo', $row['name']);
@@ -224,12 +236,13 @@ class SimpleTest extends TestCase
 
         $this->assertSame(1, EavEntity::count());
         $this->assertSame(1, EavRow::count());
-        $this->assertSame(2, EavAttribute::count());
-        $this->assertSame(2, EavValue::count());
+        $this->assertSame(4, EavAttribute::count());
+        $this->assertSame(4, EavValue::count());
         $this->assertSame(1, $row['id']);
         $this->assertSame(100, $row['price']);
         $this->assertSame('bar', $row['name']);
 
+        /** @var Iterator $query */
         $query = $db->where('price', 100)->get();
 
         $this->assertSame(1, $query->count());
@@ -271,6 +284,31 @@ class SimpleTest extends TestCase
 
         $models->first()->price(123);
         $this->assertSame(123, $models->first()->price());
+
+        $models->first()->setPrice(500);
+        $this->assertSame(500, $models->first()->getPrice());
+
+        $this->assertSame(3, ProductEntity::count());
+
+        $user    = UsersEntity::create(['name' => 'bar']);
+        $product = ProductEntity::create(['name' => 'user', 'price' => 250, 'user_id' => $user->id]);
+
+        $this->assertSame($user->getName(), $product->user()->getName());
+        $this->assertEquals($user->getCreatedAt(), $product->user()->getCreatedAt());
+        $this->assertSame($user->getCreatedAt()->timestamp, $product->user()->getCreatedAt()->timestamp);
+
+        $user->sync($product);
+
+        $this->assertSame(1, $user->pivots($product)->count());
+        $this->assertSame($product->id, $user->pivots($product)->first()->product()->id);
+        $this->assertSame($user->id, $user->pivots($product)->first()->user()->id);
+        $this->assertSame(1, $user->allPivots($product)->count());
+
+        $user->product($product);
+
+        $this->assertTrue($user->isDirty());
+        $this->assertCount(1, $user->dirty());
+        $this->assertSame(['product_id' => 6], $user->dirty());
     }
 
     /**

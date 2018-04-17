@@ -2472,7 +2472,7 @@
                 $this->where($k, $v);
             }
 
-            if ($this->count() == 0) {
+            if ($this->count() === 0) {
                 $this->store($conditions);
             } else {
                 return $this->first(true);

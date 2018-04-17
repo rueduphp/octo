@@ -396,7 +396,14 @@
             return false;
         }
 
-        public function until($k, callable $c, $maxAge = null, $args = [])
+        /**
+         * @param string $k
+         * @param callable $c
+         * @param int|null $maxAge
+         * @param array $args
+         * @return int|mixed|null|string
+         */
+        public function until(string $k, callable $c, ?int $maxAge = null, array $args = [])
         {
             $keyAge = $k . '.maxage';
             $v      = $this->get($k);
@@ -435,6 +442,10 @@
             return $data;
         }
 
+        /**
+         * @param int $e
+         * @return int
+         */
         public function getTtl($e = 0)
         {
             return $e ?: appenv('CACHE_TTL', $e);
@@ -456,5 +467,33 @@
         public function getClient()
         {
             return $this->client();
+        }
+
+        /**
+         * @param callable|null $callback
+         * @return array|\Predis\Pipeline\Pipeline
+         */
+        public function pipeline(?callable $callback = null)
+        {
+            $pipeline = $this->getClient()->pipeline();
+
+            return is_null($callback)
+                ? $pipeline
+                : tap($pipeline, $callback)->exec()
+            ;
+        }
+
+        /**
+         * @param callable|null $callback
+         * @return mixed
+         */
+        public function transaction(?callable $callback = null)
+        {
+            $transaction = $this->getClient()->multi();
+
+            return is_null($callback)
+                ? $transaction
+                : tap($transaction, $callback)->exec()
+            ;
         }
     }

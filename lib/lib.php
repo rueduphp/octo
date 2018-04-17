@@ -10421,6 +10421,29 @@
     }
 
     /**
+     * @param Dynamicentity $entity
+     */
+    function addDynamicEntity(Dynamicentity $entity)
+    {
+        $entities = getCore('dynentities', []);
+
+        $entities[$entity->entity()] = $entity;
+
+        setCore('dynentities', $entities);
+    }
+
+    /**
+     * @param string $entity
+     * @return mixed
+     */
+    function getDynamicEntity(string $entity)
+    {
+        $entities = getCore('dynentities', []);
+
+        return isAke($entities, $entity, null);
+    }
+
+    /**
      * @param $actual
      * @param $operator
      * @param string $value
@@ -10432,7 +10455,15 @@
         if ('octodummy' === $value) {
             $value = $operator;
 
-            return sha1(serialize($actual)) === sha1(serialize($value));
+            if (is_array($actual) || is_object($actual)) {
+                $actual = serialize($actual);
+            }
+
+            if (is_array($value) || is_object($value)) {
+                $value = serialize($value);
+            }
+
+            return sha1($actual) === sha1($value);
         }
 
         switch ($operator) {
@@ -10516,6 +10547,14 @@
             case '=':
             case '===':
             default:
+                if (is_array($actual) || is_object($actual)) {
+                    $actual = serialize($actual);
+                }
+
+                if (is_array($value) || is_object($value)) {
+                    $value = serialize($value);
+                }
+
                 return sha1($actual) === sha1($value);
         }
     }

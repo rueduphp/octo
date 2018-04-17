@@ -33,6 +33,8 @@ class Nullable implements ArrayAccess
         if (is_object($this->value)) {
             return $this->value->{$key} ?? null;
         }
+
+        return null;
     }
 
     /**
@@ -52,6 +54,8 @@ class Nullable implements ArrayAccess
         if (is_object($this->value)) {
             return $this->value->{$method}(...$parameters);
         }
+
+        return null;
     }
 
     /**

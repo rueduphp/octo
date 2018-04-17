@@ -48,7 +48,7 @@
                     if (in_array($method, $methods)) {
                         $params = [$entity, $method, $this];
 
-                        return instanciator()->call(...$params);
+                        return gi()->call(...$params);
                     }
 
                     $method = lcfirst(Strings::camelize('boot_' . $traitName));
@@ -56,7 +56,7 @@
                     if (in_array($method, $methods)) {
                         $params = [$entity, $method, $this];
 
-                        return instanciator()->call(...$params);
+                        return gi()->call(...$params);
                     }
                 }
             }
@@ -82,7 +82,7 @@
                 eval($code);
             }
 
-            actual('orm.proxy.' . $class, instanciator()->factory('Octo\\' . $class, $data, $this->entity, true));
+            actual('orm.proxy.' . $class, gi()->factory('Octo\\' . $class, $data, $this->entity, true));
         }
 
         public function entity()
@@ -96,7 +96,7 @@
          */
         public function db(): Orm
         {
-            return instanciator()->factory(Orm::class)->table($this->entity->table());
+            return gi()->factory(Orm::class)->table($this->entity->table());
         }
 
         /**
@@ -327,6 +327,10 @@
             echo $this->toJson();
         }
 
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
         public function exists()
         {
             return 'octodummy' !== isAke($this->data, $this->entity->pk(), 'octodummy');
@@ -357,7 +361,13 @@
             return $this;
         }
 
-        public function get($k, $d = null)
+        /**
+         * @param string $k
+         * @param null $d
+         * @return bool|\DateTime|mixed|null|Time
+         * @throws \ReflectionException
+         */
+        public function get(string $k, $d = null)
         {
             $methods = get_class_methods($this->entity);
 
@@ -438,6 +448,11 @@
             return $value;
         }
 
+        /**
+         * @param $key
+         * @return bool|\DateTime|mixed|null|Time
+         * @throws \ReflectionException
+         */
         public function __get($key)
         {
             return $this->get($key);
@@ -448,14 +463,24 @@
             return $this->set($key, $v);
         }
 
+        /**
+         * @param $key
+         * @return bool
+         * @throws \ReflectionException
+         */
         public function __isset($key)
         {
             return $this->has($key);
         }
 
+        /**
+         * @param $key
+         * @return bool
+         * @throws \ReflectionException
+         */
         public function has($key)
         {
-            return 'octodummy' != $this->get($key, 'octodummy');
+            return 'octodummy' !== $this->get($key, 'octodummy');
         }
 
         public function __unset($key)
@@ -468,6 +493,11 @@
             return $this->set($key, $value);
         }
 
+        /**
+         * @param mixed $key
+         * @return bool
+         * @throws \ReflectionException
+         */
         public function offsetExists($key)
         {
             return $this->has($key);
@@ -483,6 +513,11 @@
             unset($this->data[$key]);
         }
 
+        /**
+         * @param mixed $key
+         * @return bool|\DateTime|mixed|null|Time
+         * @throws \ReflectionException
+         */
         public function offsetGet($key)
         {
             return $this->get($key);
@@ -490,7 +525,7 @@
 
         public function isDirty()
         {
-            return $this->initial != $this->data;
+            return $this->initial !== $this->data;
         }
 
         public function dirty()
@@ -711,6 +746,7 @@
         {
             $records = !is_array($records) ? func_get_args() : $records;
 
+            /** @var Record $record */
             foreach ($records as $record) {
                 if ($this->exists() && $record->exists()) {
                     $tables = [$this->entity->table(), $record->entity()->table()];
@@ -777,7 +813,7 @@
          */
         public function morphs($entityClass, $many = true)
         {
-            $morphEntity = instanciator()->factory($entityClass);
+            $morphEntity = gi()->factory($entityClass);
 
             $getter = getter($this->entity->pk());
 
