@@ -106,7 +106,7 @@ class Dynamicentity
         $self   = gi()->make(get_called_class());
         $cache  = gi()->make($self->cache, ['eav.' . $self->entity]);
 
-        return gi()->make(Dynamicmodel::class, [$self->entity, $cache]);
+        return gi()->make(Dynamicmodel::class, [$self->entity, $cache], false);
     }
 
     /**
@@ -124,7 +124,7 @@ class Dynamicentity
     public static function get(): Iterator
     {
         /** @var Dynamicentity $self */
-        $self = gi()->make(get_called_class());
+        $self = static::called();
         $db   = static::db();
 
         if ($self->iterator instanceof Closure) {
@@ -134,7 +134,6 @@ class Dynamicentity
         return $db->model($self);
     }
 
-
     /**
      * @param $data
      * @return Dynamicrecord
@@ -142,28 +141,22 @@ class Dynamicentity
      */
     public static function create($data)
     {
-        $data = arrayable($data) ? $data->toArray() : $data;
-
-        $db = static::db();
-
-        $row = $db->create($data);
-
-        return new Dynamicrecord($row, $db, static::called());
+        return static::model($data)->save();
     }
 
     /**
      * @param string $class
-     *
      * @return Dynamicentity
+     * @throws \ReflectionException
      */
-    public function observe(string $class): self
+    public static function observe(string $class): Dynamicentity
     {
         $observers = getCore('dyn.observers', []);
         $self = get_called_class();
-        $observers[$self] = maker($class);
+        $observers[$self] = gi()->make($class);
         setCore('dyn.observers', $observers);
 
-        return $this;
+        return gi()->factory($self);
     }
 
     public static function clearBooted()
@@ -188,7 +181,7 @@ class Dynamicentity
         if (in_array($method, $methods)) {
             $result = $this->{$method}($concern);
 
-            if ($return) {
+            if (true === $return) {
                 return $result;
             }
         } else {
@@ -201,9 +194,9 @@ class Dynamicentity
                 $methods = get_class_methods($observer);
 
                 if (in_array($event, $methods)) {
-                    $result = gi()->call($observer, $event);
+                    $result = gi()->call($observer, $event, $concern);
 
-                    if ($return) {
+                    if (true === $return) {
                         return $result;
                     }
                 }
@@ -233,5 +226,13 @@ class Dynamicentity
         $this->iterator = $iterator;
 
         return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function guarded()
+    {
+        return [];
     }
 }

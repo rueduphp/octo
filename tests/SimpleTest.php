@@ -204,6 +204,33 @@ class ProductEntity extends Dynamicentity
 class UsersEntity extends Dynamicentity
 {
     protected $entity = 'test.user';
+
+    /**
+     * @param Dynamicmodel $query
+     * @return Dynamicmodel
+     */
+    public function scopeSuccess(Dynamicmodel $query)
+    {
+        return $query->where('age', '>', 20);
+    }
+
+    /**
+     * @param Dynamicmodel $query
+     * @return Dynamicmodel
+     */
+    public function scopeFail(Dynamicmodel $query)
+    {
+        return $query->where('age', '<', 20);
+    }
+}
+
+class UserObserver
+{
+    public function created($model)
+    {
+        Octo\incr(UserObserver::class, $model->age);
+        $model->age = 40;
+    }
 }
 
 class SimpleTest extends TestCase
@@ -215,6 +242,7 @@ class SimpleTest extends TestCase
     {
         Dynamicmodel::migrate();
         ProductEntity::init();
+        UsersEntity::observe(UserObserver::class);
 
         $db = new Dynamicmodel('test.product');
 
@@ -289,8 +317,8 @@ class SimpleTest extends TestCase
         $this->assertSame(500, $models->first()->getPrice());
 
         $this->assertSame(3, ProductEntity::count());
-
-        $user    = UsersEntity::create(['name' => 'bar']);
+//
+        $user    = UsersEntity::create(['name' => 'bar', 'age' => 35]);
         $product = ProductEntity::create(['name' => 'user', 'price' => 250, 'user_id' => $user->id]);
 
         $this->assertSame($user->getName(), $product->user()->getName());
@@ -307,8 +335,18 @@ class SimpleTest extends TestCase
         $user->product($product);
 
         $this->assertTrue($user->isDirty());
-        $this->assertCount(1, $user->dirty());
-        $this->assertSame(['product_id' => 6], $user->dirty());
+
+        $this->assertSame(40, $user->getAge());
+        $this->assertSame(35, Octo\get(UserObserver::class));
+        $this->assertSame(1, UsersEntity::success()->count());
+        $this->assertSame(0, UsersEntity::fail()->count());
+        $copy = $user->copy();
+        $this->assertSame(8, $copy->getId());
+        $this->assertTrue($user->delete());
+        $this->assertSame(1, UsersEntity::count());
+        $this->assertTrue($copy->delete());
+        $this->assertSame(0, UsersEntity::count());
+        $this->assertSame([], UsersEntity::all()->toArray());
     }
 
     /**

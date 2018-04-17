@@ -278,25 +278,31 @@ class Dynamicmodel
      */
     public function delete(int $id): bool
     {
+        /** @var  EavRow $row */
         $row = EavRow::find($id);
 
         if (null !== $row) {
             $row->attributes()->delete();
             $row->values(true)->delete();
-            $row->delete($id);
-            $this->age(time() + 1);
 
-            return true;
+            try {
+                $row->delete();
+                $this->age(time() + 1);
+
+                return true;
+            } catch (\Exception $e) {
+                return false;
+            }
         }
 
         return false;
     }
 
     /**
-     * @param null $t
+     * @param int|null $t
      * @return int
      */
-    public function age($t = null)
+    public function age(?int $t = null): int
     {
         $key = 'eav.' . $this->entity->id . '.age';
 
@@ -304,13 +310,15 @@ class Dynamicmodel
             return time();
         } else {
             $this->cache->set($key, $t);
+
+            return $t;
         }
     }
 
     /**
      * @return int
      */
-    public function getAge()
+    public function getAge(): int
     {
         $key = 'eav.' . $this->entity->id . '.age';
 
@@ -350,7 +358,7 @@ class Dynamicmodel
     /**
      * @return array
      */
-    public function freshids()
+    public function freshids(): array
     {
         return EavRow::select('id')->where('entity_id', $this->entity->id)->pluck('id')->all();
     }
@@ -358,7 +366,7 @@ class Dynamicmodel
     /**
      * @return array
      */
-    public function ids()
+    public function ids(): array
     {
         if (!empty($this->query)) {
             return $this->ids;
@@ -990,18 +998,18 @@ class Dynamicmodel
 
         if (is_object($entity) && $entity instanceof Dynamicentity) {
             $methods    = get_class_methods($entity);
-            $method     = 'scope' . ucfirst(Strings::camelize($method));
+            $met     = 'scope' . ucfirst(Strings::camelize($method));
 
-            if (in_array($method, $methods)) {
-                $params = array_merge([$entity, $method], [$this]);
+            if (in_array($met, $methods)) {
+                $params = array_merge([$entity, $met], [$this]);
 
                 return gi()->call(...$params);
             }
 
-            $method = 'query' . ucfirst(Strings::camelize($method));
+            $met = 'query' . ucfirst(Strings::camelize($method));
 
-            if (in_array($method, $methods)) {
-                $params = array_merge([$entity, $method], [$this]);
+            if (in_array($met, $methods)) {
+                $params = array_merge([$entity, $met], [$this]);
 
                 return gi()->call(...$params);
             }

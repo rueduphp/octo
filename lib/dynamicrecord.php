@@ -116,17 +116,29 @@ class Dynamicrecord implements ArrayAccess
         $this->validate();
 
         if ($this->exists()) {
-            $this->__db->update($this->id, $this->__data);
+            nullable($this->__class)->fire('updating', $this);
+
+            $result = $this->__db->update($this['id'], $this->__data);
+
+            $this['updated_at'] = $result['updated_at'];
+
+            nullable($this->__class)->fire('updated', $this);
         } else {
-            $this->__db->create($this->__data);
+            nullable($this->__class)->fire('creating', $this);
+
+            $result = $this->__db->create($this->__data);
+
+            $this['id'] = $result['id'];
+            $this['created_at'] = $result['created_at'];
+            $this['updated_at'] = $result['updated_at'];
+
+            nullable($this->__class)->fire('created', $this);
         }
 
         nullable($this->__class)->fire('saved', $this);
 
         return $this;
     }
-
-
 
     /**
      * @throws \ReflectionException
@@ -135,36 +147,41 @@ class Dynamicrecord implements ArrayAccess
     {
         nullable($this->__class)->fire('validating', $this);
 
-        $guarded    = nullable($this->__class)->guarded();
-        $fillable   = nullable($this->__class)->fillable();
-        $data       = $this->toArray();
+        if ($this->__class instanceof Dynamicentity) {
+            $guarded    = $this->__class->guarded();
+            $data       = $this->toArray();
 
-        if ($this->exists()) {
-            unset($data['id']);
-            unset($data['created_at']);
-            unset($data['updated_at']);
-        }
+            if ($this->exists()) {
+                unset($data['id']);
+                unset($data['created_at']);
+                unset($data['updated_at']);
+            }
 
-        $keys = array_keys($data);
+            $keys = array_keys($data);
 
-        if (!is_array($guarded)) {
-            if ($fillable !== $keys) {
-                foreach ($keys as $key) {
-                    if (!in_array($key, $fillable)) {
-                        exception(
-                            'dynamicentity',
-                            "Field $key is not fillable in model " . get_class($this->__class) . "."
-                        );
+            if (!is_array($guarded) && in_array('fillable', get_class_methods($this->__class))) {
+                $fillable   = $this->__class->fillable();
+
+                if (is_array($fillable)) {
+                    if ($fillable !== $keys) {
+                        foreach ($keys as $key) {
+                            if (!in_array($key, $fillable)) {
+                                exception(
+                                    'dynamicentity',
+                                    "Field $key is not fillable in model " . get_class($this->__class) . "."
+                                );
+                            }
+                        }
                     }
                 }
-            }
-        } else {
-            foreach ($guarded as $key) {
-                if (in_array($key, $keys)) {
-                    exception(
-                        'dynamicentity',
-                        "Field $key is guarded in model " . get_class($this->__class) . "."
-                    );
+            } else {
+                foreach ($guarded as $key) {
+                    if (in_array($key, $keys)) {
+                        exception(
+                            'dynamicentity',
+                            "Field $key is guarded in model " . get_class($this->__class) . "."
+                        );
+                    }
                 }
             }
         }
@@ -209,9 +226,11 @@ class Dynamicrecord implements ArrayAccess
     public function delete(): bool
     {
         if ($this->exists()) {
-            nullable($this->__class)->fire('delete', $this);
+            nullable($this->__class)->fire('deleting', $this);
+            $status = $this->__db->delete($this['id']);
+            nullable($this->__class)->fire('deleted', $this);
 
-            return $this->__db->delete($this->id);
+            return $status;
         }
 
         return false;
@@ -219,6 +238,7 @@ class Dynamicrecord implements ArrayAccess
 
     /**
      * @return Dynamicrecord
+     * @throws \ReflectionException
      */
     public function copy(): Dynamicrecord
     {
@@ -228,7 +248,7 @@ class Dynamicrecord implements ArrayAccess
         unset($clone['created_at']);
         unset($clone['updated_at']);
 
-        return $clone->save();
+        return (new self($clone->toArray(), $this->__db, $this->__class))->save();
     }
 
     /**
