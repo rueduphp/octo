@@ -7,6 +7,7 @@ use Octo\Component;
 use Octo\Config;
 use Octo\Dynamicentity;
 use Octo\Dynamicmodel;
+use Octo\Dynamicrecord;
 use Octo\EavAttribute;
 use Octo\EavEntity;
 use Octo\EavRow;
@@ -226,11 +227,36 @@ class UsersEntity extends Dynamicentity
 
 class UserObserver
 {
-    public function created($model)
+    public function created(Dynamicrecord $model)
     {
         Octo\incr(UserObserver::class, $model->age);
         $model->age = 40;
     }
+}
+
+class ItemIterator extends Dynamicrecord
+{
+    public function getQuantity()
+    {
+        return $this->fire(__FUNCTION__)['quantity'] * 2;
+    }
+
+    /**
+     * @param int $quantity
+     * @return ItemIterator
+     */
+    public function setQuantity(int $quantity): self
+    {
+        $this['quantity'] = $quantity * 2;
+
+        return $this;
+    }
+}
+
+class Items extends Dynamicentity
+{
+    protected $entity = 'test.item';
+    protected $iterator = ItemIterator::class;
 }
 
 class SimpleTest extends TestCase
@@ -238,6 +264,17 @@ class SimpleTest extends TestCase
     /**
      * @throws ReflectionException
      */
+    public function testDi()
+    {
+        $this->gi()->set('fooz', 'bar');
+        $this->assertSame('bar', $this->gi()->get('fooz'));
+
+        $this->gi()->define(['my' => function () {
+            return true;
+        }]);
+        $this->assertTrue($this->gi()->get('my'));
+    }
+
     public function testEav()
     {
         Dynamicmodel::migrate();
@@ -347,6 +384,20 @@ class SimpleTest extends TestCase
         $this->assertTrue($copy->delete());
         $this->assertSame(0, UsersEntity::count());
         $this->assertSame([], UsersEntity::all()->toArray());
+
+        Items::create(['name' => 'foo', 'quantity' => 15, 'price' => 100]);
+        Items::create(['name' => 'baz', 'quantity' => 20, 'price' => 150]);
+        Items::create(['name' => 'bar', 'quantity' => 10, 'price' => 80]);
+
+        $this->assertSame(30, Items::first()->getQuantity());
+
+        Items::first()->setQuantity(10)->save();
+        $this->assertSame(40, Items::first()->getQuantity());
+
+        $items = new Dynamicmodel('test.item');
+
+        $first = $items->model()->first();
+        $this->assertSame(40, $first->getQuantity());
     }
 
     /**

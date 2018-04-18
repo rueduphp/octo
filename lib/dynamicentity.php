@@ -11,7 +11,7 @@ class Dynamicentity
     /** @var string  */
     protected $cache = Caching::class;
 
-    /** @var null|callable */
+    /** @var null|string */
     protected $iterator = null;
 
     /** @var array  */
@@ -124,11 +124,16 @@ class Dynamicentity
     public static function get(): Iterator
     {
         /** @var Dynamicentity $self */
-        $self = static::called();
-        $db   = static::db();
+        $self       = static::called();
+        $db         = static::db();
+        $iterator   = $self->getIterator();
 
-        if ($self->iterator instanceof Closure) {
-            return $db->each($self->iterator);
+        if (null !== $iterator) {
+            $callback = function ($row) use ($self, $db, $iterator) {
+                return new $iterator($db->find($row), $db, $self);
+            };
+
+            return $db->each($callback);
         }
 
         return $db->model($self);
@@ -234,5 +239,13 @@ class Dynamicentity
     public function guarded()
     {
         return [];
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getIterator(): ?string
+    {
+        return $this->iterator;
     }
 }

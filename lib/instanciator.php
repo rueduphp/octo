@@ -45,6 +45,18 @@ class Instanciator
      *
      * @throws \ReflectionException
      */
+    public function new(...$args)
+    {
+        $class  = array_shift($args);
+
+        return is_string($class) ? $this->make($class, $args, false) : $this->makeClosure($class, $args);
+    }
+
+    /**
+     * @return mixed|object
+     *
+     * @throws \ReflectionException
+     */
     public function foundry(...$args)
     {
         return $this->factory(...$args);
@@ -615,6 +627,26 @@ class Instanciator
      */
     public function set(...$args): self
     {
+        if (func_num_args() === 2) {
+            $class      = current($args);
+            $callback   = end($args);
+
+            if (is_string($class) && !$callback instanceof Closure) {
+                setCore('gi.vars.' . $class, $callback);
+            }
+        }
+
+        return $this->share(...$args);
+    }
+
+
+    /**
+     * @param array ...$args
+     *
+     * @return Instanciator
+     */
+    public function setInstance(...$args): self
+    {
         return $this->share(...$args);
     }
 
@@ -629,7 +661,7 @@ class Instanciator
         if ($callable instanceof Closure) {
             $result = $this->makeClosure($callable);
         } elseif (is_array($callable)) {
-            $result = $this->call($callable);
+            $result = $this->call(...$callable);
         } else {
             $result = $this->call($callable, '__invoke');
         }
@@ -790,13 +822,16 @@ class Instanciator
 
     /**
      * @param string $concern
-     *
-     * @return mixed|object
-     *
+     * @param null $default
+     * @return mixed|null|object
      * @throws \ReflectionException
      */
-    public function get(string $concern)
+    public function get(string $concern, $default = null)
     {
+        if ($value = getCore('gi.vars.' . $concern)) {
+            return $value;
+        }
+
         $aliases = get('instanciator.aliases', []);
         $alias = isAke($aliases, $concern, null);
 
@@ -813,17 +848,17 @@ class Instanciator
 
             return $closure();
         } elseif (is_callable($alias)) {
-            return $alias();
+            return gi()->makeClosure($alias);
         }
 
-        return $this->autowire($concern);
+        return $this->autowire($concern) ?: $default;
     }
 
     /**
      * @param string $concern
      * @param bool $raw
-     *
      * @return mixed
+     * @throws \ReflectionException
      */
     public function autowire(string $concern, bool $raw = false)
     {
@@ -831,7 +866,7 @@ class Instanciator
         $callable   = isAke($wires, $concern, null);
 
         if (!$raw && is_callable($callable)) {
-            return $callable();
+            return gi()->makeClosure($callable);
         }
 
         return $callable;
@@ -888,6 +923,14 @@ class Instanciator
 
         return function () use ($object) {
             if (is_callable($object)) {
+                if ($object instanceof Closure) {
+                    return $this->makeClosure($object);
+                } elseif (in_array('__invoke', get_class_methods($object))) {
+                    return $this->call($object, '__invoke');
+                } elseif (is_array($object)) {
+                    return $this->call(...$object);
+                }
+
                 return $object();
             }
 
@@ -1013,5 +1056,32 @@ class Instanciator
         set('instanciator.aliases', $aliases);
 
         return $this;
+    }
+
+    /**
+     * @param $concern
+     * @throws PHPException
+     */
+    public static function define($concern)
+    {
+        if (is_string($concern) && file_exists($concern)) {
+            $concern = include $concern;
+        }
+
+        if (!is_array($concern)) {
+            throw new PHPException('The fist argument must be an array or a valid file.');
+        }
+
+        $wires = Registry::get('core.wires', []);
+
+        foreach ($concern as $class => $callback) {
+            if ($callback instanceof Closure) {
+                $wires[$class] = $callback;
+            } else {
+                setCore('gi.vars.' . $class, $callback);
+            }
+        }
+
+        Registry::set('core.wires', $wires);
     }
 }

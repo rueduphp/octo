@@ -48,6 +48,7 @@ class Dynamicrecord implements ArrayAccess
         $this->__class      = $class;
 
         if (null !== $class) {
+            $class->fire('booting', $this);
             $entity = $class->entity();
             $this->__entity = $entity;
 
@@ -83,6 +84,8 @@ class Dynamicrecord implements ArrayAccess
                         return gi()->call(...$params);
                     }
                 }
+
+                $class->fire('booted', $this);
             }
         } else {
             $this->__entity = $entity;
@@ -91,6 +94,17 @@ class Dynamicrecord implements ArrayAccess
             $this->__database = current($parts);
             $this->__table = end($parts);
         }
+    }
+
+    /**
+     * @param $event
+     * @return $this
+     */
+    public function fire($event)
+    {
+        nullable($this->__class)->fire($event, $this);
+
+        return $this;
     }
 
     /**
@@ -710,6 +724,87 @@ class Dynamicrecord implements ArrayAccess
         }
 
         return $query->first();
+    }
+
+    /**
+     * @param Dynamicrecord $model
+     * @return Dynamicrecord
+     */
+    public function morphWith(Dynamicrecord $model): self
+    {
+        if ($model->exists()) {
+            $this->morph_id     = $model->id;
+            $this->morph_type   = $model->__table;
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @return mixed|null|Dynamicrecord|Iterator
+     * @throws \ReflectionException
+     */
+    public function morphOne(string $table)
+    {
+        return $this->morphing($table, false);
+    }
+
+    /**
+     * @param string $table
+     * @return mixed|null|Dynamicrecord|Iterator
+     * @throws \ReflectionException
+     */
+    public function morphs(string $table)
+    {
+        return $this->morphing($table);
+    }
+
+    /**
+     * @param string $table
+     * @param bool $many
+     * @return mixed|null|Dynamicrecord|Iterator
+     * @throws \ReflectionException
+     */
+    public function morphing(string $table, $many = true)
+    {
+        $db = new Dynamicmodel(
+            $this->__database . '.' . $table,
+            $this->makeCache($table)
+        );
+
+        $ids = $this->__db
+            ->where(
+                'morph_type',
+                $table
+            )->pluck('ud')
+        ;
+
+        $query = $db->in('id', $ids);
+
+        if ($many) {
+            return $query->model();
+        }
+
+        return $query->first();
+    }
+
+    /**
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    public function morph()
+    {
+        if ($this->exists()) {
+            $db = new Dynamicmodel(
+                $this->__database . '.' . $this['morph_type'],
+                $this->makeCache($this['morph_type'])
+            );
+
+            return $db->find((int) $this->morph_id);
+        }
+
+        return null;
     }
 
     /**

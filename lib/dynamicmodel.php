@@ -127,7 +127,7 @@ class Dynamicmodel
 
         $schema->create('eav_values', function (Blueprint $table) {
             $table->increments('id');
-            $table->longText('value');
+            $table->longText('value')->nullable();
             $table->integer('row_id')->unsigned()->index();
             $table->foreign('row_id', 'fk_rows_values')
                 ->references('id')
@@ -348,7 +348,7 @@ class Dynamicmodel
 
                 $found['id'] = (int) $value['row_id'];
 
-                return true === $model ? new Dynamicrecord($found, $this) : $found;
+                return true === $model ? $this->makeModel($found) : $found;
             }
 
             return null;
@@ -461,6 +461,48 @@ class Dynamicmodel
     }
 
     /**
+     * @param null|Dynamicentity $entity
+     * @return Iterator
+     */
+    public function exec(?Dynamicentity $entity = null): Iterator
+    {
+        /** @var Dynamicentity $entity */
+        $entity = null === $entity ? getDynamicEntity($this->entity->name) : $entity;
+
+        if ($entity && null !== $entity->getIterator()) {
+            $iterator   = $entity->getIterator();
+
+            $callback = function ($row) use ($entity, $iterator) {
+                return new $iterator($this->find($row), $this, $entity);
+            };
+
+            return $this->each($callback);
+        }
+
+        return $this->each(function ($row) {
+            return new Dynamicrecord($this->find($row), $this, null);
+        });
+    }
+
+    /**
+     * @param array $data
+     * @return Dynamicrecord
+     */
+    private function makeModel(array $data)
+    {
+        /** @var Dynamicentity $entity */
+        $entity = getDynamicEntity($this->entity->name);
+
+        if ($entity && null !== $entity->getIterator()) {
+            $iterator = $entity->getIterator();
+        } else {
+            $iterator = Dynamicrecord::class;
+        }
+
+        return new $iterator($data, $this);
+    }
+
+    /**
      * @param bool $model
      * @return mixed|null|Dynamicrecord
      * @throws \ReflectionException
@@ -469,7 +511,7 @@ class Dynamicmodel
     {
         $row = $this->get()->first();
 
-        return $model && null !== $row ? new Dynamicrecord($row, $this) : $row;
+        return $model && null !== $row ? $this->makeModel($row) : $row;
     }
 
     /**
@@ -481,7 +523,7 @@ class Dynamicmodel
     {
         $row = $this->get()->last();
 
-        return $model && null !== $row ? new Dynamicrecord($row, $this) : $row;
+        return $model && null !== $row ? $this->makeModel($row) : $row;
     }
 
     /**
@@ -513,8 +555,44 @@ class Dynamicmodel
     public function get(): Iterator
     {
         return $this->each(function (int $row) {
-            return $this->find($row);
+            return $this->find($row, false);
         });
+    }
+
+    /**
+     * @return array
+     */
+    public function fetchAll(): array
+    {
+        $rows = [];
+
+        foreach ($this->ids() as $id) {
+            $rows[] = $this->find((int) $id, false);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return mixed|null
+     */
+    public function fetch()
+    {
+        foreach ($this->ids() as $id) {
+            return $this->find((int) $id, false);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param $value
+     * @param null $key
+     * @return array
+     */
+    public function pluck($value, $key = null): array
+    {
+        return coll($this->fetchAll())->pluck($value, $key);
     }
 
     /**
@@ -523,6 +601,12 @@ class Dynamicmodel
      */
     public function model(?Dynamicentity $entity = null): Iterator
     {
+        $entity = $entity ?: getDynamicEntity($this->entity->name);
+
+        if (null !== $entity) {
+            return $this->exec($entity);
+        }
+
         return $this->each(function ($row) use ($entity) {
             return new Dynamicrecord($this->find($row), $this, $entity);
         });
@@ -1422,7 +1506,7 @@ class Dynamicmodel
     {
         $row = $this->find($id, false);
 
-        return $row ? new Dynamicrecord($row, $this) : $default;
+        return $row ? $this->makeModel($row) : $default;
     }
 
     /**
@@ -1455,7 +1539,7 @@ class Dynamicmodel
         if (!$row) {
             exception('dynamicModel', "The row $id does not exist.");
         } else {
-            return $model ? new Dynamicrecord($row, $this) : $row;
+            return $model ? $this->makeModel($row) : $row;
         }
     }
 
@@ -1468,11 +1552,12 @@ class Dynamicmodel
     {
         $row = $this->first(false);
 
-        return $row ? new Dynamicrecord($row, $this) : $default;
+        return $row ? $this->makeModel($row) : $default;
     }
 
     /**
      * @return bool|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function firstOrFalse()
     {
@@ -1481,6 +1566,7 @@ class Dynamicmodel
 
     /**
      * @return bool|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function firstOrNull()
     {
@@ -1496,11 +1582,12 @@ class Dynamicmodel
     {
         $row = $this->last(false);
 
-        return $row ? new Dynamicrecord($row, $this) : $default;
+        return $row ? $this->makeModel($row) : $default;
     }
 
     /**
      * @return bool|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function lastOrFalse()
     {
@@ -1509,6 +1596,7 @@ class Dynamicmodel
 
     /**
      * @return bool|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function lastOrNull()
     {
@@ -1527,7 +1615,7 @@ class Dynamicmodel
         if (!$row) {
             exception('dynamicModel', "The row does not exist.");
         } else {
-            return $model ? new Dynamicrecord($row, $this) : $row;
+            return $model ? $this->makeModel($row) : $row;
         }
     }
 
@@ -1543,7 +1631,7 @@ class Dynamicmodel
         if (!$row) {
             exception('dynamicModel', "The row does not exist.");
         } else {
-            return $model ? new Dynamicrecord($row, $this) : $row;
+            return $model ? $this->makeModel($row) : $row;
         }
     }
 
@@ -1563,7 +1651,7 @@ class Dynamicmodel
         if ($this->count() === 0) {
             $row = $this->create($conditions);
 
-            return new Dynamicrecord($row, $this);
+            return $this->makeModel($row);
         } else {
             return $this->first(true);
         }
@@ -1572,6 +1660,7 @@ class Dynamicmodel
     /**
      * @param $conditions
      * @return mixed|null|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function unique($conditions)
     {
@@ -1632,7 +1721,7 @@ class Dynamicmodel
         if (null === $exists) {
             $row = $this->create($conditions);
 
-            return new Dynamicrecord($row, $this);
+            return $this->makeModel($row);
         }
 
         return $exists;
@@ -1656,7 +1745,7 @@ class Dynamicmodel
         $exists = $q->first(true);
 
         if (null === $exists) {
-            return new Dynamicrecord($conditions, $this);
+            return $this->makeModel($conditions);
         }
 
         return $exists;
@@ -1669,5 +1758,23 @@ class Dynamicmodel
     public function all(bool $model = true): Iterator
     {
         return $model ? $this->reset()->model() :$this->reset()->get();
+    }
+
+    /**
+     * @param $event
+     * @param $concern
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    public function fire($event, $concern)
+    {
+        /** @var Dynamicentity $entity */
+        $entity = getDynamicEntity($this->entity->name);
+
+        if ($entity) {
+            $entity->fire($event, $concern);
+        }
+
+        return $concern;
     }
 }
