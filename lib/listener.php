@@ -65,7 +65,7 @@ class Listener implements FastListenerInterface
      *
      * @return $this
      */
-    public function halt(bool $halt)
+    public function halt(bool $halt = true)
     {
         $this->halt = $halt;
 

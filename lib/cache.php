@@ -5,6 +5,7 @@
     {
         use Notifiable;
 
+        private $__dir;
         private $dir;
         private $id;
         private static $instances = [];
@@ -77,6 +78,12 @@
             return false;
         }
 
+        /**
+         * @param $key
+         * @param null $default
+         * @return mixed
+         * @throws Exception
+         */
         public function pull($key, $default = null)
         {
             $value = $this->get($key, $default);
@@ -96,13 +103,34 @@
         {
             $dir = is_null($dir) ? conf('dir.cache', session_save_path()) : $dir;
 
-            $this->dir = $dir . DS . $ns;
+            if (is_dir($dir)) {
+                $this->__dir = $dir;
+                $this->dir = $dir . DS . $ns;
+
+                if (!is_dir($this->dir)) {
+                    File::mkdir($this->dir);
+                }
+
+                $this->id = sha1($ns);
+            }
+        }
+
+        /**
+         * @param string $ns
+         * @return Cache
+         * @throws Exception
+         */
+        public function setNS(string $ns): self
+        {
+            $this->dir = $this->__dir . DS . $ns;
 
             if (!is_dir($this->dir)) {
                 File::mkdir($this->dir);
             }
 
             $this->id = sha1($ns);
+
+            return $this;
         }
 
         public static function instance($ns = 'core', $dir = null)

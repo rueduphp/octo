@@ -139,7 +139,7 @@ class Your implements \ArrayAccess
     public static function called()
     {
         if (is_null(static::$instance)) {
-            static::$instance = gi()->singleton(get_called_class());
+            static::$instance = gi()->make(get_called_class());
         }
 
         return static::$instance;

@@ -1124,4 +1124,16 @@ class Caching implements FastCacheInterface
 
         return $this;
     }
+
+    /**
+     * @param string $ns
+     * @return Caching
+     */
+    public function setNS(string $ns): self
+    {
+        $this->dir  = $ns;
+        $this->id   = sha1('caching' . $ns);
+
+        return $this;
+    }
 }

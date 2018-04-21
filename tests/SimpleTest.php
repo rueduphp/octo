@@ -262,19 +262,69 @@ class Items extends Dynamicentity
 class SimpleTest extends TestCase
 {
     /**
-     * @throws ReflectionException
+     * @throws Exception
+     * @throws \AlgoliaSearch\AlgoliaException
      */
     public function testDi()
     {
         $this->gi()->set('fooz', 'bar');
         $this->assertSame('bar', $this->gi()->get('fooz'));
 
-        $this->gi()->define(['my' => function () {
+        $this->gi()->define(['testtrue' => function () {
             return true;
         }]);
-        $this->assertTrue($this->gi()->get('my'));
+        $this->assertTrue($this->gi()->get('testtrue'));
+
+        /** @var \Octo\In $app */
+        $app = $this->in();
+        $this->in('x', 'y');
+        $this->in('testfalse', function () {
+            return false;
+        });
+
+        $this->assertSame($this->in(), $app);
+        $this->assertSame($this->in(), $this->in());
+
+        $this->assertSame('y', $app['x']);
+        $this->assertFalse($app['testfalse']);
+        $this->assertSame('y', $app->x);
+        $this->assertFalse($app->testfalse);
+
+        $this->assertTrue($app->has('testfalse'));
+        unset($app['testfalse']);
+        $this->assertNull($app['testfalse']);
+        $this->assertFalse($app->has('testfalse'));
+
+        $this->assertSame($app['app'], $app->app);
+        $this->assertSame($app[Inflector::class], $app[Inflector::class]);
+
+        $this->assertFalse(Request::is('home'));
+        $this->assertFalse(Session::has('home'));
+        $this->assertFalse(Cache::has('home'));
+
+        Session::set('home', 'foo');
+        $this->assertTrue(Session::has('home'));
+        $this->assertSame('foo', Session::get('home'));
+
+        Cache::set('home', 'foo');
+        $this->assertTrue(Cache::has('home'));
+        $this->assertSame('foo', Cache::get('home'));
+
+        $app['event']->on('foo', function () {
+            return true;
+        })->halt();
+        $this->assertTrue($app['event']->fire('foo'));
+
+        $app['larevent']->listen('foo', function () {
+            return true;
+        });
+        $this->assertSame([true], $app['larevent']->fire('foo'));
     }
 
+    /**
+     * @throws ReflectionException
+     * @throws \Octo\Exception
+     */
     public function testEav()
     {
         Dynamicmodel::migrate();

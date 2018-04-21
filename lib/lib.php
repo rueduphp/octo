@@ -4,6 +4,7 @@
     use Carbon\Carbon;
     use Closure;
     use GuzzleHttp\Psr7\Response;
+    use Illuminate\Container\Container as IllDic;
     use Illuminate\Filesystem\Filesystem;
     use Illuminate\Support\Debug\Dumper;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
@@ -21,7 +22,6 @@
     }
 
     require_once __DIR__ . '/base.php';
-    require_once __DIR__ . '/helpers.php';
 
     /* constantes */
     defined('APPLICATION_ENV')  || define('APPLICATION_ENV', 'production');
@@ -281,8 +281,8 @@
 
     /**
      * @param null|string $folder
-     *
      * @return mixed|object
+     * @throws \ReflectionException
      */
     function phpRenderer(?string $folder = null)
     {
@@ -291,7 +291,7 @@
         if (is_dir($folder)) {
             actual('fast.view.path', $folder);
 
-            $renderer = maker(FastPhpRenderer::class);
+            $renderer = gi()->make(FastPhpRenderer::class);
 
             actual('fast.renderer', $renderer);
 
@@ -320,7 +320,7 @@
         $twig = twigRenderer($folder);
 
         $twig->addExtension(
-            instanciator()->singleton(FastTwigExtension::class)
+            gi()->make(FastTwigExtension::class)
         );
 
         return $twig->render($name, $context);
@@ -329,8 +329,8 @@
     /**
      * @param null|string $folder
      * @param array $config
-     *
      * @return FastTwigRenderer
+     * @throws \ReflectionException
      */
     function twigRenderer(?string $folder = null, array $config = [])
     {
@@ -3853,8 +3853,8 @@
 
     /**
      * @param null|string $dir
-     *
      * @throws Exception
+     * @throws \ReflectionException
      */
     function systemBoot(?string $dir = null)
     {
@@ -3872,6 +3872,7 @@
         require_once __DIR__ . DS . 'di.php';
         require_once __DIR__ . DS . 'debug.php';
         require_once __DIR__ . DS . 'cachei.php';
+        require_once __DIR__ . DS . 'helpers.php';
 
         if (!defined('OCTO_MAX'))       define('OCTO_MAX',          9223372036854775808);
         if (!defined('OCTO_MIN'))       define('OCTO_MIN',          OCTO_MAX * -1);
@@ -4205,6 +4206,42 @@
                 die(File::read($asset));
             }
         });
+
+        $in = In::set('app', function () {
+            return gi()->make(IllDic::class);
+        });
+
+        $in['session'] = function () {
+            return getSession();
+        };
+
+        $in['request'] = function () {
+            return gi()->make(FastRequest::class);
+        };
+
+        $in['cache'] = function () {
+            return gi()->make(Cache::class);
+        };
+
+        $in['router'] = function () {
+            return getRouter();
+        };
+
+        $in['routage'] = function () {
+            return handled('router');
+        };
+
+        $in['renderer'] = function () {
+            return getRenderer();
+        };
+
+        $in['event'] = function () {
+            return gi()->make(Fire::class, ['app']);
+        };
+
+        $in['larevent'] = function () {
+            return dispatcher('app');
+        };
 
         loadEvents();
 
@@ -5241,8 +5278,9 @@
     /**
      * @param string $name
      * @param bool $echo
-     *
      * @return string
+     * @throws \Exception
+     * @throws \TypeError
      */
     function csrf_field($name = 'octo_token', $echo = true)
     {
@@ -5294,7 +5332,7 @@
     function csrf_match()
     {
         /** @var FastRequest $request */
-        $request    = instanciator()->singleton(FastRequest::class);
+        $request    = gi()->make(FastRequest::class);
         $session    = getSession();
         $middleware = new Fastmiddlewarecsrf($session);
         $tokens     = $session[$middleware->getSessionKey()] ?? [];
@@ -5344,6 +5382,55 @@
         }
 
         return getContainer()->resolve($make, $params);
+    }
+
+    /**
+     * @param array ...$args
+     * @return mixed|null|object|In
+     */
+    function in(...$args)
+    {
+        $nargs = count($args);
+
+        $in = In::self();
+
+        if (1 === $nargs) {
+            return $in[current($args)];
+        } elseif (2 === $nargs) {
+            $in[current($args)] = end($args);
+        }
+
+        return $in;
+    }
+
+    /**
+     * @param $concern
+     * @param $object
+     * @return Closure
+     */
+    function binder($concern, $object)
+    {
+        $callable = function () use ($concern) {
+            return $concern;
+        };
+
+        return $callable->bindTo($object);
+    }
+
+    /**
+     * @param Closure $concern
+     * @param null $object
+     * @return Closure
+     */
+    function callLater(Closure $concern, $object = null)
+    {
+        $concern = is_object($object) ? $concern->bindTo($object) : $concern;
+
+        $callable = function () use ($concern) {
+            return gi()->makeClosure($concern);
+        };
+
+        return $callable;
     }
 
     /**
@@ -5411,8 +5498,8 @@
     /**
      * @param $concern
      * @param string $callable
-     *
      * @return mixed|object
+     * @throws \ReflectionException
      */
     function container($concern, $callable = 'octodummy')
     {
@@ -5423,7 +5510,7 @@
 
             if ($what && is_callable($what)) {
                 if ($what instanceof \Closure) {
-                    return call_user_func($what);
+                    return gi()->makeClosure($what);
                 }
 
                 return maker($concern);
@@ -5442,7 +5529,7 @@
      */
     function caller(array $args)
     {
-        return instanciator()->factory(...$args);
+        return gi()->factory(...$args);
     }
 
     /**
@@ -5452,7 +5539,7 @@
      */
     function foundry()
     {
-        return instanciator()->factory(...func_get_args());
+        return gi()->factory(...func_get_args());
     }
 
     /**
@@ -5462,41 +5549,42 @@
      */
     function single()
     {
-        return instanciator()->singleton(...func_get_args());
+        return gi()->singleton(...func_get_args());
     }
 
     /**
      * @return mixed|object
-     *
      * @throws \ReflectionException
      */
     function singleton()
     {
-        return instanciator()->singleton(...func_get_args());
+        return gi()->singleton(...func_get_args());
     }
 
     /**
      * @param $concern
      * @param $callable
+     * @throws \ReflectionException
      */
     function wire($concern, $callable)
     {
-        instanciator()->wire($concern, $callable);
+        gi()->wire($concern, $callable);
     }
 
     /**
      * @param $concern
      * @param bool $raw
-     *
      * @return mixed
+     * @throws \ReflectionException
      */
     function autowire($concern, $raw = false)
     {
-        return instanciator()->autowire($concern, $raw);
+        return gi()->autowire($concern, $raw);
     }
 
     /**
      * @return Fast
+     * @throws \ReflectionException
      */
     function getContainer(): Fast
     {
@@ -5521,6 +5609,7 @@
 
     /**
      * @return FastPhpRenderer|FastTwigRenderer
+     * @throws \ReflectionException
      */
     function getRenderer()
     {
@@ -5529,6 +5618,7 @@
 
     /**
      * @return ServerRequestInterface
+     * @throws \ReflectionException
      */
     function getRequest()
     {
@@ -5537,6 +5627,7 @@
 
     /**
      * @return Response
+     * @throws \ReflectionException
      */
     function getResponse()
     {
@@ -5545,6 +5636,7 @@
 
     /**
      * @return Live|Session
+     * @throws \ReflectionException
      * @throws \TypeError
      */
     function getSession()
@@ -5850,6 +5942,12 @@
         );
     }
 
+    /**
+     * @param $key
+     * @param null $default
+     * @return array|false|mixed|null|string
+     * @throws \ReflectionException
+     */
     function appenv($key, $default = null)
     {
         $env = path('base') . '/.env';
@@ -6596,7 +6694,7 @@
     }
 
     /**
-     * @return \Illuminate\Container\Container
+     * @return Container
      * @throws \ReflectionException
      */
     function getApp()
@@ -9364,45 +9462,31 @@
         return new Utils;
     }
 
-    function dic()
+    /**
+     * @param null|string $key
+     * @return mixed|null|object|In
+     */
+    function dic(?string $key = null)
     {
-        $dic = Registry::get('core.dic');
+        $in =  In::self();
 
-        if (!$dic) {
-            $dic = o();
-
-            $dic->macro('get', function ($k, $d = null) {
-                $key = 'dic.' . Strings::urlize($k, '.');
-
-                return Registry::get($key, $d);
-            });
-
-            $dic->macro('set', function ($k, $v) {
-                $key = 'dic.' . Strings::urlize($k, '.');
-
-                return Registry::get($key, $v);
-            });
-
-            Registry::set('core.dic', $dic);
-        }
-
-        return $dic;
+        return null === $key ? $in : $in[$key];
     }
 
     /**
-     * @param $k
-     * @param string $v
+     * @param string$k
+     * @param mixed $v
      *
-     * @return $this|mixed
+     * @return mixed
      *
      * @throws Exception
      * @throws \Exception
      */
-    function once($k, $v = 'octodummy')
+    function once(string $k, $v = 'octodummy')
     {
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
 
-        if ('octodummy' != $v) {
+        if ('octodummy' !== $v) {
             return fmr('once')->set($key, value($v));
         }
 
@@ -9414,19 +9498,19 @@
     }
 
     /**
-     * @param $k
-     * @param string $v
+     * @param string $k
+     * @param mixed $v
      *
-     * @return $this|mixed
+     * @return mixed
      *
      * @throws Exception
      * @throws \Exception
      */
-    function keep($k, $v = 'octodummy')
+    function keep(string $k, $v = 'octodummy')
     {
         $key = sha1(forever()) . '.' . Strings::urlize($k, '.');
 
-        if ('octodummy' != $v) {
+        if ('octodummy' !== $v) {
             return fmr('keep')->set($key, value($v));
         }
 
@@ -10804,13 +10888,15 @@
      */
     function blade(string $path, array $data = []): string
     {
-        $key        = sha1($path . serialize($data));
-        $age        = File::age($path . '.blade.php');
+        $key = sha1($path . serialize($data));
+        $age = File::age($path . '.blade.php');
 
-        $cache = fmr('blade');
+        /** @var Cache $cache */
+        $cache = dic()['cache'];
+        $cache->setNS('blade');
 
         return $cache->until($key, function () use ($path, $data) {
-            $content    = File::read($path . '.blade.php');
+            $content = File::read($path . '.blade.php');
 
             return blader($content, $data);
         }, $age);
@@ -10827,7 +10913,8 @@
      */
     function blader(string $str, array $data = []): string
     {
-        $blade          = instanciator()->singleton(FastBladeCompiler::class);
+        /** @var FastBladeCompiler $blade */
+        $blade          = gi()->make(FastBladeCompiler::class);
         $parsed_string  = $blade->compileString($str);
 
         ob_start() && extract($data, EXTR_SKIP);

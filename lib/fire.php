@@ -37,7 +37,7 @@ class Fire
      */
     protected static function called()
     {
-        return instanciator()->singleton(get_called_class());
+        return gi()->make(get_called_class());
     }
 
     /**

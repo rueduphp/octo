@@ -10,7 +10,7 @@
         }
     ],
     "require": {
-        "php": ">=7.0",
+        "php": ">=7.1",
         "ext-mbstring": "*",
         "ext-curl": "*",
         "fzaninotto/faker": "@stable",
@@ -41,7 +41,8 @@
         "doctrine/dbal": "^2.6",
         "symfony/thanks": "^1.0",
         "ramsey/uuid": "^3.1",
-        "monolog/monolog": "~1.11"
+        "monolog/monolog": "~1.11",
+        "algolia/algoliasearch-client-php": "^1.25"
     },
     "require-dev": {
         "phpunit/phpunit": "@stable",

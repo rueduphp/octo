@@ -28,7 +28,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
                 $action = $middleware[1];
                 $response = gi()->call($module, $action);
             } else {
-                $module     = $this->maker($middleware);
+                $module     = gi()->make($middleware);
                 $callable   = [$module, 'run'];
                 $response   = call_user_func_array($callable, [$action, $request, $app]);
             }
@@ -43,7 +43,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
                 return $app->response(
                     200,
                     ['content-type' => 'application/json; charset=utf-8'],
-                    json_encode($response)
+                    json_encode($response, JSON_PRETTY_PRINT)
                 );
             }
 
@@ -51,7 +51,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
                 return $app->response(
                     200,
                     ['content-type' => 'application/json; charset=utf-8'],
-                    json_encode($response->toArray())
+                    json_encode($response->toArray(), JSON_PRETTY_PRINT)
                 );
             }
 

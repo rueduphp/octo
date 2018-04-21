@@ -6,6 +6,13 @@ use Psr\Http\Message\ServerRequestInterface;
 
 class Fastmiddlewarerouter extends FastMiddleware
 {
+    /**
+     * @param ServerRequestInterface $request
+     * @param DelegateInterface $next
+     * @return \Psr\Http\Message\ResponseInterface
+     * @throws Exception
+     * @throws \ReflectionException
+     */
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {
         $app = $this->getContainer();
@@ -23,6 +30,7 @@ class Fastmiddlewarerouter extends FastMiddleware
             }
 
             $app->define('route', $route);
+            In::set('route', $route);
         }
 
         return $next->process($request);

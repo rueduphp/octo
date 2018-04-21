@@ -1114,6 +1114,10 @@
                     return $fastRouter->generateUri($name, $params);
                 });
 
+                $router->macro('self', function () use ($router) {
+                    return $router;
+                });
+
                 $router->macro('match', function ($request = null) {
                     $request    = is_null($request) ? $this->getRequest() : $request;
 
@@ -2332,8 +2336,8 @@
     {
         /**
          * @param string $method
-         *
          * @return FastRequest
+         * @throws \ReflectionException
          */
         public function setMethod(string $method): self
         {
@@ -2355,10 +2359,9 @@
         /**
          * @param string $key
          * @param null $default
-         *
          * @return mixed
-         *
          * @throws TypeError
+         * @throws \ReflectionException
          */
         public function old(string $key, $default = null)
         {
@@ -2380,6 +2383,7 @@
 
         /**
          * @return string
+         * @throws \ReflectionException
          */
         public function method(): string
         {
@@ -2388,6 +2392,7 @@
 
         /**
          * @return bool
+         * @throws \ReflectionException
          */
         public function isSecure(): bool
         {
@@ -2397,8 +2402,8 @@
         /**
          * @param null|string $key
          * @param null $default
-         *
          * @return array|mixed
+         * @throws \ReflectionException
          */
         public function get(?string $key = null, $default = null)
         {
@@ -2409,9 +2414,9 @@
 
         /**
          * @param null|string $key
-         * @param null|mixed $default
-         *
-         * @return null|mixed
+         * @param null $default
+         * @return array|mixed|null|object
+         * @throws \ReflectionException
          */
         public function post(?string $key = null, $default = null)
         {
@@ -2422,9 +2427,8 @@
 
         /**
          * @param null|string $key
-         * @param null|mixed $default
-         *
-         * @return null|mixed
+         * @param null $default
+         * @return array|mixed
          */
         public function input(?string $key = null, $default = null)
         {
@@ -2434,19 +2438,38 @@
         }
 
         /**
+         * @param null $keys
          * @return array
+         * @throws \ReflectionException
          */
-        public function all(): array
+        public function all($keys = null): array
         {
             $get    = getRequest()->getQueryParams();
             $post   = getRequest()->getParsedBody();
+
+            $getpost = array_merge($get, $post);
+
             $files  = getRequest()->getUploadedFiles();
 
-            return array_merge($get, $post, $files);
+            $all = array_replace_recursive($getpost, $files);
+
+            if (null === $keys) {
+                return $all;
+            }
+
+            $results = [];
+
+            foreach (is_array($keys) ? $keys : func_get_args() as $key) {
+                aset($results, $key, aget($all, $key));
+            }
+
+            return $results;
         }
 
         /**
+         * @param array ...$keys
          * @return array
+         * @throws \ReflectionException
          */
         public function only(...$keys): array
         {
@@ -2461,7 +2484,9 @@
         }
 
         /**
+         * @param array ...$keys
          * @return array
+         * @throws \ReflectionException
          */
         public function except(...$keys): array
         {
@@ -2477,7 +2502,6 @@
         /**
          * @param int $index
          * @param null|string $default
-         *
          * @return null|string
          */
         public function segment(int $index = 1, ?string $default = null): ?string
@@ -2489,6 +2513,7 @@
 
         /**
          * @return array
+         * @throws \ReflectionException
          */
         public function segments(): array
         {
@@ -2501,10 +2526,35 @@
         }
 
         /**
+         * @param mixed ...$patterns
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function is(...$patterns): bool
+        {
+            foreach ($patterns as $pattern) {
+                if (Inflector::is($pattern, rawurldecode(getRequest()->getUri()->getPath()))) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /**
+         * @return string
+         * @throws \ReflectionException
+         */
+        public function url(): string
+        {
+            return rtrim(preg_replace('/\?.*/', '', getRequest()->getUri()->getPath()), '/');
+        }
+
+        /**
          * @param string $method
          * @param array $params
-         *
          * @return mixed
+         * @throws \ReflectionException
          */
         public function __call(string $method, array $params)
         {
@@ -2513,7 +2563,7 @@
 
         /**
          * @param $key
-         * @return mixed|null
+         * @return array|mixed
          */
         public function __get($key)
         {

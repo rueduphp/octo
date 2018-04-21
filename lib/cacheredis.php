@@ -29,6 +29,18 @@
             $this->id   = sha1('redis' . $ns);
         }
 
+        /**
+         * @param string $ns
+         * @return Cacheredis
+         */
+        public function setNS(string $ns): self
+        {
+            $this->dir  = $ns;
+            $this->id   = sha1('redis' . $ns);
+
+            return $this;
+        }
+
         public static function instance(string $ns = 'core')
         {
             $key        = sha1(serialize(func_get_args()));

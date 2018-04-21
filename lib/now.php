@@ -23,6 +23,21 @@ class Now implements AA
         }
     }
 
+    /**
+     * @param string $ns
+     * @return Now
+     */
+    public function setNS(string $ns): self
+    {
+        $this->ns = $ns;
+
+        if (!isset(self::$data[$ns])) {
+            self::$data[$ns] = [];
+        }
+
+        return $this;
+    }
+
     public function reset($ns = null)
     {
         $ns = is_null($ns) ? $this->ns : $ns;

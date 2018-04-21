@@ -754,18 +754,31 @@ class Instanciator
 
     /**
      * @param $concern
+     * @return bool
      */
     public function del($concern)
     {
-        $wires = $this->getWires();
-
         if (is_object($concern)) {
             $concern = get_class($concern);
         }
 
-        unset($wires[$concern]);
+        if (hasCore('gi.vars.' . $concern)) {
+            delCore('gi.vars.' . $concern);
 
-        Registry::set('core.wires', $wires);
+            return true;
+        }
+
+        $wires = $this->getWires();
+
+        $status = isset($wires[$concern]);
+
+        if (true === $status) {
+            unset($wires[$concern]);
+
+            Registry::set('core.wires', $wires);
+        }
+
+        return $status;
     }
 
     /**
@@ -797,14 +810,26 @@ class Instanciator
         } elseif (is_string($concern)) {
             $args   = func_get_args();
             $key    = array_shift($args);
+            $made = false;
 
-            if (empty($args) && class_exists($key)) {
-                $args[] = $this->make($key);
+            if (!empty($args)) {
+                $callable = current($args);
+
+                if ($callable instanceof Closure) {
+                    setCore('gi.vars.' . $concern, $callable);
+                    $made = true;
+                }
             }
 
-            $value  = array_shift($args);
+            if (false === $made) {
+                if (empty($args) && class_exists($key)) {
+                    $args[] = $this->make($key);
+                }
 
-            $this->wire($key, $value);
+                $value  = array_shift($args);
+
+                $this->wire($key, $value);
+            }
         }
 
         return $this;
@@ -828,8 +853,42 @@ class Instanciator
      */
     public function get(string $concern, $default = null)
     {
-        if ($value = getCore('gi.vars.' . $concern)) {
-            return $value;
+        if (hasCore('gi.vars.' . $concern)) {
+            $value = getCore('gi.vars.' . $concern);
+
+            if (!is_callable($value)) {
+                return $value;
+            } else {
+                if (is_array($value)) {
+                    return $this->call($value);
+                } elseif ($value instanceof Closure) {
+                    return $this->makeClosure($value);
+                } elseif (is_object($value) && in_array('__invoke', get_class_methods($value))) {
+                    $toCall = [$value, '__invoke'];
+
+                    return $this->call($toCall);
+                } else {
+                    return $value;
+                }
+            }
+        }
+
+        $wires = $this->getWires();
+
+        if (in_array($concern, array_keys($wires))) {
+            $value = $wires[$concern];
+
+            if (!is_callable($value)) {
+                return $value;
+            } else {
+                if (is_array($value)) {
+                    return $this->call($value);
+                } elseif ($value instanceof Closure) {
+                    return $this->makeClosure($value);
+                } else {
+                    return $value;
+                }
+            }
         }
 
         $aliases = get('instanciator.aliases', []);
@@ -1072,16 +1131,8 @@ class Instanciator
             throw new PHPException('The fist argument must be an array or a valid file.');
         }
 
-        $wires = Registry::get('core.wires', []);
-
         foreach ($concern as $class => $callback) {
-            if ($callback instanceof Closure) {
-                $wires[$class] = $callback;
-            } else {
-                setCore('gi.vars.' . $class, $callback);
-            }
+            setCore('gi.vars.' . $class, $callback);
         }
-
-        Registry::set('core.wires', $wires);
     }
 }

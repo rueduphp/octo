@@ -1,12 +1,111 @@
 <?php
+    use Octo\Facade;
+
+    class Request extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'request';
+        }
+    }
+
+    class Db extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'db';
+        }
+    }
+
+    class Session extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'session';
+        }
+    }
+
+    class Cache extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'cache';
+        }
+    }
+
+    class Routing extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'router';
+        }
+    }
+
+    class Route extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'routage';
+        }
+    }
+
+    class Renderer extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'renderer';
+        }
+    }
+
     if (!function_exists('handler')) {
         function handler($concern, $object)
         {
             $handlers = Octo\Registry::get('core.$handlers', Octo\Registry::get('core.all.binds', []));
 
-
             $handlers[$concern] = $object;
             Octo\Registry::set('core.$handlers', $handlers);
+        }
+    }
+
+    if (!function_exists('in')) {
+        /**
+         * @param array ...$args
+         * @return mixed|null|object|\Octo\In
+         */
+        function in(...$args)
+        {
+            $nargs = count($args);
+
+            $in = Octo\In::self();
+
+            if (1 === $nargs) {
+                return $in[current($args)];
+            } elseif (2 === $nargs) {
+                $in[current($args)] = end($args);
+            }
+
+            return $in;
         }
     }
 

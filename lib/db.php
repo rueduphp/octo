@@ -23,6 +23,8 @@ class Db
 
         $connection->setEventDispatcher(static::getEventDispatcher());
 
+        In::set('db', $connection);
+
         return $connection->{$name}(...$arguments);
     }
 

@@ -1,6 +1,8 @@
 <?php
 namespace Octo;
 
+use Closure;
+
 class You
 {
     use Eventable;
@@ -17,8 +19,8 @@ class You
     /** @var array  */
     protected static $roles = [];
 
-    /** @var You */
-    protected static $instance;
+    /** @var You[] */
+    protected static $instances = [];
 
     /**
      * @throws \ReflectionException
@@ -53,11 +55,11 @@ class You
      */
     public static function called()
     {
-        if (is_null(static::$instance)) {
-            static::$instance = gi()->singleton(get_called_class());
+        if (!isset(static::$instances[get_called_class()])) {
+            static::$instances[get_called_class()] = gi()->make(get_called_class());
         }
 
-        return static::$instance;
+        return static::$instances[get_called_class()];
     }
 
     /**
@@ -392,18 +394,20 @@ class You
             if (is_callable($policy)) {
                 $params = array_merge([static::user()], $args);
 
-                if ($policy instanceof \Closure) {
+                if ($policy instanceof Closure) {
                     return $policy(...$params);
+                } elseif (is_array($policy)) {
+                    $params = array_merge($policy, $params);
+
+                    return gi()->call(...$params);
+                } elseif (is_object($policy) && in_array('__invoke', get_class_methods($policy))) {
+                    $params = array_merge([$policy, '__invoke'], $params);
+
+                    return gi()->call(...$params);
                 } else {
-                    if (is_array($policy)) {
-                        $params = array_merge($policy, $params);
+                    $args = array_merge([$policy], $params);
 
-                        return instanciator()->call(...$params);
-                    } else {
-                        $args = array_merge([$policy], $params);
-
-                        return callCallable(...$args);
-                    }
+                    return callCallable(...$args);
                 }
             }
         }
@@ -521,5 +525,15 @@ class You
     public static function areGuest(): bool
     {
         return null === static::user();
+    }
+
+    /**
+     * @return bool
+     * @throws \ReflectionException
+     * @throws \TypeError
+     */
+    public static function check(): bool
+    {
+        return null !== static::user();
     }
 }

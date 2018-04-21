@@ -8,10 +8,12 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\Grammars\MySqlGrammar as MySqlQueryGrammar;
 use Illuminate\Database\Query\Grammars\SQLiteGrammar as SQLiteQueryGrammar;
 use Illuminate\Database\Query\Grammars\PostgresGrammar as PostgresQueryGrammar;
+use Illuminate\Database\Query\Grammars\SqlServerGrammar as SqlServerQueryGrammar;
 use Illuminate\Database\Schema\Builder as Schema;
 use Illuminate\Database\Schema\Grammars\MySqlGrammar;
 use Illuminate\Database\Schema\Grammars\SQLiteGrammar;
 use Illuminate\Database\Schema\Grammars\PostgresGrammar;
+use Illuminate\Database\Schema\Grammars\SqlServerGrammar;
 use PDO;
 
 class Capsule
@@ -33,13 +35,15 @@ class Capsule
 
     /**
      * @param null|PDO $pdo
-     *
      * @return Capsule
+     * @throws \ReflectionException
      */
     public static function instance(?PDO $pdo = null): Capsule
     {
         if (!static::$instance || $pdo instanceof PDO) {
+            In::set('pdo', $pdo);
             static::$instance = new static($pdo);
+            In::set('schema', static::$instance->schema());
         }
 
         return static::$instance;
@@ -129,6 +133,7 @@ class Capsule
 
     /**
      * @return Schema
+     * @throws \ReflectionException
      */
     public function schema()
     {
@@ -149,6 +154,10 @@ class Capsule
                 $connection->setSchemaGrammar(new PostgresGrammar());
                 $connection->setQueryGrammar(new PostgresQueryGrammar());
                 break;
+            case 'sqlsrv':
+                $connection->setSchemaGrammar(new SqlServerGrammar());
+                $connection->setQueryGrammar(new SqlServerQueryGrammar());
+                break;
         }
 
         Schema::defaultStringLength(191);
@@ -159,8 +168,8 @@ class Capsule
     /**
      * @param Connection $connection
      * @param null|PDO $pdo
-     *
      * @return Connection
+     * @throws \ReflectionException
      */
     private static function grammar(Connection $connection, ?PDO $pdo = null)
     {
@@ -184,6 +193,8 @@ class Capsule
                 $connection->setQueryGrammar(new PostgresQueryGrammar());
                 break;
         }
+
+        In::set('connection', $connection);
 
         return $connection;
     }

@@ -888,15 +888,26 @@
 
         public static function is($pattern, $value)
         {
-            if (sha1($pattern) == sha1($value)) {
-                return true;
+            $patterns = is_array($pattern) ? $pattern : (array) $pattern;
+
+            if (empty($patterns)) {
+                return false;
             }
 
-            $pattern = preg_quote($pattern, '#');
+            foreach ($patterns as $pattern) {
+                if ($pattern == $value) {
+                    return true;
+                }
 
-            $pattern = str_replace('\*', '.*', $pattern) . '\z';
+                $pattern = preg_quote($pattern, '#');
+                $pattern = str_replace('\*', '.*', $pattern);
 
-            return (bool) preg_match('#^' . $pattern . '#', $value);
+                if (preg_match('#^'.$pattern.'\z#u', $value) === 1) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         protected static function pool($type)
