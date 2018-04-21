@@ -837,8 +837,8 @@ class Instanciator
 
     /**
      * @param string $concern
-     *
      * @return mixed
+     * @throws \ReflectionException
      */
     public function shared(string $concern)
     {
