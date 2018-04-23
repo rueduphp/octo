@@ -16,89 +16,23 @@ use Illuminate\Database\Schema\Grammars\PostgresGrammar;
 use Illuminate\Database\Schema\Grammars\SqlServerGrammar;
 use PDO;
 
-class Capsule
+class Connector extends Elegant
 {
     /**
-     * @var PDO
-     */
-    private $pdo;
-
-    /**
-     * @var Capsule
-     */
-    private static $instance;
-
-    public function __construct(PDO $pdo)
-    {
-        $this->pdo = $pdo;
-    }
-
-    /**
-     * @param null|PDO $pdo
-     * @return Capsule
-     * @throws \ReflectionException
-     */
-    public static function instance(?PDO $pdo = null): Capsule
-    {
-        if (!static::$instance || $pdo instanceof PDO) {
-            In::set('pdo', $pdo);
-            static::$instance = new static($pdo);
-            In::set('schema', static::$instance->schema());
-        }
-
-        return static::$instance;
-    }
-
-    /**
-     * @return Connection
-     * @throws \ReflectionException
-     */
-    public static function connection()
-    {
-        if (!$connection = get('capsule.connection')) {
-            $connection = static::grammar(new Connection(getPdo()));
-        }
-
-        return $connection;
-    }
-
-    /**
-     * @return Capsule
-     */
-    public static function getInstance(): Capsule
-    {
-        return static::$instance;
-    }
-
-    /**
      * @param $class
-     * @return Schema
-     * @throws \ReflectionException
-     */
-    public function make($class)
-    {
-        $this->model($class);
-
-        return $this->schema();
-    }
-
-    /**
-     * @param $class
+     * @param PDO $pdo
      * @return Builderer
      * @throws \ReflectionException
      */
-    public function model($class): Builderer
+    public static function model(Connected $model, PDO $pdo): Builderer
     {
-        /** @var Elegant $model */
-        $model = is_string($class) && class_exists($class) ? new $class() : $class;
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
-        $connection = static::grammar(new Connection($this->pdo), $this->pdo);
+        $connection = static::grammar(new Connection($pdo), $pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
 
-        set('capsule.connection', $connection);
+        $resolver = new ConnectionResolver([$driver => $connection]);
 
-        $resolver = new ConnectionResolver(['octoconnection' => $connection]);
-
-        $resolver->setDefaultConnection('octoconnection');
+        $resolver->setDefaultConnection($driver);
 
         $model->setConnectionResolver($resolver);
 
@@ -115,33 +49,19 @@ class Capsule
 
     /**
      * @param PDO $pdo
-     *
-     * @return Capsule
-     */
-    public function setPdo(PDO $pdo): Capsule
-    {
-        $this->pdo = $pdo;
-
-        return $this;
-    }
-
-    /**
-     * @return PDO
-     */
-    public function getPdo(): PDO
-    {
-        return $this->pdo;
-    }
-
-    /**
      * @return Schema
      * @throws \ReflectionException
      */
-    public function schema()
+    public static function schema(Connected $model, PDO $pdo)
     {
-        $connection = new Connection($this->pdo);
+        /** @var Elegant $model */
+        $model = gi()->make($class);
+        /** @var PDO $pdo */
+        $pdo = $model->getPdo();
 
-        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $connection = new Connection($pdo);
+
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
         switch ($driver) {
             case 'mysql':
@@ -164,23 +84,17 @@ class Capsule
 
         Schema::defaultStringLength(191);
 
-        return self::grammar($connection, $this->pdo)->getSchemaBuilder();
+        return static::grammar($connection, $driver)->getSchemaBuilder();
     }
 
     /**
      * @param Connection $connection
-     * @param null|PDO $pdo
+     * @param string $driver
      * @return Connection
      * @throws \ReflectionException
      */
-    private static function grammar(Connection $connection, ?PDO $pdo = null)
+    public static function grammar(Connection $connection, string $driver)
     {
-        if (!$pdo instanceof PDO) {
-            $pdo = getPdo();
-        }
-
-        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-
         switch ($driver) {
             case 'mysql':
                 $connection->setSchemaGrammar(new MySqlGrammar());
@@ -196,7 +110,7 @@ class Capsule
                 break;
         }
 
-        In::set('connection', $connection);
+        In::set('connection.' . $connection->getDatabaseName(), $connection);
 
         return $connection;
     }

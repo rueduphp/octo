@@ -5,6 +5,7 @@ use Octo\Arrays;
 use Octo\Breeze;
 use Octo\Component;
 use Octo\Config;
+use Octo\Connector;
 use Octo\Dynamicentity;
 use Octo\Dynamicmodel;
 use Octo\Dynamicrecord;
@@ -15,6 +16,7 @@ use Octo\EavValue;
 use Octo\Emit;
 use Octo\Facade;
 use Octo\Finder;
+use function Octo\getPdo;
 use Octo\Inflector;
 use Octo\Instanciator;
 use Octo\InternalEvents;
@@ -105,6 +107,16 @@ class Bag extends Octo\Container
 }
 
 class MyEvent extends Octo\Fire {}
+
+class MyUsers extends Connected
+{
+    protected $table = 'user';
+
+    public function getPdo(): PDO
+    {
+        return getPdo();
+    }
+}
 
 class Middleware
 {
@@ -261,9 +273,13 @@ class Items extends Dynamicentity
 
 class SimpleTest extends TestCase
 {
+    public function testConnected()
+    {
+        $this->assertSame(10, MyUsers::count());
+    }
+
     /**
      * @throws Exception
-     * @throws \AlgoliaSearch\AlgoliaException
      */
     public function testDi()
     {

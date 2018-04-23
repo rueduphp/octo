@@ -2,8 +2,9 @@
 namespace Octo;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use PDO;
 
-class Elegant extends EloquentModel implements FastModelInterface
+class Connected extends EloquentModel implements FastModelInterface
 {
     protected $guarded  = [];
     protected $__capsule;
@@ -35,10 +36,8 @@ class Elegant extends EloquentModel implements FastModelInterface
      */
     public function __call($m, $a)
     {
-        $class = get_called_class();
-
         if (!isset($this->__capsule)) {
-            $this->__capsule = Capsule::getInstance()->model($class);
+            $this->__capsule = Connector::model($this, $this->getPdo());
         }
 
         if (in_array($m, ['increment', 'decrement'])) {
@@ -60,5 +59,22 @@ class Elegant extends EloquentModel implements FastModelInterface
         $class = get_called_class();
 
         return new FastFactory($class, new $class());
+    }
+
+    public function getPdo(): PDO
+    {
+        throw new RuntimeException(get_called_class() . ' does not implement PDO.');
+    }
+
+    /**
+     * @return \Illuminate\Database\Schema\Builder
+     * @throws \ReflectionException
+     */
+    public function schema()
+    {
+        /** @var Connected $self */
+        $self = gi()->make(get_called_class());
+
+        return Connector::schema($self, $self->getPdo());
     }
 }
