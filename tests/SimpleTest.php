@@ -273,9 +273,15 @@ class Items extends Dynamicentity
 
 class SimpleTest extends TestCase
 {
+    /**
+     * @throws ReflectionException
+     */
     public function testConnected()
     {
         $this->assertSame(10, MyUsers::count());
+        $config = $this->dic('config');
+        $config['app.locale'] = 'fr';
+        dd($config['app.locale']);
     }
 
     /**

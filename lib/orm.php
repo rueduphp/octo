@@ -439,6 +439,7 @@
         /**
          * @param bool $reset
          * @return \PDOStatement
+         * @throws \ReflectionException
          */
         public function native($reset = true)
         {

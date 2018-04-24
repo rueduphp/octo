@@ -1295,14 +1295,24 @@
     }
 
     /**
-     * @param $array
+     * @param array $array
      * @param string $k
      * @param null $d
      * @return mixed|null
      */
-    function aget($array, string $k, $d = null)
+    function aget(array $array, string $k, $d = null)
     {
         return Arrays::get($array, $k, $d);
+    }
+
+    /**
+     * @param array $array
+     * @param string $k
+     * @return bool
+     */
+    function ahas(array $array, string $k): bool
+    {
+        return 'octodummy' !== aget($array, $k, 'octodummy');
     }
 
     /**
@@ -4241,6 +4251,10 @@
 
         $in['larevent'] = function () {
             return dispatcher('app');
+        };
+
+        $in['config'] = function () {
+            return gi()->make(Fillable::class, ['config']);
         };
 
         loadEvents();
@@ -9495,6 +9509,77 @@
         fmr('once')->del($key);
 
         return $value;
+    }
+
+    /**
+     * @param callable|null $callback
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    function transacRedis(?callable $callback = null)
+    {
+        $transaction = redis()->getClient()->multi();
+
+        return is_null($callback)
+            ? $transaction
+            : tap($transaction, $callback)->exec()
+        ;
+    }
+
+    /**
+     * @param array ...$args
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    function callThat(...$args)
+    {
+        $callable = current($args);
+
+        if ($callable instanceof Closure) {
+            return gi()->makeClosure(...$args);
+        } else if (is_array($callable)) {
+            return gi()->call(...$args);
+        } else if (is_object($callable) && in_array('__invoke', get_class_methods($callable))) {
+            array_shift($args);
+            $params = array_merge([$callable, '__invoke'], $args);
+
+            return gi()->call(...$params);
+        }
+
+        array_shift($args);
+
+        return $callable(...$args);
+    }
+
+    /**
+     * @param callable $callback
+     * @param int $times
+     * @return mixed
+     * @throws \Throwable
+     */
+    function transaction(callable $callback, int $times = 1)
+    {
+        $pdo = getPdo();
+
+        for ($t = 1; $t <= $times; $t++) {
+            $pdo->beginTransaction();
+
+            try {
+                $result = callThat($callback);
+
+                $pdo->commit();
+            } catch (\Exception $e) {
+                $pdo->rollBack();
+
+                throw $e;
+            } catch (\Throwable $e) {
+                $pdo->rollBack();
+
+                throw $e;
+            }
+
+            return $result;
+        }
     }
 
     /**
