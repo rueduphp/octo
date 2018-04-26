@@ -89,6 +89,19 @@ class In implements ArrayAccess
     }
 
     /**
+     * @param string $key
+     * @param $callable
+     * @return In
+     * @throws \ReflectionException
+     */
+    public static function singleton(string $key, $callable): self
+    {
+        $instance = callThat($callable);
+
+        return  static::set($key, $instance);
+    }
+
+    /**
      * @param array ...$args
      * @return In
      * @throws \ReflectionException
@@ -98,6 +111,27 @@ class In implements ArrayAccess
         gi()->set(...$args);
 
         return static::self();
+    }
+
+    /**
+     * @param string $from
+     * @param string $alias
+     * @return In
+     * @throws \ReflectionException
+     */
+    public static function alias(string $from, string $alias): self
+    {
+        $self = static::self();
+
+        $instance = $self->get($from);
+
+        $callback = function () use ($instance) {
+            return $instance;
+        };
+
+        $self->set($alias, $callback);
+
+        return $self;
     }
 
     /**

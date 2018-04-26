@@ -13,7 +13,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
      * @return \GuzzleHttp\Psr7\Response|mixed|null|ResponseInterface
      * @throws \ReflectionException
      */
-    public function process(ServerRequestInterface $request, DelegateInterface $next)
+    public function process(ServerRequestInterface $request, ?DelegateInterface $next = null)
     {
         $app    = $this->getContainer();
         $route  = $app->define('route');
@@ -26,6 +26,14 @@ class Fastmiddlewaredispatch extends FastMiddleware
             if (is_array($middleware)) {
                 $module = $middleware[0];
                 $action = $middleware[1];
+                $filter = puller('routes.middlewares', $route->getName());
+
+                if (null !== $filter) {
+                    $instance = gi()->make($filter);
+
+                    return gi()->call($instance, 'process', $request, $this);
+                }
+
                 $response = gi()->call($module, $action);
             } else {
                 $module     = gi()->make($middleware);

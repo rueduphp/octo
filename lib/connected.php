@@ -75,6 +75,6 @@ class Connected extends EloquentModel implements FastModelInterface
         /** @var Connected $self */
         $self = gi()->make(get_called_class());
 
-        return Connector::schema($self, $self->getPdo());
+        return Connector::schema($self->getPdo());
     }
 }

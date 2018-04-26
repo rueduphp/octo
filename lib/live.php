@@ -426,4 +426,94 @@ class Live implements ArrayAccess, FastSessionInterface
 
         return $this;
     }
+
+    /**
+     * @param string $key
+     * @param $value
+     * @throws Exception
+     */
+    public function push(string $key, $value)
+    {
+        $array = $this->driver->get($key, []);
+
+        $array[] = $value;
+
+        $this->set($key, $array);
+    }
+
+    /**
+     * @param string $key
+     * @param bool $value
+     * @throws Exception
+     */
+    public function flash(string $key, $value = true)
+    {
+        $this->set($key, $value);
+
+        $this->push('_flash.new', $key);
+
+        $this->removeFromOldFlashData([$key]);
+    }
+
+    /**
+     * @param $key
+     * @param $value
+     * @throws Exception
+     */
+    public function now($key, $value)
+    {
+        $this->set($key, $value);
+
+        $this->push('_flash.old', $key);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function reflash()
+    {
+        $this->mergeNewFlashes($this->driver->get('_flash.old', []));
+
+        $this->set('_flash.old', []);
+    }
+
+    /**
+     * @param null $keys
+     * @throws Exception
+     */
+    public function keep($keys = null)
+    {
+        $this->mergeNewFlashes($keys = is_array($keys) ? $keys : func_get_args());
+
+        $this->removeFromOldFlashData($keys);
+    }
+
+    /**
+     * @param array $keys
+     * @throws Exception
+     */
+    protected function mergeNewFlashes(array $keys)
+    {
+        $values = array_unique(array_merge($this->driver->get('_flash.new', []), $keys));
+
+        $this->set('_flash.new', $values);
+    }
+
+    /**
+     * @param array $keys
+     * @throws Exception
+     */
+    protected function removeFromOldFlashData(array $keys)
+    {
+        $this->set('_flash.old', array_diff($this->driver->get('_flash.old', []), $keys));
+    }
+
+    /**
+     * @param array $value
+     * @throws Exception
+     */
+    public function flashInput(array $value)
+    {
+        $this->flash('_old_input', $value);
+    }
 }

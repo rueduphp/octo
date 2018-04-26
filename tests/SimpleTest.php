@@ -5,7 +5,6 @@ use Octo\Arrays;
 use Octo\Breeze;
 use Octo\Component;
 use Octo\Config;
-use Octo\Connector;
 use Octo\Dynamicentity;
 use Octo\Dynamicmodel;
 use Octo\Dynamicrecord;
@@ -17,6 +16,7 @@ use Octo\Emit;
 use Octo\Facade;
 use Octo\Finder;
 use function Octo\getPdo;
+use Octo\In;
 use Octo\Inflector;
 use Octo\Instanciator;
 use Octo\InternalEvents;
@@ -108,7 +108,7 @@ class Bag extends Octo\Container
 
 class MyEvent extends Octo\Fire {}
 
-class MyUsers extends Connected
+class UserConnected extends \Octo\Connected
 {
     protected $table = 'user';
 
@@ -278,10 +278,7 @@ class SimpleTest extends TestCase
      */
     public function testConnected()
     {
-        $this->assertSame(10, MyUsers::count());
-        $config = $this->dic('config');
-        $config['app.locale'] = 'fr';
-        dd($config['app.locale']);
+        $this->assertSame(10, UserConnected::count());
     }
 
     /**
@@ -297,7 +294,7 @@ class SimpleTest extends TestCase
         }]);
         $this->assertTrue($this->gi()->get('testtrue'));
 
-        /** @var \Octo\In $app */
+        /** @var In $app */
         $app = $this->in();
         $this->in('x', 'y');
         $this->in('testfalse', function () {
@@ -341,6 +338,34 @@ class SimpleTest extends TestCase
             return true;
         });
         $this->assertSame([true], $app['larevent']->fire('foo'));
+
+        $app::singleton('singleton', function () {
+           return $this->incr('singleton');
+        });
+
+        $this->assertSame(1, $app['singleton']);
+        $this->assertSame(1, $app['singleton']);
+        $this->assertSame(1, $app['singleton']);
+
+        Flash::error('error foo');
+        Flash::success('success foo');
+        $this->assertSame(2, Flash::getSession()[Flash::getSessionKey()]->count());
+
+        $this->assertSame(2, Flash::count());
+        $this->assertSame(1, Flash::count('successes'));
+        $this->assertSame(1, Flash::count('errors'));
+        $this->assertSame(0, Flash::count('dummy'));
+        $this->assertSame(0, Flash::getSession()[Flash::getSessionKey()]->count());
+
+        $this->assertSame('error foo', current(Flash::errors())['message']);
+        $this->assertSame('success foo', current(Flash::successes())['message']);
+    }
+
+    public function testFlashIsclearedButNotInInstance()
+    {
+        $this->assertSame(1, Flash::count('errors'));
+        $this->assertSame(1, Flash::count('successes'));
+        $this->assertSame(0, Flash::getSession()[Flash::getSessionKey()]->count());
     }
 
     /**

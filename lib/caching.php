@@ -29,6 +29,20 @@ class Caching implements FastCacheInterface
         return $value;
     }
 
+    /**
+     * @param string $key
+     * @param $value
+     * @return Caching
+     */
+    public function push(string $key, $value)
+    {
+        $array = $this->get($key, []);
+
+        $array[] = $value;
+
+        return $this->set($key, $array);
+    }
+
     public function __construct(string $ns = 'core')
     {
         $this->dir  = $ns;
@@ -56,6 +70,29 @@ class Caching implements FastCacheInterface
     {
         if ('if' === $m) {
             return call_user_func_array([$this, 'cacheIf'], $a);
+        }
+
+        if (fnmatch('get*', $m)) {
+            $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
+            $key                = Strings::lower($uncamelizeMethod);
+            $args               = [$key];
+
+            if (!empty($a)) {
+                $args[] = current($a);
+            }
+
+            return call_user_func_array([$this, 'get'], $args);
+        } elseif (fnmatch('set*', $m)) {
+            $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
+            $key                = Strings::lower($uncamelizeMethod);
+
+            return $this->set($key, current($a));
+        } elseif (fnmatch('forget*', $m)) {
+            $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 6)));
+            $key                = Strings::lower($uncamelizeMethod);
+            $args               = [$key];
+
+            return call_user_func_array([$this, 'erase'], $args);
         }
     }
 
@@ -954,18 +991,31 @@ class Caching implements FastCacheInterface
         return $val !== 'octodummy' ? $this : $val;
     }
 
-    public function add($k, $v, $e)
+    /**
+     * @param string $key
+     * @param $v
+     * @param $e
+     * @return Caching
+     */
+    public function add(string $key, $v, $e): self
     {
-        if (!$this->has($k)) {
-            return $this->set($k, $v, $e);
+        if (!$this->has($key)) {
+            return $this->set($key, $v, $e);
         }
 
         return $this;
     }
 
-    public function setNow($k, $v, $expire = null)
+    /**
+     * @param string $key
+     * @param $v
+     * @param null $expire
+     * @return Caching
+     * @throws \ReflectionException
+     */
+    public function setNow(string $key, $v, $expire = null): self
     {
-        $file = $this->getPath($k);
+        $file = $this->getPath($key);
 
         $this->_delete($file);
 
@@ -976,14 +1026,25 @@ class Caching implements FastCacheInterface
         return $this;
     }
 
-    public function hasNow($k)
+    /**
+     * @param string $key
+     * @return bool
+     * @throws \ReflectionException
+     */
+    public function hasNow(string $key)
     {
-        return $this->_exists($this->getPath($k));
+        return $this->_exists($this->getPath($key));
     }
 
-    public function getNow($k, $d = null)
+    /**
+     * @param string $key
+     * @param null $d
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    public function getNow(string $key, $d = null)
     {
-        $file = $this->getPath($k);
+        $file = $this->getPath($key);
 
         if ($this->_exists($file)) {
             return unserialize($this->_read($file)['v']);
@@ -992,9 +1053,14 @@ class Caching implements FastCacheInterface
         return $d;
     }
 
-    public function delNow($k)
+    /**
+     * @param string $key
+     * @return bool
+     * @throws \ReflectionException
+     */
+    public function delNow(string $key)
     {
-        $file = $this->getPath($k);
+        $file = $this->getPath($key);
 
         if ($this->_exists($file)) {
             $this->_delete($file);
@@ -1005,9 +1071,14 @@ class Caching implements FastCacheInterface
         return false;
     }
 
-    public function ageNow($k)
+    /**
+     * @param $k
+     * @return int|mixed
+     * @throws \ReflectionException
+     */
+    public function ageNow(string $key)
     {
-        $file = $this->getPath($k);
+        $file = $this->getPath($key);
 
         if ($this->_exists($file)) {
             $row = $this->_read($file);
@@ -1020,19 +1091,19 @@ class Caching implements FastCacheInterface
         return time();
     }
 
-    public function getDel($k, $d = null)
+    public function getDel(string $key, $d = null)
     {
-        $value = $this->get($k, $d);
+        $value = $this->get($key, $d);
 
-        $this->delete($k);
+        $this->delete($key);
 
         return $value;
     }
 
-    public function start($k, $d = null)
+    public function start(string $key, $d = null)
     {
-        if (!$this->has($k)) {
-            Registry::set('cache.buffer.' . $this->id, $k);
+        if (!$this->has($key)) {
+            Registry::set('cache.buffer.' . $this->id, $key);
             ob_start();
 
             return $d;
@@ -1040,7 +1111,7 @@ class Caching implements FastCacheInterface
 
         Registry::delete('cache.buffer.' . $this->id);
 
-        return $this->get($k);
+        return $this->get($key);
     }
 
     public function end()
@@ -1086,16 +1157,32 @@ class Caching implements FastCacheInterface
         return $this->set($key, $array);
     }
 
+    /**
+     * @param string $k
+     * @return mixed
+     * @throws \ReflectionException
+     */
     private function _delete(string $k)
     {
         return CachingModel::where('k', $k)->delete();
     }
 
+    /**
+     * @param string $k
+     * @param $v
+     * @param $e
+     * @throws \ReflectionException
+     */
     private function _put(string $k, $v, $e)
     {
         CachingModel::create(compact('k', 'v', 'e'));
     }
 
+    /**
+     * @param string $k
+     * @return array|bool
+     * @throws \ReflectionException
+     */
     private function _read(string $k)
     {
         $row = CachingModel::where('k', $k)->first();
@@ -1107,6 +1194,11 @@ class Caching implements FastCacheInterface
         return false;
     }
 
+    /**
+     * @param string $k
+     * @return bool
+     * @throws \ReflectionException
+     */
     private function _exists(string $k)
     {
         return CachingModel::where('k', $k)->count() === 1;

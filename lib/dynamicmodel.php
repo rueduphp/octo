@@ -71,6 +71,10 @@ class EavRow extends Elegant
         ;
     }
 
+    /**
+     * @return mixed
+     * @throws \ReflectionException
+     */
     public function attributes()
     {
         $attributes = coll(coll($this->values()->get()->toArray())->pluck('attribute'))->pluck('id');
@@ -143,6 +147,11 @@ class Dynamicmodel
         });
     }
 
+    /**
+     * @param string $entity
+     * @param null $cache
+     * @throws \ReflectionException
+     */
     public function __construct(string $entity, $cache = null)
     {
         $cache = null === $cache ? new Caching('eav.' . $entity) : $cache;
@@ -173,6 +182,7 @@ class Dynamicmodel
     /**
      * @param $data
      * @return mixed
+     * @throws \ReflectionException
      */
     public function create($data)
     {
@@ -207,6 +217,7 @@ class Dynamicmodel
      * @param int $id
      * @param $data
      * @return array
+     * @throws \ReflectionException
      */
     public function update(int $id, $data)
     {
@@ -256,7 +267,9 @@ class Dynamicmodel
     }
 
     /**
+     * @param array $parameters
      * @return int
+     * @throws \ReflectionException
      */
     public function edit(array $parameters): int
     {
@@ -275,6 +288,7 @@ class Dynamicmodel
     /**
      * @param int $id
      * @return bool
+     * @throws \ReflectionException
      */
     public function delete(int $id): bool
     {
@@ -331,7 +345,8 @@ class Dynamicmodel
      */
     public function find(int $id, $model = true)
     {
-        $key = 'eav.' . $this->entity->id . '.' . $id . '.find';
+        $m = $model ? 1 : 0;
+        $key = 'eav.' . $this->entity->id . '.' . $id . $m . '.find';
 
         return $this->cache->until($key, function () use ($id, $model) {
             /** @var EavRow $row */
@@ -357,6 +372,7 @@ class Dynamicmodel
 
     /**
      * @return array
+     * @throws \ReflectionException
      */
     public function freshids(): array
     {
@@ -560,14 +576,15 @@ class Dynamicmodel
     }
 
     /**
+     * @param bool $model
      * @return array
      */
-    public function fetchAll(): array
+    public function fetchAll(bool $model = false): array
     {
         $rows = [];
 
         foreach ($this->ids() as $id) {
-            $rows[] = $this->find((int) $id, false);
+            $rows[] = $this->find((int) $id, $model);
         }
 
         return $rows;
@@ -722,12 +739,13 @@ class Dynamicmodel
     /**
      * @param string $field
      * @param $value
+     * @param bool $model
      * @return mixed|null|Dynamicrecord
      * @throws \ReflectionException
      */
-    public function firstBy(string $field, $value)
+    public function firstBy(string $field, $value, bool $model = true)
     {
-        return $this->where($field, '=', $value)->first();
+        return $this->where($field, '=', $value)->first($model);
     }
 
     /**
@@ -820,6 +838,10 @@ class Dynamicmodel
         return $this->where($field, 'is not', 'null');
     }
 
+    /**
+     * @param string $field
+     * @return mixed|null
+     */
     public function sum(string $field)
     {
         $keyCache = sha1('eav.sum.' . $this->entity->id . $field . serialize($this->query));
@@ -829,6 +851,10 @@ class Dynamicmodel
         }, $this->getAge());
     }
 
+    /**
+     * @param string $field
+     * @return mixed|null
+     */
     public function min(string $field)
     {
         $keyCache = sha1('eav.min.' . $this->entity->id . $field . serialize($this->query));
@@ -838,6 +864,10 @@ class Dynamicmodel
         }, $this->getAge());
     }
 
+    /**
+     * @param string $field
+     * @return mixed|null
+     */
     public function max(string $field)
     {
         $keyCache = sha1('eav.max.' . $this->entity->id . $field . serialize($this->query));
@@ -847,6 +877,10 @@ class Dynamicmodel
         }, $this->getAge());
     }
 
+    /**
+     * @param string $field
+     * @return mixed|null
+     */
     public function avg(string $field)
     {
         $keyCache = sha1('eav.avg.' . $this->entity->id . $field . serialize($this->query));
@@ -1146,6 +1180,7 @@ class Dynamicmodel
      * @param string $field
      * @param array $values
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orIn(string $field, array $values): self
     {
@@ -1156,6 +1191,7 @@ class Dynamicmodel
      * @param string $field
      * @param array $values
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orNotIn(string $field, array $values): self
     {
@@ -1176,6 +1212,7 @@ class Dynamicmodel
      * @param string $field
      * @param array $values
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orWhereIn(string $field, array $values): self
     {
@@ -1196,6 +1233,7 @@ class Dynamicmodel
      * @param string $field
      * @param array $values
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orWhereNotIn(string $field, array $values): self
     {
@@ -1218,6 +1256,7 @@ class Dynamicmodel
      * @param $min
      * @param $max
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orBetween(string $field, $min, $max): self
     {
@@ -1240,6 +1279,7 @@ class Dynamicmodel
      * @param $min
      * @param $max
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orNotBetween(string $field, $min, $max): self
     {
@@ -1249,6 +1289,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orIsNull(string $field): self
     {
@@ -1258,6 +1299,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orIsNotNull(string $field): self
     {
@@ -1278,6 +1320,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orStartsWith(string $field, $value): self
     {
@@ -1298,6 +1341,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orEndsWith(string $field, $value): self
     {
@@ -1318,6 +1362,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orLt(string $field, $value): self
     {
@@ -1338,6 +1383,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orGt(string $field, $value): self
     {
@@ -1358,6 +1404,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orLte(string $field, $value): self
     {
@@ -1378,6 +1425,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orGte(string $field, $value): self
     {
@@ -1402,6 +1450,7 @@ class Dynamicmodel
      * @param $date
      * @param bool $strict
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orBefore($date, bool $strict = true): self
     {
@@ -1430,6 +1479,7 @@ class Dynamicmodel
      * @param $date
      * @param bool $strict
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orAfter($date, bool $strict = true): self
     {
@@ -1460,6 +1510,7 @@ class Dynamicmodel
      * @param string $op
      * @param $date
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orWhen(string $field, string $op, $date): self
     {
@@ -1480,6 +1531,7 @@ class Dynamicmodel
 
     /**
      * @return Dynamicmodel
+     * @throws \Exception
      */
     public function orDeleted(): self
     {

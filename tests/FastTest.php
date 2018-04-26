@@ -109,6 +109,37 @@ class ModulePhp extends Octo\Module
     }
 }
 
+class TestRouteMiddleware
+{
+    /**
+     * @param ServerRequestInterface $request
+     * @param $next
+     * @return mixed
+     * @throws ReflectionException
+     */
+    public function process(Psr\Http\Message\ServerRequestInterface $request, $next)
+    {
+        if ($slug = $request->getAttribute('slug')) {
+            return $next->process($request);
+        }
+    }
+}
+class RetestRouteMiddleware
+{
+    /**
+     * @param ServerRequestInterface $request
+     * @param $next
+     * @return mixed
+     * @throws ReflectionException
+     */
+    public function process(Psr\Http\Message\ServerRequestInterface $request, $next)
+    {
+        if ($slug = $request->getAttribute('slug')) {
+            return $next->process($request);
+        }
+    }
+}
+
 class Module extends Octo\Module
 {
     /**
@@ -155,12 +186,22 @@ class Module extends Octo\Module
 
     /**
      * @param Objet $router
+     * @throws \Octo\Exception
      */
     public function routes(Objet $router)
     {
         $router
             ->addRoute('GET', '/test', [$this, 'test'])
-            ->addRoute('GET', '/slug/{slug}', [$this, 'slug'])
+            ->addRoute(
+                'GET',
+                '/slug/{slug}',
+                [$this, 'slug'],
+                'getSlug',
+                [
+                    TestRouteMiddleware::class,
+                    RetestRouteMiddleware::class,
+                ]
+            )
             ->addRoute('GET', '/data/{id:\d+}', [$this, 'data'])
             ->addRoute('GET', '/hello', [$this, 'hello'])
             ->addRoute('GET', '/admin/foo', [$this, 'admin'])

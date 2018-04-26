@@ -35,6 +35,11 @@ class Ghost implements ArrayAccess
         return $collection;
     }
 
+    public function toArray()
+    {
+        return $this->rowing();
+    }
+
     public function __toString()
     {
         return json_encode($this->rowing());
@@ -143,8 +148,8 @@ class Ghost implements ArrayAccess
                         ;
 
                         return $macro instanceof Closure ?
-                            instanciator()->makeClosure(...$params) :
-                            instanciator()->call(...$params)
+                            gi()->makeClosure(...$params) :
+                            gi()->call(...$params)
                         ;
                     } else {
                         return $this->{$m};
@@ -166,8 +171,8 @@ class Ghost implements ArrayAccess
                         ;
 
                         return $macro instanceof Closure ?
-                            instanciator()->makeClosure(...$params) :
-                            instanciator()->call(...$params)
+                            gi()->makeClosure(...$params) :
+                            gi()->call(...$params)
                         ;
                     }
                 } else {

@@ -52,13 +52,8 @@ class Connector extends Elegant
      * @return Schema
      * @throws \ReflectionException
      */
-    public static function schema(Connected $model, PDO $pdo)
+    public static function schema(PDO $pdo)
     {
-        /** @var Elegant $model */
-        $model = gi()->make($class);
-        /** @var PDO $pdo */
-        $pdo = $model->getPdo();
-
         $connection = new Connection($pdo);
 
         $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);

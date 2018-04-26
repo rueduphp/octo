@@ -39,7 +39,7 @@ class Flash implements FastFlashInterface
      */
     public function set($key, $message)
     {
-        $rows = $this->storage->get($this->storageKey,[]);
+        $rows = $this->storage->get($this->storageKey, []);
 
         if (!isset($rows[$key])) {
             $rows[$key] = [];
@@ -57,7 +57,7 @@ class Flash implements FastFlashInterface
      */
     public function all()
     {
-        return $this->storage->get($this->storageKey,[]);
+        return $this->storage->get($this->storageKey, []);
     }
 
     /**
@@ -66,7 +66,7 @@ class Flash implements FastFlashInterface
      */
     public function has($key)
     {
-        $rows = $this->storage->get($this->storageKey,[]);
+        $rows = $this->storage->get($this->storageKey, []);
 
         return !empty($rows[$key]) || !empty($this->cache[$key]);
     }
@@ -84,7 +84,7 @@ class Flash implements FastFlashInterface
 
             $this->cache[$key] = $value;
 
-            $rows = $this->storage->get($this->storageKey,[]);
+            $rows = $this->storage->get($this->storageKey, []);
 
             unset($rows[$key]);
 

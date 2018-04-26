@@ -46,6 +46,13 @@ abstract class TestCase extends Octo\TestCase
                 }
             }
         );
+
+        $paths = \Octo\In::self()['paths'];
+
+        $paths['app'] = __DIR__;
+        $paths['base'] = __DIR__;
+        $paths['cache'] = __DIR__ . '/cache';
+        $paths['storage'] = __DIR__ . '/storage';
     }
 
     /**

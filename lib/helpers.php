@@ -78,6 +78,39 @@
         }
     }
 
+    class ES extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'elasticsearch';
+        }
+    }
+
+    class Flash extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'flash';
+        }
+    }
+
+    class Redirect extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'redirect';
+        }
+    }
+
     if (!function_exists('handler')) {
         function handler($concern, $object)
         {

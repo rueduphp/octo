@@ -1205,8 +1205,8 @@
 
     /**
      * @param null|string $path
-     *
-     * @return Trad
+     * @return mixed|object|Instanciator|Trad
+     * @throws \ReflectionException
      */
     function translator(?string $path = null)
     {
@@ -1216,11 +1216,17 @@
 
         $loader = new Fileloader(new Filesystem, $path);
         /** @var Trad $trans */
-        $trans = instanciator()->make(Trad::class, [$loader, appconf('app.locale')], true);
+        $trans = gi()->make(Trad::class, [$loader, appconf('app.locale')], true);
 
         return $trans->setFallback(appconf('app.fallback_locale'));
     }
 
+    /**
+     * @param string $path
+     * @param null|string $locale
+     * @return Trad
+     * @throws \ReflectionException
+     */
     function setTranslator(string $path, ?string $locale = null)
     {
         if (null !== $locale) {
@@ -3290,7 +3296,7 @@
         $closure = array_shift($args);
 
         if ($closure instanceof Closure) {
-            return instanciator()->makeClosure($closure, $args);
+            return gi()->makeClosure($closure, $args);
         }
 
         return null;
@@ -3714,12 +3720,11 @@
 
     /**
      * @param string $path
-     *
      * @return string
      */
     function public_path(string $path = '')
     {
-        return path('public') . ($path ? DS . ltrim($path, DS) : $path);
+        return In::self()['paths']['public'] . ($path ? DS . ltrim($path, DS) : $path);
     }
 
     /**
@@ -3729,7 +3734,7 @@
      */
     function cache_path(string $path = '')
     {
-        return path('cache') . ($path ? DS . ltrim($path, DS) : $path);
+        return In::self()['paths']['cache'] . ($path ? DS . ltrim($path, DS) : $path);
     }
 
     /**
@@ -3739,7 +3744,7 @@
      */
     function app_path(string $path = '')
     {
-        return path('app') . ($path ? DS . ltrim($path, DS) : $path);
+        return In::self()['paths']['app'] . ($path ? DS . ltrim($path, DS) : $path);
     }
 
     /**
@@ -3749,7 +3754,7 @@
      */
     function storage_path(string $path = '')
     {
-        return path('storage') . ($path ? DS . ltrim($path, DS) : $path);
+        return In::self()['paths']['storage'] . ($path ? DS . ltrim($path, DS) : $path);
     }
 
     /**
@@ -4255,6 +4260,18 @@
 
         $in['config'] = function () {
             return gi()->make(Fillable::class, ['config']);
+        };
+
+        $in['paths'] = function () {
+            return gi()->make(Fillable::class, ['paths']);
+        };
+
+        $in['flash'] = function () {
+            return gi()->make(Flasher::class, [getSession()]);
+        };
+
+        $in['redirect'] = function () {
+            return gi()->make(FastRedirector::class);
         };
 
         loadEvents();
@@ -4838,6 +4855,33 @@
         }
 
         return $provider;
+    }
+
+    function es($config)
+    {
+        if (is_string($config) && file_exists($config)) {
+            $config = include $config;
+        }
+
+        if (is_array($config)) {
+            $app = In::self();
+
+            $conf = $app['config'];
+
+            $conf['elasticsearch'] = $config;
+
+            $app['elasticsearch.factory'] = function () {
+                return new EsFactory;
+            };
+
+            $app['elasticsearch'] = function () use ($app) {
+                return new Esmanager($app, $app['elasticsearch.factory']);
+            };
+
+            $app[\Elasticsearch\Client::class] = function () use ($app) {
+                return $app['elasticsearch']->connection();
+            };
+        }
     }
 
     /**
@@ -5659,6 +5703,15 @@
     }
 
     /**
+     * @return bool
+     * @throws \ReflectionException
+     */
+    function hasSession()
+    {
+        return null !== getSession();
+    }
+
+    /**
      * @return FastOrmInterface
      */
     function getDb()
@@ -5964,7 +6017,8 @@
      */
     function appenv($key, $default = null)
     {
-        $env = path('base') . '/.env';
+        $env = '/.env';
+//        $env = path('base') . '/.env';
 
         if (File::exists($env)) {
             $ini = makeOnce(
@@ -6751,6 +6805,66 @@
         $dispatcher->push(...$args);
 
         return $dispatcher;
+    }
+
+    /**
+     * @param string $name
+     * @param $value
+     */
+    function pusher(string $name, $value)
+    {
+        $array = getCore($name, []);
+
+        if (is_array($value) && Arrays::isAssoc($value)) {
+            foreach ($value as $k => $v) {
+                $array[$k] = $v;
+            }
+        } else {
+            $array[] = $value;
+        }
+
+        setCore($name, $array);
+    }
+
+    /**
+     * @param string $name
+     * @param string $key
+     * @return mixed
+     */
+    function finder(string $name, string $key)
+    {
+        return isAke(getCore($name, []), $key, null);
+    }
+
+    /**
+     * @param string $name
+     * @param string $key
+     * @return mixed
+     */
+    function puller(string $name, string $key)
+    {
+        $values = getCore($name, []);
+        $value = isAke($values, $key, null);
+
+        if (is_array($value) && !empty($value)) {
+            $row = array_shift($value);
+
+            if (empty($value)) {
+                unset($values[$key]);
+            } else {
+                $values[$key] = $value;
+            }
+
+            setCore($name, $values);
+
+            return $row;
+        } else {
+            unset($values[$key]);
+
+            setCore($name, $values);
+
+            return $value;
+        }
     }
 
     /**
@@ -8111,6 +8225,31 @@
         return $string;
     }
 
+    /**
+     * @return mixed|null|Live|Session
+     * @throws \ReflectionException
+     */
+    function getReferer()
+    {
+        return isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : sessionPreviousUrl();
+    }
+
+    /**
+     * @param null|string $url
+     * @return mixed|null|Live|Session
+     * @throws \ReflectionException
+     */
+    function sessionPreviousUrl(?string $url = null)
+    {
+        $key = '-previous.url';
+
+        if (hasSession()) {
+            return null === $url ? getSession()->get($key) : getSession()->set($key, $url);
+        }
+
+        return null;
+    }
+
     function timer($cmd = 'start', $ns = 'core')
     {
         $timers     = Registry::get('timers', []);
@@ -8159,7 +8298,7 @@
 
                     $timeToRemove = $resume - $pause;
 
-                    $return = Timer::getMS() - $return;
+                    $return = Timer::getMS() - $timeToRemove;
                 }
 
                 unset($timers[$ns]);
@@ -8210,7 +8349,7 @@
     function redirect(?string $url = null, int $status = 302)
     {
         /** @var FastRedirector $redirector */
-        $redirector = instanciator()->singleton(FastRedirector::class);
+        $redirector = gi()->make(FastRedirector::class);
 
         if (null === $url) {
             return $redirector;
@@ -10761,7 +10900,15 @@
         return $value;
     }
 
-    function remember($key, $callback, $minutes = null)
+    /**
+     * @param string $key
+     * @param $callback
+     * @param null $minutes
+     * @return mixed
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    function remember(string $key, $callback, $minutes = null)
     {
         $minutes = !is_null($minutes) ? $minutes * 60 : null;
 

@@ -23,13 +23,15 @@
     use Zend\Expressive\Router\Route as FastRoute;
     use function Http\Response\send as sendResponse;
 
-    class Fast extends ArrayObject implements
-        FastContainerInterface,
+    class Fast
+        extends ArrayObject
+        implements FastContainerInterface,
         ArrayAccess,
         DelegateInterface,
         ContainerInterface
     {
         use Hookable;
+
         /**
          * @var Fastcontainer
          */
@@ -42,7 +44,7 @@
          */
         public function __construct()
         {
-            $this->app = instanciator()->singleton(Fastcontainer::class);
+            $this->app = gi()->make(Fastcontainer::class);
 
             $this->request = $this->fromGlobals();
 
@@ -323,7 +325,7 @@
                     try {
                         $this->extensionsLoaded[] = $extension;
                         $twig->addExtension(
-                            instanciator()->singleton($extension)
+                            gi()->make($extension)
                         );
                     } catch (\Exception $e) {
                         $this->extensionsLoaded[] = $extension;
@@ -495,9 +497,8 @@
             return call_user_func_array([$this, 'emit'], func_get_args());
         }
 
-        public function emit()
+        public function emit(...$args)
         {
-            $args   = func_get_args();
             $event  = array_shift($args);
 
             $events = Registry::get('fast.app.events', []);
@@ -626,7 +627,7 @@
          */
         public function call(...$args)
         {
-            return instanciator()->call(...$args);
+            return gi()->call(...$args);
         }
 
         /**
@@ -636,7 +637,7 @@
          */
         public function resolve(...$args)
         {
-            return instanciator()->factory(...$args);
+            return gi()->factory(...$args);
         }
 
         /**
@@ -648,7 +649,7 @@
          */
         public function hasher($driver = Bcrypt::class)
         {
-            return instanciator()->getOr($driver);
+            return gi()->getOr($driver);
         }
 
         /**
@@ -660,7 +661,7 @@
          */
         public function resolveOnce(...$args)
         {
-            return instanciator()->singleton(...$args);
+            return gi()->make(...$args);
         }
 
         /**
@@ -736,9 +737,8 @@
 
         /**
          * @param string $key
-         * @param mixed $value
-         *
-         * @return Psr7Response
+         * @param $value
+         * @return \GuzzleHttp\Psr7\MessageTrait
          */
         public function setHeader(string $key, $value)
         {
@@ -999,9 +999,17 @@
                 );
 
                 $router->macro(
-                    'addRoute', function ($method, $path, $middleware, $name = null) {
-                        if (is_array($middleware) && is_object($name)) {
-                            $name = $middleware[1];
+                    'addRoute', function ($method, $path, $next, $name = null, $middleware = null) {
+                        if ($middleware instanceof Objet) {
+                            $middleware = null;
+                        }
+
+                        if (is_array($next) && (null === $name || $name instanceof Objet)) {
+                            $name = lcfirst(
+                                Inflector::camelize(
+                                    Inflector::lower($method) . '_' . $next[1]
+                                )
+                            );
                         }
 
                         $method = empty($method)
@@ -1017,13 +1025,17 @@
                              */
                             $fastRouter = $this->defined('router');
 
-                            $fastRouter->addRoute(
-                                new FastRoute($path, $middleware, $method, $name)
-                            );
+                            $route = new FastRoute($path, $next, $method, $name);
+
+                            $fastRouter->addRoute($route);
 
                             $routes[] = $key;
 
                             Registry::set('fast.routes', $routes);
+
+                            if (null !== $middleware) {
+                                pusher('routes.middlewares', [$route->getName() => $middleware]);
+                            }
                         }
 
                         return $this->router();
@@ -2871,7 +2883,8 @@
         }
 
         /**
-         * @return \GuzzleHttp\Psr7\MessageTrait
+         * @return \GuzzleHttp\Psr7\MessageTrait|FastRedirector
+         * @throws \ReflectionException
          */
         public function home()
         {
@@ -2882,7 +2895,8 @@
          * @param string $name
          * @param array $args
          * @param int $status
-         * @return \GuzzleHttp\Psr7\MessageTrait
+         * @return \GuzzleHttp\Psr7\MessageTrait|FastRedirector
+         * @throws \ReflectionException
          */
         public function route(string $name, array $args = [], $status = 302)
         {
@@ -2892,6 +2906,7 @@
         /**
          * @param int $status
          * @return \GuzzleHttp\Psr7\MessageTrait
+         * @throws \ReflectionException
          */
         public function refresh($status = 302)
         {
@@ -2901,7 +2916,8 @@
         /**
          * @param string $path
          * @param int $status
-         * @return \GuzzleHttp\Psr7\MessageTrait
+         * @return \GuzzleHttp\Psr7\MessageTrait|FastRedirector
+         * @throws \ReflectionException
          */
         public function away(string $path, $status = 302)
         {
@@ -2911,7 +2927,8 @@
         /**
          * @param $path
          * @param int $status
-         * @return \GuzzleHttp\Psr7\MessageTrait
+         * @return \GuzzleHttp\Psr7\MessageTrait|static
+         * @throws \ReflectionException
          */
         public function to($path, $status = 302)
         {
@@ -2920,6 +2937,41 @@
                 ->withStatus($status)
                 ->withHeader('Location', $path)
             ;
+        }
+
+        /**
+         * @return \GuzzleHttp\Psr7\MessageTrait
+         * @throws \ReflectionException
+         */
+        public function back($status = 302)
+        {
+            return $this->to(getReferer(), $status);
+        }
+
+        /**
+         * @param array $parameters
+         * @return FastRedirector
+         * @throws \ReflectionException
+         */
+        public function with(array $parameters): self
+        {
+            $session = getSession();
+
+            foreach ($parameters as $key => $value) {
+                $session[$key] = $value;
+            }
+
+            return $this;
+        }
+
+        /**
+         * @param array $parameters
+         * @return \GuzzleHttp\Psr7\MessageTrait
+         * @throws \ReflectionException
+         */
+        public function backWith(array $parameters, $status = 302)
+        {
+            return $this->with($parameters)->back($status);
         }
     }
 

@@ -527,7 +527,8 @@
         }
 
         /**
-         * @return Collection
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function only()
         {
@@ -550,7 +551,10 @@
         }
 
         /**
-         * @return Collection
+         * @param $page
+         * @param $perPage
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function forPage($page, $perPage)
         {
@@ -636,7 +640,8 @@
         }
 
         /**
-         * @return Collection
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function reverse()
         {
@@ -664,7 +669,8 @@
         }
 
         /**
-         * @return Collection
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function shuffle()
         {
@@ -676,7 +682,8 @@
         }
 
         /**
-         * @return Collection
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function sortByRand()
         {
@@ -688,7 +695,10 @@
         }
 
         /**
-         * @return Collection
+         * @param $offset
+         * @param null $length
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function slice($offset, $length = null)
         {
@@ -696,7 +706,9 @@
         }
 
         /**
-         * @return Collection
+         * @param $size
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function chunk($size)
         {
@@ -710,7 +722,9 @@
         }
 
         /**
-         * @return Collection
+         * @param callable|null $callback
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function sort(callable $callback = null)
         {
@@ -727,6 +741,12 @@
             return $this->new($items);
         }
 
+        /**
+         * @param $callback
+         * @param int $options
+         * @param bool $descending
+         * @return Collection
+         */
         public function sortBy($callback, $options = SORT_REGULAR, $descending = false)
         {
             $results = [];
@@ -749,11 +769,23 @@
             return new static($results);
         }
 
+        /**
+         * @param $callback
+         * @param int $options
+         * @return Collection
+         */
         public function sortByDesc($callback, $options = SORT_REGULAR)
         {
             return $this->sortBy($callback, $options, true);
         }
 
+        /**
+         * @param $offset
+         * @param null $length
+         * @param array $replacement
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function splice($offset, $length = null, $replacement = [])
         {
             if (func_num_args() === 1) {
@@ -763,6 +795,10 @@
             return $this->new(array_splice($this->items, $offset, $length, $replacement));
         }
 
+        /**
+         * @param null $callback
+         * @return float|int|mixed
+         */
         public function sum($callback = null)
         {
             if (is_null($callback)) {
@@ -787,11 +823,20 @@
             return 0;
         }
 
+        /**
+         * @param null $field
+         * @return float|int
+         */
         public function average($field = null)
         {
             return $this->avg($field);
         }
 
+        /**
+         * @param null $limit
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function take($limit = null)
         {
             if ($limit < 0) {
@@ -808,6 +853,11 @@
             return $this;
         }
 
+        /**
+         * @param null $key
+         * @return Collection
+         * @throws \ReflectionException
+         */
         public function unique($key = null)
         {
             if (is_null($key)) {
@@ -827,6 +877,10 @@
             });
         }
 
+        /**
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function values()
         {
             return $this->new(array_values($this->items));
@@ -859,7 +913,8 @@
         }
 
         /**
-         * @return Collection
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function zip()
         {
@@ -1122,6 +1177,9 @@
             });
         }
 
+        /**
+         * @return array
+         */
         public function getSchema()
         {
             $row = $this->first();
@@ -1222,22 +1280,30 @@
             return $collection;
         }
 
-        public function q()
+        public function q(...$args)
         {
             $collection = $this;
-            $conditions = array_chunk(func_get_args(), 3);
+            $conditions = array_chunk($args, 3);
 
             foreach ($conditions as $condition) {
-                list($f, $o, $v) = $condition;
+                $o = '=';
+
+                if (count($condition) === 3) list($f, $o, $v) = $condition;
+                elseif (count($condition) === 2) list($f, $v) = $condition;
+
                 $collection = $collection->where($f, $o, $v);
             }
 
             return $collection;
         }
 
-        public function query()
+        /**
+         * @param mixed ...$args
+         * @return mixed
+         */
+        public function query(...$args)
         {
-            return call_user_func_array([$this, 'q'], func_get_args());
+            return call_user_func_array([$this, 'q'], $args);
         }
 
         /**
@@ -1264,11 +1330,21 @@
             return $this;
         }
 
+        /**
+         * @param $json
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function fromJson($json)
         {
             return $this->new(json_decode($json, true));
         }
 
+        /**
+         * @param $criteria
+         * @return mixed
+         * @throws \ReflectionException
+         */
         public function multisort($criteria)
         {
             $comparer = function ($first, $second) use ($criteria) {
@@ -1402,6 +1478,7 @@
 
         /**
          * @return Collection
+         * @throws \ReflectionException
          */
         public function paired(): self
         {
@@ -1480,7 +1557,8 @@
 
         /**
          * @param null $key
-         * @return mixed|null
+         * @return float|int|mixed|null
+         * @throws \ReflectionException
          */
         public function median($key = null)
         {
@@ -1510,8 +1588,8 @@
 
         /**
          * @param null $key
-         *
-         * @return array|null
+         * @return null
+         * @throws \ReflectionException
          */
         public function mode($key = null)
         {
@@ -1645,7 +1723,6 @@
          * @param string $key
          * @param string $operator
          * @param null $value
-         *
          * @return \Closure
          */
         protected function closureWhere(string $key, string $operator, $value = null)
@@ -1668,38 +1745,6 @@
                 }
 
                 return compare($actual, $operator, $value);
-
-                switch ($operator) {
-                    default:
-                    case '=':
-                    case '==':              return $actual == $value;
-                    case '!=':
-                    case '<>':              return $actual != $value;
-                    case '<':               return $actual < $value;
-                    case '>':               return $actual > $value;
-                    case '<=':              return $actual <= $value;
-                    case '>=':              return $actual >= $value;
-                    case '===':             return $actual === $value;
-                    case '!==':             return $actual !== $value;
-                    case 'between':         return $actual >= $value[0] && $actual <= $value[1];
-                    case 'not between':     return $actual < $value[0] || $actual > $value[1];
-                    case 'in':              return in_array($actual, (array) $value);
-                    case 'not in':          return !in_array($actual, (array) $value);
-                    case 'is':              return null === $actual;
-                    case 'is not':          return null !== $actual;
-                    case 'like':
-                        $value  = str_replace("'", '', $value);
-                        $value  = str_replace('%', '*', $value);
-
-                        return fnmatch($value, $actual);
-                    case 'not like':
-                        $value  = str_replace("'", '', $value);
-                        $value  = str_replace('%', '*', $value);
-
-                        $check  = fnmatch($value, $actual);
-
-                        return !$check;
-                }
             };
         }
 
