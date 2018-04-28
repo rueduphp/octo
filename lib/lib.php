@@ -4274,6 +4274,14 @@
             return gi()->make(FastRedirector::class);
         };
 
+        $in::singleton('hash', function () {
+            return new Hasher;
+        });
+
+        $in::singleton('bag', function () {
+            return new Ghost;
+        });
+
         loadEvents();
 
         listening('system.bootstrap');
@@ -8963,6 +8971,16 @@
         );
     }
 
+    /**
+     * @param string $string
+     * @param array $options
+     * @return mixed
+     */
+    function crypto(string $string, array $options = [])
+    {
+        return in('hash')->make($string, $options);
+    }
+
     function with()
     {
         $args = func_get_args();
@@ -9616,14 +9634,12 @@
     }
 
     /**
-     * @param null|string $key
+     * @param mixed ...$args
      * @return mixed|null|object|In
      */
-    function dic(?string $key = null)
+    function dic(...$args)
     {
-        $in =  In::self();
-
-        return null === $key ? $in : $in[$key];
+        return in(...$args);
     }
 
     /**

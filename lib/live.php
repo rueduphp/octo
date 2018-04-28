@@ -117,8 +117,8 @@ class Live implements ArrayAccess, FastSessionInterface
 
     /**
      * @return Live
-     *
      * @throws \ReflectionException
+     * @throws \Exception
      */
     public function destroy(): self
     {
@@ -227,9 +227,7 @@ class Live implements ArrayAccess, FastSessionInterface
 
     /**
      * @param null|ServerRequestInterface $request
-     *
      * @return bool
-     *
      * @throws \ReflectionException
      */
     public function remember(?ServerRequestInterface $request = null): bool
@@ -237,7 +235,7 @@ class Live implements ArrayAccess, FastSessionInterface
         if (is_callable($this->remember)) {
             $request = $request ?: getContainer()->getRequest();
 
-            return callCallable($this->remember, $this, $request);
+            return callThat($this->remember, $this, $request);
         }
 
         return false;
@@ -279,7 +277,7 @@ class Live implements ArrayAccess, FastSessionInterface
         if (is_callable($this->loginProvider)) {
             $request = $request ?: getContainer()->getRequest();
 
-            $status = callCallable($this->loginProvider, $this, $request);
+            $status = callThat($this->loginProvider, $this, $request);
 
             getEventManager()->fire('live.login', $status, $this, $request);
 
@@ -301,7 +299,7 @@ class Live implements ArrayAccess, FastSessionInterface
         if (is_callable($this->logoutProvider)) {
             $request = $request ?: getContainer()->getRequest();
 
-            $status = callCallable($this->logoutProvider, $this, $request);
+            $status = callThat($this->logoutProvider, $this, $request);
 
             getEventManager()->fire('live.logout', $status, $this, $request);
 
@@ -515,5 +513,95 @@ class Live implements ArrayAccess, FastSessionInterface
     public function flashInput(array $value)
     {
         $this->flash('_old_input', $value);
+    }
+
+    /**
+     * @param string $key
+     * @param int $by
+     * @return int|mixed
+     * @throws Exception
+     */
+    public function increment(string $key, int $by = 1)
+    {
+        $this->set($key, $value = $this->driver->get($key, 0) + $by);
+
+        return $value;
+    }
+
+    /**
+     * @param string $key
+     * @param int $by
+     * @return int|mixed
+     * @throws Exception
+     */
+    public function decrement(string $key, int $by = 1)
+    {
+        return $this->increment($key, $by * -1);
+    }
+
+    /**
+     * @param string $key
+     * @param int $by
+     * @return int|mixed
+     * @throws Exception
+     */
+    public function incr(string $key, int $by = 1)
+    {
+        return $this->increment($key, $by);
+    }
+
+    /**
+     * @param string $key
+     * @param int $by
+     * @return int|mixed
+     * @throws Exception
+     */
+    public function decr(string $key, int $by = 1)
+    {
+        return $this->increment($key, $by * -1);
+    }
+
+    /**
+     * @param string $key
+     * @param null $value
+     * @return Live
+     * @throws Exception
+     */
+    public function put(string $key, $value = null): self
+    {
+        if (!is_array($key)) {
+            $key = [$key => $value];
+        }
+
+        foreach ($key as $arrayKey => $arrayValue) {
+            $this->set($arrayKey, $arrayValue);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param array $attributes
+     * @return Live
+     * @throws Exception
+     */
+    public function replace(array $attributes): self
+    {
+        $this->erase();
+        $this->put($attributes);
+
+        return $this;
+    }
+
+    /**
+     * @param array $attributes
+     * @return Live
+     * @throws Exception
+     */
+    public function merge(array $attributes): self
+    {
+        $this->put($attributes);
+
+        return $this;
     }
 }

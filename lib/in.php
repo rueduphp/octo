@@ -98,7 +98,7 @@ class In implements ArrayAccess
     {
         $instance = callThat($callable);
 
-        return  static::set($key, $instance);
+        return static::set($key, $instance);
     }
 
     /**
@@ -149,6 +149,25 @@ class In implements ArrayAccess
             };
 
             return static::set($class, $callback);
+        }
+
+        return static::self();
+    }
+
+    /**
+     * @param $name
+     * @param $class
+     * @return In
+     * @throws \ReflectionException
+     */
+    public function anonymous($name, $class)
+    {
+        if (is_object($class)) {
+            $callback = function () use ($class) {
+                return $class;
+            };
+
+            return static::set($name, $callback);
         }
 
         return static::self();

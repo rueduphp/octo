@@ -279,12 +279,14 @@ class SimpleTest extends TestCase
     public function testConnected()
     {
         $this->assertSame(10, UserConnected::count());
+
+        $this->assertSame(app('bag'), app('bag'));
     }
 
     /**
      * @throws Exception
      */
-    public function testDi()
+    public function testDiAndFacades()
     {
         $this->gi()->set('fooz', 'bar');
         $this->assertSame('bar', $this->gi()->get('fooz'));
@@ -349,22 +351,30 @@ class SimpleTest extends TestCase
 
         Flash::error('error foo');
         Flash::success('success foo');
-        $this->assertSame(2, Flash::getSession()[Flash::getSessionKey()]->count());
+        Flash::dummy('dummy foo');
+        $this->assertSame(3, Flash::getSession()[Flash::getSessionKey()]->count());
 
-        $this->assertSame(2, Flash::count());
+        $this->assertSame(3, Flash::count());
         $this->assertSame(1, Flash::count('successes'));
         $this->assertSame(1, Flash::count('errors'));
-        $this->assertSame(0, Flash::count('dummy'));
+        $this->assertSame(1, Flash::count('dummy'));
         $this->assertSame(0, Flash::getSession()[Flash::getSessionKey()]->count());
 
         $this->assertSame('error foo', current(Flash::errors())['message']);
         $this->assertSame('success foo', current(Flash::successes())['message']);
+        $this->assertSame('dummy foo', current(Flash::dummys())['message']);
     }
 
     public function testFlashIsclearedButNotInInstance()
     {
         $this->assertSame(1, Flash::count('errors'));
         $this->assertSame(1, Flash::count('successes'));
+        $this->assertSame(1, Flash::count('dummy'));
+
+        $this->assertSame('error foo', current(Flash::errors())['message']);
+        $this->assertSame('success foo', current(Flash::successes())['message']);
+        $this->assertSame('dummy foo', current(Flash::dummys())['message']);
+
         $this->assertSame(0, Flash::getSession()[Flash::getSessionKey()]->count());
     }
 

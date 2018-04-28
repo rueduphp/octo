@@ -31,8 +31,9 @@ class Flasher
     }
 
     /**
-     * @param  string|null $message
-     * @return $this
+     * @param null $message
+     * @return Flasher
+     * @throws Exception
      */
     public function info($message = null)
     {
@@ -40,8 +41,9 @@ class Flasher
     }
 
     /**
-     * @param  string|null $message
-     * @return $this
+     * @param null $message
+     * @return Flasher
+     * @throws Exception
      */
     public function success($message = null)
     {
@@ -49,8 +51,9 @@ class Flasher
     }
 
     /**
-     * @param  string|null $message
-     * @return $this
+     * @param null $message
+     * @return Flasher
+     * @throws Exception
      */
     public function error($message = null)
     {
@@ -58,8 +61,9 @@ class Flasher
     }
 
     /**
-     * @param  string|null $message
-     * @return $this
+     * @param null $message
+     * @return Flasher
+     * @throws Exception
      */
     public function warning($message = null)
     {
@@ -136,7 +140,20 @@ class Flasher
      */
     protected function flash()
     {
-        $this->session->flash($this->sessionKey, $this->messages);
+        $this->session->set($this->sessionKey, $this->messages);
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     * @throws Exception
+     */
+    protected function keep()
+    {
+        if (null !== $this->old) {
+            $this->session->set($this->sessionKey, $this->old);
+        }
 
         return $this;
     }
@@ -160,6 +177,7 @@ class Flasher
     /**
      * @param null|string $type
      * @return bool
+     * @throws Exception
      */
     public function has(?string $type = null): bool
     {
@@ -168,7 +186,18 @@ class Flasher
 
     /**
      * @param null|string $type
+     * @return bool
+     * @throws Exception
+     */
+    public function empty(?string $type = null): bool
+    {
+        return $this->count($type) === 0;
+    }
+
+    /**
+     * @param null|string $type
      * @return int
+     * @throws Exception
      */
     public function count(?string $type = null): int
     {
@@ -177,10 +206,10 @@ class Flasher
         }
 
         if (in_array($type, get_class_methods($this))) {
-            return count($this->{$type}(false));
+            return count($this->{$type}());
         }
 
-        return 0;
+        return count($this->getByLevel($type));
     }
 
     /**
@@ -300,5 +329,20 @@ class Flasher
         $this->sessionKey = $sessionKey;
 
         return $this;
+    }
+
+    /**
+     * @param string $name
+     * @param array $parameters
+     * @return array|Flasher
+     * @throws Exception
+     */
+    public function __call(string $name, array $parameters)
+    {
+        if (fnmatch('*s', $name)) {
+            return $this->getByLevel(substr($name, 0, -1));
+        }
+
+        return $this->message(current($parameters), $name);
     }
 }

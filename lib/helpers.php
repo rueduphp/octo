@@ -151,22 +151,26 @@
         }
     }
 
-    if (!function_exists('app')) {
-        function app($k = null, $v = 'octodummy')
+    if (!function_exists('crypto')) {
+        /**
+         * @param string $string
+         * @param array $options
+         * @return mixed
+         */
+        function crypto(string $string, array $options = [])
         {
-            $app = Octo\context('app');
+            return in('hash')->make($string, $options);
+        }
+    }
 
-            if (!$k) {
-                return $app;
-            }
-
-            if ('octodummy' === $v) {
-                return $app[$k];
-            }
-
-            $app[$k] = $v;
-
-            return $app;
+    if (!function_exists('app')) {
+        /**
+         * @param mixed ...$args
+         * @return mixed|null|object|\Octo\In
+         */
+        function app(...$args)
+        {
+            return Octo\in(...$args);
         }
     }
 
