@@ -2992,6 +2992,7 @@
                 new Twig_SimpleFunction('login', [$this, 'login']),
                 new Twig_SimpleFunction('user', [$this, 'user']),
                 new Twig_SimpleFunction('mix', [$this, 'mix'], ['is_safe' => ['html']]),
+                new Twig_SimpleFunction('submit', [$this, 'submit'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('input_csrf', [$this, 'csrf'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('field', [$this, 'field'], [
                     'is_safe' => ['html'],
@@ -3142,6 +3143,7 @@
 
         /**
          * @return string
+         * @throws NativeException
          */
         public function csrf()
         {
@@ -3158,6 +3160,16 @@
             $this->dbg(...func_get_args());
 
             return stream_get_contents($dump, -1, 0);
+        }
+
+        /**
+         * @param string $value
+         * @return string
+         * @throws NativeException
+         */
+        public function submit(string $value)
+        {
+            return $this->csrf() . "\n" . "<button class=\"btn btn-primary\">{$value}</button>";
         }
 
         /**
@@ -3196,8 +3208,21 @@
 
             if ($type === 'textarea') {
                 $input = $this->textarea($value, $attributes);
+            } elseif ($type === 'password') {
+                $attributes['type'] = 'password';
+                $input = $this->input($value, $attributes);
+            } elseif ($type === 'date') {
+                $attributes['type'] = 'date';
+                $input = $this->input($value, $attributes);
+            } elseif ($type === 'email') {
+                $attributes['type'] = 'email';
+                $input = $this->input($value, $attributes);
+            } elseif ($type === 'time') {
+                $attributes['type'] = 'time';
+                $input = $this->input($value, $attributes);
             } elseif ($type === 'file') {
-                $input = $this->file($attributes);
+                $attributes['type'] = 'file';
+                $input = $this->input($attributes);
             } elseif ($type === 'checkbox') {
                 $input = $this->checkbox($value, $attributes);
             } elseif (array_key_exists('options', $options)) {
@@ -3268,15 +3293,6 @@
         }
 
         /**
-         * @param array $attributes
-         * @return string
-         */
-        private function file(array $attributes)
-        {
-            return "<input type=\"file\" " . $this->getHtmlFromArray($attributes) . ">";
-        }
-
-        /**
          * @param null|string $value
          * @param array $attributes
          * @return string
@@ -3313,7 +3329,7 @@
             $htmlParts = [];
             foreach ($attributes as $key => $value) {
                 if ($value === true) {
-                    $htmlParts[] = (string)$key;
+                    $htmlParts[] = (string) $key;
                 } elseif ($value !== false) {
                     $htmlParts[] = "$key=\"$value\"";
                 }

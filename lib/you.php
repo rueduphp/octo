@@ -2,7 +2,6 @@
 namespace Octo;
 
 use Closure;
-use function get_class_methods;
 
 class You
 {

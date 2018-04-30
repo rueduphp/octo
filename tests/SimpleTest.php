@@ -282,9 +282,9 @@ class SimpleTest extends TestCase
 
         $this->assertSame(app('bag'), app('bag'));
 
-        Memory::set('foo', 'bar');
+        Instant::put('foo', 'bar');
 
-        $this->assertSame('bar', Memory::get('foo'));
+        $this->assertSame(Instant::get('foo'), 'bar');
     }
 
     /**
@@ -878,7 +878,7 @@ class SimpleTest extends TestCase
     public function testFinder()
     {
         $finder = new Finder();
-        $finder->in(__DIR__)->date('<= now - 3600 seconds');
+        $finder->in(__DIR__)->date('<= now - 1 seconds');
         $this->assertGreaterThan(0, $finder->count());
         $this->assertInstanceOf(Generator::class, $finder->get());
     }

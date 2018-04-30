@@ -8,6 +8,9 @@
          convertWarningsToExceptions="true"
          processIsolation="false"
     stopOnFailure="false">
+    <listeners>
+        <listener class="NunoMaduro\Collision\Adapters\Phpunit\Listener" />
+    </listeners>
     <testsuites>
         <testsuite name="Octo Test Suite">
             <directory suffix="Test.php">./tests</directory>

@@ -9,13 +9,13 @@
     use Illuminate\Support\Debug\Dumper;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Psr\Http\Message\ServerRequestInterface;
+    use Ramsey\Uuid\Codec\TimestampFirstCombCodec;
+    use Ramsey\Uuid\Generator\CombGenerator;
+    use Ramsey\Uuid\UuidFactory;
     use Ramsey\Uuid\UuidInterface;
     use ReflectionFunction;
     use Symfony\Component\Finder\Finder as FinderFile;
     use Zend\Expressive\Router\FastRouteRouter;
-    use Ramsey\Uuid\UuidFactory;
-    use Ramsey\Uuid\Generator\CombGenerator;
-    use Ramsey\Uuid\Codec\TimestampFirstCombCodec;
 
     if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
         include_once __DIR__ . "/../vendor/autoload.php";
@@ -3719,6 +3719,15 @@
     }
 
     /**
+     * @param string $key
+     * @param string $path
+     */
+    function in_path(string $key, string $path)
+    {
+        In::self()['paths'][$key] = $path;
+    }
+
+    /**
      * @param string $path
      * @return string
      */
@@ -3745,6 +3754,17 @@
     function app_path(string $path = '')
     {
         return In::self()['paths']['app'] . ($path ? DS . ltrim($path, DS) : $path);
+    }
+
+
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
+    function session_path(string $path = '')
+    {
+        return In::self()['paths']['session'] . ($path ? DS . ltrim($path, DS) : $path);
     }
 
     /**
@@ -4222,6 +4242,26 @@
             }
         });
 
+        In::self()['paths'] = function () {
+            return gi()->make(Fillable::class, ['paths']);
+        };
+
+        loadEvents();
+
+        listening('system.bootstrap');
+
+        services();
+
+        middlewares();
+
+        rights();
+    }
+
+    /**
+     * @throws \ReflectionException
+     */
+    function inners()
+    {
         $in = In::set('app', function () {
             return gi()->make(IllDic::class);
         });
@@ -4262,16 +4302,16 @@
             return gi()->make(Fillable::class, ['config']);
         };
 
-        $in['paths'] = function () {
-            return gi()->make(Fillable::class, ['paths']);
-        };
-
         $in['flash'] = function () {
             return gi()->make(Flasher::class, [getSession()]);
         };
 
         $in['redirect'] = function () {
             return gi()->make(FastRedirector::class);
+        };
+
+        $in['auth'] = function () {
+            return You::called();
         };
 
         $in::singleton('hash', function () {
@@ -4286,19 +4326,44 @@
             return new Ghost;
         });
 
-        $in::singleton('memory', function () {
-            return new Shm;
+//        $in::singleton('memory', function () {
+//            return new Shm;
+//        });
+
+        $in::singleton('instant', function () {
+            return (new Instant('sesscore', new Nativesession(new Filesystem, session_path(), 120)))->start();
         });
+    }
 
-        loadEvents();
+    /**
+     * @param null $key
+     * @param null $default
+     * @return mixed
+     */
+    function instant($key = null, $default = null)
+    {
+        /** @var Instant $session */
+        $session = in('instant');
 
-        listening('system.bootstrap');
+        if (is_null($key)) {
+            return $session;
+        }
 
-        services();
+        if (is_array($key)) {
+            return $session->put($key);
+        }
 
-        middlewares();
+        return $session->get($key, $default);
+    }
 
-        rights();
+    /**
+     * @param $object
+     * @param string $method
+     * @return bool
+     */
+    function hasMethod($object, string $method): bool
+    {
+        return in_array($method, get_class_methods($object));
     }
 
     /**

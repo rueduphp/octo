@@ -56,6 +56,17 @@
         }
     }
 
+    class Instant extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'instant';
+        }
+    }
+
     class Cache extends Facade
     {
         /**

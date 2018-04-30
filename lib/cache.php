@@ -101,7 +101,7 @@
          */
         public function __construct($ns = 'core', $dir = null)
         {
-            $dir = is_null($dir) ? conf('dir.cache', session_save_path()) : $dir;
+            $dir = is_null($dir) ? cache_path() : $dir;
 
             if (is_dir($dir)) {
                 $this->__dir = $dir;

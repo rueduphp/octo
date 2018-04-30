@@ -21,6 +21,13 @@ class Fillable implements ArrayAccess
     }
 
     /**
+     * @return array
+     */
+    public function toArray(): array
+    {
+        return static::$data[$this->namespace];
+    }
+    /**
      * @param string $key
      * @return mixed|null
      */

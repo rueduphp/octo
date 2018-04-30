@@ -3,8 +3,6 @@
 namespace Octo;
 
 use Closure;
-use function get_class;
-use function get_class_methods;
 use stdClass;
 use SessionHandlerInterface;
 
@@ -38,27 +36,38 @@ class Instant
     /**
      * @param string $name
      * @param SessionHandlerInterface $handler
-     * @param null|string $id
      */
-    public function __construct(string $name, SessionHandlerInterface $handler, ?string $id = null)
+    public function __construct(string $name, SessionHandlerInterface $handler)
     {
-        $this->setId($id);
+        $this->setId(in('auth')::token());
         $this->name = $name;
         $this->handler = $handler;
     }
 
-    /**
-     * @return bool
-     */
-    public function start()
+    public function __destruct()
     {
-        $this->loadSession();
+        if (true === $this->started) {
+            $this->save();
+            $this->started = false;
+        }
+    }
 
-        if (! $this->has('_token')) {
-            $this->regenerateToken();
+    /**
+     * @return Instant
+     */
+    public function start(): self
+    {
+        if (false === $this->started) {
+            $this->loadSession();
+
+            if (!$this->has('_token')) {
+                $this->regenerateToken();
+            }
         }
 
-        return $this->started = true;
+        $this->started = true;
+
+        return $this;
     }
 
     /**
@@ -138,27 +147,21 @@ class Instant
     }
 
     /**
-     * @param  string|array  $key
+     * @param  string  $key
      * @return bool
      */
     public function exists($key)
     {
-        $placeholder = new stdClass();
-
-        return !coll(is_array($key) ? $key : func_get_args())->contains(function ($key) use ($placeholder) {
-            return $this->get($key, $placeholder) === $placeholder;
-        });
+        return $this->has($key);
     }
 
     /**
-     * @param  string|array  $key
+     * @param  string  $key
      * @return bool
      */
-    public function has($key)
+    public function has(string $key)
     {
-        return !coll(is_array($key) ? $key : func_get_args())->contains(function ($key) {
-            return is_null($this->get($key));
-        });
+        return 'octodummy' !== $this->get($key, 'octodummy');
     }
 
     /**
@@ -212,11 +215,11 @@ class Instant
     }
 
     /**
-     * @param  string|array  $key
-     * @param  mixed       $value
-     * @return void
+     * @param $key
+     * @param null $value
+     * @return Instant
      */
-    public function put($key, $value = null)
+    public function put($key, $value = null): self
     {
         if (! is_array($key)) {
             $key = [$key => $value];
@@ -225,16 +228,28 @@ class Instant
         foreach ($key as $arrayKey => $arrayValue) {
             aset($this->attributes, $arrayKey, $arrayValue);
         }
+
+        return $this;
     }
 
     /**
-     * @param  string  $key
-     * @param  \Closure  $callback
-     * @return mixed
+     * @param mixed ...$args
+     * @return Instant
+     */
+    public function set(...$args)
+    {
+        return $this->put(...$args);
+    }
+
+    /**
+     * @param $key
+     * @param Closure $callback
+     * @return mixed|Tap
+     * @throws \ReflectionException
      */
     public function remember($key, Closure $callback)
     {
-        if (! is_null($value = $this->get($key))) {
+        if (!is_null($value = $this->get($key))) {
             return $value;
         }
 
@@ -482,7 +497,7 @@ class Instant
      */
     public function setExists($value)
     {
-        if (in_array('setExists', get_class_methods($this->handler))) {
+        if (true === hasMethod($this->handler, 'setExists')) {
             $this->handler->setExists($value);
         }
     }
@@ -533,7 +548,7 @@ class Instant
      */
     public function handlerNeedsRequest()
     {
-        return in_array('setRequest', get_class_methods($this->handler));
+        return hasMethod($this->handler, 'setRequest');
     }
 
     /**
@@ -542,7 +557,7 @@ class Instant
      */
     public function setRequestOnHandler($request)
     {
-        if ($this->handlerNeedsRequest()) {
+        if (true === $this->handlerNeedsRequest()) {
             $this->handler->setRequest($request);
         }
     }
