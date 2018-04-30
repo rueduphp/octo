@@ -40,7 +40,11 @@ class Capsule
      */
     public static function instance(?PDO $pdo = null): Capsule
     {
-        if (!static::$instance || $pdo instanceof PDO) {
+        if (!static::$instance && !$pdo instanceof PDO) {
+            $pdo = In::self()['pdo'];
+        }
+
+        if (!static::$instance && $pdo instanceof PDO) {
             In::set('pdo', $pdo);
             static::$instance = new static($pdo);
             In::set('schema', static::$instance->schema());

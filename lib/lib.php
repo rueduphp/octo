@@ -4278,8 +4278,16 @@
             return new Hasher;
         });
 
+        $in::singleton('redis', function () {
+            return new Redis('core');
+        });
+
         $in::singleton('bag', function () {
             return new Ghost;
+        });
+
+        $in::singleton('memory', function () {
+            return new Shm;
         });
 
         loadEvents();

@@ -178,22 +178,25 @@
 
         public function delete($key)
         {
+            $status = $this->has($key);
+
             $key = $this->ns . '.' . $key;
 
             $this->client()->del($key);
             $this->client()->hdel('key_ages', $key);
 
-            return $this;
+            return $status;
         }
 
         public function del($key)
         {
+            $status = $this->has($key);
             $key = $this->ns . '.' . $key;
 
             $this->client()->del($key);
             $this->client()->hdel('key_ages', $key);
 
-            return $this;
+            return $status;
         }
 
         public function hdel($key, $id)
@@ -212,9 +215,13 @@
             return $this->client()->exists($key);
         }
 
+        /**
+         * @param $key
+         * @return bool
+         */
         public function has($key)
         {
-            return $this->exists($key);
+            return $this->exists($key) > 0 ? true : false;
         }
 
         public function incrby($key, $by = 1)
@@ -303,13 +310,20 @@
             return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
+        /**
+         * @param $k
+         * @param callable $c
+         * @param int $e
+         * @return int|mixed|null|string
+         * @throws \ReflectionException
+         */
         public function getOr($k, callable $c, $e = 0)
         {
             if ($this->has($k)) {
                 return $this->get($k);
             }
 
-            $res = $c();
+            $res = callThat($c);
 
             $this->set($k, $res, $e);
 

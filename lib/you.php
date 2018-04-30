@@ -2,6 +2,7 @@
 namespace Octo;
 
 use Closure;
+use function get_class_methods;
 
 class You
 {
@@ -12,6 +13,9 @@ class You
 
     /** @var string  */
     protected $namespace = 'auth';
+
+    /** @var string  */
+    protected $store = 'session';
 
     /** @var array  */
     protected static $providers = [];
@@ -100,11 +104,12 @@ class You
 
     /**
      * @return Live|Session
+     * @throws \ReflectionException
      * @throws \TypeError
      */
     public static function getSession()
     {
-        return getSession();
+        return in(static::called()->store);
     }
 
     /**
@@ -178,10 +183,24 @@ class You
         $user = static::getProvider('user');
 
         if (is_callable($user)) {
-            return $user(...$args);
+            if ($user instanceof Closure) {
+                $params = array_merge([$user], $args);
+
+                return gi()->makeClosure(...$params);
+            } else if (is_array($user)) {
+                $params = array_merge($user, $args);
+
+                return gi()->call(...$params);
+            } else if (is_object($user) && in_array('__invoke', get_class_methods($user))) {
+                $params = array_merge([$user, '__invoke'], $args);
+
+                return gi()->call(...$params);
+            }
         }
 
-        return static::called()->getSession()[static::called()->getUserKey()];
+        $self = static::called();
+
+        return $self->getSession()[$self->getUserKey()];
     }
 
     /**
@@ -210,7 +229,19 @@ class You
         $provider = isAke($providers, $type, null);
 
         if (is_callable($provider)) {
-            return $provider(...$args);
+            if ($provider instanceof Closure) {
+                $params = array_merge([$provider], $args);
+
+                return gi()->makeClosure(...$params);
+            } else if (is_array($provider)) {
+                $params = array_merge($provider, $args);
+
+                return gi()->call(...$params);
+            } else if (is_object($provider) && in_array('__invoke', get_class_methods($provider))) {
+                $params = array_merge([$provider, '__invoke'], $args);
+
+                return gi()->call(...$params);
+            }
         }
 
         return null;
@@ -237,7 +268,7 @@ class You
 
         $params = array_merge([$called->getSession(), $m], $a);
 
-        return instanciator()->call(...$params);
+        return gi()->call(...$params);
     }
 
     /**
@@ -299,7 +330,7 @@ class You
         set('you.old.user', $oldUser);
 
         /** @var You $new */
-        $new = instanciator()->factory(get_called_class());
+        $new = gi()->factory(get_called_class());
 
         $new->setProvider('user', $callback);
 

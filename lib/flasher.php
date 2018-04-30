@@ -19,6 +19,9 @@ class Flasher
      */
     protected $sessionKey = 'flash_notification';
 
+    /**
+     * @var Collection
+     */
     protected $old;
 
     /**
@@ -34,6 +37,7 @@ class Flasher
      * @param null $message
      * @return Flasher
      * @throws Exception
+     * @throws \Exception
      */
     public function info($message = null)
     {
@@ -44,6 +48,7 @@ class Flasher
      * @param null $message
      * @return Flasher
      * @throws Exception
+     * @throws \Exception
      */
     public function success($message = null)
     {
@@ -54,6 +59,7 @@ class Flasher
      * @param null $message
      * @return Flasher
      * @throws Exception
+     * @throws \Exception
      */
     public function error($message = null)
     {
@@ -64,6 +70,7 @@ class Flasher
      * @param null $message
      * @return Flasher
      * @throws Exception
+     * @throws \Exception
      */
     public function warning($message = null)
     {
@@ -75,6 +82,7 @@ class Flasher
      * @param null $level
      * @return Flasher
      * @throws Exception
+     * @throws \Exception
      */
     public function message($message = null, $level = null)
     {
@@ -92,23 +100,25 @@ class Flasher
     }
 
     /**
-     * @param  array $overrides
-     * @return $this
+     * @param array $overrides
+     * @return Flasher
      */
-    protected function updateLastMessage($overrides = [])
+    protected function updateLastMessage($overrides = []): self
     {
         $last = $this->get()->last();
 
-        foreach ($overrides as $key => $value) {
-            $setter = setter($key);
-            $last->{$setter}($value);
+        if ($last) {
+            foreach ($overrides as $key => $value) {
+                $setter = setter($key);
+                $last->{$setter}($value);
+            }
         }
 
         return $this;
     }
 
     /**
-     * @return $this
+     * @return Flasher
      */
     public function important()
     {
@@ -125,9 +135,9 @@ class Flasher
     }
 
     /**
-     * @return $this
+     * @return Flasher
      */
-    public function clear()
+    public function clear(): self
     {
         $this->messages = coll();
 
@@ -135,10 +145,11 @@ class Flasher
     }
 
     /**
-     * @return $this
+     * @return Flasher
      * @throws Exception
+     * @throws \Exception
      */
-    protected function flash()
+    protected function flash(): self
     {
         $this->session->set($this->sessionKey, $this->messages);
 
@@ -146,10 +157,11 @@ class Flasher
     }
 
     /**
-     * @return $this
+     * @return Flasher
      * @throws Exception
+     * @throws \Exception
      */
-    protected function keep()
+    protected function keep(): self
     {
         if (null !== $this->old) {
             $this->session->set($this->sessionKey, $this->old);
@@ -224,8 +236,9 @@ class Flasher
      * @param string $level
      * @return array
      * @throws Exception
+     * @throws \Exception
      */
-    public function getByLevel(string $level)
+    public function getByLevel(string $level): array
     {
         $rows = [];
 
@@ -254,6 +267,7 @@ class Flasher
     /**
      * @return array
      * @throws Exception
+     * @throws \Exception
      */
     public function errors()
     {
@@ -263,6 +277,7 @@ class Flasher
     /**
      * @return array
      * @throws Exception
+     * @throws \Exception
      */
     public function successes()
     {
@@ -272,6 +287,7 @@ class Flasher
     /**
      * @return array
      * @throws Exception
+     * @throws \Exception
      */
     public function warnings()
     {
@@ -281,6 +297,7 @@ class Flasher
     /**
      * @return array
      * @throws Exception
+     * @throws \Exception
      */
     public function infos()
     {
@@ -290,6 +307,7 @@ class Flasher
     /**
      * @return array
      * @throws Exception
+     * @throws \Exception
      */
     public function all()
     {
@@ -336,6 +354,7 @@ class Flasher
      * @param array $parameters
      * @return array|Flasher
      * @throws Exception
+     * @throws \Exception
      */
     public function __call(string $name, array $parameters)
     {

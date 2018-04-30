@@ -38,7 +38,7 @@
                 $_SESSION[$this->prefix] = [];
             }
 
-            return 'octodummy' != isAke($_SESSION[$this->prefix], $k, 'octodummy');
+            return 'octodummy' !== isAke($_SESSION[$this->prefix], $k, 'octodummy');
         }
 
         public function delete($k)
@@ -141,7 +141,7 @@
         {
             $res = $this->get($k, 'octodummy');
 
-            if ('octodummy' == $res) {
+            if ('octodummy' === $res) {
                 $this->set($k, $res = $c());
             }
 
@@ -475,10 +475,10 @@
             return false;
         }
 
-        public function until($k, callable $c, $maxAge = null, $args = [])
+        public function until(string $key, callable $c, ?int $maxAge = null, array $args = [])
         {
-            $keyAge = $k . '.maxage';
-            $v      = $this->get($k);
+            $keyAge = $key . '.maxage';
+            $v      = $this->get($key);
 
             if ($v) {
                 if (is_null($maxAge)) {
@@ -494,14 +494,14 @@
                 if ($age >= $maxAge) {
                     return $v;
                 } else {
-                    $this->delete($k);
+                    $this->delete($key);
                     $this->delete($keyAge);
                 }
             }
 
             $data = call_user_func_array($c, $args);
 
-            $this->set($k, $data);
+            $this->set($key, $data);
 
             if (!is_null($maxAge)) {
                 if ($maxAge < 1000000000) {
@@ -528,28 +528,28 @@
             return $val != 'octodummy' ? $this : $val;
         }
 
-        public function add($k, $v)
+        public function add($key, $v)
         {
             if (!$this->has($key)) {
-                return $this->set($k, $v);
+                return $this->set($key, $v);
             }
 
             return $this;
         }
 
-        public function getDel($k, $d = null)
+        public function getDel($key, $d = null)
         {
-            $value = $this->get($k, $d);
+            $value = $this->get($key, $d);
 
-            $this->delete($k);
+            $this->delete($key);
 
             return $value;
         }
 
-        public function start($k, $d = null)
+        public function start($key, $d = null)
         {
-            if (!$this->has($k)) {
-                Registry::set('sessycache.buffer.' . $this->id, $k);
+            if (!$this->has($key)) {
+                Registry::set('sessycache.buffer.' . $this->id, $key);
                 ob_start();
 
                 return $d;
@@ -557,15 +557,15 @@
 
             Registry::delete('sessycache.buffer.' . $this->id);
 
-            return $this->get($k);
+            return $this->get($key);
         }
 
         public function finish()
         {
-            if ($k = Registry::get('sessycache.buffer.' . $this->id)) {
+            if ($key = Registry::get('sessycache.buffer.' . $this->id)) {
                 $value = ob_get_clean();
 
-                $this->set($k, $value);
+                $this->set($key, $value);
 
                 return $value;
             }

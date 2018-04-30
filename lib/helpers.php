@@ -12,6 +12,28 @@
         }
     }
 
+    class Memory extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'memory';
+        }
+    }
+
+    class Redys extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'redis';
+        }
+    }
+
     class Db extends Facade
     {
         /**
@@ -108,6 +130,28 @@
         public static function getNativeClass(): string
         {
             return 'redirect';
+        }
+    }
+
+    class Auth extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'auth';
+        }
+    }
+
+    class User extends Facade
+    {
+        /**
+         * @return string
+         */
+        public static function getNativeClass(): string
+        {
+            return 'user';
         }
     }
 

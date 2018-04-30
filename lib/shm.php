@@ -5,7 +5,13 @@
     {
         protected $db, $db_key, $driver, $ns, $size = 10000000;
 
-        public function __construct($ns = 'core')
+        /**
+         * @param string $ns
+         * @throws Exception
+         * @throws \Exception
+         * @throws \ReflectionException
+         */
+        public function __construct(string $ns = 'core')
         {
             if (function_exists("shmop_open") === false){
                 throw new Exception("\nYour PHP configuration needs adjustment. See: http://us2.php.net/manual/en/shmop.setup.php. To enable the System V shared memory support compile PHP with the option --enable-sysvshm.");
@@ -15,13 +21,19 @@
             $this->connect();
         }
 
+        /**
+         * @return $this
+         * @throws Exception
+         * @throws \Exception
+         * @throws \ReflectionException
+         */
         protected function connect()
         {
             $size = $this->driver->getOr('size', function () {
                 return $this->size;
             });
 
-            for($key = []; count($key) < strlen($this->ns); $key[] = ord(substr($this->ns, sizeof($key), 1)));
+            for ($key = []; count($key) < strlen($this->ns); $key[] = ord(substr($this->ns, sizeof($key), 1)));
 
             $dbKey = dechex(array_sum($key));
             $dbKey = (int) $dbKey;
@@ -34,6 +46,19 @@
             return $this;
         }
 
+        /**
+         * @return int
+         */
+        public function free(): int
+        {
+            return $this->size - shmop_size($this->db);
+        }
+
+        /**
+         * @throws Exception
+         * @throws \Exception
+         * @throws \ReflectionException
+         */
         public function __destruct()
         {
             /* persistence */
@@ -55,6 +80,10 @@
             }
         }
 
+        /**
+         * @throws Exception
+         * @throws \Exception
+         */
         public function recover()
         {
             $data = $this->driver->set('keys', []);
@@ -62,6 +91,12 @@
             $this->write($data);
         }
 
+        /**
+         * @param null $data
+         * @return int
+         * @throws Exception
+         * @throws \Exception
+         */
         public function write($data = null)
         {
             if (is_null($data)) {
@@ -92,7 +127,15 @@
             return $data;
         }
 
-        public function set($key, $value, $expire = 0)
+        /**
+         * @param string $key
+         * @param $value
+         * @param int $expire
+         * @return $this
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function set(string $key, $value, int $expire = 0)
         {
             $data = $this->data();
 
@@ -104,7 +147,12 @@
             return $this;
         }
 
-        public function get($key, $default = null)
+        /**
+         * @param string $key
+         * @param null $default
+         * @return mixed|null
+         */
+        public function get(string $key, $default = null)
         {
             list($status, $data) = $this->check($key);
 
@@ -115,17 +163,25 @@
             return $default;
         }
 
-        public function has($key)
+        /**
+         * @param string $key
+         * @return bool
+         */
+        public function has(string $key)
         {
             list($status, $data) = $this->check($key);
 
             if (true === $status) {
-                return 'octodummy' != isAke($data, $key, 'octodummy');
+                return 'octodummy' !== isAke($data, $key, 'octodummy');
             }
 
             return false;
         }
 
+        /**
+         * @param $key
+         * @return bool|int
+         */
         public function expiration($key)
         {
             list($status, $data) = $this->check($key);
@@ -137,7 +193,13 @@
             return false;
         }
 
-        public function check($key)
+        /**
+         * @param string $key
+         * @return array
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function check(string $key)
         {
             $data = $this->data();
 
@@ -161,7 +223,13 @@
             return [false, $data];
         }
 
-        public function delete($key)
+        /**
+         * @param string $key
+         * @return bool
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function delete(string $key)
         {
             $data = $this->data();
 
@@ -177,49 +245,105 @@
             return false;
         }
 
-        public function add($k, $v, $expire = 0)
+        /**
+         * @param string $key
+         * @param $v
+         * @param int $expire
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function add(string $key, $v, int $expire = 0)
         {
-            return $this->set($k, $v, $expire);
+            return $this->set($key, $v, $expire);
         }
 
-        public function setExp($k, $v, $expire)
+        /**
+         * @param string $key
+         * @param $v
+         * @param int $expire
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function setExp(string $key, $v, int $expire = 0)
         {
-            return $this->set($k, $v, $expire);
+            return $this->set($key, $v, $expire);
         }
 
-        public function setExpire($k, $v, $expire)
+        /**
+         * @param string $key
+         * @param $v
+         * @param int $expire
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function setExpire(string $key, $v, int $expire = 0)
         {
-            return $this->set($k, $v, $expire);
+            return $this->set($key, $v, $expire);
         }
 
-        public function expire($k, $expire)
+        /**
+         * @param string $key
+         * @param int $expire
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function expire(string $key, int $expire = 0)
         {
-            $v = $this->get($k);
+            $v = $this->get($key);
 
-            return $this->set($k, $v, $expire);
+            return $this->set($key, $v, $expire);
         }
 
-        public function expireAt($k, $timestamp)
+        /**
+         * @param string $key
+         * @param int $timestamp
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function expireAt(string $key, int $timestamp)
         {
-            $v = $this->get($k);
+            $v = $this->get($key);
 
-            return $this->set($k, $v, $timestamp);
+            return $this->set($key, $v, $timestamp);
         }
 
-        public function getOr($k, callable $c, $e = null)
+        /**
+         * @param string $key
+         * @param callable $c
+         * @param int $e
+         * @return mixed|null
+         * @throws Exception
+         * @throws \Exception
+         * @throws \ReflectionException
+         */
+        public function getOr(string $key, callable $c, int $e = 0)
         {
-            if ($this->has($k)) {
-                return $this->get($k);
+            if ($this->has($key)) {
+                return $this->get($key);
             }
 
-            $res = $c();
+            $res = gi()->makeClosure($c);
 
-            $this->set($k, $res, $e);
+            $this->set($key, $res, $e);
 
             return $res;
         }
 
-        public function remember($k, $c, $e = null)
+        /**
+         * @param string $k
+         * @param $c
+         * @param int $e
+         * @return mixed|null
+         * @throws Exception
+         * @throws \Exception
+         * @throws \ReflectionException
+         */
+        public function remember(string $k, $c, int $e = 0)
         {
             if (!is_callable($c)) {
                 $c = function () use ($c) {return $c;};
@@ -228,7 +352,13 @@
             return $this->getOr($k, $c, $e);
         }
 
-        public function watch($k, callable $exists = null, callable $notExists = null)
+        /**
+         * @param string $k
+         * @param callable|null $exists
+         * @param callable|null $notExists
+         * @return bool
+         */
+        public function watch(string $k, callable $exists = null, callable $notExists = null)
         {
             if ($this->has($k)) {
                 if (is_callable($exists)) {
@@ -243,7 +373,15 @@
             return false;
         }
 
-        public function session($k, $v = 'dummyget', $e = null)
+        /**
+         * @param string $k
+         * @param string $v
+         * @param int $e
+         * @return mixed|null|Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function session(string $k, $v = 'dummyget', int $e = 0)
         {
             $user       = session('web')->getUser();
             $isLogged   = !is_null($user);
@@ -252,29 +390,60 @@
             return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
         }
 
-        public function aged($k, callable $c, $a)
+        /**
+         * @param string $k
+         * @param callable $c
+         * @param $a
+         * @return mixed|null
+         */
+        public function aged(string $k, callable $c, $a)
         {
             $k = sha1($this->ns) . '.' . $k;
 
             return $this->until($k, $c, $a);
         }
 
-        public function forget($k)
+        /**
+         * @param string $k
+         * @return bool
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function forget(string $k)
         {
             return $this->delete($k);
         }
 
-        public function del($k)
+        /**
+         * @param string $k
+         * @return bool
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function del(string $k)
         {
             return $this->delete($k);
         }
 
-        public function remove($k)
+        /**
+         * @param string $k
+         * @return bool
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function remove(string $k)
         {
             return $this->delete($k);
         }
 
-        public function incr($k, $by = 1)
+        /**
+         * @param string $k
+         * @param int $by
+         * @return int|mixed|null
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function incr(string $k, $by = 1)
         {
             $old = $this->get($k, 0);
             $new = $old + $by;
@@ -284,12 +453,26 @@
             return $new;
         }
 
-        public function increment($k, $by = 1)
+        /**
+         * @param string $k
+         * @param int $by
+         * @return int|mixed|null
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function increment(string $k, $by = 1)
         {
             return $this->incr($k, $by);
         }
 
-        public function decr($k, $by = 1)
+        /**
+         * @param string $k
+         * @param int $by
+         * @return int|mixed|null
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function decr(string $k, $by = 1)
         {
             $old = $this->get($k, 0);
             $new = $old - $by;
@@ -299,20 +482,38 @@
             return $new;
         }
 
-        public function decrement($k, $by = 1)
+        /**
+         * @param string $k
+         * @param int $by
+         * @return int|mixed|null
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function decrement(string $k, $by = 1)
         {
             return $this->decr($k, $by);
         }
 
-        public function keys($pattern = '*')
+        /**
+         * @param string $pattern
+         * @return \Generator
+         */
+        public function keys(string $pattern = '*')
         {
             $keys = Arrays::pattern($this->data(), $pattern);
 
             foreach ($keys as $key => $value) {
-                if (!fnmatch('*.e', $key)) yield $key;
+                if (!fnmatch('*.e', $key)) {
+                    yield $key;
+                }
             }
         }
 
+        /**
+         * @return int
+         * @throws Exception
+         * @throws \Exception
+         */
         public function clean()
         {
             $data = $this->data();
@@ -339,7 +540,14 @@
             return $affected;
         }
 
-        public function readAndDelete($key, $default = null)
+        /**
+         * @param string $key
+         * @param null $default
+         * @return mixed|null
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function readAndDelete(string $key, $default = null)
         {
             if ($this->has($key)) {
                 $value = $this->get($key);
@@ -352,29 +560,59 @@
             return $default;
         }
 
-        public function rename($keyFrom, $keyTo, $default = null)
+        /**
+         * @param string $keyFrom
+         * @param string $keyTo
+         * @param null $default
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function rename(string $keyFrom, string $keyTo, $default = null)
         {
             $value = $this->readAndDelete($keyFrom, $default);
 
             return $this->set($keyTo, $value);
         }
 
-        public function copy($keyFrom, $keyTo)
+        /**
+         * @param string $keyFrom
+         * @param string $keyTo
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function copy(string $keyFrom, string $keyTo)
         {
             return $this->set($keyTo, $this->get($keyFrom));
         }
 
-        public function getSize($key)
+        /**
+         * @param string $key
+         * @return int
+         */
+        public function getSize(string $key)
         {
             return strlen($this->get($key));
         }
 
-        public function length($key)
+        /**
+         * @param string $key
+         * @return int
+         */
+        public function length(string $key)
         {
             return strlen($this->get($key));
         }
 
-        public function sadd($key, $value)
+        /**
+         * @param string $key
+         * @param $value
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function sadd(string $key, $value)
         {
             $tab = $this->get($key, []);
             $tab[] = $value;
@@ -382,7 +620,11 @@
             return $this->set($key, $tab);
         }
 
-        public function scard($key)
+        /**
+         * @param string $key
+         * @return int
+         */
+        public function scard(string $key)
         {
             $tab = $this->get($key, []);
 
@@ -411,10 +653,14 @@
             return $tab;
         }
 
-        public function sinterstore()
+        /**
+         * @param array ...$args
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function sinterstore(...$args)
         {
-            $args = func_get_args();
-
             $destination = array_shift($args);
 
             $tab = [];
@@ -426,10 +672,14 @@
             return $this->set($destination, $tab);
         }
 
-        public function sunionstore()
+        /**
+         * @param array ...$args
+         * @return Shm
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function sunionstore(...$args)
         {
-            $args = func_get_args();
-
             $destination = array_shift($args);
 
             $tab = [];
@@ -441,17 +691,33 @@
             return $this->set($destination, $tab);
         }
 
-        public function sismember($hash, $key)
+        /**
+         * @param string $hash
+         * @param string $key
+         * @return bool
+         */
+        public function sismember(string $hash, string $key)
         {
             return in_array($key, $this->get($hash, []));
         }
 
-        public function smembers($key)
+        /**
+         * @param string $key
+         * @return mixed|null
+         */
+        public function smembers(string $key)
         {
             return $this->get($key, []);
         }
 
-        public function srem($hash, $key)
+        /**
+         * @param string $hash
+         * @param string $key
+         * @return bool
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function srem(string $hash, string $key)
         {
             $tab = $this->get($hash, []);
 
@@ -476,7 +742,15 @@
             return false;
         }
 
-        public function smove($from, $to, $key)
+        /**
+         * @param string $from
+         * @param string $to
+         * @param string $key
+         * @return bool
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function smove(string $from, string $to, string $key)
         {
             if ($this->sismember($from, $key)) {
                 $this->srem($from, $key);
@@ -491,7 +765,16 @@
             return false;
         }
 
-        public function until($k, callable $c, $maxAge = null, $args = [])
+        /**
+         * @param string $k
+         * @param callable $c
+         * @param null $maxAge
+         * @param array $args
+         * @return mixed|null
+         * @throws Exception
+         * @throws \Exception
+         */
+        public function until(string $k, callable $c, $maxAge = null, $args = [])
         {
             $keyAge = $k . '.maxage';
             $v      = $this->get($k);
@@ -530,7 +813,11 @@
             return $data;
         }
 
-        protected function key($val)
+        /**
+         * @param string $val
+         * @return null|string|string[]
+         */
+        protected function key(string $val)
         {
             $val = $this->ns . '.' . $val;
 

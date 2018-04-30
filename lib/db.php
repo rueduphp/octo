@@ -19,14 +19,26 @@ class Db
             $name = 'select';
         }
 
+        return static::start()->{$name}(...$arguments);
+    }
+
+    /**
+     * @return \Illuminate\Database\Connection
+     * @throws \ReflectionException
+     */
+    public static function start()
+    {
         $connection = Capsule::connection();
 
         $connection->setEventDispatcher(static::getEventDispatcher());
 
-        In::set('db', $connection);
+        if (!In::has('db')) {
+            In::set('db', $connection);
+        }
 
-        return $connection->{$name}(...$arguments);
+        return $connection;
     }
+
 
     /**
      * @param string $ns

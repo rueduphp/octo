@@ -281,10 +281,14 @@ class SimpleTest extends TestCase
         $this->assertSame(10, UserConnected::count());
 
         $this->assertSame(app('bag'), app('bag'));
+
+        Memory::set('foo', 'bar');
+
+        $this->assertSame('bar', Memory::get('foo'));
     }
 
     /**
-     * @throws Exception
+     * @throws ReflectionException
      */
     public function testDiAndFacades()
     {
