@@ -190,6 +190,12 @@ class Caching implements FastCacheInterface
         return $this->set($k, $v, $expire);
     }
 
+    /**
+     * @param $k
+     * @param $expire
+     * @return Caching
+     * @throws \ReflectionException
+     */
     public function expire($k, $expire)
     {
         $v = $this->get($k);
@@ -197,6 +203,12 @@ class Caching implements FastCacheInterface
         return $this->set($k, $v, $expire);
     }
 
+    /**
+     * @param $k
+     * @param $timestamp
+     * @return Caching
+     * @throws \ReflectionException
+     */
     public function expireAt($k, $timestamp)
     {
         $v = $this->get($k);
@@ -204,6 +216,12 @@ class Caching implements FastCacheInterface
         return $this->set($k, $v, $timestamp);
     }
 
+    /**
+     * @param $k
+     * @param null $d
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
     public function get($k, $d = null)
     {
         $file = $this->getPath($k);
@@ -737,6 +755,12 @@ class Caching implements FastCacheInterface
         return $new;
     }
 
+    /**
+     * @param string $hash
+     * @param string $key
+     * @param int $by
+     * @return int|mixed|null
+     */
     public function hdecr(string $hash, string $key, $by = 1)
     {
         $old = $this->hget($hash, $key, 1);
@@ -747,6 +771,11 @@ class Caching implements FastCacheInterface
         return $new;
     }
 
+    /**
+     * @param string $hash
+     * @return \Generator
+     * @throws \ReflectionException
+     */
     public function hgetall(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
@@ -759,6 +788,11 @@ class Caching implements FastCacheInterface
         }
     }
 
+    /**
+     * @param string $hash
+     * @return \Generator
+     * @throws \ReflectionException
+     */
     public function hvals(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
@@ -768,6 +802,10 @@ class Caching implements FastCacheInterface
         }
     }
 
+    /**
+     * @param string $hash
+     * @return int
+     */
     public function hlen(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
@@ -775,6 +813,11 @@ class Caching implements FastCacheInterface
         return count($keys);
     }
 
+    /**
+     * @param string $hash
+     * @return bool
+     * @throws \ReflectionException
+     */
     public function hremove(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
@@ -786,6 +829,10 @@ class Caching implements FastCacheInterface
         return true;
     }
 
+    /**
+     * @param string $hash
+     * @return \Generator
+     */
     public function hkeys(string $hash)
     {
         $keys = $this->keys('hash.' . $hash . '.*');
@@ -797,6 +844,12 @@ class Caching implements FastCacheInterface
         }
     }
 
+    /**
+     * @param string $key
+     * @param $value
+     * @return Caching
+     * @throws \ReflectionException
+     */
     public function sadd(string $key, $value)
     {
         $tab = $this->get($key, []);
@@ -805,6 +858,11 @@ class Caching implements FastCacheInterface
         return $this->set($key, $tab);
     }
 
+    /**
+     * @param string $key
+     * @return int
+     * @throws \ReflectionException
+     */
     public function scard(string $key)
     {
         $tab = $this->get($key, []);
@@ -812,6 +870,10 @@ class Caching implements FastCacheInterface
         return count($tab);
     }
 
+    /**
+     * @return array
+     * @throws \ReflectionException
+     */
     public function sinter()
     {
         $tab = [];
@@ -823,6 +885,10 @@ class Caching implements FastCacheInterface
         return $tab;
     }
 
+    /**
+     * @return array
+     * @throws \ReflectionException
+     */
     public function sunion()
     {
         $tab = [];
@@ -834,6 +900,10 @@ class Caching implements FastCacheInterface
         return $tab;
     }
 
+    /**
+     * @return Caching
+     * @throws \ReflectionException
+     */
     public function sinterstore()
     {
         $args = func_get_args();
@@ -919,6 +989,12 @@ class Caching implements FastCacheInterface
         return false;
     }
 
+    /**
+     * @param string $from
+     * @param string $to
+     * @param string $key
+     * @return bool
+     */
     public function smove(string $from, string $to, string $key)
     {
         if ($this->sismember($from, $key)) {
@@ -934,6 +1010,14 @@ class Caching implements FastCacheInterface
         return false;
     }
 
+    /**
+     * @param $k
+     * @param callable $c
+     * @param null $maxAge
+     * @param array $args
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
     public function until($k, callable $c, $maxAge = null, $args = [])
     {
         if (defined('testing') && testing === true) {

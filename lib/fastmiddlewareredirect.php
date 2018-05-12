@@ -5,6 +5,10 @@ class Fastmiddlewareredirect
 {
     use FastTrait;
 
+    /**
+     * @return \GuzzleHttp\Psr7\Response|mixed|null|\Psr\Http\Message\ResponseInterface
+     * @throws \ReflectionException
+     */
     public function process()
     {
         $container  = $this->getContainer();

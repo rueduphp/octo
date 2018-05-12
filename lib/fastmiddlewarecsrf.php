@@ -31,7 +31,7 @@ class Fastmiddlewarecsrf extends FastMiddleware
      * @param int $limit
      * @param string $sessionKey
      * @param string $formKey
-     * @throws \TypeError
+     * @throws \ReflectionException
      */
     public function __construct(
         &$session,

@@ -80,8 +80,8 @@ class Instanciator
      * @param string $make
      * @param array $args
      * @param bool $singleton
-     *
      * @return mixed|object
+     * @throws \ReflectionException
      */
     public function make(string $make, array $args = [], bool $singleton = true)
     {
@@ -267,7 +267,7 @@ class Instanciator
     }
 
     /**
-     * @param Octal $entity
+     * @param $entity
      * @return mixed
      * @throws \ReflectionException
      */
@@ -281,7 +281,7 @@ class Instanciator
             $key = $entity->pk();
         }
 
-        $id = getContainer()->getRequest()->getAttribute($key);
+        $id = getRequest()->getAttribute($key);
 
         if (!is_null($id)) {
             return $entity->find($id);
@@ -298,6 +298,10 @@ class Instanciator
     public function makeClosure(...$args)
     {
         $closure    = array_shift($args);
+
+        if (!$closure instanceof Closure && is_object($closure)) {
+            $closure = voidToCallback($closure);
+        }
 
         $ref        = new ReflectionFunction($closure);
         $params     = $ref->getParameters();

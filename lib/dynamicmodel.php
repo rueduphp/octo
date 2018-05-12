@@ -101,6 +101,9 @@ class Dynamicmodel
     /** @var array  */
     protected $ids = [];
 
+    /**
+     * @throws \ReflectionException
+     */
     public static function migrate()
     {
         $schema = getSchema();
@@ -331,6 +334,7 @@ class Dynamicmodel
 
     /**
      * @return int
+     * @throws \ReflectionException
      */
     public function getAge(): int
     {
@@ -341,7 +345,9 @@ class Dynamicmodel
 
     /**
      * @param int $id
+     * @param bool $model
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public function find(int $id, $model = true)
     {
@@ -381,6 +387,7 @@ class Dynamicmodel
 
     /**
      * @return array
+     * @throws \ReflectionException
      */
     public function ids(): array
     {
@@ -426,8 +433,8 @@ class Dynamicmodel
      * @param $key
      * @param null|string $operator
      * @param null $value
-     *
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function where($key, ?string $operator = null, $value = null): self
     {
@@ -578,6 +585,7 @@ class Dynamicmodel
     /**
      * @param bool $model
      * @return array
+     * @throws \ReflectionException
      */
     public function fetchAll(bool $model = false): array
     {
@@ -592,6 +600,7 @@ class Dynamicmodel
 
     /**
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public function fetch()
     {
@@ -606,6 +615,7 @@ class Dynamicmodel
      * @param $value
      * @param null $key
      * @return array
+     * @throws \ReflectionException
      */
     public function pluck($value, $key = null): array
     {
@@ -632,8 +642,8 @@ class Dynamicmodel
     /**
      * @param $offset
      * @param null $length
-     *
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function slice($offset, $length = null): self
     {
@@ -647,6 +657,7 @@ class Dynamicmodel
     /**
      * @param null $limit
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function take($limit = null)
     {
@@ -661,6 +672,7 @@ class Dynamicmodel
      * @param $offset
      * @param null $length
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function limit($offset, $length = null)
     {
@@ -672,6 +684,7 @@ class Dynamicmodel
      * @param int $id
      * @param null $default
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public function getFieldValueById(string $field, int $id, $default = null)
     {
@@ -710,6 +723,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function like(string $field, $value)
     {
@@ -720,6 +734,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function notLike(string $field, $value)
     {
@@ -730,6 +745,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function findBy(string $field, $value)
     {
@@ -763,6 +779,7 @@ class Dynamicmodel
      * @param string $field
      * @param array $values
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function in(string $field, array $values): self
     {
@@ -773,6 +790,7 @@ class Dynamicmodel
      * @param string $field
      * @param array $values
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function notIn(string $field, array $values): self
     {
@@ -782,6 +800,7 @@ class Dynamicmodel
     /**
      * @param null $default
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public function rand($default = null)
     {
@@ -803,6 +822,7 @@ class Dynamicmodel
      * @param $min
      * @param $max
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function isBetween(string $field, $min, $max): self
     {
@@ -814,6 +834,7 @@ class Dynamicmodel
      * @param $min
      * @param $max
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function isNotBetween(string $field, $min, $max): self
     {
@@ -823,6 +844,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function isNull(string $field): self
     {
@@ -832,6 +854,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function isNotNull(string $field): self
     {
@@ -841,6 +864,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public function sum(string $field)
     {
@@ -854,6 +878,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public function min(string $field)
     {
@@ -867,6 +892,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public function max(string $field)
     {
@@ -880,6 +906,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public function avg(string $field)
     {
@@ -893,6 +920,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function sortBy(string $field): self
     {
@@ -912,6 +940,7 @@ class Dynamicmodel
     /**
      * @param string $field
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function sortByDesc(string $field): self
     {
@@ -1202,6 +1231,7 @@ class Dynamicmodel
      * @param string $field
      * @param array $values
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function WhereIn(string $field, array $values): self
     {
@@ -1223,6 +1253,7 @@ class Dynamicmodel
      * @param string $field
      * @param array $values
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function whereNotIn(string $field, array $values): self
     {
@@ -1245,6 +1276,7 @@ class Dynamicmodel
      * @param $min
      * @param $max
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function between(string $field, $min, $max): self
     {
@@ -1268,6 +1300,7 @@ class Dynamicmodel
      * @param $min
      * @param $max
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function notBetween(string $field, $min, $max): self
     {
@@ -1310,6 +1343,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function startsWith(string $field, $value): self
     {
@@ -1331,6 +1365,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function endsWith(string $field, $value): self
     {
@@ -1352,6 +1387,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function lt(string $field, $value): self
     {
@@ -1373,6 +1409,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function gt(string $field, $value): self
     {
@@ -1394,6 +1431,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function lte(string $field, $value): self
     {
@@ -1415,6 +1453,7 @@ class Dynamicmodel
      * @param string $field
      * @param $value
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function gte(string $field, $value): self
     {
@@ -1436,6 +1475,7 @@ class Dynamicmodel
      * @param $date
      * @param bool $strict
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function before($date, bool $strict = true): self
     {
@@ -1495,6 +1535,7 @@ class Dynamicmodel
      * @param string $op
      * @param $date
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function when(string $field, string $op, $date): self
     {
@@ -1523,6 +1564,7 @@ class Dynamicmodel
 
     /**
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function deleted(): self
     {
@@ -1541,6 +1583,7 @@ class Dynamicmodel
     /**
      * @param $id
      * @return bool
+     * @throws \ReflectionException
      */
     public function hasId($id): bool
     {
@@ -1553,6 +1596,7 @@ class Dynamicmodel
      * @param int $id
      * @param bool $default
      * @return bool|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function findOr(int $id, $default = false)
     {
@@ -1564,6 +1608,7 @@ class Dynamicmodel
     /**
      * @param int $id
      * @return bool|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function findOrFalse(int $id)
     {
@@ -1573,6 +1618,7 @@ class Dynamicmodel
     /**
      * @param int $id
      * @return bool|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function findOrNull(int $id)
     {
@@ -1583,6 +1629,7 @@ class Dynamicmodel
      * @param int $id
      * @param bool $model
      * @return mixed|null|Dynamicrecord
+     * @throws \ReflectionException
      */
     public function findOrFail(int $id, bool $model = true)
     {
@@ -1722,6 +1769,7 @@ class Dynamicmodel
     /**
      * @param $conditions
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     function search($conditions): self
     {

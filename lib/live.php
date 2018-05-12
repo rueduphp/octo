@@ -7,7 +7,7 @@ use Psr\Http\Message\ServerRequestInterface;
 class Live implements ArrayAccess, FastSessionInterface
 {
     /**
-     * @var FastCacheInterface
+     * @var Ultimate
      */
     private $driver;
 
@@ -37,7 +37,7 @@ class Live implements ArrayAccess, FastSessionInterface
     private $sid;
 
     /**
-     * @param null|FastCacheInterface $driver
+     * @param null|Ultimate $driver
      * @throws Exception
      */
     public function __construct($driver = null)
@@ -419,7 +419,7 @@ class Live implements ArrayAccess, FastSessionInterface
     public function fill(array $rows = []): self
     {
         foreach ($rows as $key => $value) {
-            $this->driver->set($key, $value);
+            $this->set($key, $value);
         }
 
         return $this;
@@ -441,7 +441,7 @@ class Live implements ArrayAccess, FastSessionInterface
 
     /**
      * @param string $key
-     * @param bool $value
+     * @param mixed $value
      * @throws Exception
      */
     public function flash(string $key, $value = true)
@@ -562,14 +562,14 @@ class Live implements ArrayAccess, FastSessionInterface
     }
 
     /**
-     * @param string $key
+     * @param mixed $key
      * @param null $value
      * @return Live
      * @throws Exception
      */
-    public function put(string $key, $value = null): self
+    public function put($key, $value = null): self
     {
-        if (!is_array($key)) {
+        if (!is_array($key) && null === $value) {
             $key = [$key => $value];
         }
 
@@ -578,6 +578,18 @@ class Live implements ArrayAccess, FastSessionInterface
         }
 
         return $this;
+    }
+
+    /**
+     * @param $data
+     * @return Live
+     * @throws Exception
+     */
+    public function many($data)
+    {
+        $data = arrayable($data) ? $data->toArray() : $data;
+
+        return $this->put($data);
     }
 
     /**
@@ -602,6 +614,22 @@ class Live implements ArrayAccess, FastSessionInterface
     {
         $this->put($attributes);
 
+        return $this;
+    }
+
+    /**
+     * @return null|mixed
+     */
+    public function getDriver()
+    {
+        return $this->driver;
+    }
+
+    /**
+     * @return Live
+     */
+    public function guard(): self
+    {
         return $this;
     }
 }

@@ -294,7 +294,7 @@ class Session implements ArrayAccess, FastSessionInterface
 
     public function destroy()
     {
-        $_SESSION =[];
+        $_SESSION = [];
 
         return session_destroy();
     }
@@ -438,11 +438,7 @@ class Session implements ArrayAccess, FastSessionInterface
         $k = 'once.' . $k;
 
         if ($v === 'octodummy') {
-            $value = $this->get($k);
-
-            $this->forget($k);
-
-            return $value;
+            return $this->pull($k);
         }
 
         return $this->set($k, $v);

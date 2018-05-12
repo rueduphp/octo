@@ -6,6 +6,12 @@ use Psr\Http\Message\ServerRequestInterface;
 
 class Fastmiddlewarenotfound extends FastMiddleware
 {
+    /**
+     * @param ServerRequestInterface $request
+     * @param DelegateInterface $next
+     * @return \GuzzleHttp\Psr7\Response|\Psr\Http\Message\ResponseInterface
+     * @throws \ReflectionException
+     */
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {
         $app = $this->getContainer();
@@ -18,6 +24,6 @@ class Fastmiddlewarenotfound extends FastMiddleware
             };
         }
 
-        return $app->response(404, [], $tpl());
+        return $app->response(404, [], callThat($tpl));
     }
 }

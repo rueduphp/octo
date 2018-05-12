@@ -11,6 +11,8 @@
     use Illuminate\View\Compilers\BladeCompiler;
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
+    use Pagerfanta\Pagerfanta;
+    use Pagerfanta\View\TwitterBootstrap4View;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ResponseInterface;
     use Psr\Http\Message\ServerRequestInterface;
@@ -277,16 +279,15 @@
         }
 
         /**
-         * @return Session|Live
-         *
-         * @throws TypeError
+         * @return array|Ultimate
+         * @throws \ReflectionException
          */
         public function getSession()
         {
             $session = $this->define('session');
 
             if (is_null($session)) {
-                return null;
+                return startSession();
             }
 
             $this->testSession($session);
@@ -673,22 +674,20 @@
         }
 
         /**
-         * @param array ...$args
+         * @param mixed ...$args
          * @return Psr7Response
+         * @throws \ReflectionException
          */
-        public function response(...$args)
+        public function response(...$args): Psr7Response
         {
-            return call_user_func_array(
-                'Octo\foundry',
-                array_merge([Psr7Response::class], $args)
-            );
+            return gi()->make(Psr7Response::class, $args, false);
         }
 
         /**
          * @param int $code
          * @param string $message
-         *
          * @return Psr7Response
+         * @throws \ReflectionException
          */
         public function abort($code = 403, $message = 'Forbidden')
         {
@@ -697,8 +696,8 @@
 
         /**
          * @param $uri
-         *
-         * @return Psr7Response
+         * @return \GuzzleHttp\Psr7\MessageTrait|Psr7Response
+         * @throws \ReflectionException
          */
         public function redirectResponse($uri)
         {
@@ -713,8 +712,8 @@
         /**
          * @param string $route
          * @param array $params
-         *
-         * @return Psr7Response
+         * @return \GuzzleHttp\Psr7\MessageTrait|Psr7Response
+         * @throws \ReflectionException
          */
         public function redirectRouteResponse(string $route, array $params = [])
         {
@@ -725,8 +724,8 @@
 
         /**
          * @param int $status
-         *
          * @return Psr7Response
+         * @throws \ReflectionException
          */
         public function setStatus(int $status)
         {
@@ -739,6 +738,7 @@
          * @param string $key
          * @param $value
          * @return \GuzzleHttp\Psr7\MessageTrait
+         * @throws \ReflectionException
          */
         public function setHeader(string $key, $value)
         {
@@ -909,7 +909,7 @@
          */
         public function addModule(string $moduleClass): self
         {
-            $module = instanciator()->singleton($moduleClass);
+            $module = gi()->make($moduleClass);
 
             $methods = get_class_methods($module);
 
@@ -955,16 +955,7 @@
         public function router()
         {
             if (!$this->defined('router')) {
-                if (!$this->isDebug()) {
-                    $cachePath = appenv('CACHE_PATH', path('app') . '/storage/cache') . '/router';
-
-                    $router = new FastRouter(null, null, [
-                        FastRouter::CONFIG_CACHE_ENABLED => true,
-                        FastRouter::CONFIG_CACHE_FILE => $cachePath
-                    ]);
-                } else {
-                    $router = new FastRouter;
-                }
+                $router = new FastRouter;
 
                 $this->define('router', $router);
             }
@@ -986,20 +977,34 @@
                 );
 
                 $router->macro(
-                    'redirect', function ($path, $url, $name) {
+                    'redirect', function ($path, $url, $name) use ($router) {
+                        $path       = '/' . trim($path, '/');
                         $instance   = $this->resolve(Fastmiddlewareredirect::class);
                         $middleware = [$instance, 'process'];
-                        $router     = $this->router();
 
                         $router->addRoute('GET', $path, $middleware, $name);
                         $this->define('redirects.routes.' . $name, $url);
 
-                        return $this->router();
+                        return $router;
                     }
                 );
 
                 $router->macro(
                     'addRoute', function ($method, $path, $next, $name = null, $middleware = null) {
+                        if (is_string($next)) {
+                            list($class, $action) = explode('@', $next, 2);
+                            $next = [gi()->make($class), $action];
+                        } elseif (is_array($next)) {
+                            $class = $next[0];
+                            $action = $next[1];
+//
+                            if (is_string($class)) {
+                                $next = [gi()->make($class), $action];
+                            }
+                        }
+
+                        $path = '/' . trim($path, '/');
+
                         if ($middleware instanceof Objet) {
                             $middleware = null;
                         }
@@ -1026,6 +1031,24 @@
                             $fastRouter = $this->defined('router');
 
                             $route = new FastRoute($path, $next, $method, $name);
+
+                            $routeToSave = [
+                                'path' => $path,
+                                'name' => $name,
+                                'method' => implode(',', $method)
+                            ];
+
+                            if (is_array($next)) {
+                                $routeToSave['next'] = get_class(current($next)) . '@' . end($next);
+                            } else {
+                                $routeToSave['next'] = $next;
+                            }
+
+                            $routesSaved = getCore('allroutes', []);
+
+                            $routesSaved[] = $routeToSave;
+
+                            setCore('allroutes', $routesSaved);
 
                             $fastRouter->addRoute($route);
 
@@ -1600,6 +1623,7 @@
 
         /**
          * @return Fast
+         * @throws \ReflectionException
          */
         public function getContainer(): Fast
         {
@@ -1608,6 +1632,7 @@
 
         /**
          * @return ServerRequestInterface
+         * @throws \ReflectionException
          */
         public function getRequest(): ServerRequestInterface
         {
@@ -1615,11 +1640,15 @@
         }
 
         /**
-         * @return Session
+         * @param null|string $name
+         * @param null|string $driver
+         * @return mixed|null|Live|Session
+         * @throws Exception
+         * @throws \ReflectionException
          */
-        public function getSession()
+        public function getSession(?string $name = null, ?string $driver = null)
         {
-            return getSession();
+            return getSession($name, $driver);
         }
 
         /**
@@ -1640,7 +1669,8 @@
         }
 
         /**
-         * @return Cache
+         * @return mixed|object
+         * @throws \ReflectionException
          */
         public function getKh()
         {
@@ -1692,6 +1722,7 @@
 
         /**
          * @return Fastcontainer
+         * @throws \ReflectionException
          */
         public function getDI()
         {
@@ -2441,12 +2472,23 @@
          * @param null|string $key
          * @param null $default
          * @return array|mixed
+         * @throws \ReflectionException
          */
         public function input(?string $key = null, $default = null)
         {
             $attrs = $this->all();
 
             return !is_null($key) ? isAke($attrs, $key, $default) : $attrs;
+        }
+
+        /**
+         * @param string $key
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function has(string $key)
+        {
+            return notSame('octodummy', $this->input($key, 'octodummy'));
         }
 
         /**
@@ -2515,6 +2557,7 @@
          * @param int $index
          * @param null|string $default
          * @return null|string
+         * @throws \ReflectionException
          */
         public function segment(int $index = 1, ?string $default = null): ?string
         {
@@ -2576,6 +2619,7 @@
         /**
          * @param $key
          * @return array|mixed
+         * @throws \ReflectionException
          */
         public function __get($key)
         {
@@ -2739,10 +2783,10 @@
         use Framework;
 
         /**
-         * @param string $name
+         * @param $name
          * @param array $context
-         *
-         * @return string
+         * @return mixed
+         * @throws \ReflectionException
          */
         public function render($name, array $context = [])
         {
@@ -2951,6 +2995,7 @@
         /**
          * @param array $parameters
          * @return FastRedirector
+         * @throws Exception
          * @throws \ReflectionException
          */
         public function with(array $parameters): self
@@ -2966,12 +3011,121 @@
 
         /**
          * @param array $parameters
+         * @param int $status
          * @return \GuzzleHttp\Psr7\MessageTrait
+         * @throws Exception
          * @throws \ReflectionException
          */
         public function backWith(array $parameters, $status = 302)
         {
             return $this->with($parameters)->back($status);
+        }
+    }
+
+    class FastBladeDirectives
+    {
+        /**
+         * @throws \ReflectionException
+         */
+        public static function register()
+        {
+            /** @var FastTwigExtension $twig */
+            $twig = gi()->make(FastTwigExtension::class);
+
+            bladeDirective('isnull', function ($expression) {
+                return "<?php if (is_null({$expression})): ?>";
+            });
+
+            bladeDirective('endisnull', function () {
+                return "<?php endif; ?>";
+            });
+
+            bladeDirective('dd', function (...$args) {
+                return "<?php dd({...$args}); ?>";
+            });
+
+            bladeDirective('continue', function () {
+                return "<?php continue; ?>";
+            });
+
+            bladeDirective('break', function () {
+                return "<?php break; ?>";
+            });
+
+            bladeDirective('ifempty', function($expression) {
+                return "<?php if(empty($expression)): ?>";
+            });
+
+            bladeDirective('endifempty', function () {
+                return '<?php endif; ?>';
+            });
+
+            bladeDirective('asset', function (string $path) {
+                $asset = assets_path($path);
+
+                return "<?php echo {$asset}; ?>";
+            });
+
+            bladeDirective('js', function (string $path) {
+                $asset = assets_path($path) . '.js';
+
+                return "<?php echo {$asset}; ?>";
+            });
+
+            bladeDirective('path', function ($name, array $args = []) use ($twig) {
+                $path = $twig->path($name, $args);
+
+                return "<?php echo {$path}; ?>";
+            });
+
+            bladeDirective('flash', function (string $key, $default = null) use ($twig) {
+                $flash = $twig->flash($key, $default);
+
+                return "<?php echo {$flash}; ?>";
+            });
+
+            bladeDirective('mix', function () {
+                $mix = mix(...func_get_args());
+
+                return "<?php echo {$mix}; ?>";
+            });
+
+            bladeDirective('csrf_field', function () {
+                $csrf = csrf();
+
+                return "<?php echo {$csrf}; ?>";
+            });
+
+            bladeDirective('field', function (
+                string $key,
+                $value,
+                ?string $label = null,
+                array $options = [],
+                array $attributes = []
+            ) use ($twig) {
+                $context = getCore('blade.context', []);
+                $field = $twig->field($context, $key, $value, $label, $options, $attributes);
+
+                return "<?php echo {$field}; ?>";
+            });
+
+            bladeDirective('submit', function (string $value = 'OK') {
+                $submit = csrf() . "\n" . "<button class=\"btn btn-primary\">{$value}</button>";
+
+                return "<?php echo {$submit}; ?>";
+            });
+
+            bladeDirective('paginate', function (Pagerfanta $paginatedResults, string $route, array $queryArgs = []) use ($twig) {
+                $html = $twig->paginate($paginatedResults, $route, $queryArgs);
+
+                return "<?php echo {$html}; ?>";
+            });
+
+            bladeDirective('lng', function (string $key, array $parameters) use ($twig) {
+                $trad = $twig->lang($key, $parameters);
+
+                return "<?php echo {$trad}; ?>";
+            });
         }
     }
 
@@ -2985,20 +3139,41 @@
             return [
                 new Twig_SimpleFunction('dump', [$this, 'dump'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('old', [$this, 'old'], ['is_safe' => ['html']]),
+                new Twig_SimpleFunction('paginate', [$this, 'paginate'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('asset', [$this, 'asset']),
                 new Twig_SimpleFunction('path', [$this, 'path']),
+                new Twig_SimpleFunction('is_subpath', [$this, 'isSubpath']),
                 new Twig_SimpleFunction('flash', [$this, 'flash']),
                 new Twig_SimpleFunction('logout', [$this, 'logout']),
                 new Twig_SimpleFunction('login', [$this, 'login']),
                 new Twig_SimpleFunction('user', [$this, 'user']),
                 new Twig_SimpleFunction('mix', [$this, 'mix'], ['is_safe' => ['html']]),
+                new Twig_SimpleFunction('lang', [$this, 'lang'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('submit', [$this, 'submit'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('input_csrf', [$this, 'csrf'], ['is_safe' => ['html']]),
                 new Twig_SimpleFunction('field', [$this, 'field'], [
-                    'is_safe' => ['html'],
+                    'is_safe'       => ['html'],
                     'needs_context' => true
                 ]),
             ];
+        }
+
+        public function paginate(Pagerfanta $paginatedResults, string $route, array $queryArgs = []): string
+        {
+            $view = new TwitterBootstrap4View;
+
+            return $view->render($paginatedResults, function (int $page) use ($route, $queryArgs) {
+                /**
+                 * @var $fastRouter FastRouter
+                 */
+                $fastRouter = $this->getContainer()->define("router");
+
+                if ($page < 1) {
+                    $queryArgs['p'] = 1;
+                }
+
+                return $fastRouter->generateUri($route, [], $queryArgs);
+            });
         }
 
         /**
@@ -3015,7 +3190,7 @@
          * @param string $key
          * @param null $default
          * @return mixed
-         * @throws TypeError
+         * @throws \ReflectionException
          */
         public function old(string $key, $default = null)
         {
@@ -3023,6 +3198,21 @@
             $inputs = $this->getContainer()->getSession()->get('old_inputs', []);
 
             return isAke($inputs, $key, $default);
+        }
+
+        /**
+         * @param string $key
+         * @param array $parameters
+         * @return array|null|string
+         * @throws \ReflectionException
+         */
+        public function lang(string $key, array $parameters)
+        {
+            $locale = in('locale');
+
+            $t = setTranslator(lang_path(), $locale);
+
+            return $t->get($key, $parameters);
         }
 
         /**
@@ -3085,27 +3275,21 @@
 
         /**
          * @param string $asset
-         *
          * @return string
+         * @throws \ReflectionException
          */
-        public function asset(string $asset)
+        public function asset(string $asset): string
         {
-            $path = $this->getContainer()->define("asset_path");
-
-            if (!$path) {
-                $path = '/assets/';
-            }
-
-            return $path . $asset;
+            return assets_path($asset);
         }
 
         /**
          * @param string $routeName
          * @param array $params
-         *
          * @return string
+         * @throws \ReflectionException
          */
-        public function path(string $routeName, array $params = [])
+        public function path(string $routeName, array $params = []): string
         {
             /**
              * @var $fastRouter FastRouter
@@ -3116,7 +3300,26 @@
         }
 
         /**
+         * @param string $path
+         * @param array $params
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isSubpath(string $path, array $params = []): bool
+        {
+            /**
+             * @var $fastRouter FastRouter
+             */
+            $fastRouter = $this->getContainer()->define("router");
+            $uri = $_SERVER['REQUEST_URI'] ?? '/';
+            $expectedUri = $fastRouter->generateUri($path, $params);
+
+            return strpos($uri, $expectedUri) !== false;
+        }
+
+        /**
          * @return string
+         * @throws \ReflectionException
          */
         public function logout()
         {
@@ -3130,6 +3333,7 @@
 
         /**
          * @return string
+         * @throws \ReflectionException
          */
         public function login()
         {
@@ -3167,7 +3371,7 @@
          * @return string
          * @throws NativeException
          */
-        public function submit(string $value)
+        public function submit(string $value = 'OK')
         {
             return $this->csrf() . "\n" . "<button class=\"btn btn-primary\">{$value}</button>";
         }
@@ -3222,7 +3426,10 @@
                 $input = $this->input($value, $attributes);
             } elseif ($type === 'file') {
                 $attributes['type'] = 'file';
-                $input = $this->input($attributes);
+                $input = $this->input(null, $attributes);
+            } elseif ($type === 'image') {
+                $attributes['type'] = 'file';
+                $input = $this->input(null, $attributes);
             } elseif ($type === 'checkbox') {
                 $input = $this->checkbox($value, $attributes);
             } elseif (array_key_exists('options', $options)) {
@@ -3231,6 +3438,7 @@
                 $attributes['type'] = $options['type'] ?? 'text';
                 $input = $this->input($value, $attributes);
             }
+
             return "<div class=\"" . $class . "\">
               <label for=\"name\">{$label}</label>
               {$input}

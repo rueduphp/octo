@@ -216,7 +216,7 @@
             if (is_array($value)) {
                 return true;
             } else {
-                return is_object($value) && $value instanceof \Traversable;
+                return arrayable($value) || (is_object($value) && $value instanceof \Traversable);
             }
         }
 
@@ -1080,14 +1080,22 @@
             return $target;
         }
 
-        public static function pattern(array $array, $pattern = '*')
+        public static function pattern($array, $pattern = '*')
         {
+            $array = arrayable($array) ? $array->toArray() : $array;
+
             $collection = [];
 
             if (self::isAssoc($array)) {
                 foreach ($array as $k => $v) {
                     if (fnmatch($pattern, $k)) {
                         $collection[$k] = $v;
+                    }
+                }
+            } else {
+                foreach ($array as $k) {
+                    if (fnmatch($pattern, $k)) {
+                        $collection[] = $k;
                     }
                 }
             }

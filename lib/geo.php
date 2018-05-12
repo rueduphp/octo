@@ -3,6 +3,11 @@
 
     class Geo
     {
+        /**
+         * @param $hexa
+         * @return array
+         * @throws Exception
+         */
         public function ghexa($hexa)
         {
             $data = $this->dwnCache("https://www.google.fr/maps/preview/entity?authuser=0&hl=fr&pb=!1m18!1s$hexa!3m12!1m3!1d16294.179092557824!2d2.3078046803197836!3d48.86649036092792!2m3!1f0!2f0!3f0!3m2!1i1360!2i298!4f13.1!4m2!3d48.87284474327185!4d2.3193597793579213!5e4!6shotel!12m3!2m2!1i392!2i106!13m40!2m2!1i203!2i100!3m1!2i4!6m6!1m2!1i86!2i86!1m2!1i408!2i256!7m26!1m3!1e1!2b0!3e3!1m3!1e2!2b1!3e2!1m3!1e2!2b0!3e3!1m3!1e3!2b0!3e3!1m3!1e4!2b0!3e3!1m3!1e3!2b1!3e2!2b1!4b0!9b0!14m4!1swApXVtLhKMiaU9OMuNAP!3b1!7e81!15i10555!15m1!2b1!22m1!1e81&pf=p");

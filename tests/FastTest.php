@@ -78,6 +78,12 @@ class ModulePhp extends Octo\Module
      */
     private $renderer;
 
+    public function __construct()
+    {
+        $this->setViewPath(__DIR__ . '/blade');
+        parent::__construct();
+    }
+
     /**
      * @param ContainerInterface $app
      */
@@ -152,7 +158,6 @@ class Module extends Octo\Module
      */
     private $renderer;
 
-
     /**
      * @var ContainerInterface
      */
@@ -164,6 +169,8 @@ class Module extends Octo\Module
     public function __construct(stdClassDummy $dummy)
     {
         $this->dummy = $dummy;
+        $this->setViewPath(__DIR__ . '/blade');
+        parent::__construct();
     }
 
     /**
@@ -191,22 +198,24 @@ class Module extends Octo\Module
     public function routes(Objet $router)
     {
         $router
-            ->addRoute('GET', '/test', [$this, 'test'])
+            ->addRoute('GET', 'test', [$this, 'test'])
             ->addRoute(
                 'GET',
-                '/slug/{slug}',
-                [$this, 'slug'],
-                'getSlug',
-                [
+                'slug/{slug}', [
+                    $this,
+                    'slug'
+                ],
+                'getSlug', [
                     TestRouteMiddleware::class,
                     RetestRouteMiddleware::class,
                 ]
             )
-            ->addRoute('GET', '/data/{id:\d+}', [$this, 'data'])
-            ->addRoute('GET', '/hello', [$this, 'hello'])
-            ->addRoute('GET', '/admin/foo', [$this, 'admin'])
-            ->view('/view', 'view', 'view')
-            ->redirect('/redirect', '/hello', 'redirect')
+            ->addRoute('GET', 'data/{id:\d+}', [$this, 'data'])
+            ->addRoute('GET', 'hello', [$this, 'hello'])
+            ->addRoute('GET', 'blade', [$this, 'blade'])
+            ->addRoute('GET', 'admin/foo', [$this, 'admin'])
+            ->view('view', 'view', 'view')
+            ->redirect('redirect', '/hello', 'redirect')
         ;
     }
 
@@ -256,9 +265,18 @@ class Module extends Octo\Module
     /**
      * @return mixed
      */
-     public function hello()
+    public function hello()
     {
         return $this->renderer->render('hello', ['name' => 'test']);
+    }
+
+    /**
+     * @return null|string
+     * @throws ReflectionException
+     */
+    public function blade()
+    {
+        return $this->render('blade', ['foo' => 'bar']);
     }
 }
 
@@ -629,6 +647,20 @@ class FastTest extends TestCase
     }
 
     /**
+     * @throws ReflectionException
+     */
+    public function testBlade()
+    {
+        $_SERVER['REQUEST_URI'] = '/blade';
+        $request = $this->app->fromGlobals();
+        $this->app->addModule(Module::class);
+        $response = $this->app->run($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('<h1>Hello bar</h1>', (string) $response->getBody());
+    }
+
+    /**
      * @throws Exception
      * @throws ReflectionException
      * @throws TypeError
@@ -653,7 +685,7 @@ class FastTest extends TestCase
         $request = $this->app->fromGlobals();
         $this->app->setRequest($request->withAttribute('id', 1));
 
-        $result = \Octo\instanciator()->callMethod('testWithId');
+        $result = \Octo\gi()->callMethod('testWithId');
 
         $this->assertSame(5, $result);
     }
@@ -767,7 +799,7 @@ class FastTest extends TestCase
     /**
      * @throws Exception
      */
-    public function testBlade()
+    public function testBlader()
     {
         $str = '<h1>Test {{$name}}</h1>';
 

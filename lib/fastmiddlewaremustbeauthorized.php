@@ -11,9 +11,8 @@ class Fastmiddlewaremustbeauthorized extends FastMiddleware
     /**
      * @param ServerRequestInterface $request
      * @param DelegateInterface $next
-     *
      * @return ResponseInterface
-     *
+     * @throws \ReflectionException
      */
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {

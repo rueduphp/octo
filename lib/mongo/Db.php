@@ -26,7 +26,14 @@
 
         public static $cache = [];
 
-        public function __construct($db, $table, $config = [])
+        /**
+         * @param string $db
+         * @param string $table
+         * @param array $config
+         * @throws Exception
+         * @throws \MongoConnectionException
+         */
+        public function __construct(string $db, string $table, array $config = [])
         {
             $db                 = strtolower($db);
             $table              = strtolower($table);
@@ -57,7 +64,7 @@
 
         public function em()
         {
-            return dbm($this->collection);
+            return \Octo\dbm($this->collection);
         }
 
         private function connect($protocol, $user, $password, $host, $port, $incr = 0)
@@ -65,7 +72,7 @@
             try {
                 $this->cnx = new MGC($protocol . '://' . $user . ':' . $password . '@' . $host . ':' . $port, ['connect' => true]);
             } catch (\MongoConnectionException $e) {
-                if (APPLICATION_ENV == 'production') {
+                if (APPLICATION_ENV === 'production') {
                     $incr++;
 
                     if (20 < $incr) {
@@ -101,6 +108,12 @@
             return date('d/m/Y H:i:s', $this->getAge());
         }
 
+        /**
+         * @param null $age
+         * @return $this
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         */
         public function setAge($age = null)
         {
             $age = is_null($age) ? time() : $age;
@@ -110,6 +123,13 @@
             return $this;
         }
 
+        /**
+         * @param $age
+         * @return array|bool
+         * @throws \MongoCursorException
+         * @throws \MongoCursorTimeoutException
+         * @throws \MongoException
+         */
         private function addAge($age)
         {
             $coll = $this->getCollection($this->db . '.ages');
@@ -122,7 +142,6 @@
 
         /**
          * @return array|bool
-         *
          * @throws \MongoCursorException
          * @throws \MongoCursorTimeoutException
          */
@@ -136,6 +155,9 @@
             );
         }
 
+        /**
+         * @return mixed|null
+         */
         private function retrieveAge()
         {
             $coll   = $this->getCollection($this->db . '.ages');

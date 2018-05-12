@@ -30,7 +30,7 @@ class Fastmiddlewarerouter extends FastMiddleware
             }
 
             $app->define('route', $route);
-            In::set('route', $route);
+            In::set('actual.route', $route);
         }
 
         return $next->process($request);

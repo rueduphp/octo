@@ -2,3 +2,8 @@
 /tests/storage/cache/
 /.idea
 composer.lock
+/example/node_modules
+/example/app/storage
+/example/lib
+/example/example
+/example/vendor

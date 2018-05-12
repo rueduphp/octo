@@ -585,13 +585,12 @@
                 return Time::createFromTimestamp(isAke($this->data, $k, time()));
             }
 
-            return value(
+            return
                 Arrays::get(
                     $this->data,
                     $k,
                     value($d)
-                )
-            );
+                );
         }
 
         /**

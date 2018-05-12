@@ -145,6 +145,7 @@
         /**
          * @param string $field
          * @param int $length
+         * @throws \ReflectionException
          */
         protected function isMinLength(string $field, int $length)
         {

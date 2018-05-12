@@ -110,7 +110,7 @@ class Trad extends Resolve implements FastTranslatorInterface
         ;
 
         foreach ($locales as $locale) {
-            if (! is_null($line = $this->getLine(
+            if (!is_null($line = $this->getLine(
                 $namespace, $group, $locale, $item, $replace
             ))) {
                 break;
@@ -195,12 +195,13 @@ class Trad extends Resolve implements FastTranslatorInterface
     }
 
     /**
-     * @param  string  $namespace
-     * @param  string  $group
-     * @param  string  $locale
-     * @param  string  $item
-     * @param  array   $replace
-     * @return string|array|null
+     * @param $namespace
+     * @param $group
+     * @param $locale
+     * @param $item
+     * @param array $replace
+     * @return mixed|null|string
+     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
      */
     protected function getLine($namespace, $group, $locale, $item, array $replace)
     {
@@ -265,10 +266,10 @@ class Trad extends Resolve implements FastTranslatorInterface
     }
 
     /**
-     * @param  string  $namespace
-     * @param  string  $group
-     * @param  string  $locale
-     * @return void
+     * @param $namespace
+     * @param $group
+     * @param $locale
+     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
      */
     public function load($namespace, $group, $locale)
     {

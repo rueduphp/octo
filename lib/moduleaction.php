@@ -21,13 +21,11 @@ class Moduleaction implements MiddlewareInterface
     /**
      * @param ServerRequestInterface $request
      * @param DelegateInterface $next
-     *
      * @return mixed|null|ResponseInterface
-     *
      * @throws \ReflectionException
      */
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {
-        return instanciator()->call($this->callable);
+        return callThat($this->callable);
     }
 }

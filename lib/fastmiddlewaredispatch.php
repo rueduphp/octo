@@ -1,6 +1,7 @@
 <?php
 namespace Octo;
 
+use Closure;
 use Interop\Http\ServerMiddleware\DelegateInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -36,12 +37,18 @@ class Fastmiddlewaredispatch extends FastMiddleware
 
                 $response = gi()->call($module, $action);
             } else {
-                $module     = gi()->make($middleware);
-                $callable   = [$module, 'run'];
-                $response   = call_user_func_array($callable, [$action, $request, $app]);
+                if ($middleware instanceof Closure) {
+                    $response = gi()->makeClosure($middleware, $request, $next);
+                } else {
+                    $module     = gi()->make($middleware);
+                    $callable   = [$module, 'run'];
+                    $response   = call_user_func_array($callable, [$action, $request, $app]);
+                }
             }
 
-            actual('fast.module', $module);
+            if (isset($module)) {
+                actual('fast.module', $module);
+            }
 
             if (is_string($response) || is_numeric($response)) {
                 return $app->response(200, [], $response);

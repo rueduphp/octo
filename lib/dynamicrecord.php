@@ -59,7 +59,7 @@ class Dynamicrecord implements ArrayAccess
             $methods = get_class_methods($class);
 
             if (in_array('activeRecord', $methods)) {
-                $class->activeRecord($this);
+                gi()->call($class, 'activeRecord', $this);
             }
 
             $traits = allClasses($class);
@@ -212,7 +212,7 @@ class Dynamicrecord implements ArrayAccess
      */
     public function checkAndSave(callable $cb)
     {
-        $check = callCallable($cb, $this);
+        $check = callThat($cb, $this);
 
         if (true === $check) {
             return $this->save();
@@ -236,6 +236,7 @@ class Dynamicrecord implements ArrayAccess
 
     /**
      * @return bool
+     * @throws \ReflectionException
      */
     public function delete(): bool
     {
@@ -263,6 +264,15 @@ class Dynamicrecord implements ArrayAccess
         unset($clone['updated_at']);
 
         return (new self($clone->toArray(), $this->__db, $this->__class))->save();
+    }
+
+    /**
+     * @return Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public function same()
+    {
+        return $this->copy();
     }
 
     /**

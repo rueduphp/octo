@@ -3,10 +3,16 @@
 
     use Carbon\Carbon;
     use Closure;
+    use Detection\MobileDetect;
     use GuzzleHttp\Psr7\Response;
     use Illuminate\Container\Container as IllDic;
     use Illuminate\Filesystem\Filesystem;
     use Illuminate\Support\Debug\Dumper;
+    use Illuminate\Support\Facades\Blade as FacadeBlade;
+    use Illuminate\View\Compilers\BladeCompiler;
+    use Illuminate\View\Engines\CompilerEngine;
+    use Illuminate\View\Engines\EngineResolver;
+    use Illuminate\View\FileViewFinder;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Psr\Http\Message\ServerRequestInterface;
     use Ramsey\Uuid\Codec\TimestampFirstCombCodec;
@@ -304,9 +310,8 @@
     /**
      * @param string $file
      * @param array $context
-     *
      * @return string
-     *
+     * @throws Exception
      * @throws \ReflectionException
      * @throws \Twig_Error_Loader
      * @throws \Twig_Error_Runtime
@@ -327,16 +332,37 @@
     }
 
     /**
+     * @param $path
+     * @return \Twig_Loader_Filesystem
+     * @throws \ReflectionException
+     * @throws \Twig_Error_Loader
+     */
+    function twigAddPath($path)
+    {
+        /** @var \Twig_Loader_Filesystem $loader */
+        $loader = In::get('twig.loader');
+
+        $loader->addPath($path);
+
+        return $loader;
+    }
+
+    /**
      * @param null|string $folder
      * @param array $config
      * @return FastTwigRenderer
+     * @throws Exception
      * @throws \ReflectionException
      */
     function twigRenderer(?string $folder = null, array $config = [])
     {
-        $debug = 'production' !== appenv('APPLICATION_ENV', 'production');
+        $debug = notSame('production', appenv('APPLICATION_ENV', 'production'));
 
-        $cachePath = appenv('CACHE_PATH', path('app') . '/storage/cache') . '/twig';
+        $cachePath = appenv('CACHE_PATH', cache_path()) . '/twig';
+
+        if (!is_dir($cachePath) && !$debug) {
+            File::mkdir($cachePath);
+        }
 
         $defaultConfig = [
             'debug'         => $debug,
@@ -354,6 +380,8 @@
             $container->define('view.path', $folder);
 
             $loader = new \Twig_Loader_Filesystem($folder);
+
+            In::setIf('twig.loader', $loader);
 
             $renderer = new FastTwigRenderer($loader, $conf);
 
@@ -1136,7 +1164,7 @@
 
         $file = $path . DS . date('Y_m_d') . '.logs';
 
-        File::append($file, date('H:i:s') . ':' . $type . ' => ' . $message);
+        File::append($file, '### ' . date('H:i:s') . ':' . $type . ' => ' . $message . "\n");
     }
 
     /**
@@ -1222,6 +1250,15 @@
     }
 
     /**
+     * @param string $argumentString
+     * @return array
+     */
+    function getArguments(string $argumentString): array
+    {
+        return explode(', ', str_replace(['(', ')'], '', $argumentString));
+    }
+
+    /**
      * @param string $path
      * @param null|string $locale
      * @return Trad
@@ -1302,11 +1339,11 @@
 
     /**
      * @param array $array
-     * @param string $k
+     * @param null|string $k
      * @param null $d
      * @return mixed|null
      */
-    function aget(array $array, string $k, $d = null)
+    function aget(array $array, ?string $k, $d = null)
     {
         return Arrays::get($array, $k, $d);
     }
@@ -2443,6 +2480,26 @@
         }
 
         return Arrays::get($array, $k, $d);
+    }
+
+    /**-
+     * @param string $namespace
+     * @param string $userKey
+     * @return Ultimate
+     */
+    function ultimate(string $namespace = 'web', string $userKey = 'user'): Ultimate
+    {
+        static $ultimates = [];
+
+        $key = sha1($namespace . $userKey);
+
+        if (!$session = isAke($ultimates, $key, null)) {
+            $session = new Ultimate($namespace, $userKey);
+
+            $ultimates[$key] = $session;
+        }
+
+        return $session;
     }
 
     /**
@@ -3719,12 +3776,27 @@
     }
 
     /**
-     * @param string $key
-     * @param string $path
+     * @return Fillable
      */
-    function in_path(string $key, string $path)
+    function in_paths(): Fillable
     {
-        In::self()['paths'][$key] = $path;
+        return In::self()['paths'];
+    }
+
+    /**
+     * @param string $key
+     * @param null|string $path
+     * @return null|string
+     */
+    function in_path(string $key, ?string $path = null): ?string
+    {
+        if (null !== $path) {
+            in_paths()[$key] = $path;
+
+            return $path;
+        }
+
+        return in_paths()[$key];
     }
 
     /**
@@ -3733,7 +3805,7 @@
      */
     function public_path(string $path = '')
     {
-        return In::self()['paths']['public'] . ($path ? DS . ltrim($path, DS) : $path);
+        return in_path('public') . ($path ? DS . trim($path, DS) : $path);
     }
 
     /**
@@ -3743,7 +3815,7 @@
      */
     function cache_path(string $path = '')
     {
-        return In::self()['paths']['cache'] . ($path ? DS . ltrim($path, DS) : $path);
+        return in_path('cache') . ($path ? DS . trim($path, DS) : $path);
     }
 
     /**
@@ -3753,9 +3825,8 @@
      */
     function app_path(string $path = '')
     {
-        return In::self()['paths']['app'] . ($path ? DS . ltrim($path, DS) : $path);
+        return in_path('app') . ($path ? DS . trim($path, DS) : $path);
     }
-
 
     /**
      * @param string $path
@@ -3764,7 +3835,7 @@
      */
     function session_path(string $path = '')
     {
-        return In::self()['paths']['session'] . ($path ? DS . ltrim($path, DS) : $path);
+        return in_path('session') . ($path ? DS . trim($path, DS) : $path);
     }
 
     /**
@@ -3774,7 +3845,37 @@
      */
     function storage_path(string $path = '')
     {
-        return In::self()['paths']['storage'] . ($path ? DS . ltrim($path, DS) : $path);
+        return in_path('storage') . ($path ? DS . trim($path, DS) : $path);
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
+    function log_path(string $path = '')
+    {
+        return in_path('log') . ($path ? DS . trim($path, DS) : $path);
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
+    function lang_path(string $path = '')
+    {
+        return in_path('lang') . ($path ? DS . trim($path, DS) : $path);
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
+    function assets_path(string $path = '')
+    {
+        return in_path('assets') . ($path ? DS . trim($path, DS) : $path);
     }
 
     /**
@@ -3805,8 +3906,8 @@
             $manifestDirectory = "/{$manifestDirectory}";
         }
 
-        if (file_exists(public_path($manifestDirectory . '/hot'))) {
-            $url = file_get_contents(public_path($manifestDirectory . '/hot'));
+        if (File::exists(public_path($manifestDirectory . '/hot'))) {
+            $url = File::read(public_path($manifestDirectory . '/hot'));
 
             if (startsWith($url, ['http://', 'https://'])) {
                 return Inflector::after($url, ':') . $path;
@@ -3818,14 +3919,14 @@
         $manifestPath = public_path($manifestDirectory . '/mix-manifest.json');
 
         if (!isset($manifests[$manifestPath])) {
-            if (!file_exists($manifestPath)) {
+            if (!File::exists($manifestPath)) {
                 throw new \Exception('The Mix manifest does not exist.');
             }
 
-            $manifests[$manifestPath] = json_decode(file_get_contents($manifestPath), true);
+            $manifests[$manifestPath] = json_decode(File::read($manifestPath), true);
         }
 
-        $manifest = $manifests[$manifestPath];
+        $manifest = $manifests[$manifestPath] ?? [];
 
         if (!isset($manifest[$path])) {
             return $path;
@@ -3846,7 +3947,7 @@
         $result = null;
 
         foreach ($args as $callable) {
-            $result = instanciator()->makeClosure($callable, $result);
+            $result = gi()->makeClosure($callable, $result);
         }
 
         return $result;
@@ -3867,11 +3968,11 @@
         if (is_callable($first) && is_callable($next)) {
             $params = array_merge([$first], $args);
 
-            $result = callCallable(...$params);
+            $result = callThat(...$params);
 
             $params = array_merge([$next, $result], $args);
 
-            return callCallable(...$params);
+            return callThat(...$params);
         }
 
         return null;
@@ -4242,8 +4343,44 @@
             }
         });
 
-        In::self()['paths'] = function () {
+        $in = In::self();
+
+        $in['paths'] = function () {
             return gi()->make(Fillable::class, ['paths']);
+        };
+
+        $in['config'] = function () {
+            return gi()->make(Fillable::class, ['config']);
+        };
+
+        $in['locale'] = function () {
+            $session         = getSession();
+            $language        = $session['locale'];
+            $isCli           = false;
+            $fromBrowser     = isAke($_SERVER, 'HTTP_ACCEPT_LANGUAGE', false);
+
+            if (false === $fromBrowser) {
+                $isCli = true;
+            }
+
+            if ($isCli) {
+                return in('config')['locale'] ?: 'en';
+            }
+
+            if (is_null($language)) {
+                /** @var FastRequest $request */
+                $request = in('request');
+
+                $language = $request->input('locale', \Locale::acceptFromHttp($fromBrowser));
+            }
+
+            if (fnmatch('*_*', $language)) {
+                list($language, $d) = explode('_', $language, 2);
+            }
+
+            $session['locale'] = $language;
+
+            return $language;
         };
 
         loadEvents();
@@ -4255,6 +4392,36 @@
         middlewares();
 
         rights();
+    }
+
+    /**
+     * @param string $name
+     * @param null|string $driver
+     * @return Live
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    function appSession(string $name, ?string $driver = null): Live
+    {
+        $key = 'sessions.' . $name;
+
+        if (Instances::has($key)) {
+            return Instances::get($key);
+        }
+
+        if (null === $driver) {
+            $class = get_class(getSession());
+
+            $driver = new $class($name);
+        } else {
+            $driver = new $driver($name);
+        }
+
+        $live = new Live($driver);
+
+        Instances::make($key, $live);
+
+        return $live;
     }
 
     /**
@@ -4272,6 +4439,10 @@
 
         $in['request'] = function () {
             return gi()->make(FastRequest::class);
+        };
+
+        $in['log'] = function () {
+            return gi()->make(Logger::class);
         };
 
         $in['cache'] = function () {
@@ -4298,12 +4469,12 @@
             return dispatcher('app');
         };
 
-        $in['config'] = function () {
-            return gi()->make(Fillable::class, ['config']);
-        };
-
         $in['flash'] = function () {
             return gi()->make(Flasher::class, [getSession()]);
+        };
+
+        $in['routes'] = function () {
+            return getCore('allroutes');
         };
 
         $in['redirect'] = function () {
@@ -4314,8 +4485,20 @@
             return You::called();
         };
 
+        $in::singleton('event', function () {
+            return new Fire('core');
+        });
+
         $in::singleton('hash', function () {
             return new Hasher;
+        });
+
+        $in::singleton('setup', function () {
+            return new Setup;
+        });
+
+        $in::singleton('mobile-detect', function () {
+            return new MobileDetect;
         });
 
         $in::singleton('redis', function () {
@@ -4326,12 +4509,28 @@
             return new Ghost;
         });
 
-//        $in::singleton('memory', function () {
-//            return new Shm;
-//        });
+        $in::singleton('view', function () use ($in) {
+            $view = new Component;
 
-        $in::singleton('instant', function () {
-            return (new Instant('sesscore', new Nativesession(new Filesystem, session_path(), 120)))->start();
+            $view['with'] = function ($type, $message) use ($in, $view) {
+                $in['session']->push($type, $message);
+
+                return $view;
+            };
+
+            $view['self'] = function () use ($view) {
+                return $view;
+            };
+
+            $view['render'] = function (string $name, array $parameters = []) use ($in) {
+                return gi()->call($in['module'], 'render', $name, $parameters);
+            };
+
+            $view['make'] = function (string $name, array $parameters = []) use ($in) {
+                return gi()->call($in['module'], 'render', $name, $parameters);
+            };
+
+            return $view;
         });
     }
 
@@ -5443,7 +5642,7 @@
     function csrf()
     {
         $middleware     = new Fastmiddlewarecsrf(getSession());
-        $token          = $middleware->generateToken();
+        $token          = csrf_make();
         $tokenName      = $middleware->getFormKey();
 
         return '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
@@ -5581,6 +5780,13 @@
     function injector($make, $params = [])
     {
         return maker($make, $params, false);
+    }
+
+    function registerDirective($directive)
+    {
+        FacadeBlade::directive($directive->openingTag(), [$directive, 'openingHandler']);
+        FacadeBlade::directive($directive->closingTag(), [$directive, 'closingHandler']);
+        FacadeBlade::directive($directive->alternatingTag(), [$directive, 'alternatingHandler']);
     }
 
     /**
@@ -5774,13 +5980,39 @@
     }
 
     /**
-     * @return Live|Session
+     * @param null|string $name
+     * @param null|string $driver
+     * @return mixed|null|Live|Session
+     * @throws Exception
      * @throws \ReflectionException
-     * @throws \TypeError
      */
-    function getSession()
+    function getSession(?string $name = null, ?string $driver = null)
     {
-        return getContainer()->getSession();
+        if (!$session = getContainer()->getSession()) {
+            $name = $name ?: 'core';
+            $session = ultimate($name);
+
+            getContainer()->setSession($session);
+        }
+
+        return null === $name ? $session : appSession($name, $driver);
+    }
+
+
+    /**
+     * @param string $name
+     * @return Ultimate
+     * @throws Exception
+     * @throws \ReflectionException
+     */
+    function startSession(string $name = 'core')
+    {
+        $session = ultimate($name);
+        getContainer()->setSession($session);
+
+        new Live($session);
+
+        return $session;
     }
 
     /**
@@ -7148,10 +7380,9 @@
      */
     function getCore(string $key, $default = null)
     {
-        $data = coreData();
         $k = 'core.' . $key;
 
-        return isAke($data, $k, $default);
+        return isAke(coreData(), $k, $default);
     }
 
     /**
@@ -7160,10 +7391,9 @@
      */
     function hasCore(string $key): bool
     {
-        $data = coreData();
         $k = 'core.' . $key;
 
-        return 'octodummy' !== isAke($data, $k, 'octodummy');
+        return 'octodummy' !== isAke(coreData(), $k, 'octodummy');
     }
 
     /**
@@ -7234,29 +7464,35 @@
 
     /**
      * @param string $key
-     * @param $cb
-     * @return mixed
+     * @param mixed|null $cb
+     * @return mixed|null
+     * @throws \ReflectionException
      */
     function lazyCore(string $key, $cb = null)
     {
         $res = getCore($key, 'octodummy');
 
         if ('octodummy' === $res) {
-            setCore($key, $res = is_callable($cb) ? $cb() : $cb);
+            setCore($key, $res = is_callable($cb) ? callThat($cb) : $cb);
         }
 
         return $res;
     }
 
     /**
-     * @param array ...$args
-     * @return mixed
+     * @param mixed ...$args
+     * @return mixed|null
+     * @throws \ReflectionException
      */
     function unik(...$args)
     {
         return lazyCore(...$args);
     }
 
+    /**
+     * @param mixed ...$args
+     * @return \Mockery\Container
+     */
     function m(...$args)
     {
         return new \Mockery\Container(...$args);
@@ -7340,6 +7576,11 @@
         return $props;
     }
 
+    /**
+     * @param float $vat
+     * @param float $price
+     * @return float
+     */
     function ttc(float $vat, float $price)
     {
         return floor($price * (($vat + 100) / 100));
@@ -7530,6 +7771,7 @@
 
     /**
      * @return \Illuminate\Database\Schema\Builder
+     * @throws \ReflectionException
      */
     function getSchema()
     {
@@ -7539,6 +7781,7 @@
     /**
      * @param string $table
      * @return bool
+     * @throws \ReflectionException
      */
     function hasTable(string $table)
     {
@@ -7547,8 +7790,9 @@
 
     /**
      * @param $table
-     * @param array ...$columns
+     * @param mixed ...$columns
      * @return bool
+     * @throws \ReflectionException
      */
     function hasColumn($table, ...$columns)
     {
@@ -7558,8 +7802,9 @@
 
     /**
      * @param $table
-     * @param array ...$columns
+     * @param mixed ...$columns
      * @return bool
+     * @throws \ReflectionException
      */
     function hasColumns($table, ...$columns)
     {
@@ -7581,7 +7826,11 @@
         }
     }
 
-    function isFakeMail($mail)
+    /**
+     * @param string $mail
+     * @return bool
+     */
+    function isFakeMail(string $mail)
     {
         $fakes = ['0815.ru0clickemail.com', '0wnd.net', '0wnd.org', '10minutemail.com', '20minutemail.com', '2prong.com', '3d-painting.com', '4warding.com', '4warding.net', '4warding.org', '9ox.net', 'a-bc.net', 'amilegit.com', 'anonbox.net', 'anonymbox.com', 'antichef.com', 'antichef.net', 'antispam.de', 'baxomale.ht.cx', 'beefmilk.com', 'binkmail.com', 'bio-muesli.net', 'bobmail.info', 'bodhi.lawlita.com', 'bofthew.com', 'brefmail.com', 'bsnow.net', 'bugmenot.com', 'bumpymail.com', 'casualdx.com', 'chogmail.com', 'cool.fr.nf', 'correo.blogos.net', 'cosmorph.com', 'courriel.fr.nf', 'courrieltemporaire.com', 'curryworld.de', 'cust.in', 'dacoolest.com', 'dandikmail.com', 'deadaddress.com', 'despam.it', 'devnullmail.com', 'dfgh.net', 'digitalsanctuary.com', 'discardmail.com', 'discardmail.de', 'disposableaddress.com', 'disposemail.com', 'dispostable.com', 'dm.w3internet.co.uk example.com', 'dodgeit.com', 'dodgit.com', 'dodgit.org', 'dontreg.com', 'dontsendmespam.de', 'dump-email.info', 'dumpyemail.com', 'e4ward.com', 'email60.com', 'emailias.com', 'emailinfive.com', 'emailmiser.com', 'emailtemporario.com.br', 'emailwarden.com', 'ephemail.net', 'explodemail.com', 'fakeinbox.com', 'fakeinformation.com', 'fastacura.com', 'filzmail.com', 'fizmail.com', 'frapmail.com', 'garliclife.com', 'get1mail.com', 'getonemail.com', 'getonemail.net', 'girlsundertheinfluence.com', 'gishpuppy.com', 'great-host.in', 'gsrv.co.uk', 'guerillamail.biz', 'guerillamail.com', 'guerillamail.net', 'guerillamail.org', 'guerrillamail.com', 'guerrillamailblock.com', 'haltospam.com', 'hotpop.com', 'ieatspam.eu', 'ieatspam.info', 'ihateyoualot.info', 'imails.info', 'inboxclean.com', 'inboxclean.org', 'incognitomail.com', 'incognitomail.net', 'ipoo.org', 'irish2me.com', 'jetable.com', 'jetable.fr.nf', 'jetable.net', 'jetable.org', 'junk1e.com', 'kaspop.com', 'kulturbetrieb.info', 'kurzepost.de', 'lifebyfood.com', 'link2mail.net', 'litedrop.com', 'lookugly.com', 'lopl.co.cc', 'lr78.com', 'maboard.com', 'mail.by', 'mail.mezimages.net', 'mail4trash.com', 'mailbidon.com', 'mailcatch.com', 'maileater.com', 'mailexpire.com', 'mailin8r.com', 'mailinator.com', 'mailinator.net', 'mailinator2.com', 'mailincubator.com', 'mailme.lv', 'mailnator.com', 'mailnull.com', 'mailzilla.org', 'mbx.cc', 'mega.zik.dj', 'meltmail.com', 'mierdamail.com', 'mintemail.com', 'moncourrier.fr.nf', 'monemail.fr.nf', 'monmail.fr.nf', 'mt2009.com', 'mx0.wwwnew.eu', 'mycleaninbox.net', 'mytrashmail.com', 'neverbox.com', 'nobulk.com', 'noclickemail.com', 'nogmailspam.info', 'nomail.xl.cx', 'nomail2me.com', 'no-spam.ws', 'nospam.ze.tc', 'nospam4.us', 'nospamfor.us', 'nowmymail.com', 'objectmail.com', 'obobbo.com', 'onewaymail.com', 'ordinaryamerican.net', 'owlpic.com', 'pookmail.com', 'proxymail.eu', 'punkass.com', 'putthisinyourspamdatabase.com', 'quickinbox.com', 'rcpt.at', 'recode.me', 'recursor.net', 'regbypass.comsafe-mail.net', 'safetymail.info', 'sandelf.de', 'saynotospams.com', 'selfdestructingmail.com', 'sendspamhere.com', 'shiftmail.com', '****mail.me', 'skeefmail.com', 'slopsbox.com', 'smellfear.com', 'snakemail.com', 'sneakemail.com', 'sofort-mail.de', 'sogetthis.com', 'soodonims.com', 'spam.la', 'spamavert.com', 'spambob.net', 'spambob.org', 'spambog.com', 'spambog.de', 'spambog.ru', 'spambox.info', 'spambox.us', 'spamcannon.com', 'spamcannon.net', 'spamcero.com', 'spamcorptastic.com', 'spamcowboy.com', 'spamcowboy.net', 'spamcowboy.org', 'spamday.com', 'spamex.com', 'spamfree24.com', 'spamfree24.de', 'spamfree24.eu', 'spamfree24.info', 'spamfree24.net', 'spamfree24.org', 'spamgourmet.com', 'spamgourmet.net', 'spamgourmet.org', 'spamherelots.com', 'spamhereplease.com', 'spamhole.com', 'spamify.com', 'spaminator.de', 'spamkill.info', 'spaml.com', 'spaml.de', 'spammotel.com', 'spamobox.com', 'spamspot.com', 'spamthis.co.uk', 'spamthisplease.com', 'speed.1s.fr', 'suremail.info', 'tempalias.com', 'tempemail.biz', 'tempemail.com', 'tempe-mail.com', 'tempemail.net', 'tempinbox.co.uk', 'tempinbox.com', 'tempomail.fr', 'temporaryemail.net', 'temporaryinbox.com', 'thankyou2010.com', 'thisisnotmyrealemail.com', 'throwawayemailaddress.com', 'tilien.com', 'tmailinator.com', 'tradermail.info', 'trash2009.com', 'trash-amil.com', 'trashmail.at', 'trash-mail.at', 'trashmail.com', 'trash-mail.com', 'trash-mail.de', 'trashmail.me', 'trashmail.net', 'trashymail.com', 'trashymail.net', 'tyldd.com', 'uggsrock.com', 'wegwerfmail.de', 'wegwerfmail.net', 'wegwerfmail.org', 'wh4f.org', 'whyspam.me', 'willselfdestruct.com', 'winemaven.info', 'wronghead.com', 'wuzupmail.net', 'xoxy.net', 'yogamaven.com', 'yopmail.com', 'yopmail.fr', 'yopmail.net', 'yuurok.com', 'zippymail.info', 'jnxjn.com', 'trashmailer.com', 'klzlk.com', 'nospamforus','kurzepost.de', 'objectmail.com', 'proxymail.eu', 'rcpt.at', 'trash-mail.at', 'trashmail.at', 'trashmail.me', 'trashmail.net', 'wegwerfmail.de', 'wegwerfmail.net', 'wegwerfmail.org', 'jetable', 'link2mail', 'meltmail', 'anonymbox', 'courrieltemporaire', 'sofimail', '0-mail.com', 'moburl.com', 'get2mail', 'yopmail', '10minutemail', 'mailinator', 'dispostable', 'spambog', 'mail-temporaire','filzmail','sharklasers.com', 'guerrillamailblock.com', 'guerrillamail.com', 'guerrillamail.net', 'guerrillamail.biz', 'guerrillamail.org', 'guerrillamail.de','mailmetrash.com', 'thankyou2010.com', 'trash2009.com', 'mt2009.com', 'trashymail.com', 'mytrashmail.com','mailcatch.com','trillianpro.com','junk.','joliekemulder','lifebeginsatconception','beerolympics','smaakt.naar.gravel','q00.','dispostable','spamavert','mintemail','tempemail','spamfree24','spammotel','spam','mailnull','e4ward','spamgourmet','mytempemail','incognitomail','spamobox','mailinator.com', 'trashymail.com', 'mailexpire.com', 'temporaryinbox.com', 'MailEater.com', 'spambox.us', 'spamhole.com', 'spamhole.com', 'jetable.org', 'guerrillamail.com', 'uggsrock.com', '10minutemail.com', 'dontreg.com', 'tempomail.fr', 'TempEMail.net', 'spamfree24.org', 'spamfree24.de', 'spamfree24.info', 'spamfree24.com', 'spamfree.eu', 'kasmail.com', 'spammotel.com', 'greensloth.com', 'spamspot.com', 'spam.la', 'mjukglass.nu', 'slushmail.com', 'trash2009.com', 'mytrashmail.com', 'mailnull.com', 'jetable.org','10minutemail.com', '20minutemail.com', 'anonymbox.com', 'beefmilk.com', 'bsnow.net', 'bugmenot.com', 'deadaddress.com', 'despam.it', 'disposeamail.com', 'dodgeit.com', 'dodgit.com', 'dontreg.com', 'e4ward.com', 'emailias.com', 'emailwarden.com', 'enterto.com', 'gishpuppy.com', 'goemailgo.com', 'greensloth.com', 'guerrillamail.com', 'guerrillamailblock.com', 'hidzz.com', 'incognitomail.net ', 'jetable.org', 'kasmail.com', 'lifebyfood.com', 'lookugly.com', 'mailcatch.com', 'maileater.com', 'mailexpire.com', 'mailin8r.com', 'mailinator.com', 'mailinator.net', 'mailinator2.com', 'mailmoat.com', 'mailnull.com', 'meltmail.com', 'mintemail.com', 'mt2009.com', 'myspamless.com', 'mytempemail.com', 'mytrashmail.com', 'netmails.net', 'odaymail.com', 'pookmail.com', 'shieldedmail.com', 'smellfear.com', 'sneakemail.com', 'sogetthis.com', 'soodonims.com', 'spam.la', 'spamavert.com', 'spambox.us', 'spamcero.com', 'spamex.com', 'spamfree24.com', 'spamfree24.de', 'spamfree24.eu', 'spamfree24.info', 'spamfree24.net', 'spamfree24.org', 'spamgourmet.com', 'spamherelots.com', 'spamhole.com', 'spaml.com', 'spammotel.com', 'spamobox.com', 'spamspot.com', 'tempemail.net', 'tempinbox.com', 'tempomail.fr', 'temporaryinbox.com', 'tempymail.com', 'thisisnotmyrealemail.com', 'trash2009.com', 'trashmail.net', 'trashymail.com', 'tyldd.com', 'yopmail.com', 'zoemail.com','deadaddress','soodo','tempmail','uroid','spamevader','gishpuppy','privymail.de','trashmailer.com','fansworldwide.de','onewaymail.com', 'mobi.web.id', 'ag.us.to', 'gelitik.in', 'fixmail.tk'];
 
@@ -7613,7 +7862,7 @@
      */
     function getEventManager()
     {
-        return instanciator()->singleton(FastEvent::class);
+        return gi()->make(FastEvent::class);
     }
 
     /**
@@ -9319,6 +9568,23 @@
     }
 
     /**
+     * @param mixed ...$args
+     * @return null|string
+     */
+    function action(...$args): ?string
+    {
+        $next = array_shift($args);
+
+        $route = coll(In::self()['routes'])->where('next', $next)->first();
+
+        if ($route) {
+            return getRouter()->generateUri($route['name'], $args);
+        }
+
+        return null;
+    }
+
+    /**
      * @return mixed|null
      */
     function actual()
@@ -10784,15 +11050,15 @@
 
     function handler($concern, $object)
     {
-        $handlers = Registry::get('core.$handlers', Registry::get('core.all.binds', []));
+        $handlers = Registry::get('core.handlers', Registry::get('core.all.binds', []));
 
         $handlers[$concern] = $object;
-        Registry::set('core.$handlers', $handlers);
+        Registry::set('core.handlers', $handlers);
     }
 
     function handled($concern)
     {
-        $handlers = Registry::get('core.$handlers', Registry::get('core.all.binds', []));
+        $handlers = Registry::get('core.handlers', Registry::get('core.all.binds', []));
 
         return isAke($handlers, $concern, null);
     }
@@ -10814,7 +11080,7 @@
      */
     function notSame($a, $b)
     {
-        return false === same($a, $b);
+        return $a !== $b;
     }
 
     /**
@@ -10822,11 +11088,11 @@
      */
     function addDynamicEntity(Dynamicentity $entity)
     {
-        $entities = getCore('dynentities', []);
+        $entities = getCore('dyn.entities', []);
 
         $entities[$entity->entity()] = $entity;
 
-        setCore('dynentities', $entities);
+        setCore('dyn.entities', $entities);
     }
 
     /**
@@ -10835,7 +11101,7 @@
      */
     function getDynamicEntity(string $entity)
     {
-        $entities = getCore('dynentities', []);
+        $entities = getCore('dyn.entities', []);
 
         return isAke($entities, $entity, null);
     }
@@ -10849,7 +11115,7 @@
      */
     function compare($actual, $operator, $value = 'octodummy')
     {
-        if ('octodummy' === $value) {
+        if (same('octodummy', $value)) {
             $value = $operator;
 
             if (is_array($actual) || is_object($actual)) {
@@ -11195,7 +11461,7 @@
      */
     function files()
     {
-        return instanciator()->singleton(Filesystem::class);
+        return gi()->make(Filesystem::class);
     }
 
     /**
@@ -11209,48 +11475,188 @@
      */
     function blade(string $path, array $data = []): string
     {
-        $key = sha1($path . serialize($data));
-        $age = File::age($path . '.blade.php');
+        $content = File::read($path . '.blade.php');
 
-        /** @var Cache $cache */
-        $cache = dic()['cache'];
-        $cache->setNS('blade');
+        return blader($content, $data);
+    }
 
-        return $cache->until($key, function () use ($path, $data) {
-            $content = File::read($path . '.blade.php');
+    /**
+     * @param string $name
+     * @param array $paths
+     * @param $extensions
+     * @return null|string
+     */
+    function findPath(string $name, array $paths, $extensions)
+    {
+        foreach ((array) $paths as $path) {
+            foreach (filesExtended($name, $extensions) as $file) {
+                if (File::exists($foundPath = $path . '/' . $file)) {
+                    return $foundPath;
+                }
+            }
+        }
 
-            return blader($content, $data);
-        }, $age);
+        return null;
+    }
+
+    /**
+     * @param string $name
+     * @param $extensions
+     * @return array
+     */
+    function filesExtended(string $name, $extensions)
+    {
+        return array_map(function($extension) use ($name) {
+            return str_replace('.', '/', $name) . '.' . $extension;
+        }, (array) $extensions);
+    }
+
+    /**
+     * @return BladeCompiler
+     */
+    function bladeCompiler()
+    {
+        static $bc;
+
+        if (!$bc) {
+            $cache = cache_path('views');
+
+            if (!is_dir($cache)) {
+                mkdir($cache, 0777, true);
+            }
+
+            $fs = new \Illuminate\Filesystem\Filesystem;
+
+            $bc = new BladeCompiler($fs, $cache);
+        }
+
+        return $bc;
+    }
+
+    /**
+     * @param string $file
+     * @param array $parameters
+     * @param null|string $path
+     * @return string
+     * @throws \ReflectionException
+     */
+    function makeView(string $file, array $parameters = [], ?string $path = null)
+    {
+        $path = null !== $path ? $path : in_path('views');
+
+        $blade = bladeFactory([$path]);
+
+        return $blade->make($file, (array) $parameters)->render();
+    }
+
+    /**
+     * @param array $paths
+     * @return \Illuminate\View\Factory
+     * @throws \ReflectionException
+     */
+    function bladeFactory(array $paths)
+    {
+        $resolver = new EngineResolver;
+
+        $compiler = new CompilerEngine(bladeCompiler());
+
+        $resolver->register(
+            'php',
+            function () use ($compiler) {
+                return $compiler;
+            }
+        );
+
+        $resolver->register(
+            'phtml',
+            function () use ($compiler) {
+                return $compiler;
+            }
+        );
+
+        $fs = new \Illuminate\Filesystem\Filesystem;
+
+        $finder = new FileViewFinder(
+            $fs,
+            $paths,
+            ['blade.php', 'php', 'phtml']
+        );
+
+        return new \Illuminate\View\Factory($resolver, $finder, dispatcher());
+    }
+
+    /**
+     * @param string $tag
+     * @param callable $callable
+     */
+    function bladeDirective(string $tag, callable $callable)
+    {
+        bladeCompiler()->directive($tag, $callable);
     }
 
     /**
      * @param string $str
      * @param array $data
-     *
      * @return string
-     *
-     * @throws \Exception
      * @throws \ReflectionException
+     * @throws \Exception
      */
     function blader(string $str, array $data = []): string
     {
-        /** @var FastBladeCompiler $blade */
-        $blade          = gi()->make(FastBladeCompiler::class);
-        $parsed_string  = $blade->compileString($str);
+        setCore('blade.context', $data);
 
+        FastBladeDirectives::register();
+        /** @var FastBladeCompiler $blade */
+        $blade = gi()->make(FastBladeCompiler::class);
+
+        $data['__env'] = $blade;
+
+        return evalApp($blade->compileString($str), $data);
+    }
+
+    /**
+     * @param string $ns
+     * @param string $html
+     * @param array $data
+     * @return string
+     * @throws \Exception
+     */
+    function evalNs(string $ns, string $html, array $data = []): string
+    {
         ob_start() && extract($data, EXTR_SKIP);
 
         try {
-            eval('?>' . $parsed_string);
+            eval(' namespace ' . $ns . '; ?>' . $html . '<?php ');
         } catch (\Exception $e) {
             ob_end_clean();
             throw $e;
         }
 
-        $str = ob_get_contents();
-        ob_end_clean();
+        $str = ob_get_clean();
 
         return $str;
+    }
+
+    /**
+     * @param string $html
+     * @param array $data
+     * @return string
+     * @throws \Exception
+     */
+    function evalApp(string $html, array $data = []): string
+    {
+        return evalNs('App', $html, $data);
+    }
+
+    /**
+     * @param string $html
+     * @param array $data
+     * @return string
+     * @throws \Exception
+     */
+    function evalOcto(string $html, array $data = []): string
+    {
+        return evalNs('Octo', $html, $data);
     }
 
     /**

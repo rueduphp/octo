@@ -114,6 +114,21 @@ class In implements ArrayAccess
     }
 
     /**
+     * @param string $key
+     * @param $callable
+     * @return In
+     * @throws \ReflectionException
+     */
+    public static function setIf(string $key, $callable)
+    {
+        if (!static::has($key)) {
+            static::set($key, $callable);
+        }
+
+        return static::self();
+    }
+
+    /**
      * @param string $from
      * @param string $alias
      * @return In

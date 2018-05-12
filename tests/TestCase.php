@@ -1,5 +1,5 @@
 <?php
-use function Octo\instanciator;
+use Illuminate\Filesystem\Filesystem;
 
 abstract class TestCase extends Octo\TestCase
 {
@@ -16,9 +16,9 @@ abstract class TestCase extends Octo\TestCase
 
         date_default_timezone_set('Europe/Paris');
 
-        Octo\Dir::rmdir(__DIR__ . '/cache');
         Octo\Dir::mkdir(__DIR__ . '/cache');
-        Octo\Dir::rmdir(__DIR__ . '/storage/cache');
+        Octo\Dir::mkdir(__DIR__ . '/session');
+        Octo\Dir::mkdir(__DIR__ . '/log');
         Octo\Dir::mkdir(__DIR__ . '/storage/cache');
 
         $PDOoptions = [
@@ -39,31 +39,54 @@ abstract class TestCase extends Octo\TestCase
 
         Octo\Capsule::instance($pdo);
 
-        Octo\Db::listen(
-            function ($q) {
-                if (!fnmatch('*caching*', $q->sql)) {
-                    Octo\lvd($q->sql . ' ('.implode(', ', $q->bindings).') ['.$q->time.']');
-                }
-            }
-        );
+//        Octo\Db::listen(
+//            function ($q) {
+//                if (!fnmatch('*caching*', $q->sql)) {
+//                    Octo\lvd($q->sql . ' ('.implode(', ', $q->bindings).') ['.$q->time.']');
+//                }
+//            }
+//        );
 
-        $paths = Octo\In::self()['paths'];
+        $paths = Octo\in_paths();
 
         $paths['app']       = __DIR__;
         $paths['base']      = __DIR__;
         $paths['cache']     = __DIR__ . '/cache';
         $paths['storage']   = __DIR__ . '/storage';
         $paths['session']   = __DIR__ . '/session';
+        $paths['log']       = __DIR__ . '/log';
+        $paths['lang']      = __DIR__ . '/lang';
 
-        \Octo\inners();
+        Octo\inners();
+
+        $in = Octo\In::self();
+
+        $in::singleton('filesession', function () {
+            return new Octo\Nativesession(new Filesystem, Octo\session_path(), 120);
+        });
+
+        $in::singleton('instant', function () use ($in) {
+            return (new Octo\Instant('core', $in['filesession']))->start();
+        });
+    }
+
+    public function tearDown()
+    {
+        parent::tearDown();
+
+        Octo\Dir::rmdir(__DIR__ . '/log');
+        Octo\Dir::rmdir(__DIR__ . '/cache');
+        Octo\Dir::rmdir(__DIR__ . '/session');
+        Octo\Dir::rmdir(__DIR__ . '/storage/cache');
     }
 
     /**
-     * @return \Octo\Instanciator
+     * @return mixed|object|Octo\Instanciator
+     * @throws ReflectionException
      */
     public function making()
     {
-        return instanciator();
+        return Octo\gi();
     }
 
     /**

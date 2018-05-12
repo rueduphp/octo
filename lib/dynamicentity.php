@@ -102,8 +102,7 @@ class Dynamicentity
      */
     protected static function db(): Dynamicmodel
     {
-        /** @var Dynamicentity $self */
-        $self   = gi()->make(get_called_class());
+        $self   = static::called();
         $cache  = gi()->make($self->cache, ['eav.' . $self->entity]);
 
         return gi()->make(Dynamicmodel::class, [$self->entity, $cache], false);
@@ -123,7 +122,6 @@ class Dynamicentity
      */
     public static function get(): Iterator
     {
-        /** @var Dynamicentity $self */
         $self       = static::called();
         $db         = static::db();
         $iterator   = $self->getIterator();
@@ -146,7 +144,17 @@ class Dynamicentity
      */
     public static function create($data)
     {
-        return static::model($data)->save();
+        return static::new($data)->save();
+    }
+
+    /**
+     * @param $data
+     * @return Dynamicrecord
+     * @throws \ReflectionException
+     */
+    public static function new($data)
+    {
+        return static::model($data);
     }
 
     /**

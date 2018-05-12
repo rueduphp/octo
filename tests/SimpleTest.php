@@ -14,8 +14,10 @@ use Octo\EavRow;
 use Octo\EavValue;
 use Octo\Emit;
 use Octo\Facade;
+use Octo\Facades\{
+    Cache as CacheF, Event as EventF, Flash as FlashF, Is as IsF, Log as LogF, Route, Session as SessionF
+};
 use Octo\Finder;
-use function Octo\getPdo;
 use Octo\In;
 use Octo\Inflector;
 use Octo\Instanciator;
@@ -36,6 +38,7 @@ use Octo\Throttle;
 use Octo\Trust;
 use Octo\You;
 use Octo\Your;
+use function Octo\getPdo;
 use function Octo\sessionKey;
 
 class Notifier
@@ -273,18 +276,109 @@ class Items extends Dynamicentity
 
 class SimpleTest extends TestCase
 {
+    public function testMixed()
+    {
+        $this->assertTrue(IsF::email('foo@bar.com'));
+        $this->assertFalse(IsF::email('foo@bar'));
+        $this->assertTrue(IsF::string('foo@bar.com'));
+        $this->assertFalse(IsF::string(1));
+        $this->assertFalse(IsF::string(null));
+        $this->assertTrue(IsF::null(null));
+
+        $count = $this->coll(Route::list())->count();
+
+        Route::any('foo/bar/baz', function () {
+            return true;
+        }, 'foo.bar.baz');
+
+        $count2 = $this->coll(Route::list())->count();
+
+        $this->assertSame($count + 4, $count2);
+    }
+
     /**
      * @throws ReflectionException
+     * @throws \Octo\Exception
      */
     public function testConnected()
     {
+        $this->assertInstanceOf(Octo\Setup::class, Octo\Setup::register(__class__));
+
         $this->assertSame(10, UserConnected::count());
 
         $this->assertSame(app('bag'), app('bag'));
 
-        Instant::put('foo', 'bar');
+        Octo\Facades\Instant::put('foo', 'bar');
 
-        $this->assertSame(Instant::get('foo'), 'bar');
+        $this->assertSame(Octo\Facades\Instant::get('foo'), 'bar');
+
+        $this->assertSame(
+            $this->getSession('locale', Octo\Facades\Instant::class),
+            $this->getSession('locale')
+        );
+
+        $this->assertSame($this->ultimate(), $this->ultimate());
+        $this->assertNotSame($this->ultimate('admin'), $this->ultimate());
+
+        /** @var \Octo\Ultimate $session */
+        $session = $this->ultimate();
+
+        $this->assertTrue($session->guest());
+        $this->assertFalse($session->logged());
+
+        $session['user'] = true;
+        $this->ultimate('admin')['foo'] = 'bar';
+
+        $this->assertTrue($session->getUser());
+        $this->assertTrue($session->user);
+        $this->assertTrue($session['user']);
+        $this->assertTrue($session->logged());
+        $this->assertFalse($session->guest());
+
+        $this->assertCount(1, $session->toArray());
+        $this->assertCount(1, $this->ultimate('admin')->toArray());
+        $this->assertCount(4, $_SESSION);
+
+        $this->assertSame($this->ultimate()->age('user'), $this->ultimate('admin')->age('foo'));
+        $this->assertSame(0, $session->age('bar'));
+
+        LogF::success('foo');
+        LogF::error('foo');
+
+        $this->assertCount(2, LogF::all());
+        $this->assertCount(1, LogF::getBytype("success"));
+        $this->assertCount(1, LogF::getBytype("error"));
+
+        $this->assertSame(EventF::self(), EventF::self());
+
+        $event = EventF::on('foo', function ($by) {
+            $this->incr('fooevent', $by);
+        });
+
+        $event->halt(true);
+
+        EventF::on('foobar', function ($by) {
+            $this->incr('fooevent', $by);
+        });
+
+        Octo\set('fooevent', 5);
+
+        $this->assertTrue(EventF::has('foo'));
+
+        EventF::fire('foo', 10);
+        $this->assertEquals(15, Octo\get('fooevent'));
+
+        EventF::fire('foo', 10);
+        $this->assertEquals(15, Octo\get('fooevent'));
+
+        EventF::fire('foobar', 100);
+        $this->assertEquals(15, Octo\get('fooevent'));
+
+        EventF::fire('foobar', 100);
+        $this->assertEquals(15, Octo\get('fooevent'));
+
+        EventF::delete('foo');
+        $this->assertFalse(EventF::has('foo'));
     }
 
     /**
@@ -323,17 +417,17 @@ class SimpleTest extends TestCase
         $this->assertSame($app['app'], $app->app);
         $this->assertSame($app[Inflector::class], $app[Inflector::class]);
 
-        $this->assertFalse(Request::is('home'));
-        $this->assertFalse(Session::has('home'));
-        $this->assertFalse(Cache::has('home'));
+        $this->assertFalse(Octo\Facades\Request::is('home'));
+        $this->assertFalse(SessionF::has('home'));
+        $this->assertFalse(CacheF::has('home'));
 
-        Session::set('home', 'foo');
-        $this->assertTrue(Session::has('home'));
-        $this->assertSame('foo', Session::get('home'));
+        SessionF::set('home', 'foo');
+        $this->assertTrue(SessionF::has('home'));
+        $this->assertSame('foo', SessionF::get('home'));
 
-        Cache::set('home', 'foo');
-        $this->assertTrue(Cache::has('home'));
-        $this->assertSame('foo', Cache::get('home'));
+        CacheF::set('home', 'foo');
+        $this->assertTrue(CacheF::has('home'));
+        $this->assertSame('foo', CacheF::get('home'));
 
         $app['event']->on('foo', function () {
             return true;
@@ -353,33 +447,35 @@ class SimpleTest extends TestCase
         $this->assertSame(1, $app['singleton']);
         $this->assertSame(1, $app['singleton']);
 
-        Flash::error('error foo');
-        Flash::success('success foo');
-        Flash::dummy('dummy foo');
-        $this->assertSame(3, Flash::getSession()[Flash::getSessionKey()]->count());
+        FlashF::error('error foo');
+        FlashF::success('success foo');
+        FlashF::dummy('dummy foo');
 
-        $this->assertSame(3, Flash::count());
-        $this->assertSame(1, Flash::count('successes'));
-        $this->assertSame(1, Flash::count('errors'));
-        $this->assertSame(1, Flash::count('dummy'));
-        $this->assertSame(0, Flash::getSession()[Flash::getSessionKey()]->count());
+        $this->assertSame(3, FlashF::getSession()[FlashF::getSessionKey()]->count());
+        $this->assertSame(3, FlashF::count());
 
-        $this->assertSame('error foo', current(Flash::errors())['message']);
-        $this->assertSame('success foo', current(Flash::successes())['message']);
-        $this->assertSame('dummy foo', current(Flash::dummys())['message']);
+        $this->assertSame(1, FlashF::count('successes'));
+        $this->assertSame(1, FlashF::count('errors'));
+        $this->assertSame(1, FlashF::count('dummy'));
+
+        $this->assertSame(0, FlashF::getSession()[FlashF::getSessionKey()]->count());
+
+        $this->assertSame('error foo', current(FlashF::errors())['message']);
+        $this->assertSame('success foo', current(FlashF::successes())['message']);
+        $this->assertSame('dummy foo', current(FlashF::dummys())['message']);
     }
 
     public function testFlashIsclearedButNotInInstance()
     {
-        $this->assertSame(1, Flash::count('errors'));
-        $this->assertSame(1, Flash::count('successes'));
-        $this->assertSame(1, Flash::count('dummy'));
+        $this->assertSame(1, FlashF::count('errors'));
+        $this->assertSame(1, FlashF::count('successes'));
+        $this->assertSame(1, FlashF::count('dummy'));
 
-        $this->assertSame('error foo', current(Flash::errors())['message']);
-        $this->assertSame('success foo', current(Flash::successes())['message']);
-        $this->assertSame('dummy foo', current(Flash::dummys())['message']);
+        $this->assertSame('error foo', current(FlashF::errors())['message']);
+        $this->assertSame('success foo', current(FlashF::successes())['message']);
+        $this->assertSame('dummy foo', current(FlashF::dummys())['message']);
 
-        $this->assertSame(0, Flash::getSession()[Flash::getSessionKey()]->count());
+        $this->assertSame(0, FlashF::getSession()[FlashF::getSessionKey()]->count());
     }
 
     /**
@@ -433,8 +529,17 @@ class SimpleTest extends TestCase
         $this->assertFalse($db->delete(1));
 
         $db->create(['name' => 'foo', 'price' => 25]);
-        $db->create(['name' => 'bar', 'price' => 50]);
+        $db->create(['name' => 'bar', 'price' => 54]);
         $db->create(['name' => 'baz', 'price' => 200]);
+
+        $this->assertSame(9, ProductEntity::sum('id'));
+        $this->assertSame(279, ProductEntity::sum('price'));
+        $this->assertSame(2, ProductEntity::min('id'));
+        $this->assertSame(4, ProductEntity::max('id'));
+        $this->assertSame(25, ProductEntity::min('price'));
+        $this->assertSame(200, ProductEntity::max('price'));
+        $this->assertSame((float) 3, ProductEntity::avg('id'));
+        $this->assertSame((float) 93, ProductEntity::avg('price'));
 
         $this->assertSame(3, $db->count());
         $this->assertame(2, $db->where('price', '<', 100)->count());
@@ -806,8 +911,8 @@ class SimpleTest extends TestCase
      */
     public function testAlias()
     {
-        $this->gi()->alias('foo', __CLASS__);
-        $this->assertInstanceOf(__CLASS__, $this->gi()->get('foo'));
+        $this->gi()->alias('foobar', __CLASS__);
+        $this->assertInstanceOf(__CLASS__, $this->gi()->get('foobar'));
         $this->assertInstanceOf(Inflector::class, $this->gi(Inflector::class));
     }
 
@@ -817,7 +922,7 @@ class SimpleTest extends TestCase
     public function testTranslator()
     {
         /** @var \Octo\Trad $t */
-        $t = $this->setTranslator(__DIR__ . '/lang', 'fr');
+        $t = $this->setTranslator($this->lang_path(), 'fr');
 
         $this->assertSame('maison', $t->get('test.home'));
         $this->assertSame('bar', $t->get('test.foo', ['name' => 'bar']));

@@ -1173,6 +1173,17 @@
          *
          * @return string
          */
+        public static function before(string $subject, string $search): string
+        {
+            return $search === '' ? $subject : explode($search, $subject, 2)[0];
+        }
+
+        /**
+         * @param string $subject
+         * @param string $search
+         *
+         * @return string
+         */
         public static function after(string $subject, string $search): string
         {
             return $search === '' ? $subject : array_reverse(explode($search, $subject, 2))[0];
@@ -1184,7 +1195,7 @@
          */
         public static function lcfirst(string $string): string
         {
-            return static::lower(static::substr($string, 0, 1)).static::substr($string, 1);
+            return static::lower(static::substr($string, 0, 1)) . static::substr($string, 1);
         }
 
         /**

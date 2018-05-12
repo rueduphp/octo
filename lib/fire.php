@@ -41,6 +41,14 @@ class Fire
     }
 
     /**
+     * @return Fire
+     */
+    public function self(): self
+    {
+        return $this;
+    }
+
+    /**
      * @param $event
      * @param $callable
      * @param int $priority
@@ -146,14 +154,14 @@ class Fire
 
                     if (is_object($listener->callable) && is_invokable(get_class($listener->callable))) {
                         $params = array_merge([$listener->callable, '__invoke'], $args);
-                        $result = instanciator()->call(...$params);
+                        $result = gi()->call(...$params);
                     } else {
                         if ($listener->callable instanceof Closure) {
                             $params = array_merge([$listener->callable], $args);
-                            $result = instanciator()->makeClosure(...$params);
+                            $result = gi()->makeClosure(...$params);
                         } elseif (is_array($listener->callable)) {
                             $params = array_merge($listener->callable, $args);
-                            $result = instanciator()->call(...$params);
+                            $result = gi()->call(...$params);
                         }
                     }
 
@@ -180,7 +188,7 @@ class Fire
     public function subscriber($class)
     {
         /** @var FastEventSubscriberInterface $instance */
-        $instance = instanciator()->factory($class);
+        $instance = gi()->factory($class);
 
         $events = $instance->getEvents();
 
@@ -211,14 +219,6 @@ class Fire
      */
     public static function __callStatic($m, $a)
     {
-        if ($m === 'fire') {
-            $m = 'emit';
-        } elseif ($m === 'listen') {
-            $m = 'on';
-        } elseif ($m === 'subscribe') {
-            $m = 'subscriber';
-        }
-
         return static::called()->{$m}(...$a);
     }
 
@@ -300,10 +300,9 @@ class Fire
     }
 
     /**
-     * @param string $event
      * @throws \ReflectionException
      */
-    public function flush($event)
+    public function flush()
     {
         $events = Registry::get('fire.events.' . $this->ns, []);
 

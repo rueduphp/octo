@@ -2,11 +2,11 @@
 
 namespace Octo;
 
+use ArrayAccess;
 use Closure;
-use stdClass;
 use SessionHandlerInterface;
 
-class Instant
+class Instant implements ArrayAccess
 {
     /**
      * @var string
@@ -39,7 +39,7 @@ class Instant
      */
     public function __construct(string $name, SessionHandlerInterface $handler)
     {
-        $this->setId(in('auth')::token());
+        $this->setId(sha1(in('auth')::token() . $name));
         $this->name = $name;
         $this->handler = $handler;
     }
@@ -86,7 +86,7 @@ class Instant
         if ($data = $this->handler->read($this->getId())) {
             $data = @unserialize($this->prepareForUnserialize($data));
 
-            if ($data !== false && ! is_null($data) && is_array($data)) {
+            if ($data !== false && !is_null($data) && is_array($data)) {
                 return $data;
             }
         }
@@ -389,6 +389,24 @@ class Instant
     }
 
     /**
+     * @param  string|array  $keys
+     * @return void
+     */
+    public function delete($keys)
+    {
+        Arrays::forget($this->attributes, $keys);
+    }
+
+    /**
+     * @param  string|array  $keys
+     * @return void
+     */
+    public function del($keys)
+    {
+        Arrays::forget($this->attributes, $keys);
+    }
+
+    /**
      * @return void
      */
     public function flush()
@@ -480,7 +498,7 @@ class Instant
      */
     public function isValidId($id)
     {
-        return is_string($id) && ctype_alnum($id) && strlen($id) === 40;
+        return is_string($id) && ctype_alnum($id) && 40 === strlen($id);
     }
 
     /**
@@ -560,5 +578,40 @@ class Instant
         if (true === $this->handlerNeedsRequest()) {
             $this->handler->setRequest($request);
         }
+    }
+
+    /**
+     * @param mixed $offset
+     * @return bool
+     */
+    public function offsetExists($offset)
+    {
+        return $this->has($offset);
+    }
+
+    /**
+     * @param mixed $offset
+     * @return mixed
+     */
+    public function offsetGet($offset)
+    {
+        return $this->get($offset);
+    }
+
+    /**
+     * @param mixed $offset
+     * @param mixed $value
+     */
+    public function offsetSet($offset, $value)
+    {
+        $this->set($offset, $value);
+    }
+
+    /**
+     * @param mixed $offset
+     */
+    public function offsetUnset($offset)
+    {
+        $this->remove($offset);
     }
 }
