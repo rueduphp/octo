@@ -1,0 +1,13 @@
+#!/bin/bash
+
+SCRIPT=$(realpath ${0})
+SCRIPT_PATH=$(dirname ${SCRIPT})
+RUN_OPTIONS=
+
+cd "${SCRIPT_PATH}"
+
+if ! [[ -z ${NO_DEPS+x} ]] ; then
+    RUN_OPTIONS="--no-deps"
+fi
+
+docker-compose run ${RUN_OPTIONS} --rm -e TARGET_UID="$(id -u)" app

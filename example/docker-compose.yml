@@ -1,0 +1,64 @@
+version: '2.1'
+services:
+  app:
+    image: rueduphp/phpdevapp72
+    volumes:
+      - .:/var/www
+      - ../vendor:/var/www/vendor
+      - ../lib:/var/www/lib
+      - ../example:/var/www/example
+    environment:
+      - OPCACHE_MAX_ACCELERATED_FILES=983
+      - OPCACHE_INTERNED_STRINGS_BUFFER=4
+      - OPCACHE_MEMORY_CONSUMPTION=15
+    ports:
+      - "8888:80"
+    links:
+      - mysql
+      - postgres
+      - redis
+      - es
+      - maildev
+
+  mysql:
+    image: mariadb
+    volumes:
+      - ~/data/octo/mysql:/var/lib/mysql
+    environment:
+      - "MYSQL_ROOT_PASSWORD=root"
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - "MYSQL_DATABASE=octo"
+      - "MYSQL_USER=octo"
+      - "MYSQL_PASSWORD=octo"
+    ports:
+      - "3366:3306"
+
+  postgres:
+    image: postgres:9.6
+    volumes:
+      - ~/data/octo/pg:/var/lib/postgresql/data
+    environment:
+      - "POSTGRES_USER=octo"
+      - "POSTGRES_PASSWORD=octo"
+      - "POSTGRES_DB=octo"
+    ports:
+      - "5532:5432"
+
+  maildev:
+    restart: always
+    image: djfarrelly/maildev
+    ports:
+      - "1080:80"
+
+  redis:
+    image: redis:4.0-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6377:6379"
+
+  es:
+    image: bitnami/elasticsearch:latest
+    volumes:
+      - ~/data/octo/es:/bitnami
+    ports:
+      - "9230:9200"
