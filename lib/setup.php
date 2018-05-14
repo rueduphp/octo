@@ -2,6 +2,8 @@
 
 namespace Octo;
 
+use function func_get_args;
+
 class Setup
 {
     protected static $onStart = [];
@@ -86,6 +88,48 @@ class Setup
     public static function config(): Fillable
     {
         return gi()->make(Fillable::class, ['config']);
+    }
+
+    public static function rights()
+    {
+        $rights = new Component;
+
+        $rights['add'] = function (string $name, $callback) use ($rights) {
+            $rules = getCore('all.rules', []);
+
+            $rules[$name] = $callback;
+
+            setCore('all.rules', $rules);
+
+            return $rights;
+        };
+
+        $rights['denies'] = function () use ($rights) {
+            $args = func_get_args();
+
+            return !$rights->allows(...$args);
+        };
+
+        $rights['allows'] = function () {
+            $args = func_get_args();
+
+            $name = \array_shift($args);
+
+            $rule = isAke(getCore('all.rules', []), $name, null);
+
+            if (\is_callable($rule)) {
+                $params = array_merge([$rule], $args);
+
+                return callThat(...$params);
+            }
+
+            return false;
+        };
+
+        $rights['self'] = function () use ($rights) {
+            return $rights;
+        };
+
     }
 
     /**

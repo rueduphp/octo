@@ -158,6 +158,30 @@ class Path
     }
 }
 
+class Rights
+{
+    private static $rights;
+
+    /**
+     * @param string $name
+     * @param array $arguments
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    public static function __callStatic(string $name, array $arguments)
+    {
+        if (null === static::$rights) {
+            static::$rights = \Octo\Setup::rights();
+        }
+
+        $args = array_merge([], $arguments);
+
+        $parameters = array_merge([static::$rights, $name], $arguments);
+
+        return \Octo\gi()->call(...$parameters);
+    }
+}
+
 class Renderer extends Facade
 {
     /**

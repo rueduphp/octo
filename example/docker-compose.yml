@@ -48,7 +48,7 @@ services:
     restart: always
     image: djfarrelly/maildev
     ports:
-      - "1080:80"
+      - "1081:80"
 
   redis:
     image: redis:4.0-alpine

@@ -8,7 +8,7 @@ class StaticModule extends Module
 {
     public function routes()
     {
-        Route::get('/', function () {dd(\Octo\getSession()->guard());
+        Route::get('/', function () {
             return $this->render('static.home');
         }, 'home');
     }

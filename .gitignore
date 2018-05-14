@@ -4,6 +4,7 @@
 composer.lock
 /example/node_modules
 /example/app/storage
+/example/package-lock.json
 /example/lib
 /example/example
 /example/vendor
