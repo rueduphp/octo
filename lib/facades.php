@@ -193,6 +193,28 @@ class Renderer extends Facade
     }
 }
 
+class Html extends Facade
+{
+    /**
+     * @return string
+     */
+    public static function getNativeClass(): string
+    {
+        return 'html';
+    }
+}
+
+class Form extends Facade
+{
+    /**
+     * @return string
+     */
+    public static function getNativeClass(): string
+    {
+        return 'form';
+    }
+}
+
 class ES extends Facade
 {
     /**

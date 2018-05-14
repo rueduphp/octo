@@ -3296,7 +3296,11 @@
              */
             $fastRouter = $this->getContainer()->define("router");
 
-            return $fastRouter->generateUri($routeName, $params);
+            try {
+                return $fastRouter->generateUri($routeName, $params);
+            } catch (\Exception $e) {
+                return '/';
+            }
         }
 
         /**

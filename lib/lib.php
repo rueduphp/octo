@@ -4489,6 +4489,21 @@
             return new Fire('core');
         });
 
+        $in::singleton('html', function () {
+            return new Htmlfactory(bladeCompiler());
+        });
+
+        $in::singleton('form', function () use ($in) {
+            $form = new Formfactory(
+                $in['html'],
+                bladeCompiler(),
+                csrf_make(),
+                new FastRequest
+            );
+
+            return $form->setSessionStore(getSession());
+        });
+
         $in::singleton('hash', function () {
             return new Hasher;
         });
@@ -5641,7 +5656,8 @@
      */
     function csrf()
     {
-        $middleware     = new Fastmiddlewarecsrf(getSession());
+        $session        = getSession();
+        $middleware     = new Fastmiddlewarecsrf($session);
         $token          = csrf_make();
         $tokenName      = $middleware->getFormKey();
 
@@ -10566,7 +10582,7 @@
         $className = trim($className, '\\');
 
         if ($lastSeparator = strrpos($className, '\\')) {
-            return substr($className, 0, $lastSeparator + 1);
+            return trim(substr($className, 0, $lastSeparator + 1), '\\');
         }
 
         return '';

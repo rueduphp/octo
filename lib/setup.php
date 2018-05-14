@@ -2,13 +2,12 @@
 
 namespace Octo;
 
-use function func_get_args;
-
 class Setup
 {
     protected static $onStart = [];
     protected static $onDemand = [];
     protected static $middlewares = [];
+    protected static $aliases = [];
 
     /**
      * @param $class
@@ -88,6 +87,25 @@ class Setup
     public static function config(): Fillable
     {
         return gi()->make(Fillable::class, ['config']);
+    }
+
+    public static function alias(...$args)
+    {
+        $alias = array_shift($args);
+
+        if (is_array($alias)) {
+            static::$aliases = array_merge(static::$aliases, $alias);
+        } else {
+            $target = array_shift($args);
+
+            if (null === $target) {
+                $target = isAke(static::$aliases, $alias, null);
+
+                return $target;
+            }
+
+            static::$aliases[$alias] = $target;
+        }
     }
 
     public static function rights()

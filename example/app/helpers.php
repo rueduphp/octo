@@ -48,6 +48,8 @@ function bootstrap()
 
     $app = \Octo\App::create();
 
+    aliases();
+
     $app
         ->set(Octo\Fastmiddlewarecsrf::class, function () {
             $session = getSession();
@@ -71,6 +73,11 @@ function bootstrap()
     $app->render($response);
 }
 
+function aliases()
+{
+    Octo\Setup::alias('App\Session', 'session');
+}
+
 /**
  * @param string $name
  * @param array $args
@@ -78,6 +85,34 @@ function bootstrap()
  * @throws ReflectionException
  */
 function path(string $name, array $args = [])
+{
+    /** @var \Octo\FastTwigExtension $twig */
+    $twig = Octo\gi()->make(\Octo\FastTwigExtension::class);
+
+    return $twig->path($name, $args);
+}
+
+/**
+ * @param string $name
+ * @param array $args
+ * @return string
+ * @throws ReflectionException
+ */
+function to(string $name, array $args = [])
+{
+    /** @var \Octo\FastTwigExtension $twig */
+    $twig = Octo\gi()->make(\Octo\FastTwigExtension::class);
+
+    return $twig->path($name, $args);
+}
+
+/**
+ * @param string $name
+ * @param array $args
+ * @return string
+ * @throws ReflectionException
+ */
+function route(string $name, array $args = [])
 {
     /** @var \Octo\FastTwigExtension $twig */
     $twig = Octo\gi()->make(\Octo\FastTwigExtension::class);
@@ -141,15 +176,14 @@ function csrf(): string
 
 function asset($path)
 {
-    return \Octo\Url::root() . '/assets/' . $path;
+    $path = trim($path, '/');
+
+    return url('assets/' . $path);
 }
 
-function js($file)
+function url($path)
 {
-    return asset(trim('/', 'js/' . $file . '.js'));
-}
+    $path = trim($path, '/');
 
-function css($file)
-{
-    return asset(trim('/', 'css/' . $file . '.css'));
+    return \Octo\Url::root() . '/' . $path;
 }

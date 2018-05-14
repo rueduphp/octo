@@ -125,6 +125,10 @@ class Module
     {
         $blade = bladeFactory([$this->viewPath]);
 
+        if (!isset($parameters['errors'])) {
+            $parameters['errors'] = coll();
+        }
+
         return $blade->make($name, (array) $parameters)->render();
     }
 }

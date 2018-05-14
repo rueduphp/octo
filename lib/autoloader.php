@@ -39,10 +39,18 @@
                     }
                 } else {
                     if ($ns === $class || empty($ns)) {
+                        if (class_exists($facade = 'Octo\\Facades\\' . $class)) {
+                            return class_alias($facade, $class);
+                        } elseif (class_exists($target = Setup::alias($class))) {
+                            eval($this->getFacade($class, $target));
+
+                            return;
+                        }
+
                         if (class_exists('\\' . __NAMESPACE__ . '\\' . $class)) {
                             return class_alias('\\' . __NAMESPACE__ . '\\' . $class, $class);
                         }
-
+//
                         if (!empty($tab)) {
                             $file = __DIR__ . DS . strtolower($lib) . DS . implode(DS, $tab) . '.php';
                         } else {
@@ -54,13 +62,37 @@
 
                             return class_alias('\\' . __NAMESPACE__ . '\\' . $class, $class);
                         }
+                    } else {
+                        if (class_exists($target = Setup::alias($class))) {
+                            eval($this->getFacade($class, $target));
+
+                            return;
+                        }
                     }
                 }
-
-                if (!defined('OCTO_STANDALONE')) {
-                    aliases($class);
-                }
             }
+        }
+
+        private function getFacade($class, $target)
+        {
+            $to = deNamespace($class);
+            $namespace = getNamespace($class);
+
+            $facade = '';
+
+            if (!empty($namespace)) {
+                $facade .= 'namespace ' . $namespace . '; ';
+            }
+
+            $facade .= 'class ' . $to . ' extends \Octo\Facade {
+            
+            public static function getNativeClass()
+            {
+                return "'.$target.'";
+            }
+            }';
+
+            return $facade;
         }
 
         private function find($class)
