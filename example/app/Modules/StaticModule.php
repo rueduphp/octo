@@ -9,8 +9,6 @@ class StaticModule extends Module
 {
     public function routes()
     {
-        dd(Form::open());
-
         Route::get('/', function () {
             return $this->render('static.home');
         }, 'home');
