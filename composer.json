@@ -17,6 +17,7 @@
         "aws/aws-sdk-php": "@stable",
         "illuminate/database": "*",
         "illuminate/view": "*",
+        "illuminate/validation": "*",
         "wisembly/elephant.io": "~3.0",
         "nitmedia/wkhtml2pdf": "*",
         "twig/twig": "*",

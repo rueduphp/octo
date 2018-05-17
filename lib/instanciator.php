@@ -115,7 +115,15 @@ class Instanciator
             if ($maker) {
                 $params = $maker->getParameters();
 
-                if (empty($args) || count($args) != count($params)) {
+                $isVariadic = false;
+
+                if (count($params) === 1) {
+                    $firstParam = current($params);
+
+                    $isVariadic = $firstParam->isVariadic();
+                }
+
+                if ((empty($args) || count($args) != count($params)) && !$isVariadic) {
                     $instanceParams = [];
 
                     foreach ($params as $param) {
@@ -235,6 +243,10 @@ class Instanciator
 
                 $this->binds($binds);
 
+                if (true === $singleton) {
+                    In::self()[get_class($i)] = $i;
+                }
+
                 return $i;
             }
         } else {
@@ -297,7 +309,7 @@ class Instanciator
      */
     public function makeClosure(...$args)
     {
-        $closure    = array_shift($args);
+        $closure = array_shift($args);
 
         if (!$closure instanceof Closure && is_object($closure)) {
             $closure = voidToCallback($closure);
@@ -305,6 +317,18 @@ class Instanciator
 
         $ref        = new ReflectionFunction($closure);
         $params     = $ref->getParameters();
+
+        $isVariadic = false;
+
+        if (count($params) === 1) {
+            $firstParam = current($params);
+
+            $isVariadic = $firstParam->isVariadic();
+        }
+
+        if ($isVariadic) {
+            return $closure(...$args);
+        }
 
         if (empty($args) || count($args) !== count($params)) {
             $instanceParams = [];
@@ -444,7 +468,15 @@ class Instanciator
             $ref    = $reflection->getMethod($method);
             $params = $ref->getParameters();
 
-            if (empty($args) || count($args) !== count($params)) {
+            $isVariadic = false;
+
+            if (count($params) === 1) {
+                $firstParam = current($params);
+
+                $isVariadic = $firstParam->isVariadic();
+            }
+
+            if (empty($args) || count($args) !== count($params) && !$isVariadic) {
                 foreach ($params as $param) {
                     if (!empty($args)) {
                         $p = array_shift($args);

@@ -2,12 +2,9 @@
 
 namespace Octo;
 
-use BadMethodCallException;
 use DateTime;
-use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Collection;
 use Illuminate\Support\HtmlString;
-use Illuminate\Support\Traits\Macroable;
 
 class Formfactory
 {
@@ -71,10 +68,10 @@ class Formfactory
     protected $type = null;
 
     /**
-     * @param  Htmlfactory                                  $html
-     * @param  \Illuminate\Contracts\Routing\UrlGenerator   $url
-     * @param  \Illuminate\Contracts\View\Factory           $view
-     * @param  string                                       $csrfToken
+     * @param Htmlfactory $html
+     * @param $view
+     * @param $csrfToken
+     * @param FastRequest|null $request
      */
     public function __construct(Htmlfactory $html, $view, $csrfToken, FastRequest $request = null)
     {
@@ -109,9 +106,7 @@ class Formfactory
 
 
         $attributes = array_merge(
-
             $attributes, array_except($options, $this->reserved)
-
         );
 
         $attributes = $this->html->attributes($attributes);
@@ -167,9 +162,9 @@ class Formfactory
      */
     public function token()
     {
-        $token = ! empty($this->csrfToken) ? $this->csrfToken : $this->session->token();
+        $token = !empty($this->csrfToken) ? $this->csrfToken : $this->session->token();
 
-        return $this->hidden('_token', $token);
+        return $this->hidden('_csrf', $token);
     }
 
     /**
@@ -218,13 +213,13 @@ class Formfactory
     {
         $this->type = $type;
 
-        if (! isset($options['name'])) {
+        if (!isset($options['name'])) {
             $options['name'] = $name;
         }
 
         $id = $this->getIdAttribute($name, $options);
 
-        if (! in_array($type, $this->skipValueTypes)) {
+        if (!in_array($type, $this->skipValueTypes) && null === $value) {
             $value = $this->getValueAttribute($name, $value);
         }
 
@@ -797,7 +792,7 @@ class Formfactory
     {
         $request = $this->request($name);
 
-        if (isset($this->session) && ! $this->oldInputIsEmpty() && is_null($this->old($name)) && !$request) {
+        if (isset($this->session) && !$this->oldInputIsEmpty() && is_null($this->old($name)) && !$request) {
             return false;
         }
 
@@ -1046,10 +1041,10 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     *
-     * @return mixed
+     * @param $name
+     * @param null $value
+     * @return array|mixed|null
+     * @throws \ReflectionException
      */
     public function getValueAttribute($name, $value = null)
     {
@@ -1059,16 +1054,17 @@ class Formfactory
 
         $old = $this->old($name);
 
-        if (! is_null($old) && $name !== '_method') {
+        if (!is_null($old) && $name !== '_method') {
             return $old;
         }
 
         $request = $this->request($name);
+
         if (! is_null($request) && $name != '_method') {
             return $request;
         }
 
-        if (! is_null($value)) {
+        if (!is_null($value)) {
             return $value;
         }
 
@@ -1079,11 +1075,12 @@ class Formfactory
 
     /**
      * @param $name
-     * @return array|null|string
+     * @return array|mixed|null
+     * @throws \ReflectionException
      */
     protected function request($name)
     {
-        if (! isset($this->request)) {
+        if (!isset($this->request)) {
             return null;
         }
 
@@ -1177,31 +1174,10 @@ class Formfactory
      *
      * @return $this
      */
-    public function setSessionStore(Ultimate $session)
+    public function setSessionStore($session)
     {
         $this->session = $session;
 
         return $this;
-    }
-
-    /**
-     * @param  string $method
-     * @param  array  $parameters
-     *
-     * @return \Illuminate\Contracts\View\View|mixed
-     *
-     * @throws \BadMethodCallException
-     */
-    public function __call($method, $parameters)
-    {
-        if (static::hasComponent($method)) {
-            return $this->componentCall($method, $parameters);
-        }
-
-        if (static::hasMacro($method)) {
-            return $this->macroCall($method, $parameters);
-        }
-
-        throw new BadMethodCallException("Method {$method} does not exist.");
     }
 }

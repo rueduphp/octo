@@ -8,6 +8,11 @@
 
             <div class="panel-body">
                 You are logged in!
+                <form>
+                    @csrf_form()
+                    {{ method_field('PUT') }}
+                    <!-- ... -->
+                </form>
             </div>
         </div>
     </div>

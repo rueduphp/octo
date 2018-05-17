@@ -108,6 +108,117 @@ class Setup
         }
     }
 
+    /**
+     * @param Ultimate $session
+     * @return Component
+     */
+    public static function auth(Ultimate $session)
+    {
+        $auth = new Component;
+
+        $auth['session'] = function () use ($session) {
+            return $session;
+        };
+
+        $auth['user'] = function (?string $key = null, $default = null) use ($session) {
+            return $session->user($key, $default);
+        };
+
+        $auth['is'] = function (string $role) use ($session) {
+            /** @var array $roles */
+            $roles = $session->user('roles', []);
+            $has = isAke($roles, $role, null);
+
+            return is_null($has) ? false : true;
+        };
+
+        $auth['guest'] = function () use ($session) {
+            return $session->guest();
+        };
+
+        $auth['logged'] = function () use ($session) {
+            return $session->logged();
+        };
+
+        $auth['can'] = function (...$args) use ($session) {
+            $permission = array_shift($args) . '.' . $session->getNamespace();
+            $user       = $session->user();
+            $parameters = array_merge([$permission, $user], $args);
+
+            return static::rights()->allows(...$parameters);
+        };
+
+        $auth['cannot'] = function (...$args) use ($session) {
+            $permission = array_shift($args) . '.' . $session->getNamespace();
+            $user       = $session->user();
+            $parameters = array_merge([$permission, $user], $args);
+
+            return static::rights()->denies(...$parameters);
+        };
+
+        $auth['policy'] = function (string $name, $callback) use ($auth, $session) {
+            Facades\Rights::add($name . '.' . $session->getNamespace(), $callback);
+
+            return $auth;
+        };
+
+        $auth['login'] = function (?callable $provider = null) use ($auth, $session) {
+            if (is_callable($provider)) {
+                return $auth->provider('login', $provider);
+            }
+
+            $callback = $auth->provider('login');
+
+            return callThat($callback, $session);
+        };
+
+        $auth['logout'] = function (?callable $provider = null) use ($auth, $session) {
+            if (is_callable($provider)) {
+                return $auth->provider('logout', $provider);
+            }
+
+            $callback = $auth->provider('logout');
+
+            return callThat($callback, $session);
+        };
+
+        $auth['macro'] = function (string $type, callable $provider) use ($auth) {
+            return $auth->provider($type, $provider);
+        };
+
+        $auth['call'] = function (...$args) use ($auth, $session) {
+            $type = array_shift($args);
+
+            $callback = $auth->provider($type);
+
+            $parameters = array_merge([$callback, $session], $args);
+
+            return callThat(...$parameters);
+        };
+
+        $auth['provider'] = function (string $type, ?callable $provider = null) use ($auth, $session) {
+            $providers = getCore('auth.providers.' . $session->getNamespace(), []);
+
+            if (is_callable($provider)) {
+                $providers[$type] = $provider;
+                setCore('auth.providers.' . $session->getNamespace(), $providers);
+
+                return $auth;
+            }
+
+            return isAke($providers, $type, null);
+        };
+
+        $auth['self'] = function () use ($auth) {
+            return $auth;
+        };
+
+        return $auth;
+    }
+
+    /**
+     * @return Component
+     */
     public static function rights()
     {
         $rights = new Component;
@@ -122,16 +233,12 @@ class Setup
             return $rights;
         };
 
-        $rights['denies'] = function () use ($rights) {
-            $args = func_get_args();
-
+        $rights['denies'] = function (...$args) use ($rights) {
             return !$rights->allows(...$args);
         };
 
-        $rights['allows'] = function () {
-            $args = func_get_args();
-
-            $name = \array_shift($args);
+        $rights['allows'] = function (...$args) {
+            $name = array_shift($args);
 
             $rule = isAke(getCore('all.rules', []), $name, null);
 
@@ -148,6 +255,7 @@ class Setup
             return $rights;
         };
 
+        return $rights;
     }
 
     /**

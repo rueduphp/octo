@@ -337,7 +337,7 @@ class SimpleTest extends TestCase
 
         $this->assertCount(1, $session->toArray());
         $this->assertCount(1, $this->ultimate('admin')->toArray());
-        $this->assertCount(4, $_SESSION);
+        $this->assertCount(6, $_SESSION);
 
         $this->assertSame($this->ultimate()->age('user'), $this->ultimate('admin')->age('foo'));
         $this->assertSame(0, $session->age('bar'));
@@ -990,12 +990,10 @@ class SimpleTest extends TestCase
 
     public function testShare()
     {
-        $this->setInstance($this->getPdo());
+        $this->setInstance($this);
 
         $this->assertInstanceOf(PDO::class, $this->getInstance(PDO::class));
         $this->assertTrue($this->hasInstance(PDO::class));
-        $this->delInstance(PDO::class);
-        $this->assertFalse($this->hasInstance(PDO::class));
         $this->assertFalse($this->hasInstance(MyEvent::class));
         $this->assertInstanceOf(stdClass::class, $this->oneInstance(stdClass::class));
     }

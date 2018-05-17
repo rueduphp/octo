@@ -2,9 +2,7 @@
 
 namespace Octo;
 
-use BadMethodCallException;
 use Illuminate\Support\HtmlString;
-use Illuminate\Support\Traits\Macroable;
 use Illuminate\View\Compilers\Compiler;
 
 class Htmlfactory
@@ -55,7 +53,7 @@ class Htmlfactory
      *
      * @return \Illuminate\Support\HtmlString
      */
-    public function script($url, $attributes = [], $secure = null)
+    public function script($url, $attributes = [])
     {
         $attributes['src'] = \asset($url);
 
@@ -69,13 +67,13 @@ class Htmlfactory
      *
      * @return \Illuminate\Support\HtmlString
      */
-    public function style($url, $attributes = [], $secure = null)
+    public function style($url, $attributes = [])
     {
         $defaults = ['media' => 'all', 'type' => 'text/css', 'rel' => 'stylesheet'];
 
         $attributes = array_merge($defaults, $attributes);
 
-        $attributes['href'] = \asset($url, $secure);
+        $attributes['href'] = \asset($url);
 
         return $this->toHtmlString('<link' . $this->attributes($attributes) . '>');
     }
@@ -88,7 +86,7 @@ class Htmlfactory
      *
      * @return \Illuminate\Support\HtmlString
      */
-    public function image($url, $alt = null, $attributes = [], $secure = null)
+    public function image($url, $alt = null, $attributes = [])
     {
         $attributes['alt'] = $alt;
 
@@ -104,7 +102,7 @@ class Htmlfactory
      *
      * @return \Illuminate\Support\HtmlString
      */
-    public function favicon($url, $attributes = [], $secure = null)
+    public function favicon($url, $attributes = [])
     {
         $defaults = ['rel' => 'shortcut icon', 'type' => 'image/x-icon'];
 
@@ -364,12 +362,12 @@ class Htmlfactory
         foreach ((array) $attributes as $key => $value) {
             $element = $this->attributeElement($key, $value);
 
-            if (! is_null($element)) {
+            if (!is_null($element)) {
                 $html[] = $element;
             }
         }
 
-        return count($html) > 0 ? ' ' . implode(' ', $html) : '';
+        return !empty($html) ? ' ' . implode(' ', $html) : '';
     }
 
     /**
@@ -389,7 +387,7 @@ class Htmlfactory
         }
 
         if (! is_null($value)) {
-            return $key . '="' . e($value, false) . '"';
+            return $key . '="' . \e($value, false) . '"';
         }
     }
 

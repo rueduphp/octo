@@ -1293,14 +1293,14 @@
                 if (!instanciator()->has($concern)) {
                     instanciator()->set(
                         $concern,
-                        instanciator()->singleton($concern)
+                        instanciator()->make($concern)
                     );
                 }
 
                 $object = instanciator()->get($concern);
 
                 if (is_string($object) && class_exists($object)) {
-                    $object = instanciator()->singleton($object);
+                    $object = instanciator()->make($object);
 
                     instanciator()->set(
                         $concern,
@@ -1792,48 +1792,52 @@
     }
 
     /**
-     * @param array ...$args
-     *
+     * @param mixed ...$args
      * @return Instanciator
+     * @throws \ReflectionException
      */
     function share(...$args): Instanciator
     {
-        return instanciator()->share(...$args);
+        return gi()->share(...$args);
     }
 
     /**
-     * @param array ...$args
-     * @return mixed
+     * @param mixed ...$args
+     * @return mixed|null|object
+     * @throws \ReflectionException
      */
     function getInstance(...$args)
     {
-        return instanciator()->get(...$args);
+        return gi()->get(...$args);
     }
 
     /**
-     * @param array ...$args
+     * @param mixed ...$args
      * @return Instanciator
+     * @throws \ReflectionException
      */
     function setInstance(...$args)
     {
-        return instanciator()->set(...$args);
+        return gi()->set(...$args);
     }
 
     /**
-     * @param array ...$args
+     * @param mixed ...$args
      * @return bool
+     * @throws \ReflectionException
      */
     function hasInstance(...$args)
     {
-        return instanciator()->has(...$args);
+        return gi()->has(...$args);
     }
 
     /**
-     * @param array ...$args
+     * @param mixed ...$args
+     * @throws \ReflectionException
      */
     function delInstance(...$args)
     {
-        instanciator()->del(...$args);
+        gi()->del(...$args);
     }
 
     /**
@@ -4485,23 +4489,43 @@
             return You::called();
         };
 
+        $in::singleton('validator', function () {
+            $locale = in('locale');
+
+            $t = setTranslator(lang_path(), $locale);
+
+            $validator = new \Illuminate\Validation\Factory(
+                $t,
+                \Illuminate\Container\Container::getInstance()
+            );
+
+            return $validator;
+        });
+
         $in::singleton('event', function () {
             return new Fire('core');
         });
 
-        $in::singleton('html', function () {
-            return new Htmlfactory(bladeCompiler());
+        $in::singleton('blade', function () {
+            return bladeCompiler();
+        });
+
+        $in::singleton('html', function () use ($in) {
+            return new Htmlfactory($in['blade']);
         });
 
         $in::singleton('form', function () use ($in) {
+            /** @var Ultimate $session */
+            $session = getSession();
+
             $form = new Formfactory(
                 $in['html'],
-                bladeCompiler(),
-                csrf_make(),
+                $in['blade'],
+                $session->token(),
                 new FastRequest
             );
 
-            return $form->setSessionStore(getSession());
+            return $form->setSessionStore($session);
         });
 
         $in::singleton('hash', function () {
@@ -5957,7 +5981,7 @@
      */
     function getPdo()
     {
-        return actual('pdo');
+        return actual('pdo') ?? in(\PDO::class);
     }
 
     /**
@@ -5998,7 +6022,7 @@
     /**
      * @param null|string $name
      * @param null|string $driver
-     * @return mixed|null|Live|Session
+     * @return mixed|null|Live|Ultimate
      * @throws Exception
      * @throws \ReflectionException
      */
@@ -6023,8 +6047,9 @@
      */
     function startSession(string $name = 'core')
     {
-        $session = ultimate($name);
-        getContainer()->setSession($session);
+        $container  = getContainer();
+        $session    = ultimate($name);
+        $container->setSession($session);
 
         new Live($session);
 
@@ -8572,17 +8597,19 @@
     }
 
     /**
-     * @return mixed|null|Live|Session
+     * @return string
+     * @throws Exception
      * @throws \ReflectionException
      */
     function getReferer()
     {
-        return isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : sessionPreviousUrl();
+        return $_SERVER['HTTP_REFERER'] ?? getSession()->previousUrl();
     }
 
     /**
      * @param null|string $url
      * @return mixed|null|Live|Session
+     * @throws Exception
      * @throws \ReflectionException
      */
     function sessionPreviousUrl(?string $url = null)
@@ -8930,38 +8957,13 @@
         return sha1($str);
     }
 
-    /**
-     * @param string $value
-     * @param int $flags
-     * @param string $encoding
-     *
-     * @return array|\ArrayAccess|\Iterator|string
-     */
-    function e($value, $flags = ENT_QUOTES, $encoding = 'UTF-8')
+    function e($value, bool $double = false)
     {
-        static $cleaned = [];
-
-        if (is_bool($value) || is_int($value) || is_float($value) || in_array($value, $cleaned, true)) {
-            return $value;
+        if (is_object($value) && in_array('toHtml', get_class_methods($value))) {
+            return $value->toHtml();
         }
 
-        if (is_string($value)) {
-            $value = htmlentities($value, $flags, $encoding, false);
-        } elseif (is_array($value) || ($value instanceof \Iterator && $value instanceof \ArrayAccess)) {
-            is_object($value) && $cleaned[] = $value;
-
-            foreach ($value as $k => $v) {
-                $value[$k] = e($v, $flags, $encoding);
-            }
-        } elseif ($value instanceof \Iterator || get_class($value) == 'stdClass') {
-            $cleaned[] = $value;
-
-            foreach ($value as $k => $v) {
-                $value->{$k} = e($v, $flags, $encoding);
-            }
-        }
-
-        return $value;
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8', $double);
     }
 
     /**
@@ -9486,9 +9488,8 @@
      *
      * @throws \ReflectionException
      */
-    function event()
+    function event(...$params)
     {
-        $params     = func_get_args();
         $className  = array_shift($params);
 
         $manager = getEventManager();
@@ -9500,7 +9501,7 @@
         if (is_object($className)) {
             $instance = $className;
         } elseif (is_string($className)) {
-            $instance = instanciator()->make($className, $params, false);
+            $instance = gi()->make($className, $params, false);
         }
 
         try {
@@ -9510,16 +9511,16 @@
                 $args = array_merge([$instance, 'handle'], $params);
             }
 
-            $res = instanciator()->call(...$args);
+            $res = gi()->call(...$args);
 
             if (method_exists($instance, 'onSuccess')) {
-                instanciator()->call($instance, 'onSuccess', $res);
+                gi()->call($instance, 'onSuccess', $res);
             }
 
             return $res;
         } catch (\Exception $e) {
             if (method_exists($instance, 'onFail')) {
-                return instanciator()->call($instance, 'onFail');
+                return gi()->call($instance, 'onFail');
             }
         }
     }
@@ -10049,7 +10050,7 @@
             return gi()->makeClosure(...$args);
         } else if (is_array($callable)) {
             return gi()->call(...$args);
-        } else if (is_object($callable) && in_array('__invoke', get_class_methods($callable))) {
+        } else if (is_invokable($callable)) {
             array_shift($args);
             $params = array_merge([$callable, '__invoke'], $args);
 
@@ -10768,13 +10769,7 @@
      */
     function is_invokable($concern)
     {
-        if (is_string($concern) && class_exists($concern)) {
-            $methods = get_class_methods($concern);
-
-            return in_array('__invoke', $methods);
-        }
-
-        return false;
+        return in_array('__invoke', get_class_methods($concern));
     }
 
     /**
@@ -11562,7 +11557,7 @@
 
         $blade = bladeFactory([$path]);
 
-        return $blade->make($file, (array) $parameters)->render();
+        return $blade->make($file, $parameters)->render();
     }
 
     /**

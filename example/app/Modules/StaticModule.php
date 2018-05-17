@@ -1,7 +1,6 @@
 <?php
 namespace App\Modules;
 
-use Octo\Facades\Form;
 use Octo\Module;
 use Octo\Facades\Route;
 

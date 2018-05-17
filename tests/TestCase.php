@@ -17,6 +17,7 @@ abstract class TestCase extends Octo\TestCase
         date_default_timezone_set('Europe/Paris');
 
         Octo\Dir::mkdir(__DIR__ . '/cache');
+        Octo\Dir::mkdir(__DIR__ . '/cache/views');
         Octo\Dir::mkdir(__DIR__ . '/session');
         Octo\Dir::mkdir(__DIR__ . '/log');
         Octo\Dir::mkdir(__DIR__ . '/storage/cache');

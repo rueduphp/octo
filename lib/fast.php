@@ -713,6 +713,7 @@
          * @param string $route
          * @param array $params
          * @return \GuzzleHttp\Psr7\MessageTrait|Psr7Response
+         * @throws Exception
          * @throws \ReflectionException
          */
         public function redirectRouteResponse(string $route, array $params = [])
@@ -1391,6 +1392,7 @@
 
         /**
          * @return Psr7Response
+         * @throws \ReflectionException
          */
         public function getResponse(): Psr7Response
         {
@@ -2403,7 +2405,7 @@
          * @param string $key
          * @param null $default
          * @return mixed
-         * @throws TypeError
+         * @throws Exception
          * @throws \ReflectionException
          */
         public function old(string $key, $default = null)
@@ -2437,9 +2439,28 @@
          * @return bool
          * @throws \ReflectionException
          */
+        public function ajax(): bool
+        {
+            return 'XMLHttpRequest' === getRequest()->getHeaderLine('X-Requested-With');
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
         public function isSecure(): bool
         {
             return 'https' === Inflector::lower(getRequest()->getUri()->getScheme());
+        }
+
+        /**
+         * @return Ultimate
+         * @throws Exception
+         * @throws \ReflectionException
+         */
+        public function session()
+        {
+            return getSession();
         }
 
         /**
@@ -3063,37 +3084,43 @@
             bladeDirective('asset', function (string $path) {
                 $asset = assets_path($path);
 
-                return "<?php echo {$asset}; ?>";
+                return "<?php echo e({$asset}); ?>";
             });
 
             bladeDirective('js', function (string $path) {
                 $asset = assets_path($path) . '.js';
 
-                return "<?php echo {$asset}; ?>";
+                return "<?php echo e({$asset}); ?>";
             });
 
             bladeDirective('path', function ($name, array $args = []) use ($twig) {
                 $path = $twig->path($name, $args);
 
-                return "<?php echo {$path}; ?>";
+                return "<?php echo e({$path}); ?>";
             });
 
             bladeDirective('flash', function (string $key, $default = null) use ($twig) {
                 $flash = $twig->flash($key, $default);
 
-                return "<?php echo {$flash}; ?>";
+                return "<?php echo e({$flash}); ?>";
             });
 
             bladeDirective('mix', function () {
                 $mix = mix(...func_get_args());
 
-                return "<?php echo {$mix}; ?>";
+                return "<?php echo e({$mix}); ?>";
             });
 
-            bladeDirective('csrf_field', function () {
+            bladeDirective('csrf_form', function () {
                 $csrf = csrf();
 
-                return "<?php echo {$csrf}; ?>";
+                return "<?php echo e({$csrf}); ?>";
+            });
+
+            bladeDirective('csrf_value', function () {
+                $csrf = csrf_make();
+
+                return "<?php echo e({$csrf}); ?>";
             });
 
             bladeDirective('field', function (
@@ -3121,7 +3148,7 @@
                 return "<?php echo {$html}; ?>";
             });
 
-            bladeDirective('lng', function (string $key, array $parameters) use ($twig) {
+            bladeDirective('lng', function (string $key, array $parameters = []) use ($twig) {
                 $trad = $twig->lang($key, $parameters);
 
                 return "<?php echo {$trad}; ?>";

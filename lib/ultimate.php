@@ -113,16 +113,21 @@ class Ultimate implements
      */
     public function previousUrl(): string
     {
-        return $this->get('_previous.url', '/');
+        return $this->get('previous.url', '/');
     }
 
     /**
      * @param string $url
+     * @param null|FastObject $route
      * @return Ultimate
      */
-    public function setPreviousUrl(string $url): self
+    public function setPreviousUrl(string $url, ?FastObject $route = null): self
     {
-        return $this->set('_previous.url', $url);
+        return $this
+            ->set('previous.url', $this->get('_previous.url', '/'))
+            ->set('previous.route', $this->get('_previous.route', 'home'))
+            ->set('_previous.url', $url)
+            ->set('_previous.route', $route->getName());
     }
 
     /**
@@ -706,5 +711,43 @@ class Ultimate implements
     public function guard(): Live
     {
         return live();
+    }
+
+    /**
+     * @return string
+     * @throws \Exception
+     */
+    public function token()
+    {
+        return csrf_make();
+    }
+
+    /**
+     * @param null|string $key
+     * @param null $default
+     * @return mixed|null
+     */
+    public function getOldInput(?string $key = null, $default = null)
+    {
+        return aget($this->get('_old_input', []), $key, $default);
+    }
+
+    /**
+     * @param string $key
+     * @param callable $c
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    public function getOr(string $key, callable $c)
+    {
+        if (!$this->has($key)) {
+            $value = callThat($c);
+
+            $this->set($key, $value);
+
+            return $value;
+        }
+
+        return $this->get($key);
     }
 }

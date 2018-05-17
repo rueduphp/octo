@@ -1,8 +1,6 @@
 <?php
 namespace Octo;
 
-use Closure;
-
 class Dynamicentity
 {
     /** @var string */

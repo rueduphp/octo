@@ -106,48 +106,55 @@ class Dynamicmodel
      */
     public static function migrate()
     {
-        $schema = getSchema();
+        $exists = File::exists($file = storage_path() . '/eav');
 
-        $schema->create('eav_entities', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('name');
-        });
+        $testing = defined('testing');
 
-        $schema->create('eav_rows', function (Blueprint $table) {
-            $table->increments('id');
-            $table->integer('entity_id')->unsigned()->index();
-            $table->foreign('entity_id', 'fk_entities_rows')->references('id')->on('eav_entities')->onDelete('cascade');
-            $table->timestamp('created_at')->nullable()->useCurrent();
-            $table->timestamp('updated_at')->nullable()->useCurrent();
-        });
+        if (false === $exists || true === $testing) {
+            File::put($file, '');
+            $schema = getSchema();
 
-        $schema->create('eav_attributes', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('name');
-            $table->integer('entity_id')->unsigned()->index();
-            $table->foreign('entity_id', 'fk_entities_attributes')
-                ->references('id')
-                ->on('eav_entities')
-                ->onDelete('cascade')
-            ;
-        });
+            $schema->create('eav_entities', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('name');
+            });
 
-        $schema->create('eav_values', function (Blueprint $table) {
-            $table->increments('id');
-            $table->longText('value')->nullable();
-            $table->integer('row_id')->unsigned()->index();
-            $table->foreign('row_id', 'fk_rows_values')
-                ->references('id')
-                ->on('eav_rows')
-                ->onDelete('cascade')
-            ;
-            $table->integer('attribute_id')->unsigned()->index();
-            $table->foreign('attribute_id', 'fk_attr_values')
-                ->references('id')
-                ->on('eav_attributes')
-                ->onDelete('cascade')
-            ;
-        });
+            $schema->create('eav_rows', function (Blueprint $table) {
+                $table->increments('id');
+                $table->integer('entity_id')->unsigned()->index();
+                $table->foreign('entity_id', 'fk_entities_rows')->references('id')->on('eav_entities')->onDelete('cascade');
+                $table->timestamp('created_at')->nullable()->useCurrent();
+                $table->timestamp('updated_at')->nullable()->useCurrent();
+            });
+
+            $schema->create('eav_attributes', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('name');
+                $table->integer('entity_id')->unsigned()->index();
+                $table->foreign('entity_id', 'fk_entities_attributes')
+                    ->references('id')
+                    ->on('eav_entities')
+                    ->onDelete('cascade')
+                ;
+            });
+
+            $schema->create('eav_values', function (Blueprint $table) {
+                $table->increments('id');
+                $table->longText('value')->nullable();
+                $table->integer('row_id')->unsigned()->index();
+                $table->foreign('row_id', 'fk_rows_values')
+                    ->references('id')
+                    ->on('eav_rows')
+                    ->onDelete('cascade')
+                ;
+                $table->integer('attribute_id')->unsigned()->index();
+                $table->foreign('attribute_id', 'fk_attr_values')
+                    ->references('id')
+                    ->on('eav_attributes')
+                    ->onDelete('cascade')
+                ;
+            });
+        }
     }
 
     /**

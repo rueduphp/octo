@@ -92,6 +92,39 @@ class Instant extends Facade
     }
 }
 
+class Config extends Facade
+{
+    /**
+     * @return string
+     */
+    public static function getNativeClass(): string
+    {
+        return 'config';
+    }
+}
+
+class Bdd extends Facade
+{
+    /**
+     * @return string
+     */
+    public static function getNativeClass(): string
+    {
+        return 'bdd';
+    }
+}
+
+class Validator extends Facade
+{
+    /**
+     * @return string
+     */
+    public static function getNativeClass(): string
+    {
+        return 'validator';
+    }
+}
+
 class Cache extends Facade
 {
     /**

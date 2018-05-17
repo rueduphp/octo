@@ -10,8 +10,9 @@ class Fastmiddlewaredispatch extends FastMiddleware
 {
     /**
      * @param ServerRequestInterface $request
-     * @param DelegateInterface $next
+     * @param DelegateInterface|null $next
      * @return \GuzzleHttp\Psr7\Response|mixed|null|ResponseInterface
+     * @throws Exception
      * @throws \ReflectionException
      */
     public function process(ServerRequestInterface $request, ?DelegateInterface $next = null)
@@ -20,6 +21,15 @@ class Fastmiddlewaredispatch extends FastMiddleware
         $route  = $app->define('route');
 
         if (!is_null($route)) {
+            /** @var Ultimate $session */
+            $session = $this->getSession();
+            /** @var FastRequest $request */
+            $req = gi()->make(FastRequest::class);
+
+            if ($req->method() === 'GET' && !$req->ajax() && !IS_CLI) {
+                $session->setPreviousUrl(Url::full(), $route);
+            }
+
             $action = Arrays::last(explode('.', $route->getName()));
 
             $middleware = $route->getMiddleware();

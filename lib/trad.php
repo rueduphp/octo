@@ -3,8 +3,9 @@
 namespace Octo;
 
 use Countable;
+use Illuminate\Contracts\Translation\Translator;
 
-class Trad extends Resolve implements FastTranslatorInterface
+class Trad extends Resolve implements FastTranslatorInterface, Translator
 {
     use Macroable;
 

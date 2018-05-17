@@ -54,7 +54,7 @@
 
         protected function connect()
         {
-            if ($pdo = context('app')->pdo) {
+            if ($pdo = context('app')->pdo ?? in(PDO::class)) {
                 if ($pdo instanceof PDO) {
                     return $this->setPdo($pdo);
                 }
@@ -395,7 +395,7 @@
                 $this->begin();
 
                 try {
-                    $result = callCallable($callback, $this);
+                    $result = callThat($callback, $this);
 
                     $this->commit();
                 } catch (\Exception $e) {
@@ -1313,13 +1313,13 @@
                 $this->select();
             }
 
-            return $this->get()->fetch();
+            return $this->limit(1)->get()->fetch();
         }
 
         /**
          * @param string $table
-         *
          * @return mixed
+         * @throws \ReflectionException
          */
         public function firstWith(string $table)
         {
@@ -1327,7 +1327,7 @@
                 $this->select();
             }
 
-            return $this->limit(1)->with($table)->first();
+            return $this->with($table)->first();
         }
 
         /**
@@ -1466,9 +1466,9 @@
         }
 
         /**
-         * @param null $table
-         *
+         * @param null|string $table
          * @return \PDOStatement
+         * @throws \ReflectionException
          */
         public function destroy(?string $table = null)
         {
@@ -1476,9 +1476,9 @@
         }
 
         /**
-         * @param null $table
-         *
+         * @param null|string $table
          * @return \PDOStatement
+         * @throws \ReflectionException
          */
         public function remove(?string $table = null)
         {
@@ -2419,8 +2419,8 @@
             $first = $collection->first();
 
             foreach ($relations as $relation) {
-                $class               = instanciator()->call($thisEntity, $relation);
-                $entity              = instanciator()->factory($class);
+                $class               = gi()->call($thisEntity, $relation);
+                $entity              = gi()->factory($class);
                 $entities[$relation] = $entity;
 
                 $pk = $entity->table() . '_id';
@@ -2452,7 +2452,7 @@
                     if ('single' === $type) {
                         $getter             = getter($entity->table() . '_id');
                         $record             = $coll->where($entity->pk(), $model->$getter())->first();
-                        $model->$relation   = $entity->model($record);
+                        $model->{$relation} = $entity->model($record);
                     } elseif ('many' === $type) {
                         $getter = getter($thisEntity->pk());
                         $rows   = $coll->where($thisEntity->table() . '_id', $model->$getter());
@@ -2462,7 +2462,7 @@
                             $models[] = $entity->model($relRow);
                         }
 
-                        $model->$relation = $this->collectionEntity($entity, $models);
+                        $model->{$relation} = $this->collectionEntity($entity, $models);
                     }
 
                     $results[] = $model;

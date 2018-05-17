@@ -144,7 +144,7 @@ class You
      */
     public static function setRole(string $name, $value = null)
     {
-        $value = is_null($value) ? $name : $value;
+        $value = $value ?? $name;
         static::$roles[get_called_class()][$name] = $value;
     }
 
