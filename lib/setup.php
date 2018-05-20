@@ -237,15 +237,19 @@ class Setup
             return !$rights->allows(...$args);
         };
 
+        $rights['user'] = function (...$args) {
+            return getSession()->user(...$args);
+        };
+
         $rights['allows'] = function (...$args) {
             $name = array_shift($args);
 
             $rule = isAke(getCore('all.rules', []), $name, null);
 
             if (\is_callable($rule)) {
-                $params = array_merge([$rule], $args);
+                $params = array_merge([$rule, getSession()->user()], $args);
 
-                return callThat(...$params);
+                return gi()->call(...$params);
             }
 
             return false;

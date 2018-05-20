@@ -9,6 +9,29 @@ class Elegant extends EloquentModel implements FastModelInterface
     protected $__capsule;
 
     /**
+     * @param array $attributes
+     * @throws \ReflectionException
+     */
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
+
+        if (false === booted($class = get_called_class())) {
+            bootThis($class);
+
+            $methods = get_class_methods($this);
+
+            if (in_array('events', $methods)) {
+                gi()->call($this, 'events', gi()->make(FastEvent::class));
+            }
+
+            if (in_array('policies', $methods)) {
+                gi()->call($this, 'policies');
+            }
+        }
+    }
+
+    /**
      * @param string $m
      * @param array $a
      *
@@ -35,10 +58,8 @@ class Elegant extends EloquentModel implements FastModelInterface
      */
     public function __call($m, $a)
     {
-        $class = get_called_class();
-
         if (!isset($this->__capsule)) {
-            $this->__capsule = Capsule::getInstance()->model($class);
+            $this->__capsule = Capsule::getInstance()->model(get_called_class());
         }
 
         if (in_array($m, ['increment', 'decrement'])) {
@@ -54,11 +75,12 @@ class Elegant extends EloquentModel implements FastModelInterface
 
     /**
      * @return FastFactory
+     * @throws \ReflectionException
      */
     public static function factory()
     {
         $class = get_called_class();
 
-        return new FastFactory($class, new $class());
+        return new FastFactory($class, gi()->make($class));
     }
 }

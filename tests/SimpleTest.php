@@ -15,7 +15,13 @@ use Octo\EavValue;
 use Octo\Emit;
 use Octo\Facade;
 use Octo\Facades\{
-    Cache as CacheF, Event as EventF, Flash as FlashF, Is as IsF, Log as LogF, Route, Session as SessionF
+    Cache as CacheF,
+    Event as EventF,
+    Flash as FlashF,
+    Is as IsF,
+    Log as LogF,
+    Route,
+    Session as SessionF
 };
 use Octo\Finder;
 use Octo\In;
@@ -276,6 +282,9 @@ class Items extends Dynamicentity
 
 class SimpleTest extends TestCase
 {
+    /**
+     * @throws ReflectionException
+     */
     public function testMixed()
     {
         $this->assertTrue(IsF::email('foo@bar.com'));
@@ -294,6 +303,21 @@ class SimpleTest extends TestCase
         $count2 = $this->coll(Route::list())->count();
 
         $this->assertSame($count + 4, $count2);
+
+        $a = $this->voidToCallback('foo');
+        $b = $this->voidToCallback('foo');
+
+        $this->assertTrue($this->sameClosures($a, $b));
+
+        $a = function () {
+            return true;
+        };
+
+        $b = function () {
+            return true;
+        };
+
+        $this->assertTrue($this->sameClosures($a, $b));
     }
 
     /**

@@ -1,0 +1,1220 @@
+#!/usr/bin/env php
+<?php
+
+use App\Bootstrap;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Schema\Builder;
+use Octo\Fast;
+use Octo\FastCache;
+use Octo\Orm;
+use Octo\Work;
+use function Octo\appenv as getConfEnv;
+use function Octo\faker;
+use function Octo\instanciator;
+use function Octo\path;
+
+ini_set('error_reporting', E_ALL);
+ini_set('display_errors', true);
+
+if (file_exists(realpath(__DIR__) . '/../.env')) {
+    $ini = parse_ini_file(realpath(__DIR__) . '/../.env');
+}
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+call_user_func(function () use ($argv) {
+    try {
+        bootApp(true);
+
+        if (count($argv) > 1) {
+            array_shift($argv);
+            new CliOcto(\Octo\App::create(), \Octo\app_path() . '/databases', $argv);
+        } else {
+            Octo\Cli::show('Please provide an action', 'ERROR');
+        }
+    }  catch (Exception $e) {
+        Octo\Cli::show($e->getMessage() . ' === [' . $e->getFile() . ' ' . $e->getLine() . '] ===', 'ERROR');
+        dd($e, debug_backtrace());
+    }
+});
+
+class CliOcto
+{
+    /**
+     * @var string
+     */
+    private $path_migrations;
+
+    /**
+     * @var string
+     */
+    private $path_seeds;
+
+    /**
+     * @var string
+     */
+    private $table_migrations = "octo_migration";
+
+    /**
+     * @var string
+     */
+    private $table_seeds = "octo_seed";
+
+    /**
+     * @var PDO
+     */
+    private $pdo;
+
+    /**
+     * @var Orm
+     */
+    private $orm;
+
+    /**
+     * @var Builder
+     */
+    private $schema;
+    /**
+     * @var Fast
+     */
+    private $app;
+
+    /**
+     * @param Fast $app
+     * @param $path
+     * @param array $args
+     * @throws ReflectionException
+     * @throws \Octo\Exception
+     */
+    public function __construct(Fast $app, string $path, array $args)
+    {
+        if (!is_dir($path)) {
+            Octo\File::mkdir($path);
+        }
+
+        $this->app = $app;
+        $this->path_migrations = $path . '/migrations';
+
+        if (!is_dir($this->path_migrations)) {
+            Octo\File::mkdir($this->path_migrations);
+        }
+
+        $this->path_seeds = $path . '/seeds';
+
+        if (!is_dir($this->path_seeds)) {
+            Octo\File::mkdir($this->path_seeds);
+        }
+
+        $this->run($args);
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    public function setupDb()
+    {
+        /** @var PDO pdo */
+        $this->pdo = in(PDO::class);
+
+        $this->orm = new Orm($this->pdo);
+
+        $this->schema = $this->orm->schema();
+
+        if (!$this->hasTable($this->table_migrations)) {
+            $this->createRepository();
+        }
+
+        if (!$this->hasTable($this->table_seeds)) {
+            $this->createRepositorySeeder();
+        }
+    }
+
+    /**
+     * @return string
+     */
+    public function getPathMigrations(): string
+    {
+        return $this->path_migrations;
+    }
+
+    /**
+     * @return string
+     */
+    public function getPathSeeds(): string
+    {
+        return $this->path_seeds;
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function make_caching()
+    {
+        $this->caching();
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function make_notification_table()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('notification')) {
+            $this->getSchema()->create('notification', function (Blueprint $table) {
+                $table->uuid('id')->primary();
+                $table->string('type');
+                $table->morphs('notifiable');
+                $table->text('data');
+                $table->timestamp('read_at')->nullable();
+                $table->timestamp('created_at')->nullable()->useCurrent();
+                $table->timestamp('updated_at')->nullable()->useCurrent();
+            });
+
+            $this->show("Notification table has been created.");
+        } else {
+            $this->show("Notification table ever exists.", 'ERROR');
+        }
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function caching()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('caching')) {
+            $this->getSchema()->create('caching', function (Blueprint $table) {
+                $table->string('k')->primary()->unique();
+                $table->longText('v')->nullable();
+                $table->unsignedBigInteger('e')->index();
+            });
+
+            $this->show("Caching table has been created.");
+        } else {
+            $this->show("Caching table ever exists.", 'ERROR');
+        }
+    }
+
+    private function serve()
+    {
+        $base = realpath(__DIR__);
+
+        $this->show('Server is running on http://localhost:8000');
+
+        passthru("php -S localhost:8000 {$base}/server.php");
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function drop()
+    {
+        $this->setupDb();
+
+        $tables = $this->query("SHOW TABLES")->fetchAll();
+
+        foreach ($tables as $row) {
+            $table = $row[0];
+
+            if ($table !== $this->table_migrations && $table !== $this->table_seeds) {
+                $sql = "DROP TABLE $table";
+            } else {
+                $sql = "TRUNCATE TABLE $table";
+            }
+
+            $this->exec($sql);
+        }
+
+        $this->show('All tables have been dropped.');
+    }
+
+    /**
+     * @param null $tableToEmpty
+     * @throws ReflectionException
+     */
+    private function empty($tableToEmpty = null)
+    {
+        $this->setupDb();
+
+        $tables = $this->query("SHOW TABLES")->fetchAll();
+
+        foreach ($tables as $row) {
+            $table = $row[0];
+
+            if (!is_null($tableToEmpty) && $table !== $tableToEmpty) {
+                continue;
+            }
+
+            $sql = "TRUNCATE TABLE $table";
+
+            $this->exec($sql);
+        }
+
+        $this->show('All tables have been truncated.');
+    }
+
+    /**
+     * @param array $args
+     * @throws ReflectionException
+     */
+    private function run(array $args)
+    {
+        $cmd        = array_shift($args);
+        $action     = str_replace(':', '_', $cmd);
+        $proceed    = false;
+
+        if (in_array($action, get_class_methods($this))) {
+            $this->{$action}(...$args);
+            $proceed = true;
+        } else {
+            $path = \Octo\app_path() . '/Commands';
+
+            if (is_dir($path)) {
+                $commandsFiles = glob($path . '/*.php', GLOB_NOSORT);
+
+                foreach ($commandsFiles as $commandsFile) {
+                    require_once $commandsFile;
+                    $class = '\\App\\Commands\\' . str_replace([$path, '.php'], '', $commandsFile);
+                    $instance = Octo\gi()->factory($class);
+
+                    if (in_array($action, get_class_methods($instance))) {
+                        $params = array_merge([$instance, $action, $this->app], $args);
+                        Octo\gi()->call(...$params);
+                        $proceed = true;
+                    }
+                }
+            }
+        }
+
+        if (false === $proceed) {
+            $this->show('Task "' . $cmd . '" does not exist.', 'ERROR');
+        }
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function cron()
+    {
+        $this->show('Cron job start');
+        $this->job_process();
+        $this->show('Cron job end');
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function run_jobs()
+    {
+        $this->job_process();
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function job_process()
+    {
+        $worker = new Work(new FastCache('jobs'));
+
+        $computed = $worker->process();
+
+        $this->show($computed . ' jobs processed');
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_job(...$args)
+    {
+        $this->job_add(...$args);
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function job_add(string $name)
+    {
+        $this->stubber('job', $name);
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function init_sql_cache()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('data_cache')) {
+            $sql = "CREATE TABLE IF NOT EXISTS `data_cache` (
+  `k` varchar(255) NOT NULL,
+  `v` longtext NOT NULL,
+  `e` bigint(20) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+            $this->query($sql);
+
+            $this->show("SQL Cache is now enabled");
+        } else {
+            $this->show("SQL Cache is ever enabled", "ERROR");
+        }
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_event(...$args)
+    {
+        $this->event_add(...$args);
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function event_add(string $name)
+    {
+        $this->stubber('event', $name);
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_request()
+    {
+        $this->request_add(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function request_add(string $name)
+    {
+        $this->stubber('request', $name);
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_entity()
+    {
+        $this->entity(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function entity(string $name)
+    {
+        $class = Octo\Inflector::camelize($name);
+
+        $stub = $this->getStub('entity', $class, $name);
+
+        if (!is_dir(Octo\app_path() . '/Models')) {
+            Octo\File::mkdir(Octo\app_path() . '/Models');
+        }
+
+        $file = Octo\app_path() . '/Models/'  . $class . '.php';
+
+        if (!file_exists($file)) {
+            Octo\File::put($file, $stub);
+            $this->show("Class {$class} has been created.");
+        } else {
+            $this->show("Class {$class} ever exists.", 'ERROR');
+        }
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_observer()
+    {
+        $this->observer(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function observer(string $name)
+    {
+        $this->stubber('observer', $name);
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_callable()
+    {
+        $this->callable(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function callable(string $name)
+    {
+        $this->stubber('callable', $name);
+    }
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_service()
+    {
+        $this->callable(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function service(string $name)
+    {
+        $this->stubber('callable', $name);
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_module()
+    {
+        $this->module(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function module(string $name)
+    {
+        $this->stubber('module', $name);
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_middleware()
+    {
+        $this->middleware(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function middleware(string $name)
+    {
+        $this->stubber('middleware', $name);
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_subscriber()
+    {
+        $this->subscriber(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function subscriber(string $name)
+    {
+        $this->stubber('subscriber', $name);
+    }
+
+    /**
+     * @param string $type
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function stubber(string $type, string $name)
+    {
+        $typePath = \Octo\Inflector::ucfirst(Octo\Inflector::lower($type)) . 's';
+
+        $class = Octo\Inflector::camelize($name);
+
+        $stub = $this->getStub($type, $class, $name);
+
+        if (!is_dir(Octo\app_path() . '/' . $typePath)) {
+            Octo\File::mkdir(Octo\app_path() . '/' . $typePath);
+        }
+
+        $file = Octo\app_path() . '/' . $typePath . '/'  . $class . '.php';
+
+        if (!file_exists($file)) {
+            Octo\File::put($file, $stub);
+            $this->show("Class {$class} has been created.");
+        } else {
+            $this->show("Class {$class} ever exists.", 'ERROR');
+        }
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function make_model()
+    {
+        $this->eloquent(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function eloquent(string $name)
+    {
+        $class = Octo\Inflector::camelize($name);
+
+        if (!is_dir(Octo\app_path() . '/Models')) {
+            Octo\File::mkdir(Octo\app_path() . '/Models');
+        }
+
+        $stub = $this->getStub('eloquent', $class, $name);
+
+        $file = Octo\app_path() . '/Models/'  . $class . '.php';
+
+        if (!file_exists($file)) {
+            Octo\File::put($file, $stub);
+            $this->show("Class {$class} has been created.");
+        } else {
+            $this->show("Class {$class} ever exists.", 'ERROR');
+        }
+    }
+
+    /**
+     * @return string
+     */
+    private function getKey()
+    {
+        $time = microtime();
+        list($micro, $timestamp) = explode(' ', $time, 2);
+        list($dummy, $micro) = explode('.', $micro, 2);
+
+        return substr($timestamp . $micro, 0, -4);
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function make_rollback()
+    {
+        $this->rollback();
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function rollback()
+    {
+        $this->setupDb();
+
+        $query = "SELECT batch FROM {$this->table_migrations} ORDER BY batch DESC LIMIT 1";
+        $batch = $this->query($query)->fetchColumn();
+        $files = glob($this->getPathMigrations() . DS . "*{$batch}*.php");
+
+        if (count($files) === 1) {
+            $file = array_shift($files);
+            $path = str_replace('.php', '', pathinfo($file, PATHINFO_BASENAME));
+            $class = Octo\Inflector::camelize($path);
+            $batch = (int) $batch;
+
+            require_once $file;
+
+            $instance = new $class;
+
+            Octo\callMethod($instance, 'down', $this->getSchema());
+
+            $query = "DELETE FROM {$this->table_migrations} WHERE batch = $batch";
+            $this->exec($query);
+
+            $this->show("Class {$class} has been rollbacked.");
+        } else {
+            $this->show("No migration to rollback.");
+        }
+    }
+
+    private function make_unseed()
+    {
+        $this->unseed();
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function unseed()
+    {
+        $this->setupDb();
+
+        $query = "SELECT batch FROM {$this->table_seeds} ORDER BY batch DESC LIMIT 1";
+        $batch = $this->query($query)->fetchColumn();
+        $files = glob($this->getPathSeeds() . DS . "*{$batch}*.php");
+
+        if (count($files) === 1) {
+            $file = array_shift($files);
+            $path = str_replace('.php', '', pathinfo($file, PATHINFO_BASENAME));
+            $class = Octo\Inflector::camelize($path);
+            $batch = (int) $batch;
+
+            $code = Octo\File::read($file);
+
+            $table = Octo\cut(")->into('", "')'", $code);
+
+            $query = "TRUNCATE TABLE {$table}";
+            $this->exec($query);
+
+            $query = "DELETE FROM {$this->table_seeds} WHERE batch = $batch";
+            $this->exec($query);
+
+            $this->show("Class {$class} has been unseeded.");
+        } else {
+            $this->show("No seed to unseed.");
+        }
+    }
+
+    /**
+     * @param string $msg
+     * @param string $type
+     */
+    private function show($msg, $type = 'INFO')
+    {
+        Octo\Cli::show($msg, $type);
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function migrate()
+    {
+        $this->setupDb();
+
+        $files = glob($this->getPathMigrations() . DS . "*.php");
+
+        if (empty($files)) {
+            $this->show("No migration to migrate.");
+        } else {
+            $proceed = false;
+
+            foreach ($files as $file) {
+                $path = str_replace('.php', '', pathinfo($file, PATHINFO_BASENAME));
+                $class = Octo\Inflector::camelize($path);
+                list($action, $name, $batch) = explode('_', $path, 3);
+                $batch = (int) $batch;
+                $query = "SELECT COUNT(id) FROM {$this->table_migrations} WHERE batch = $batch";
+                $res = $this->query($query)->fetchColumn();
+
+                if (0 === $res) {
+                    $query = "INSERT INTO {$this->table_migrations} (migration, batch)
+                    VALUES ('{$action}_{$name}', $batch)";
+                    $this->exec($query);
+
+                    require_once $file;
+
+                    $instance = Octo\gi()->make($class);
+
+                    Octo\gi()->call($instance, 'up', $this->getSchema());
+
+                    $this->show("Class {$class} has been migrated.");
+
+                    $proceed = true;
+                }
+            }
+
+            if (false === $proceed) {
+                $this->show("No migration to migrate.");
+            }
+        }
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function seed()
+    {
+        $this->setupDb();
+
+        $files = glob($this->getPathSeeds() . DS . "*.php");
+
+        if (empty($files)) {
+            $this->show("No seed to seed.");
+        } else {
+            $proceed = false;
+
+            foreach ($files as $file) {
+                $path = str_replace('.php', '', pathinfo($file, PATHINFO_BASENAME));
+                $class = Octo\Inflector::camelize($path);
+                list($action, $name, $batch) = explode('_', $path, 3);
+                $batch = (int) $batch;
+                $query = "SELECT COUNT(id) FROM {$this->table_seeds} WHERE batch = $batch";
+                $res = $this->query($query)->fetchColumn();
+
+                if (0 === $res) {
+                    $query = "INSERT INTO {$this->table_seeds} (seeder, batch)
+                    VALUES ('{$action}_{$name}', $batch)";
+                    $this->exec($query);
+
+                    require_once $file;
+
+                    $instance = Octo\gi()->make($class);
+
+                    Octo\gi()->call($instance, 'seeds', $this->getOrm(), faker());
+
+                    $this->show("Class {$class} has been seeded.");
+
+                    $proceed = true;
+                }
+            }
+
+            if (false === $proceed) {
+                $this->show("No seed to seed.");
+            }
+        }
+    }
+
+    private function make_migration()
+    {
+        $this->create(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     */
+    private function create(string $name)
+    {
+        $key = $this->getKey();
+
+        $name = Octo\Inflector::slug($name, '_');
+
+        $path = 'create_' . $name . '_' . $key;
+
+        $class = Octo\Inflector::camelize($path);
+
+        $stub = $this->getStub('create', $class);
+
+        $file = $this->getPathMigrations() . DS . $path . '.php';
+
+        if (!file_exists($file)) {
+            Octo\File::put($file, $stub);
+            $this->show("Class {$class} has been created.");
+        } else {
+            $this->show("Class {$class} ever exists.", 'ERROR');
+        }
+    }
+
+    private function make_seed()
+    {
+        $this->seeder(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     */
+    private function seeder(string $name)
+    {
+        $key = $this->getKey();
+
+        $name = Octo\Inflector::slug($name, '_');
+
+        $path = 'seeder_' . $name . '_' . $key;
+
+        $class = Octo\Inflector::camelize($path);
+
+        $stub = $this->getStub('seeder', $class);
+
+        $file = $this->getPathSeeds() . DS . $path . '.php';
+
+        if (!file_exists($file)) {
+            Octo\File::put($file, $stub);
+            $this->show("Class {$class} has been created.");
+        } else {
+            $this->show("Class {$class} ever exists.", 'ERROR');
+        }
+    }
+
+    private function make_update()
+    {
+        $this->update(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     */
+    private function update(string $name)
+    {
+        $key = $this->getKey();
+
+        $name = Octo\Inflector::slug($name, '_');
+
+        $path = 'update_' . $name . '_' . $key;
+
+        $class = Octo\Inflector::camelize($path);
+
+        $stub = $this->getStub('update', $class);
+
+        $file = $this->getPathMigrations() . DS . $path . '.php';
+
+        if (!file_exists($file)) {
+            Octo\File::put($file, $stub);
+            $this->show("Class {$class} has been created.");
+        } else {
+            $this->show("Class {$class} ever exists.", 'ERROR');
+        }
+    }
+
+    /**
+     * @param null $table
+     *
+     * @return bool
+     */
+    private function hasTable($table): bool
+    {
+        $query = "SELECT COUNT(*) AS count FROM information_schema.tables WHERE table_name = '{$table}'";
+
+        $res = (int) $this->query($query)->fetchColumn();
+
+        return $res > 0;
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
+    private function setup()
+    {
+        $cache_path = str_replace('##base_path##', path('base'), appenv('CACHE_PATH'));
+
+        Octo\Config::set('dir.cache', $cache_path);
+
+        if (!is_dir($cache_path)) {
+            Octo\File::mkdir($cache_path);
+        }
+    }
+
+    private function createRepository()
+    {
+        $this->getSchema()->create($this->table_migrations, function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('migration');
+            $table->bigInteger('batch');
+        });
+    }
+
+    private function createRepositorySeeder()
+    {
+        $this->getSchema()->create($this->table_seeds, function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('seeder');
+            $table->bigInteger('batch');
+        });
+    }
+
+    /**
+     * @return Builder
+     */
+    public function getSchema()
+    {
+        return $this->schema;
+    }
+
+    /**
+     * @return PDO
+     */
+    public function getPdo(): PDO
+    {
+        return $this->pdo;
+    }
+
+    /**
+     * @return Orm
+     */
+    public function getOrm(): Orm
+    {
+        return $this->orm;
+    }
+
+    /**
+     * @param string $type
+     * @param string $class
+     * @param string|null $table
+     *
+     * @return string
+     */
+    private function getStub(string $type, string $class, ?string $table = null): string
+    {
+        $stubs = [
+            'create' => '<?php
+
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Schema\Builder;
+
+class ' . $class . '
+{
+    public function up(Builder $schema)
+    {
+        $schema->create(\'\', function (Blueprint $table) {
+            $table->charset = \'utf8\';
+            $table->collation = \'utf8_general_ci\';
+            $table->increments(\'id\');
+            $table->timestamp(\'created_at\')->nullable()->useCurrent();
+            $table->timestamp(\'updated_at\')->nullable()->useCurrent();
+            $table->engine = \'InnoDB\';
+        });
+    }
+
+    public function down(Builder $schema)
+    {
+        $schema->dropIfExists(\'\');
+    }
+}
+',
+            'update' => '<?php
+
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Schema\Builder;
+
+class ' . $class . '
+{
+    public function up(Builder $schema)
+    {
+        $schema->table(\'\', function (Blueprint $table) {
+            //
+        });
+    }
+
+    public function down(Builder $schema)
+    {
+        $schema->table(\'\', function (Blueprint $table) {
+            //
+        });
+    }
+}
+',
+            'seeder' => '<?php
+
+use Faker\Generator;
+use Octo\Orm;
+
+class ' . $class . '
+{
+    public function seeds(Orm $db, Generator $faker)
+    {
+        //
+    }
+}
+',
+            'eloquent' => '<?php
+
+namespace App\Model;
+
+use Octo\Elegant;
+
+class ' . $class . ' extends Elegant
+{
+    protected $table = \'' . $table . '\';
+}
+',
+            'request' => '<?php
+
+namespace App\Requests;
+
+use Octo\FastRequest;
+
+class ' . $class . ' extends FastRequest
+{
+    public function __construct()
+    {
+        parent::__construct();
+    }
+}
+',
+            'entity' => '<?php
+
+namespace App\Model;
+
+use Octo\Entity;
+
+class ' . $class . ' extends Entity
+{
+
+}
+',
+            'job' => '<?php
+
+namespace App\Jobs;
+
+use Octo\FastJobInterface;
+use Octo\Framework;
+
+class ' . $class . ' implements FastJobInterface
+{
+    use Framework;
+
+    public function __construct()
+    {
+        //
+    }
+
+    public function process()
+    {
+        //
+    }
+
+    public function onSuccess()
+    {
+        //
+    }
+
+    public function onFail()
+    {
+        //
+    }
+}
+',
+            'subscriber' => '<?php
+namespace App\Subscribers;
+
+use Octo\FastEventSubscriberInterface as FESI;
+
+class ' . $class . ' implements FESI
+{
+    public function getEvents()
+    {
+        //
+    }
+}
+',
+            'module' => '<?php
+namespace App\Modules;
+
+use Octo\Module;
+use Octo\Facades\Route;
+
+class ' . $class . ' extends Module
+{
+    public function routes()
+    {
+        //
+    }
+    
+    public function events()
+    {
+        //
+    }
+}
+',
+            'middleware' => '<?php
+namespace App\Middlewares;
+
+use Closure;
+use Interop\Http\ServerMiddleware\DelegateInterface;
+use Octo\FastMiddleware;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+class ' . $class . ' extends FastMiddleware
+{
+    public function process(ServerRequestInterface $request, ?DelegateInterface $next = null)
+    {
+        //
+    }
+}
+',
+            'observer' => '<?php
+namespace App\Observers;
+
+class ' . $class . ' 
+{
+    
+}
+',
+            'service' => '<?php
+namespace App\Services;
+
+class ' . $class . ' 
+{
+    
+}
+',
+            'callable' => '<?php
+namespace App\Callables;
+
+class ' . $class . ' extends \Octo\ModuleMiddleware
+{
+    public function __construct()
+    {
+        parent::__construct();
+    }
+    
+    public function before()
+    {
+        //
+    }
+    
+    public function after()
+    {
+        //
+    }
+}
+',
+            'event' => '<?php
+
+namespace App\Events;
+
+use Octo\FastEventInterface;
+use Octo\Framework;
+
+class ' . $class . ' implements FastEventInterface
+{
+    use Framework;
+
+    public function __construct()
+    {
+        //
+    }
+
+    public function fire()
+    {
+        //
+    }
+
+    public function onSuccess()
+    {
+        //
+    }
+
+    public function onFail()
+    {
+        //
+    }
+}
+'
+        ];
+
+        return $stubs[$type] ?? '';
+    }
+
+    /**
+     * @param string $sql
+     *
+     * @return PDOStatement
+     */
+    private function query(string $sql): PDOStatement
+    {
+        return $this->getPdo()->query($sql);
+    }
+
+    /**
+     * @param string $sql
+     *
+     * @return int
+     */
+    private function exec(string $sql)
+    {
+        return $this->getPdo()->exec($sql);
+    }
+}

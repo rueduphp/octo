@@ -6,6 +6,9 @@ use Octo\Facades\Route;
 
 class StaticModule extends Module
 {
+    /**
+     * @throws \ReflectionException
+     */
     public function routes()
     {
         Route::get('/', function () {

@@ -8,9 +8,7 @@ class Facader
     /**
      * @param string $name
      * @param array $arguments
-     *
      * @return mixed|null
-     *
      * @throws \ReflectionException
      */
     public static function __callStatic(string $name, array $arguments)
@@ -25,7 +23,7 @@ class Facader
             if (is_array($method)) {
                 $params = array_merge($method, $arguments);
 
-                return instanciator()->call(...$params);
+                return gi()->call(...$params);
             } elseif ($method instanceof Closure) {
                 $arg = current($arguments);
                 $continue = true;
@@ -37,7 +35,7 @@ class Facader
                 if (true === $continue) {
                     $params = array_merge([$method], $arguments);
 
-                    return instanciator()->makeClosure(...$params);
+                    return gi()->makeClosure(...$params);
                 }
             }
         } else {
@@ -46,10 +44,9 @@ class Facader
         }
     }
 
-    public static function __define()
+    public static function __define(...$arguments)
     {
         $class      = get_called_class();
-        $arguments  = func_get_args();
         $methods    = Registry::get("facader." . $class, []);
         $method     = array_shift($arguments);
 

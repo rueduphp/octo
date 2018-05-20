@@ -8,6 +8,12 @@ class Module
     /** @var null|string */
     protected $viewPath;
 
+    /** @var FastRequest */
+    protected $request;
+
+    /**
+     * @throws \ReflectionException
+     */
     public function __construct()
     {
         In::self()['module'] = $this;
@@ -15,6 +21,8 @@ class Module
         if ($path = in_path('views')) {
             $this->setViewPath($path);
         }
+
+        $this->request = gi()->make(FastRequest::class);
     }
 
     /**
@@ -33,6 +41,62 @@ class Module
             $di->getRequest(),
             $di
         );
+    }
+
+    /**
+     * @return mixed|object|FastRequest|Request
+     * @throws \ReflectionException
+     */
+    public function saveFiles()
+    {
+        $request = $this->request;
+
+        if (!is_dir(public_path('uploads'))) {
+            mkdir(public_path('uploads'), 0777);
+            mkdir(public_path('uploads/thumb'), 0777);
+        } else {
+            if (!is_dir(public_path('uploads/thumb'))) {
+                mkdir(public_path('uploads/thumb'), 0777);
+            }
+        }
+
+        $finalRequest = $request;
+
+        foreach ($request->all() as $key => $value) {
+            if ($request->hasFile($key)) {
+                if ($request->has($key . '_max_width') && $request->has($key . '_max_height')) {
+                    $filename = token() . '-' . $request->file($key)->getClientFilename();
+                    $file     = $request->file($key);
+                    $image    = image()->make($file);
+
+                    image()->make($file)->resize(50, 50)->save(public_path('uploads/thumb') . '/' . $filename);
+
+                    $width  = $image->width();
+                    $height = $image->height();
+
+                    if ($width > $request->{$key . '_max_width'} && $height > $request->{$key . '_max_height'}) {
+                        $image->resize($request->{$key . '_max_width'}, $request->{$key . '_max_height'});
+                    } elseif ($width > $request->{$key . '_max_width'}) {
+                        $image->resize($request->{$key . '_max_width'}, null, function ($constraint) {
+                            $constraint->aspectRatio();
+                        });
+                    } elseif ($height > $request->{$key . '_max_width'}) {
+                        $image->resize(null, $request->{$key . '_max_height'}, function ($constraint) {
+                            $constraint->aspectRatio();
+                        });
+                    }
+
+                    $image->save(public_path('uploads') . '/' . $filename);
+                } else {
+                    $filename = token() . '-' . $request->file($key)->getClientOriginalName();
+                    $request->file($key)->moveTo(public_path('uploads' . '/' . $filename));
+                }
+
+                $finalRequest = $request->make($request->native()->withAttribute($key, $filename));
+            }
+        }
+
+        return $finalRequest;
     }
 
     /**
@@ -125,10 +189,29 @@ class Module
     {
         $blade = bladeFactory([$this->viewPath]);
 
-        if (!isset($parameters['errors'])) {
-            $parameters['errors'] = coll();
+        $vars = viewParams();
+
+        foreach ($vars as $key => $value) {
+            $parameters[$key] = $value;
         }
+
+        $parameters['errors'] = $parameters['errors'] ?? coll();
 
         return $blade->make($name, (array) $parameters)->render();
     }
+}
+
+class ModuleMiddleware
+{
+    /**
+     * @throws \ReflectionException
+     */
+    public function __construct()
+    {
+        $this->before();
+        afterModule([$this, 'after']);
+    }
+
+    public function before() {}
+    public function after() {}
 }

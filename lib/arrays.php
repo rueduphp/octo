@@ -37,7 +37,7 @@
             $resource = fopen("php://memory", 'r+');
             fwrite($resource, serialize($array));
 
-            self::$resources[$name] = $resource;
+            static::$resources[$name] = $resource;
 
             return $resource;
         }
@@ -51,7 +51,7 @@
          */
         public static function makeFromResourceName(string $name, array $default = [], bool $unserialize = true)
         {
-            $resource = isAke(self::$resources, $name, false);
+            $resource = isAke(static::$resources, $name, false);
 
             if (is_resource($resource)) {
                 rewind($resource);
@@ -63,6 +63,8 @@
                 }
 
                 $data = implode('', $cnt);
+
+                unset(static::$resources[$name]);
 
                 return $unserialize ? unserialize($data) : $data;
             }
@@ -957,7 +959,9 @@
 
         public static function except($array, $keys)
         {
-            return array_diff_key($array, array_flip((array) $keys));
+            static::forget($array, $keys);
+
+            return $array;
         }
 
         public static function fetch($array, $key, $separator = '.')

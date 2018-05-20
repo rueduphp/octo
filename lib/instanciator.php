@@ -303,8 +303,47 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
+     * @return null|mixed
+     * @throws \ReflectionException
+     */
+    public function once(...$args)
+    {
+        $result     = null;
+        $closure    = current($args);
+
+        if ($closure instanceof Closure) {
+            $ref        = reflectClosure($closure);
+            $arguments  = $ref->getParameters();
+
+            $params = [];
+
+            foreach ($arguments as $arg) {
+                $arg        = (array) $arg;
+                $params[]   = current(array_values($arg));
+            }
+
+            $ns     = $ref->getNamespaceName();
+            $code   = implode('', $ref->getCode());
+            $params = implode('', $params);
+
+            $key = sha1($ns . $params . $code);
+
+            $results = getCore('closures.i.results', []);
+
+            if (!$result = isAke($results, $key, null)) {
+                $result = $this->makeClosure(...$args);
+                $results[$key] = $result;
+                setCore('closures.i.results', $results);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param mixed ...$args
      * @return mixed
-     *
      * @throws \ReflectionException
      */
     public function makeClosure(...$args)
@@ -835,8 +874,8 @@ class Instanciator
 
     /**
      * @param $concern
-     *
      * @return Instanciator
+     * @throws \ReflectionException
      */
     public function share($concern): self
     {

@@ -109,12 +109,12 @@
 
         /**
          * @param array $config
-         *
          * @return Fast
+         * @throws \ReflectionException
          */
-        public static function create($config = [])
+        public static function create(array $config = [])
         {
-            return instanciator()->make(Fast::class, [$config], true);
+            return gi()->make(Fast::class, [$config]);
         }
 
         protected function resolvable($toResolve)

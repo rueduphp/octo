@@ -1,7 +1,6 @@
 <?php
     namespace Octo;
 
-    use function get_called_class;
     use PDOException;
 
     class Entity implements FastModelInterface
@@ -29,15 +28,15 @@
                 static::$booted[$class] = true;
 
                 if (in_array('boot', $methods)) {
-                    instanciator()->call($this, 'boot');
+                    gi()->call($this, 'boot');
                 }
 
                 if (in_array('events', $methods)) {
-                    instanciator()->call($this, 'events');
+                    gi()->call($this, 'events', gi()->make(FastEvent::class));
                 }
 
                 if (in_array('policies', $methods)) {
-                    instanciator()->call($this, 'policies');
+                    gi()->call($this, 'policies');
                 }
 
                 $this->fire('booting');
@@ -51,7 +50,7 @@
                         $method     = lcfirst(Strings::camelize('boot_' . $traitName . '_trait'));
 
                         if (in_array($method, $methods)) {
-                            instanciator()->call($this, $method);
+                            gi()->call($this, $method);
                         }
 
                         $method = lcfirst(Strings::camelize('boot_' . $traitName));
@@ -76,8 +75,7 @@
         public function observe(string $class): self
         {
             $observers = get('orm.observers', []);
-            $self = get_called_class();
-            $observers[$self] = maker($class);
+            $observers[get_called_class()] = gi()->make($class);
             set('orm.observers', $observers);
 
             return $this;
@@ -118,7 +116,7 @@
                     $methods = get_class_methods($observer);
 
                     if (in_array($event, $methods)) {
-                        $result = instanciator()->call($observer, $event);
+                        $result = gi()->call($observer, $event);
 
                         if ($return) {
                             return $result;

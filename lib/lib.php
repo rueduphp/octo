@@ -1663,8 +1663,9 @@
 
     /**
      * @param string $context
-     * @return Live|Session
-     * @throws \TypeError
+     * @return mixed|null|Live|Ultimate
+     * @throws Exception
+     * @throws \ReflectionException
      */
     function session($context = 'web')
     {
@@ -3837,6 +3838,16 @@
      *
      * @return string
      */
+    function config_path(string $path = '')
+    {
+        return in_path('config') . ($path ? DS . trim($path, DS) : $path);
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
     function session_path(string $path = '')
     {
         return in_path('session') . ($path ? DS . trim($path, DS) : $path);
@@ -4002,9 +4013,11 @@
         ini_set('display_errors', APPLICATION_ENV !== 'production');
         ini_set('display_startup_errors', APPLICATION_ENV !== 'production');
 
-        $whoops = new \Whoops\Run;
-        $whoops->pushHandler(new \Whoops\Handler\PrettyPageHandler);
-        $whoops->register();
+        if (!IS_CLI) {
+            $whoops = new \Whoops\Run;
+            $whoops->pushHandler(new \Whoops\Handler\PrettyPageHandler);
+            $whoops->register();
+        }
 
         forever();
 
@@ -4300,16 +4313,9 @@
             \Http\Response\send($response);
         });
 
-        if (!empty($_POST)) {
-            bag('Post');
-            Post::fill(oclean($_POST));
-        }
-
         register_shutdown_function(function () {
-            Queue::listen();
             Later::shutdown();
-            middlewares('after');
-            listening('system.shutdown');
+            afterModule();
             shutdown();
         });
 
@@ -4768,7 +4774,27 @@
         } else {
             foreach ($callables as $callable) {
                 if (is_callable($callable)) {
-                    callCallable($callable);
+                    callThat($callable);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param callable|null $callable
+     * @throws \ReflectionException
+     */
+    function afterModule(?callable $callable = null)
+    {
+        $callables = getCore('modules.shutdown', []);
+
+        if (is_callable($callable)) {
+            $callables[] = $callable;
+            setCore('modules.shutdown', $callables);
+        } else {
+            foreach ($callables as $callable) {
+                if (is_callable($callable)) {
+                    gi()->call(...$callable);
                 }
             }
         }
@@ -5829,20 +5855,49 @@
         FacadeBlade::directive($directive->alternatingTag(), [$directive, 'alternatingHandler']);
     }
 
+    function fetchCode($ref)
+    {
+        $file = new \SplFileObject($ref->getFileName());
+        $file->seek($ref->getStartLine() - 1);
+
+        $code = '';
+
+        while ($file->key() < $ref->getEndLine()) {
+            $code .= $file->current();
+            $file->next();
+        }
+
+        $begin  = strpos($code, 'function');
+        $end    = strrpos($code, '}');
+        $code   = substr($code, $begin, $end - $begin + 1);
+
+        return $code;
+    }
+
     /**
      * @return bool
      * @throws \ReflectionException
      */
-    function sameClosures()
+    function sameClosures(...$closures)
     {
-        $closures = func_get_args();
-
         $hashes = [];
 
         foreach ($closures as $closure) {
-            $ref = new ReflectionFunction($closure);
+            $ref        = reflectClosure($closure);
+            $arguments  = $ref->getParameters();
 
-            $hashed = sha1($ref->getFileName() . $ref->getStartLine() . $ref->getEndLine());
+            $params = [];
+
+            foreach ($arguments as $arg) {
+                $arg        = (array) $arg;
+                $params[]   = current(array_values($arg));
+            }
+
+            $hashed = sha1(
+                $ref->getNamespaceName() .
+                implode('', $params) .
+                implode('', $ref->getCode())
+            );
 
             if (!empty($hashes)) {
                 if (!in_array($hashed, $hashes)) {
@@ -6022,7 +6077,7 @@
     /**
      * @param null|string $name
      * @param null|string $driver
-     * @return mixed|null|Live|Ultimate
+     * @return mixed|null|Ultimate
      * @throws Exception
      * @throws \ReflectionException
      */
@@ -6113,9 +6168,7 @@
      * @param $target
      * @param $key
      * @param null $default
-     *
      * @return array|mixed|null
-     *
      * @throws \ReflectionException
      */
     function dataget($target, $key, $default = null)
@@ -6145,6 +6198,57 @@
                 $target = $target->{$segment};
             } else {
                 return value($default);
+            }
+        }
+
+        return $target;
+    }
+
+    function dataset(&$target, $key, $value, $overwrite = true)
+    {
+        $segments = is_array($key) ? $key : explode('.', $key);
+
+        if (($segment = array_shift($segments)) === '*') {
+            if (!Arrays::accessible($target)) {
+                $target = [];
+            }
+
+            if ($segments) {
+                foreach ($target as &$inner) {
+                    dataset($inner, $segments, $value, $overwrite);
+                }
+            } elseif ($overwrite) {
+                foreach ($target as &$inner) {
+                    $inner = $value;
+                }
+            }
+        } elseif (Arrays::accessible($target)) {
+            if ($segments) {
+                if (!Arrays::exists($target, $segment)) {
+                    $target[$segment] = [];
+                }
+
+                dataset($target[$segment], $segments, $value, $overwrite);
+            } elseif ($overwrite || !Arrays::exists($target, $segment)) {
+                $target[$segment] = $value;
+            }
+        } elseif (is_object($target)) {
+            if ($segments) {
+                if (!isset($target->{$segment})) {
+                    $target->{$segment} = [];
+                }
+
+                dataset($target->{$segment}, $segments, $value, $overwrite);
+            } elseif ($overwrite || ! isset($target->{$segment})) {
+                $target->{$segment} = $value;
+            }
+        } else {
+            $target = [];
+
+            if ($segments) {
+                dataset($target[$segment], $segments, $value, $overwrite);
+            } elseif ($overwrite) {
+                $target[$segment] = $value;
             }
         }
 
@@ -6281,11 +6385,13 @@
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|object
+     * @throws \ReflectionException
      */
     function maker(...$args)
     {
-        return instanciator()->make(...$args);
+        return gi()->make(...$args);
     }
 
     /**
@@ -6294,7 +6400,7 @@
      */
     function callMethod(...$args)
     {
-        return instanciator()->call(...$args);
+        return gi()->call(...$args);
     }
 
     /**
@@ -7983,11 +8089,22 @@
         return $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     }
 
+    /**
+     * @param null $config
+     * @return \Intervention\Image\ImageManager
+     * @throws \ReflectionException
+     */
     function image($config = null)
     {
-        $config = !is_array($config) ? ['driver' => 'imagick'] : $config;
+        $config = !is_array($config) || empty($config) ? ['driver' => 'imagick'] : $config;
 
-        return instanciator()->make(\Intervention\Image\ImageManager::class, [$config]);
+        $driver = isAke($config, 'driver', null);
+
+        if (null === $driver || !in_array($driver, ['gd', 'imagick'])) {
+            $config['driver'] = 'imagick';
+        }
+
+        return gi()->make(\Intervention\Image\ImageManager::class, [$config]);
     }
 
     function imgResize($source_file, $dest_dir, $max_w, $max_h, $stamp_file = null)
@@ -8364,19 +8481,79 @@
         }
     }
 
-    function bag($bag)
+    /**
+     * @param string $name
+     * @return Fillable
+     */
+    function bag(string $name = 'core')
     {
-        if (!class_exists('Octo\\' . $bag)) {
-            $code = 'namespace Octo; class ' . $bag . ' {public static function __callStatic($method, $args)
-        {
-            return call_user_func_array([lib("now", ["bag_' . Strings::uncamelize($bag) . '"]), $method], $args);
-        }}';
-            eval($code);
+        static $bags = [];
+
+        $key = "bag.{$name}";
+
+        if (!$bag = isAke($bags, $key, null)) {
+            $bag = new Fillable($key);
+            $bags[$key] = $bag;
         }
 
-        $className = 'Octo\\' . $bag;
+        return $bag;
+    }
 
-        return new $className;
+    /**
+     * @param string $class
+     * @return bool
+     */
+    function booted(string $class)
+    {
+        $booted = bag('booted');
+
+        return $booted->has($class);
+    }
+
+    /**
+     * @param string $class
+     */
+    function bootThis(string $class)
+    {
+        $booted = bag('booted');
+        $booted[$class] = true;
+    }
+
+    /**
+     * @param null|string $key
+     * @param string $value
+     * @return mixed|null|Fillable
+     */
+    function viewParams(?string $key = null, $value = 'octodummy')
+    {
+        return fillBag(bag('view.params'), $key, $value);
+    }
+
+    /**
+     * @param Fillable $bag
+     * @param null|string $key
+     * @param string $value
+     * @return mixed|null|Fillable
+     */
+    function fillBag(Fillable $bag, ?string $key = null, $value = 'octodummy')
+    {
+        if (is_null($key)) {
+            return $bag;
+        }
+
+        if (is_array($key)) {
+            foreach ($key as $k => $v) {
+                $bag[$k] = $v;
+            }
+
+            return $bag;
+        }
+
+        if ('octodummy' === $value) {
+            return $bag->get($key);
+        }
+
+        return $bag->set($key, $value);
     }
 
     function shell()
@@ -9149,7 +9326,12 @@
         return $object;
     }
 
-    function reflectClosure(callable $closure)
+    /**
+     * @param Closure $closure
+     * @return mixed|object
+     * @throws \ReflectionException
+     */
+    function reflectClosure(Closure $closure)
     {
         $reflection = dyn(new \ReflectionFunction($closure));
 
@@ -9165,7 +9347,7 @@
             for ($i = $start; $i < $end - 1; $i++) {
                 $seg = $lines[$i];
 
-                if ("\n" != $seg && "\r" != $seg && "\r\n" != $seg) $code[] = $seg;
+                if ("\n" !== $seg && "\r" !== $seg && "\r\n" !== $seg && "\t" !== $seg) $code[] = $seg;
             }
 
             return $code;
@@ -9174,7 +9356,12 @@
         return $reflection;
     }
 
-    function serializeClosure(callable $closure)
+    /**
+     * @param Closure $closure
+     * @return string
+     * @throws \ReflectionException
+     */
+    function serializeClosure(Closure $closure)
     {
         $reflection = reflectClosure($closure);
         $arguments  = $reflection->getParameters();
@@ -9484,17 +9671,18 @@
     }
 
     /**
-     * @return mixed|null|FastEvent
-     *
+     * @param mixed ...$params
+     * @return mixed|null|Fire
      * @throws \ReflectionException
      */
     function event(...$params)
     {
         $className  = array_shift($params);
 
-        $manager = getEventManager();
-
         if (is_null($className)) {
+            /** @var Fire $manager */
+            $manager = getEventManager();
+
             return $manager;
         }
 
@@ -9525,17 +9713,17 @@
         }
     }
 
-    function objectifier()
+    function objectifier(...$args)
     {
-        $value = call_user_func_array('\\Octo\\actual', func_get_args());
+        $value = call_user_func_array('\\Octo\\actual', $args);
 
         return o($value);
     }
 
     /**
-     * @param $orm
-     *
-     * @return FastOrmInterface
+     * @param null $orm
+     * @return mixed|null
+     * @throws \ReflectionException
      */
     function orm($orm = null)
     {
@@ -9547,19 +9735,19 @@
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|null
+     * @throws \ReflectionException
      */
-    function self()
+    function self(...$args)
     {
-        $args = func_get_args();
-
         return actual(...$args);
     }
 
     /**
      * @param null|Live $live
-     *
-     * @return null|Live
+     * @return mixed|null
+     * @throws \ReflectionException
      */
     function live(?Live $live = null)
     {
@@ -9572,8 +9760,8 @@
 
     /**
      * @param null|Trust $trust
-     *
-     * @return Trust|null
+     * @return mixed|null
+     * @throws \ReflectionException
      */
     function trust(?Trust $trust = null)
     {
@@ -9602,11 +9790,12 @@
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|null
+     * @throws \ReflectionException
      */
-    function actual()
+    function actual(...$args)
     {
-        $args   = func_get_args();
         $num    = func_num_args();
         $key    = array_shift($args);
         $value  = array_shift($args);
@@ -10070,7 +10259,8 @@
      */
     function transaction(callable $callback, int $times = 1)
     {
-        $pdo = getPdo();
+        /** @var \PDO $pdo */
+        $pdo = in()[\PDO::class];
 
         for ($t = 1; $t <= $times; $t++) {
             $pdo->beginTransaction();
@@ -10228,9 +10418,9 @@
         return array_keys($a)[count($a) - 1];
     }
 
-    function guest($ns = 'web')
+    function guest()
     {
-        $u = session($ns)->getUser();
+        $u = getSession()->user();
 
         return is_null($u);
     }
@@ -10297,6 +10487,13 @@
         setRoutes($routes);
     }
 
+    /**
+     * @param string $name
+     * @param array $params
+     * @return mixed
+     * @throws Exception
+     * @throws \ReflectionException
+     */
     function route(string $name, array $params = [])
     {
         return getContainer()->router()->urlFor($name, $params);
@@ -10351,7 +10548,7 @@
                     $cb = Registry::get($key);
 
                     if ($cb) {
-                        return $cb(session($ns)->getUser());
+                        return gi()->makeClosure($cb, getSession()->user());
                     }
                 }
 
@@ -10400,8 +10597,8 @@
 
     /**
      * @param null|\Swift_Message $swift
-     *
-     * @return Mailable
+     * @return mixed|object
+     * @throws \ReflectionException
      */
     function message(?\Swift_Message $swift = null)
     {
@@ -10410,6 +10607,7 @@
 
     /**
      * @return \Swift_Mailer
+     * @throws \ReflectionException
      */
     function mailer(): \Swift_Mailer
     {
@@ -10437,8 +10635,7 @@
                 );
 
                 break;
-            case 'php':
-            case 'memory':
+            default:
                 $transport = \Swift_MailTransport::newInstance();
 
             break;
@@ -10447,6 +10644,10 @@
         return \Swift_Mailer::newInstance($transport);
     }
 
+    /**
+     * @return \PDO
+     * @throws \ReflectionException
+     */
     function memory()
     {
         $PDOoptions = [
@@ -10458,7 +10659,7 @@
             \PDO::ATTR_EMULATE_PREPARES     => false
         ];
 
-        $memory = foundry(\PDO::class, 'sqlite::memory:', null, null, $PDOoptions);
+        $memory = gi()->make(\PDO::class, ['sqlite::memory:', null, null, $PDOoptions]);
         $memory->setAttribute(\PDO::ATTR_STATEMENT_CLASS, [Statement::class, [$memory]]);
 
         return $memory;
@@ -10773,25 +10974,29 @@
     }
 
     /**
+     * @param array $options
+     * @return Objet
+     */
+    function listenable(array $options = [])
+    {
+        $merged = array_merge(['priority' => 0, 'halt' => false, 'once' => false], $options);
+
+        return o($merged);
+    }
+
+
+    /**
      * @param string $class
      * @param string $sep
-     *
-     * @return callable
-     *
-     * @throws \ReflectionException
+     * @return Closure
      */
     function resolverClass(string $class, string $sep = '@')
     {
-        if (is_invokable($class)) {
-            return gi()->factory($class);
-        }
-
         return function() use ($class, $sep) {
             $segments   = explode($sep, $class);
             $method     = count($segments) === 2 ? $segments[1] : 'handle';
-            $callable   = [gi()->factory($segments[0]), $method];
-            $data       = func_get_args();
-            $params     = array_merge($callable, $data);
+            $callable   = [gi()->make($segments[0]), $method];
+            $params     = array_merge($callable, func_get_args());
 
             return gi()->call(...$params);
         };

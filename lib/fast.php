@@ -7,7 +7,9 @@
     use Exception as NativeException;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
+    use GuzzleHttp\Psr7\UploadedFile;
     use Illuminate\Filesystem\Filesystem;
+    use Illuminate\Support\MessageBag;
     use Illuminate\View\Compilers\BladeCompiler;
     use Interop\Http\ServerMiddleware\DelegateInterface;
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
@@ -887,12 +889,12 @@
             $this->middlewares = $middlewares;
 
             if (is_string($middleware)) {
-                return instanciator()->singleton($middleware);
+                return gi()->make($middleware);
             } elseif (is_callable($middleware)) {
                 $middleware = call_user_func_array($middleware, [$this]);
 
                 if (is_string($middleware)) {
-                    return instanciator()->singleton($middleware);
+                    return gi()->make($middleware);
                 } else {
                     return $middleware;
                 }
@@ -915,31 +917,35 @@
             $methods = get_class_methods($module);
 
             if (in_array('boot', $methods)) {
-                callMethod($module, 'boot', $this);
+                gi()->call($module, 'boot', $this);
             }
 
             if (in_array('init', $methods)) {
-                callMethod($module, 'init', $this);
+                gi()->call($module, 'init', $this);
             }
 
             if (in_array('config', $methods)) {
-                callMethod($module, 'config', $this);
+                gi()->call($module, 'config', $this);
             }
 
             if (in_array('di', $methods)) {
-                callMethod($module, 'di', $this);
+                gi()->call($module, 'di', $this);
             }
 
             if (in_array('routes', $methods)) {
-                callMethod($module, 'routes', $this->router(), $this);
+                gi()->call($module, 'routes', $this->router(), $this);
             }
 
             if (in_array('twig', $methods)) {
-                callMethod($module, 'twig', $this);
+                gi()->call($module, 'twig', $this);
             }
 
             if (in_array('policies', $methods)) {
-                callMethod($module, 'policies', $this);
+                gi()->call($module, 'policies', $this);
+            }
+
+            if (in_array('events', $methods)) {
+                gi()->call($module, 'events', gi()->make(FastEvent::class));
             }
 
             return $this;
@@ -2380,6 +2386,22 @@
     class FastRequest
     {
         /**
+         * @throws NativeException
+         */
+        public function __construct()
+        {
+            if (false === $this->can()) {
+                throw new \Exception("This request is not authorized.");
+            }
+
+            $rules = $this->rules();
+
+            if (!empty($rules)) {
+                $this->validate();
+            }
+        }
+
+        /**
          * @param string $method
          * @return FastRequest
          * @throws \ReflectionException
@@ -2391,6 +2413,99 @@
             getContainer()->setRequest($request);
 
             return $this;
+        }
+
+        /**
+         * @return array
+         */
+        protected function rules(): array
+        {
+            return [];
+        }
+
+        /**
+         * @return array
+         */
+        protected function messages(): array
+        {
+            return [];
+        }
+
+        /**
+         * @return array
+         */
+        protected function customAttributes(): array
+        {
+            return [];
+        }
+
+        /**
+         * @return bool
+         */
+        protected function can(): bool
+        {
+            return true;
+        }
+
+        /**
+         * @return MessageBag
+         * @throws \ReflectionException
+         */
+        public function validate()
+        {
+            /** @var \Illuminate\Validation\Factory $validator */
+            $validator = gi()->make(\Octo\Facades\Validator::class);
+
+            $check = $validator->make(
+                $this->all(),
+                $this->rules(),
+                $this->messages(),
+                $this->customAttributes()
+            );
+
+            $errors = new MessageBag();
+
+            if ($check->fails()) {
+                $errors = $check->errors();
+
+                $vars = viewParams();
+                $vars['errors'] = $errors;
+            }
+
+            return $errors;
+        }
+
+        /**
+         * @return bool
+         * @throws \Illuminate\Validation\ValidationException
+         * @throws \ReflectionException
+         */
+        public function isValid(): bool
+        {
+            $errors = $this->validate();
+
+            return 0 === count($errors);
+        }
+
+        /**
+         * @return ServerRequestInterface
+         * @throws \ReflectionException
+         */
+        public function native()
+        {
+            return getRequest();
+        }
+
+        /**
+         * @param ServerRequestInterface $request
+         * @return ServerRequestInterface
+         * @throws \ReflectionException
+         */
+        public function make(ServerRequestInterface $request)
+        {
+            getContainer()->setRequest($request);
+
+            return $request;
         }
 
         /**
@@ -2414,16 +2529,6 @@
             $inputs = getSession()->get('old_inputs', []);
 
             return isAke($inputs, $key, $default);
-        }
-
-        /**
-         * @param callable $callable
-         *
-         * @return Checking
-         */
-        public function validate(callable $callable)
-        {
-            return $callable($this);
         }
 
         /**
@@ -2539,6 +2644,27 @@
             }
 
             return $results;
+        }
+
+        /**
+         * @param string $key
+         * @return UploadedFile|null
+         * @throws \ReflectionException
+         */
+        public function file(string $key)
+        {
+            $files  = getRequest()->getUploadedFiles();
+
+            return isAke($files, $key, null);
+        }
+
+        /**
+         * @param string $key
+         * @return bool
+         */
+        function hasFile(string $key): bool
+        {
+            return 'octodummy' !== isAke($_FILES, $key, 'octodummy');
         }
 
         /**
@@ -3005,7 +3131,9 @@
         }
 
         /**
-         * @return \GuzzleHttp\Psr7\MessageTrait
+         * @param int $status
+         * @return \GuzzleHttp\Psr7\MessageTrait|FastRedirector
+         * @throws Exception
          * @throws \ReflectionException
          */
         public function back($status = 302)
@@ -3021,10 +3149,10 @@
          */
         public function with(array $parameters): self
         {
-            $session = getSession();
+            $vars = viewParams();
 
             foreach ($parameters as $key => $value) {
-                $session[$key] = $value;
+                $vars[$key] = $value;
             }
 
             return $this;

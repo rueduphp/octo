@@ -11,7 +11,9 @@ use Octo\Capsule;
 use Octo\Component;
 use Octo\Configurator;
 use Octo\Dynamicentity;
+use Octo\Dynamicmodel;
 use Octo\Elegant;
+use Octo\Entity;
 use Octo\Facades\Validator;
 use Octo\Fast;
 use Octo\FastBladeDirectives;
@@ -35,24 +37,28 @@ use Zend\Expressive\Router\FastRouteRouter;
  * @throws ReflectionException
  * @throws \Octo\Exception
  */
-function bootApp()
+function bootApp($cli = false)
 {
-    systemBoot(realpath(__DIR__ . '/../'));
+    systemBoot(realpath(__DIR__));
 
     $paths = in_paths();
 
-    $paths['app']       = __DIR__;
+    $dirApp = __DIR__;
+
+    $paths['app']       = $dirApp;
     $paths['base']      = realpath(__DIR__ . '/../');
     $paths['public']    = realpath(__DIR__ . '/../public');
-    $paths['cache']     = __DIR__ . '/storage/cache';
-    $paths['storage']   = __DIR__ . '/storage';
-    $paths['log']       = __DIR__ . '/storage/log';
-    $paths['lang']      = __DIR__ . '/lang';
-    $paths['views']     = __DIR__ . '/views';
+    $paths['storage']   = $dirApp . '/storage';
+    $paths['cache']     = $dirApp . '/storage/cache';
+    $paths['log']       = $dirApp . '/storage/log';
+    $paths['lang']      = $dirApp . '/lang';
+    $paths['views']     = $dirApp . '/views';
 
     inners();
 
-    startSession();
+    if (false === $cli) {
+        startSession();
+    }
 
     $db = bag('db')->put([
         'driver'    => 'mysql',
@@ -63,10 +69,11 @@ function bootApp()
         'password'  => 'octo',
     ]);
 
-
     l('config', app(Configurator::class));
 
     FastBladeDirectives::register();
+
+    dic('eventer', \Octo\getEventManager());
 
     startDb($db);
 
@@ -74,14 +81,27 @@ function bootApp()
 
     aliases();
 
-    $app
-        ->set(Octo\Fastmiddlewarecsrf::class, function () {
-            $session = getSession();
+    if (false === $cli) {
+        $app
+            ->set(Octo\Fastmiddlewarecsrf::class, function () {
+                $session = getSession();
 
-            return new Octo\Fastmiddlewarecsrf($session);
-        })
-    ;
+                return new Octo\Fastmiddlewarecsrf($session);
+            })
+        ;
 
+        bootMiddlewares($app);
+
+        $app->addModule(StaticModule::class);
+
+        $response = $app->run();
+
+        $app->render($response);
+    }
+}
+
+function bootMiddlewares($app)
+{
     $app
         ->addMiddleware(Octo\Fastmiddlewaretrailingslash::class)
         ->addMiddleware(Octo\Fastmiddlewarecsrf::class)
@@ -89,12 +109,6 @@ function bootApp()
         ->addMiddleware(Octo\Fastmiddlewaredispatch::class)
         ->addMiddleware(Octo\Fastmiddlewarenotfound::class)
     ;
-
-    $app->addModule(StaticModule::class);
-
-    $response = $app->run();
-
-    $app->render($response);
 }
 
 /**
@@ -156,7 +170,7 @@ function startDb(Fillable $db)
 
     Validator::setPresenceVerifier($verifier);
 
-    \Octo\Dynamicmodel::migrate();
+    Dynamicmodel::migrate();
 }
 
 function aliases()
@@ -271,14 +285,22 @@ function csrf(): string
     return Octo\csrf_make();
 }
 
-function asset($path)
+/**
+ * @param string $path
+ * @return string
+ */
+function asset(string $path): string
 {
     $path = trim($path, '/');
 
     return url('assets/' . $path);
 }
 
-function url($path)
+/**
+ * @param string $path
+ * @return string
+ */
+function url(string $path): string
 {
     $path = trim($path, '/');
 
@@ -437,6 +459,16 @@ function config(?string $key = null, $value = 'octodummy')
 
     return $config->set($key, $value);
 }
+
+function addConfFile(string $path, string $key)
+{
+    $config = config();
+
+    $conf = $config->get($key, []);
+
+    $config->set($key, array_merge(require $path, $conf));
+}
+
 /**
  * @param null|string $key
  * @param string $value
@@ -469,7 +501,7 @@ function paths(?string $key = null, $value = 'octodummy')
 /**
  * @param null $abstract
  * @param array $parameters
- * @return mixed|object|Fast
+ * @return object
  */
 function maker($abstract = null, array $parameters = [])
 {
@@ -494,7 +526,7 @@ function encrypt($value)
  */
 function abort($code = 403, $message = 'Forbidden')
 {
-    $message = value($message);
+    $message = Octo\value($message);
 
     if (is_array($message)) {
         $message = json_encode($message);
@@ -543,7 +575,6 @@ function abort_unless($condition, $code = 403, $message = 'Forbidden')
  */
 function request($key = null, $default = null)
 {
-
     /** @var FastRequest $request */
     $request = app(FastRequest::class);
 
@@ -556,6 +587,21 @@ function request($key = null, $default = null)
     }
 
     return Octo\isAke($request->all(), $key, $default);
+}
+
+/**
+ * @param string $name
+ * @return null|object
+ */
+function inst(string $name)
+{
+    $class = '\Octo\Facades\\' . i()::camelize($name);
+
+    if (class_exists($class)) {
+        return app($class);
+    }
+
+    return null;
 }
 
 /**
@@ -783,11 +829,55 @@ function repo(string $name)
 
 /**
  * @param string $name
+ * @return object
+ */
+function middleware(string $name)
+{
+    $class = '\\App\\Middlewares\\' . i()->camelize($name);
+
+    return app($class);
+}
+
+/**
+ * @param string $name
+ * @return object
+ */
+function observer(string $name)
+{
+    $class = '\\App\\Observers\\' . i()->camelize($name);
+
+    return app($class);
+}
+
+/**
+ * @param string $name
  * @return Elegant
  */
 function model(string $name): Elegant
 {
     $class = '\\App\\Models\\' . i()->camelize($name);
+
+    return app($class);
+}
+
+/**
+ * @param string $name
+ * @return Entity
+ */
+function entity(string $name): Entity
+{
+    $class = '\\App\\Entities\\' . i()->camelize($name);
+
+    return app($class);
+}
+
+/**
+ * @param string $name
+ * @return object
+ */
+function service(string $name)
+{
+    $class = '\\App\\Services\\' . i()->camelize($name);
 
     return app($class);
 }
@@ -819,4 +909,41 @@ function reg(string $ns = 'core'): Fillable
 function isPost(): bool
 {
     return request()->method() === 'POST';
+}
+
+/**
+ * @param string $key
+ * @param $value
+ * @return Fillable
+ */
+function sendToView(string $key, $value)
+{
+    $vars = Octo\viewParams();
+    $vars[$key] = $value;
+
+    return $vars;
+}
+
+/**
+ * @param string $table
+ * @param string $database
+ * @throws \Octo\Exception
+ */
+function dbstore(string $table, string $database = 'core')
+{
+    $key = 'filestore.' . $table . '.' . $database;
+
+    if (!$db = bag('instances')[$key])  {
+        $path = \Octo\cache_path() . '/fs';
+
+        if (is_dir($path)) {
+            \Octo\File::mkdir($path);
+        }
+
+        $db = new \Octo\Octalia($database, $table, new Octo\Caching('fs'), $path);
+
+        bag('instances')[$key] = $db;
+    }
+
+    return $db->reset();
 }

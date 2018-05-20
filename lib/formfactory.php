@@ -3,7 +3,6 @@
 namespace Octo;
 
 use DateTime;
-use Illuminate\Support\Collection;
 use Illuminate\Support\HtmlString;
 
 class Formfactory
@@ -100,13 +99,13 @@ class Formfactory
 
         $append = $this->getAppendage($method);
 
-        if (isset($options['files']) && $options['files']) {
+        if (isset($options['files']) && true === $options['files']) {
             $options['enctype'] = 'multipart/form-data';
         }
 
 
         $attributes = array_merge(
-            $attributes, array_except($options, $this->reserved)
+            $attributes, Arrays::except($options, $this->reserved)
         );
 
         $attributes = $this->html->attributes($attributes);
@@ -202,12 +201,12 @@ class Formfactory
     }
 
     /**
-     * @param  string $type
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $type
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function input($type, $name, $value = null, $options = [])
     {
@@ -231,11 +230,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function text($name, $value = null, $options = [])
     {
@@ -243,10 +242,10 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function password($name, $options = [])
     {
@@ -254,11 +253,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function range($name, $value = null, $options = [])
     {
@@ -266,11 +265,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function hidden($name, $value = null, $options = [])
     {
@@ -278,11 +277,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function search($name, $value = null, $options = [])
     {
@@ -290,11 +289,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function email($name, $value = null, $options = [])
     {
@@ -302,11 +301,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function tel($name, $value = null, $options = [])
     {
@@ -314,11 +313,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function number($name, $value = null, $options = [])
     {
@@ -326,11 +325,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function date($name, $value = null, $options = [])
     {
@@ -342,11 +341,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function datetime($name, $value = null, $options = [])
     {
@@ -358,11 +357,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function datetimeLocal($name, $value = null, $options = [])
     {
@@ -374,11 +373,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function time($name, $value = null, $options = [])
     {
@@ -390,11 +389,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function url($name, $value = null, $options = [])
     {
@@ -402,11 +401,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function week($name, $value = null, $options = [])
     {
@@ -418,10 +417,10 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function file($name, $options = [])
     {
@@ -429,11 +428,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function textarea($name, $value = null, $options = [])
     {
@@ -457,8 +456,7 @@ class Formfactory
     }
 
     /**
-     * @param  array $options
-     *
+     * @param $options
      * @return array
      */
     protected function setTextAreaSize($options)
@@ -475,8 +473,7 @@ class Formfactory
     }
 
     /**
-     * @param  array $options
-     *
+     * @param $options
      * @return array
      */
     protected function setQuickTextAreaSize($options)
@@ -487,14 +484,14 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  array  $list
-     * @param  string|bool $selected
-     * @param  array  $selectAttributes
-     * @param  array  $optionsAttributes
-     * @param  array  $optgroupsAttributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param array $list
+     * @param null $selected
+     * @param array $selectAttributes
+     * @param array $optionsAttributes
+     * @param array $optgroupsAttributes
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function select(
         $name,
@@ -535,13 +532,13 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $begin
-     * @param  string $end
-     * @param  string $selected
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param $begin
+     * @param $end
+     * @param null $selected
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function selectRange($name, $begin, $end, $selected = null, $options = [])
     {
@@ -551,12 +548,6 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $begin
-     * @param  string $end
-     * @param  string $selected
-     * @param  array  $options
-     *
      * @return mixed
      */
     public function selectYear()
@@ -565,12 +556,12 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $selected
-     * @param  array  $options
-     * @param  string $format
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $selected
+     * @param array $options
+     * @param string $format
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function selectMonth($name, $selected = null, $options = [], $format = '%B')
     {
@@ -584,13 +575,12 @@ class Formfactory
     }
 
     /**
-     * @param  string $display
-     * @param  string $value
-     * @param  string $selected
-     * @param  array  $attributes
-     * @param  array  $optgroupAttributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $display
+     * @param $value
+     * @param $selected
+     * @param array $attributes
+     * @param array $optgroupAttributes
+     * @return HtmlString
      */
     public function getSelectOption($display, $value, $selected, array $attributes = [], array $optgroupAttributes = [])
     {
@@ -602,14 +592,13 @@ class Formfactory
     }
 
     /**
-     * @param  array  $list
-     * @param  string $label
-     * @param  string $selected
-     * @param  array  $attributes
-     * @param  array  $optionsAttributes
-     * @param  integer  $level
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $list
+     * @param $label
+     * @param $selected
+     * @param array $attributes
+     * @param array $optionsAttributes
+     * @param int $level
+     * @return HtmlString
      */
     protected function optionGroup(
         $list,
@@ -621,6 +610,7 @@ class Formfactory
     ) {
         $html = [];
         $space = str_repeat("&nbsp;", $level);
+
         foreach ($list as $value => $display) {
             $optionAttributes = $optionsAttributes[$value] ?? [];
 
@@ -643,12 +633,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $display
-     * @param  string $value
-     * @param  string $selected
-     * @param  array  $attributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $display
+     * @param $value
+     * @param $selected
+     * @param array $attributes
+     * @return HtmlString
      */
     protected function option($display, $value, $selected, array $attributes = [])
     {
@@ -668,8 +657,7 @@ class Formfactory
     /**
      * @param $display
      * @param $selected
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @return HtmlString
      */
     protected function placeholderOption($display, $selected)
     {
@@ -689,10 +677,9 @@ class Formfactory
     }
 
     /**
-     * @param  string $value
-     * @param  string $selected
-     *
-     * @return null|string
+     * @param $value
+     * @param $selected
+     * @return bool|null|string
      */
     protected function getSelectedValue($value, $selected)
     {
@@ -710,12 +697,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  mixed  $value
-     * @param  bool   $checked
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param int $value
+     * @param null $checked
+     * @param array $options
+     * @return HtmlString
      */
     public function checkbox($name, $value = 1, $checked = null, $options = [])
     {
@@ -723,12 +709,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  mixed  $value
-     * @param  bool   $checked
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param null $checked
+     * @param array $options
+     * @return HtmlString
      */
     public function radio($name, $value = null, $checked = null, $options = [])
     {
@@ -740,13 +725,13 @@ class Formfactory
     }
 
     /**
-     * @param  string $type
-     * @param  string $name
-     * @param  mixed  $value
-     * @param  bool   $checked
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $type
+     * @param $name
+     * @param $value
+     * @param $checked
+     * @param $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     protected function checkable($type, $name, $value, $checked, $options)
     {
@@ -762,12 +747,12 @@ class Formfactory
     }
 
     /**
-     * @param  string $type
-     * @param  string $name
-     * @param  mixed  $value
-     * @param  bool   $checked
-     *
+     * @param $type
+     * @param $name
+     * @param $value
+     * @param $checked
      * @return bool
+     * @throws \ReflectionException
      */
     protected function getCheckedState($type, $name, $value, $checked)
     {
@@ -782,11 +767,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  mixed  $value
-     * @param  bool   $checked
-     *
+     * @param $name
+     * @param $value
+     * @param $checked
      * @return bool
+     * @throws \ReflectionException
      */
     protected function getCheckboxCheckedState($name, $value, $checked)
     {
@@ -812,11 +797,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  mixed  $value
-     * @param  bool   $checked
-     *
+     * @param $name
+     * @param $value
+     * @param $checked
      * @return bool
+     * @throws \ReflectionException
      */
     protected function getRadioCheckedState($name, $value, $checked)
     {
@@ -830,9 +815,10 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
+     * @param $name
+     * @param $value
      * @return bool
+     * @throws \ReflectionException
      */
     protected function compareValues($name, $value)
     {
@@ -846,14 +832,14 @@ class Formfactory
      */
     protected function missingOldAndModel($name)
     {
-        return (is_null($this->old($name)) && is_null($this->getModelValueAttribute($name)));
+        return is_null($this->old($name)) && is_null($this->getModelValueAttribute($name));
     }
 
     /**
-     * @param  string $value
-     * @param  array  $attributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $value
+     * @param array $attributes
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function reset($value, $attributes = [])
     {
@@ -861,11 +847,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $url
-     * @param  string $name
-     * @param  array  $attributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $url
+     * @param null $name
+     * @param array $attributes
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function image($url, $name = null, $attributes = [])
     {
@@ -875,11 +861,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function month($name, $value = null, $options = [])
     {
@@ -891,11 +877,11 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function color($name, $value = null, $options = [])
     {
@@ -903,10 +889,10 @@ class Formfactory
     }
 
     /**
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function submit($value = null, $options = [])
     {
@@ -914,10 +900,9 @@ class Formfactory
     }
 
     /**
-     * @param  string $value
-     * @param  array  $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param null $value
+     * @param array $options
+     * @return HtmlString
      */
     public function button($value = null, $options = [])
     {
@@ -929,8 +914,7 @@ class Formfactory
     }
 
     /**
-     * @param  string $method
-     *
+     * @param $method
      * @return string
      */
     protected function getMethod($method)
@@ -941,9 +925,9 @@ class Formfactory
     }
 
     /**
-     * @param  array $options
-     *
-     * @return string
+     * @param array $options
+     * @return mixed|string
+     * @throws \ReflectionException
      */
     protected function getAction(array $options)
     {
@@ -992,7 +976,7 @@ class Formfactory
 
     /**
      * @param $options
-     * @return mixed
+     * @return mixed|null|string
      */
     protected function getControllerAction($options)
     {
@@ -1004,9 +988,9 @@ class Formfactory
     }
 
     /**
-     * @param  string $method
-     *
-     * @return string
+     * @param $method
+     * @return mixed|string
+     * @throws \ReflectionException
      */
     protected function getAppendage($method)
     {
@@ -1024,10 +1008,9 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     * @param  array  $attributes
-     *
-     * @return string
+     * @param $name
+     * @param $attributes
+     * @return mixed
      */
     public function getIdAttribute($name, $attributes)
     {
@@ -1088,9 +1071,9 @@ class Formfactory
     }
 
     /**
-     * @param  string $name
-     *
-     * @return mixed
+     * @param $name
+     * @return array|mixed|null
+     * @throws \ReflectionException
      */
     protected function getModelValueAttribute($name)
     {
@@ -1100,13 +1083,12 @@ class Formfactory
             return $this->model->getFormValue($key);
         }
 
-        return data_get($this->model, $this->transformKey($name));
+        return dataget($this->model, $this->transformKey($name));
     }
 
     /**
-     * @param  string $name
-     *
-     * @return mixed
+     * @param $name
+     * @return mixed|null
      */
     public function old($name)
     {
@@ -1114,16 +1096,16 @@ class Formfactory
             $key = $this->transformKey($name);
             $payload = $this->session->getOldInput($key);
 
-            if (! is_array($payload)) {
+            if (!is_array($payload)) {
                 return $payload;
             }
 
-            if (! in_array($this->type, ['select', 'checkbox'])) {
+            if (!in_array($this->type, ['select', 'checkbox'])) {
                 if (! isset($this->payload[$key])) {
-                    $this->payload[$key] = collect($payload);
+                    $this->payload[$key] = coll($payload);
                 }
 
-                if (! empty($this->payload[$key])) {
+                if (!empty($this->payload[$key])) {
                     $value = $this->payload[$key]->shift();
                     return $value;
                 }
@@ -1142,8 +1124,7 @@ class Formfactory
     }
 
     /**
-     * @param  string $key
-     *
+     * @param $key
      * @return mixed
      */
     protected function transformKey($key)
@@ -1153,8 +1134,7 @@ class Formfactory
 
     /**
      * @param $html
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @return HtmlString
      */
     protected function toHtmlString($html)
     {
@@ -1162,7 +1142,7 @@ class Formfactory
     }
 
     /**
-     * @return  Ultimate  $session
+     * @return Ultimate
      */
     public function getSessionStore()
     {
@@ -1170,14 +1150,35 @@ class Formfactory
     }
 
     /**
-     * @param  Ultimate $session
-     *
-     * @return $this
+     * @param $session
+     * @return Formfactory
      */
-    public function setSessionStore($session)
+    public function setSessionStore($session): self
     {
         $this->session = $session;
 
         return $this;
     }
+
+    /**
+     * @param array $rules
+     * @param array $messages
+     * @param array $customAttributes
+     * @return array
+     * @throws \Illuminate\Validation\ValidationException
+     * @throws \ReflectionException
+     */
+    public function validate(array $rules = [], array $messages = [], array $customAttributes = [])
+    {
+        /** @var \Illuminate\Validation\Factory $validator */
+        $validator = gi()->make(\Octo\Facades\Validator::class);
+
+        return $validator->make(
+            $this->request->all(),
+            $rules,
+            $messages,
+            $customAttributes
+        )->validate();
+    }
+
 }

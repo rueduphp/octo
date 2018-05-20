@@ -175,7 +175,7 @@ class Fire
                 }
             }
 
-            return $results;
+            return count($results) === 1 ? reset($results) : $results;
         }
 
         return null;
@@ -188,13 +188,16 @@ class Fire
     public function subscriber($class)
     {
         /** @var FastEventSubscriberInterface $instance */
-        $instance = gi()->factory($class);
+        $instance = gi()->make($class);
 
+        /** @var array $events */
         $events = $instance->getEvents();
 
         foreach ($events as $event => $method) {
             if (is_string($method)) {
                 $this->on($event, [$instance, $method]);
+            } elseif (is_callable($method)) {
+                $this->on($event, $method);
             } else {
                 $ev = $this->on($event, [$instance, $method->getMethod()], $method->getPriority(0));
 
