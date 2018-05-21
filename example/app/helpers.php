@@ -14,6 +14,7 @@ use Octo\Dynamicentity;
 use Octo\Dynamicmodel;
 use Octo\Elegant;
 use Octo\Entity;
+use Octo\Facades\Config as CoreConf;
 use Octo\Facades\Validator;
 use Octo\Fast;
 use Octo\FastBladeDirectives;
@@ -48,6 +49,7 @@ function bootApp($cli = false)
     $paths['app']       = $dirApp;
     $paths['base']      = realpath(__DIR__ . '/../');
     $paths['public']    = realpath(__DIR__ . '/../public');
+    $paths['config']    = $dirApp . '/config';
     $paths['storage']   = $dirApp . '/storage';
     $paths['cache']     = $dirApp . '/storage/cache';
     $paths['log']       = $dirApp . '/storage/log';
@@ -60,14 +62,17 @@ function bootApp($cli = false)
         startSession();
     }
 
-    $db = bag('db')->put([
-        'driver'    => 'mysql',
-        'host'      => 'mysql',
-        'port'      => '3306',
-        'database'  => 'octo',
-        'username'  => 'octo',
-        'password'  => 'octo',
-    ]);
+    addConfig('db');
+    addConfig('mail');
+
+    (new Octo\Sender())
+        ->setHost(config('mail.host'))
+        ->setPort(config('mail.port'))
+        ->smtp();
+
+    dic('mail', function () {
+        return new \Octo\Mailable;
+    });
 
     l('config', app(Configurator::class));
 
@@ -75,7 +80,7 @@ function bootApp($cli = false)
 
     dic('eventer', \Octo\getEventManager());
 
-    startDb($db);
+    startDb();
 
     $app = App::create();
 
@@ -115,8 +120,10 @@ function bootMiddlewares($app)
  * @param Fillable $db
  * @throws ReflectionException
  */
-function startDb(Fillable $db)
+function startDb()
 {
+    $db = CoreConf::get('db');
+
     $PDOoptions = [
         PDO::ATTR_CASE                 => PDO::CASE_NATURAL,
         PDO::ATTR_ERRMODE              => PDO::ERRMODE_EXCEPTION,
@@ -438,35 +445,31 @@ function cache(...$arguments)
  */
 function config(?string $key = null, $value = 'octodummy')
 {
-    /** @var Octo\Fillable $config */
-    $config = app(Octo\Facades\Config::class);
-
-    if (is_null($key)) {
-        return $config;
-    }
-
     if (is_array($key)) {
         foreach ($key as $k => $v) {
-            $config[$k] = $v;
+            CoreConf::set($k, $v);
         }
 
-        return $config;
+        return true;
     }
 
     if ('octodummy' === $value) {
-        return $config->get($key);
+        return CoreConf::get($key);
     }
 
-    return $config->set($key, $value);
+    CoreConf::set($key, $value);
 }
 
-function addConfFile(string $path, string $key)
+/**
+ * @param string $key
+ */
+function addConfig(string $key)
 {
-    $config = config();
+    $file = Octo\config_path() . '/' . Inflector::lower($key) . '.php';
 
-    $conf = $config->get($key, []);
+    $conf = CoreConf::get($key, []);
 
-    $config->set($key, array_merge(require $path, $conf));
+    CoreConf::set($key, array_merge(require $file, $conf));
 }
 
 /**
@@ -477,7 +480,7 @@ function addConfFile(string $path, string $key)
 function paths(?string $key = null, $value = 'octodummy')
 {
     /** @var Octo\Fillable $paths */
-    $paths = dic()['paths'];
+    $paths = dic('paths');
 
     if (is_null($key)) {
         return $paths;
@@ -516,6 +519,14 @@ function maker($abstract = null, array $parameters = [])
 function encrypt($value)
 {
     return app(Bcrypt::class)->make($value);
+}
+
+/**
+ * @return Bcrypt
+ */
+function hasher()
+{
+    return app(Bcrypt::class);
 }
 
 /**
@@ -595,7 +606,7 @@ function request($key = null, $default = null)
  */
 function inst(string $name)
 {
-    $class = '\Octo\Facades\\' . i()::camelize($name);
+    $class = '\Octo\Facades\\' . Inflector::camelize($name);
 
     if (class_exists($class)) {
         return app($class);
@@ -694,9 +705,12 @@ function is(string $role): bool
  * @param string $userKey
  * @return Component
  */
-function auth(string $namespace = 'web', string $userKey = 'user')
-{
-    $session = Octo\ultimate($namespace, $userKey);
+function auth(
+    string $namespace = 'web',
+    string $userKey = 'user',
+    string $userModel = '\\App\\User`'
+) {
+    $session = Octo\ultimate($namespace, $userKey, $userModel);
 
     return Setup::auth($session);
 }
@@ -822,7 +836,7 @@ function validator(array $data = [], array $rules = [], array $messages = [], ar
  */
 function repo(string $name)
 {
-    $class = '\\App\\Repositories\\' . i()->camelize($name);
+    $class = '\\App\\Repositories\\' . Inflector::camelize($name);
 
     return app($class);
 }
@@ -833,7 +847,7 @@ function repo(string $name)
  */
 function middleware(string $name)
 {
-    $class = '\\App\\Middlewares\\' . i()->camelize($name);
+    $class = '\\App\\Middlewares\\' . Inflector::camelize($name);
 
     return app($class);
 }
@@ -844,7 +858,7 @@ function middleware(string $name)
  */
 function observer(string $name)
 {
-    $class = '\\App\\Observers\\' . i()->camelize($name);
+    $class = '\\App\\Observers\\' . Inflector::camelize($name);
 
     return app($class);
 }
@@ -855,9 +869,45 @@ function observer(string $name)
  */
 function model(string $name): Elegant
 {
-    $class = '\\App\\Models\\' . i()->camelize($name);
+    $class = '\\App\\Models\\' . Inflector::camelize($name);
 
     return app($class);
+}
+
+/**
+ * @param string $name
+ * @param int $times
+ * @param array $attributes
+ * @return Component
+ * @throws ReflectionException
+ */
+function factory(string $name, int $times = 1, array $attributes = [])
+{
+    /** @var Elegant $model */
+    $model = model($name);
+
+    $class = '\\App\\Factories\\' . Inflector::camelize($name);
+
+    app($class);
+
+    /** @var \Octo\FastFactory $factory */
+    $factory = $model::factory();
+
+    $factor = new Component;
+
+    $factor['create'] = function () use ($factory, $times, $attributes) {
+        return $factory->create($times, $attributes);
+    };
+
+    $factor['make'] = function () use ($factory, $times, $attributes) {
+        return $factory->make($times, $attributes);
+    };
+
+    $factor['raw'] = function () use ($factory, $times, $attributes) {
+        return $factory->make($times, $attributes)->toArray();
+    };
+
+    return $factor;
 }
 
 /**
@@ -866,7 +916,7 @@ function model(string $name): Elegant
  */
 function entity(string $name): Entity
 {
-    $class = '\\App\\Entities\\' . i()->camelize($name);
+    $class = '\\App\\Entities\\' . Inflector::camelize($name);
 
     return app($class);
 }
@@ -877,7 +927,7 @@ function entity(string $name): Entity
  */
 function service(string $name)
 {
-    $class = '\\App\\Services\\' . i()->camelize($name);
+    $class = '\\App\\Services\\' . Inflector::camelize($name);
 
     return app($class);
 }
@@ -888,7 +938,7 @@ function service(string $name)
  */
 function eav(string $name): Dynamicentity
 {
-    $class = '\\App\\EAV\\' . i()->camelize($name);
+    $class = '\\App\\EAV\\' . Inflector::camelize($name);
 
     return app($class);
 }
@@ -927,6 +977,8 @@ function sendToView(string $key, $value)
 /**
  * @param string $table
  * @param string $database
+ * @return \Octo\Octalia
+ * @throws ReflectionException
  * @throws \Octo\Exception
  */
 function dbstore(string $table, string $database = 'core')
@@ -940,10 +992,19 @@ function dbstore(string $table, string $database = 'core')
             \Octo\File::mkdir($path);
         }
 
-        $db = new \Octo\Octalia($database, $table, new Octo\Caching('fs'), $path);
+        $db = new \Octo\Octalia($database, $table, new Octo\Cache('fs', $path), $path);
 
         bag('instances')[$key] = $db;
     }
 
     return $db->reset();
+}
+
+function panelBtns()
+{
+    return '<div class="panel-heading-btn">
+                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-default" data-click="panel-expand"><i class="fa fa-expand"></i></a>
+                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-warning" data-click="panel-collapse"><i class="fa fa-minus"></i></a>
+                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-danger" data-click="panel-remove"><i class="fa fa-times"></i></a>
+                        </div>';
 }

@@ -31,81 +31,9 @@ class Fillable implements ArrayAccess
      * @param string $key
      * @return mixed|null
      */
-    public function __get(string $key)
-    {
-        return aget(static::$data[$this->namespace], $key);
-    }
-
-    /**
-     * @param string $key
-     * @param $value
-     */
-    public function __set(string $key, $value)
-    {
-        aset(static::$data[$this->namespace], $key, $value);
-    }
-
-    /**
-     * @param string $key
-     * @return bool
-     */
-    public function __isset(string $key)
-    {
-        return ahas(static::$data[$this->namespace], $key);
-    }
-
-    /**
-     * @param string $key
-     */
-    public function __unset(string $key)
-    {
-        adel(static::$data[$this->namespace], $key);
-    }
-
-    /**
-     * @param mixed $offset
-     * @return bool
-     */
-    public function offsetExists($offset)
-    {
-        return isset($this->{$offset});
-    }
-
-    /**
-     * @param string $key
-     * @return bool
-     */
-    public function has(string $key): bool
-    {
-        return isset($this->{$key});
-    }
-
-    /**
-     * @param mixed $offset
-     * @return mixed|null
-     */
-    public function offsetGet($offset)
-    {
-        return $this->{$offset};
-    }
-
-    /**
-     * @param string $key
-     * @param null $default
-     * @return mixed|null
-     */
     public function get(string $key, $default = null)
     {
-        return isset($this->{$key}) ? $this->{$key} : $default;
-    }
-
-    /**
-     * @param mixed $offset
-     * @param mixed $value
-     */
-    public function offsetSet($offset, $value)
-    {
-        $this->{$offset} = $value;
+        return aget(static::$data[$this->namespace], $key, $default);
     }
 
     /**
@@ -115,9 +43,89 @@ class Fillable implements ArrayAccess
      */
     public function set(string $key, $value): self
     {
-        $this->{$key} = $value;
+        aset(static::$data[$this->namespace], $key, $value);
 
         return $this;
+    }
+
+    /**
+     * @param string $key
+     * @return bool
+     */
+    public function has(string $key)
+    {
+        return 'octodummy' !== aget(static::$data[$this->namespace], $key, 'octodummy');
+    }
+
+    /**
+     * @param string $key
+     * @return bool
+     */
+    public function forget(string $key)
+    {
+        if ($this->has($key)) {
+            adel(static::$data[$this->namespace], $key);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param mixed $offset
+     * @return bool
+     */
+    public function offsetExists($offset)
+    {
+        return $this->has($offset);
+    }
+
+    /**
+     * @param string $key
+     * @return bool
+     */
+    public function __isset(string $key): bool
+    {
+        return $this->has($key);
+    }
+
+    /**
+     * @param mixed $offset
+     * @return mixed|null
+     */
+    public function offsetGet($offset)
+    {
+        return $this->get($offset);
+    }
+
+    /**
+     * @param string $key
+     * @param null $default
+     * @return mixed|null
+     */
+    public function __get(string $key)
+    {
+        return $this->get($key);
+    }
+
+    /**
+     * @param mixed $offset
+     * @param mixed $value
+     */
+    public function offsetSet($offset, $value)
+    {
+        $this->set($offset, $value);
+    }
+
+    /**
+     * @param string $key
+     * @param $value
+     * @return Fillable
+     */
+    public function __set(string $key, $value)
+    {
+        $this->set($key, $value);
     }
 
     /**
@@ -125,7 +133,7 @@ class Fillable implements ArrayAccess
      */
     public function offsetUnset($offset)
     {
-        unset($this->{$offset});
+        $this->forget($offset);
     }
 
     /**
@@ -134,19 +142,7 @@ class Fillable implements ArrayAccess
      */
     public function delete(string $key): bool
     {
-        $status = $this->has($key);
-        unset($this->{$key});
-
-        return $status;
-    }
-
-    /**
-     * @param string $key
-     * @return bool
-     */
-    public function forget(string $key): bool
-    {
-        return $this->delete($key);
+        return $this->forget($key);
     }
 
     /**
@@ -155,7 +151,7 @@ class Fillable implements ArrayAccess
      */
     public function remove(string $key): bool
     {
-        return $this->delete($key);
+        return $this->forget($key);
     }
 
     /**

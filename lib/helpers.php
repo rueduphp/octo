@@ -11,27 +11,6 @@
         }
     }
 
-    if (!function_exists('in')) {
-        /**
-         * @param array ...$args
-         * @return mixed|null|object|\Octo\In
-         */
-        function in(...$args)
-        {
-            $nargs = count($args);
-
-            $in = Octo\In::self();
-
-            if (1 === $nargs) {
-                return $in[current($args)];
-            } elseif (2 === $nargs) {
-                $in[current($args)] = end($args);
-            }
-
-            return $in;
-        }
-    }
-
     if (!function_exists('handled')) {
         function handled($concern)
         {

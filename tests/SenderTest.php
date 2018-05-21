@@ -20,7 +20,7 @@ class SenderTest extends TestCase
      */
     public function testIsMailer()
     {
-        $this->assertInstanceOf(Swift_Mailer::class, $this->getContainer()['mailer']);
+        $this->assertInstanceOf(Swift_Mailer::class, $this->in('mailer'));
     }
 
     /**

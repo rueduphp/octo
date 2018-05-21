@@ -147,6 +147,17 @@ class Routing extends Facade
     }
 }
 
+class Mail extends Facade
+{
+    /**
+     * @return string
+     */
+    public static function getNativeClass(): string
+    {
+        return 'mail';
+    }
+}
+
 class Route
 {
     private static $router;

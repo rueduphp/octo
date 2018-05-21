@@ -7,6 +7,9 @@
     {
         protected $guarded  = [];
 
+        /**
+         * @throws \ReflectionException
+         */
         public function __destruct()
         {
             $class = get_called_class();
@@ -21,11 +24,11 @@
          */
         public static function __callStatic($m, $a)
         {
-            $callable = [instanciator()->singleton(get_called_class()), $m];
+            $callable = [gi()->make(get_called_class()), $m];
 
             $params = array_merge($callable, $a);
 
-            return instanciator()->call(...$params);
+            return gi()->call(...$params);
         }
 
         /**
@@ -51,16 +54,15 @@
 
             $params = array_merge($callable, $a);
 
-            return instanciator()->call(...$params);
+            return gi()->call(...$params);
         }
 
         /**
          * @return FastFactory
+         * @throws \ReflectionException
          */
         public static function factory()
         {
-            $class = get_called_class();
-
-            return new FastFactory($class, new $class());
+            return new FastFactory($class = get_called_class(), gi()->make($class));
         }
     }

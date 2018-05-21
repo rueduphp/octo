@@ -79,8 +79,6 @@ class Elegant extends EloquentModel implements FastModelInterface
      */
     public static function factory()
     {
-        $class = get_called_class();
-
-        return new FastFactory($class, gi()->make($class));
+        return new FastFactory($class = get_called_class(), gi()->make($class));
     }
 }

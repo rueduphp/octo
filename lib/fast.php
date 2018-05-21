@@ -1767,8 +1767,8 @@
 
         /**
          * @param null $orm
-         *
-         * @return FastOrmInterface
+         * @return mixed|null
+         * @throws \ReflectionException
          */
         public function orm($orm = null)
         {
@@ -1776,10 +1776,10 @@
         }
 
         /**
-         * @param mixed $value
+         * @param $value
          * @param callable|null $callback
-         *
          * @return mixed|Tap
+         * @throws \ReflectionException
          */
         public function same($value, ?callable $callback = null)
         {
@@ -1787,7 +1787,8 @@
         }
 
         /**
-         * @return mixed|object|Fast
+         * @return mixed|null|object|Fast|In
+         * @throws \ReflectionException
          */
         public function app()
         {
@@ -1796,8 +1797,8 @@
 
         /**
          * @param null|Live $live
-         *
-         * @return null|Live
+         * @return mixed|null
+         * @throws \ReflectionException
          */
         public function live(?Live $live = null)
         {
@@ -1806,6 +1807,7 @@
 
         /**
          * @return \Swift_Mailer
+         * @throws \ReflectionException
          */
         public function mailer(): \Swift_Mailer
         {
@@ -2364,7 +2366,6 @@
     /**
      * Class FastRequest
      * @method hasHeader($header)
-     * @method getHeader($header)
      * @method getHeaders()
      * @method getUri()
      * @method getMethod()
@@ -2408,9 +2409,7 @@
          */
         public function setMethod(string $method): self
         {
-            $request = getRequest()->withMethod($method);
-
-            getContainer()->setRequest($request);
+            $this->app()->setRequest($this->native()->withMethod($method));
 
             return $this;
         }
@@ -2497,13 +2496,41 @@
         }
 
         /**
+         * @return Fast
+         * @throws \ReflectionException
+         */
+        public function app()
+        {
+            return getContainer();
+        }
+
+        /**
+         * @param string $key
+         * @return mixed
+         * @throws \ReflectionException
+         */
+        public function getHeader(string $key)
+        {
+            return $this->native()->getHeaderLine($key);
+        }
+
+        /**
+         * @return mixed
+         * @throws \ReflectionException
+         */
+        public function userAgent()
+        {
+            return $this->getHeader('User-Agent');
+        }
+
+        /**
          * @param ServerRequestInterface $request
          * @return ServerRequestInterface
          * @throws \ReflectionException
          */
         public function make(ServerRequestInterface $request)
         {
-            getContainer()->setRequest($request);
+            $this->app()->setRequest($request);
 
             return $request;
         }
@@ -2526,7 +2553,7 @@
         public function old(string $key, $default = null)
         {
             /** @var array $inputs */
-            $inputs = getSession()->get('old_inputs', []);
+            $inputs = $this->session()->get('old_inputs', []);
 
             return isAke($inputs, $key, $default);
         }
@@ -2537,7 +2564,7 @@
          */
         public function method(): string
         {
-            return getRequest()->getMethod();
+            return $this->native()->getMethod();
         }
 
         /**
@@ -2546,7 +2573,7 @@
          */
         public function ajax(): bool
         {
-            return 'XMLHttpRequest' === getRequest()->getHeaderLine('X-Requested-With');
+            return 'XMLHttpRequest' === $this->native()->getHeaderLine('X-Requested-With');
         }
 
         /**
@@ -2555,7 +2582,7 @@
          */
         public function isSecure(): bool
         {
-            return 'https' === Inflector::lower(getRequest()->getUri()->getScheme());
+            return 'https' === Inflector::lower($this->native()->getUri()->getScheme());
         }
 
         /**
@@ -2569,6 +2596,26 @@
         }
 
         /**
+         * @param mixed ...$args
+         * @return mixed|null
+         * @throws Exception
+         * @throws \ReflectionException
+         */
+        public function user(...$args)
+        {
+            return $this->session()->user(...$args);
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isJson()
+        {
+            return Inflector::contains($this->getHeader('CONTENT_TYPE'), ['/json', '+json']);
+        }
+
+        /**
          * @param null|string $key
          * @param null $default
          * @return array|mixed
@@ -2576,7 +2623,7 @@
          */
         public function get(?string $key = null, $default = null)
         {
-            $attrs = getRequest()->getQueryParams();
+            $attrs = $this->native()->getQueryParams();
 
             return !is_null($key) ? isAke($attrs, $key, $default) : $attrs;
         }
@@ -2589,7 +2636,7 @@
          */
         public function post(?string $key = null, $default = null)
         {
-            $attrs = getRequest()->getParsedBody();
+            $attrs = $this->native()->getParsedBody();
 
             return !is_null($key) ? isAke($attrs, $key, $default) : $attrs;
         }
@@ -2624,12 +2671,12 @@
          */
         public function all($keys = null): array
         {
-            $get    = getRequest()->getQueryParams();
-            $post   = getRequest()->getParsedBody();
+            $get    = $this->native()->getQueryParams();
+            $post   = $this->native()->getParsedBody();
 
             $getpost = array_merge($get, $post);
 
-            $files  = getRequest()->getUploadedFiles();
+            $files  = $this->native()->getUploadedFiles();
 
             $all = array_replace_recursive($getpost, $files);
 
@@ -2653,7 +2700,7 @@
          */
         public function file(string $key)
         {
-            $files  = getRequest()->getUploadedFiles();
+            $files  = $this->native()->getUploadedFiles();
 
             return isAke($files, $key, null);
         }
@@ -2719,8 +2766,7 @@
          */
         public function segments(): array
         {
-            $uri = getRequest()->getUri();
-            $segments = explode('/', $uri->getPath());
+            $segments = explode('/', $this->native()->getUri()->getPath());
 
             return array_values(array_filter($segments, function ($segment) {
                 return $segment !== '';
@@ -2735,7 +2781,7 @@
         public function is(...$patterns): bool
         {
             foreach ($patterns as $pattern) {
-                if (Inflector::is($pattern, rawurldecode(getRequest()->getUri()->getPath()))) {
+                if (Inflector::is($pattern, rawurldecode($this->native()->getUri()->getPath()))) {
                     return true;
                 }
             }
@@ -2744,12 +2790,60 @@
         }
 
         /**
+         * @param $key
+         * @param null $value
+         * @return FastRequest
+         * @throws \ReflectionException
+         */
+        public function merge($key, $value = null): self
+        {
+            $request = $this->native();
+
+            if (!is_array($key)) {
+                $key = [$key => $value];
+            }
+
+            foreach ($key as $k => $v) {
+                $request = $request->withAttribute($k, $v);
+            }
+
+            $this->app()->setRequest($request);
+
+            return $this;
+        }
+
+        /**
+         * @param string $key
+         * @param $value
+         * @return FastRequest
+         * @throws \ReflectionException
+         */
+        public function set(string $key, $value): self
+        {
+            return $this->merge([$key => $value]);
+        }
+
+        /**
+         * @param string $key
+         * @return FastRequest
+         * @throws \ReflectionException
+         */
+        public function unset(string $key): self
+        {
+            $request = $this->native()->withoutAttribute($key);
+
+            $this->app()->setRequest($request);
+
+            return $this;
+        }
+
+        /**
          * @return string
          * @throws \ReflectionException
          */
         public function url(): string
         {
-            return rtrim(preg_replace('/\?.*/', '', getRequest()->getUri()->getPath()), '/');
+            return rtrim(preg_replace('/\?.*/', '', $this->native()->getUri()->getPath()), '/');
         }
 
         /**
@@ -2760,7 +2854,7 @@
          */
         public function __call(string $method, array $params)
         {
-            return getRequest()->{$method}(...$params);
+            return $this->native()->{$method}(...$params);
         }
 
         /**
@@ -2776,6 +2870,7 @@
         /**
          * @param $key
          * @return bool
+         * @throws \ReflectionException
          */
         public function __isset($key)
         {

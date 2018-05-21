@@ -18,10 +18,19 @@ class Ultimate implements
      */
     protected $userKey;
 
-    public function __construct(string $namespace = 'web', string $userKey = 'user')
-    {
-        $this->namespace = $namespace;
-        $this->userKey = $userKey;
+    /**
+     * @var string
+     */
+    private $userModel;
+
+    public function __construct(
+        string $namespace = 'web',
+        string $userKey = 'user',
+        string $userModel = '\\App\\User'
+    )  {
+        $this->namespace    = $namespace;
+        $this->userKey      = $userKey;
+        $this->userModel    = $userModel;
     }
 
     /**
@@ -262,6 +271,25 @@ class Ultimate implements
     public function setUserKey(string $userKey): self
     {
         $this->userKey = $userKey;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getUserModel(): string
+    {
+        return $this->userModel;
+    }
+
+    /**
+     * @param string $userModel
+     * @return Ultimate
+     */
+    public function setUserModel(string $userModel): self
+    {
+        $this->userModel = $userModel;
 
         return $this;
     }

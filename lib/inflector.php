@@ -134,6 +134,11 @@
 
         protected static $_humanized = array();
 
+        /**
+         * @param $haystack
+         * @param $needles
+         * @return bool
+         */
         public static function contains($haystack, $needles)
         {
             foreach ((array) $needles as $needle) {

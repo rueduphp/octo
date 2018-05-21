@@ -177,13 +177,12 @@ class Sender
 
     /**
      * @param Swift_Transport $transport
-     *
      * @return Swift_Mailer
      */
     protected function mailer(Swift_Transport $transport)
     {
         $mailer = Swift_Mailer::newInstance($transport);
-        getContainer()['mailer'] = $mailer;
+        in('mailer', $mailer);
 
         return $mailer;
     }

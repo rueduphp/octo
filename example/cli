@@ -431,6 +431,38 @@ class CliOcto
     /**
      * @throws \Octo\Exception
      */
+    private function make_factory()
+    {
+        $this->factory(...func_get_args());
+    }
+
+    /**
+     * @param string $name
+     * @throws \Octo\Exception
+     */
+    private function factory(string $name)
+    {
+        $class = Octo\Inflector::camelize($name);
+
+        $stub = $this->getStub('factory', $class, $name);
+
+        if (!is_dir(Octo\app_path() . '/Factories')) {
+            Octo\File::mkdir(Octo\app_path() . '/Factories');
+        }
+
+        $file = Octo\app_path() . '/Factories/'  . $class . '.php';
+
+        if (!file_exists($file)) {
+            Octo\File::put($file, $stub);
+            $this->show("Class {$class} has been created.");
+        } else {
+            $this->show("Class {$class} ever exists.", 'ERROR');
+        }
+    }
+
+    /**
+     * @throws \Octo\Exception
+     */
     private function make_observer()
     {
         $this->observer(...func_get_args());
@@ -1121,6 +1153,25 @@ class ' . $class . ' extends FastMiddleware
     public function process(ServerRequestInterface $request, ?DelegateInterface $next = null)
     {
         //
+    }
+}
+',
+            'factory' => '<?php
+namespace App\Factories;
+
+use Faker\Generator as Faker;
+use Octo\FastFactory;
+
+class ' . $class . ' 
+{
+    /**
+     * @throws \Exception
+     */
+    public function __construct()
+    {
+        FastFactory::add(\App\Models\\' . $class . '::class, function (Faker $faker) {
+            return [];
+        });
     }
 }
 ',

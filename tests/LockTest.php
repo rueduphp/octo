@@ -219,16 +219,16 @@ class LockTest extends TestCase
         $this->assertCount(9, MyPost::factory()->make(9));
 
         $rows = UserModel::factory()->create(5);
-        $this->assertEquals(5, (int) UserModel::count());
+        $this->assertSame(5, (int) UserModel::count());
         $this->assertCount(5, $rows);
 
         $rows = Post::factory()->create(8, ["title" => 'test']);
-        $this->assertEquals("test", Post::first()->title);
-        $this->assertEquals(8, (int) Post::count());
+        $this->assertSame("test", Post::first()->title);
+        $this->assertSame(8, (int) Post::count());
         $this->assertCount(8, $rows);
 
         $rows = MyPost::factory()->create(10);
-        $this->assertEquals(10, (int) MyPost::count());
+        $this->assertSame(10, (int) MyPost::count());
         $this->assertCount(10, $rows);
     }
 }

@@ -2492,14 +2492,17 @@
      * @param string $userKey
      * @return Ultimate
      */
-    function ultimate(string $namespace = 'web', string $userKey = 'user'): Ultimate
-    {
+    function ultimate(
+        string $namespace = 'web',
+        string $userKey = 'user',
+        string $userModel = '\\App\User'
+    ): Ultimate {
         static $ultimates = [];
 
         $key = sha1($namespace . $userKey);
 
         if (!$session = isAke($ultimates, $key, null)) {
-            $session = new Ultimate($namespace, $userKey);
+            $session = new Ultimate($namespace, $userKey, $userModel);
 
             $ultimates[$key] = $session;
         }
@@ -6032,7 +6035,8 @@
     }
 
     /**
-     * @return \PDO
+     * @return mixed|null|object|In
+     * @throws \ReflectionException
      */
     function getPdo()
     {
@@ -6040,7 +6044,8 @@
     }
 
     /**
-     * @return Module
+     * @return mixed|null
+     * @throws \ReflectionException
      */
     function getModule()
     {
@@ -10572,6 +10577,11 @@
         $status = $mailer->send($message);
     */
 
+    /**
+     * @param $config
+     * @return int
+     * @throws \ReflectionException
+     */
     function mailto($config)
     {
         $config     = arrayable($config) ? $config->toArray() : $config;
@@ -10607,11 +10617,10 @@
 
     /**
      * @return \Swift_Mailer
-     * @throws \ReflectionException
      */
     function mailer(): \Swift_Mailer
     {
-        return getContainer()['mailer'] ?? (new Sender())->sendmail();
+        return in('mailer') ?? (new Sender())->sendmail();
     }
 
     function mailerSwift()

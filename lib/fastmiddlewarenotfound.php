@@ -16,14 +16,14 @@ class Fastmiddlewarenotfound extends FastMiddleware
     {
         $app = $this->getContainer();
 
-        $tpl = $app->define("404.tpl");
+        $tpl = $app->define("404.tpl") ?? in(404);
 
-        if (!is_callable($tpl)) {
+        if (is_null($tpl)) {
             $tpl = function () {
                return  '<h1>Error 404</h1>';
             };
         }
 
-        return $app->response(404, [], callThat($tpl));
+        return $app->response(404, [], !is_string($tpl) ? callThat($tpl) : $tpl);
     }
 }

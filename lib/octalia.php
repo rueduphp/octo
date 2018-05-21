@@ -11,17 +11,18 @@
         public $path, $ns, $db, $table, $query;
 
         /**
+         * Octalia constructor.
          * @param string $db
          * @param string $table
          * @param null $driver
          * @param null $dir
-         *
          * @throws Exception
+         * @throws \ReflectionException
          */
         public function __construct(string $db = 'core', string $table = 'core', $driver = null, $dir = null)
         {
-            $dir            = empty($dir) ? conf('octalia.dir', session_save_path()) : $dir;
-            $driver         = empty($driver) ? fmr("odb.$db.$table", $dir) : $driver;
+            $dir            = $dir      ?? conf('octalia.dir', session_save_path());
+            $driver         = $driver   ?? fmr("odb.$db.$table", $dir);
 
             $this->ns       = "$db.$table";
             $this->path     = "$db.$table";

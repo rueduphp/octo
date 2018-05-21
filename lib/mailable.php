@@ -16,12 +16,10 @@
 
         /**
          * @param  \Swift_Message|null  $swift
-         * @return void
          */
         public function __construct(?Swift_Message $swift = null)
         {
-            $swift = is_null($swift) ? Swift_Message::newInstance() : $swift;
-            $this->swift = $swift;
+            $this->swift = $swift ?? Swift_Message::newInstance();
         }
 
         /**
@@ -255,13 +253,12 @@
 
         /**
          * @param null|Swift_Mailer $mailer
-         *
          * @return int
          */
         public function send(?Swift_Mailer $mailer = null): int
         {
             /** @var Swift_Mailer $mailer */
-            $mailer = $mailer ?: getContainer()['mailer'];
+            $mailer = $mailer ?? mailer();
 
             return $mailer->send($this->swift);
         }
@@ -318,9 +315,8 @@
         /**
          * @param string $path
          * @param array $args
-         *
          * @return Mailable
-         *
+         * @throws Exception
          * @throws \ReflectionException
          * @throws \Twig_Error_Loader
          * @throws \Twig_Error_Runtime
@@ -354,6 +350,31 @@
         public function blade(string $path, array $args = []): self
         {
             $body = blade($path, $args);
+
+            $this->swift
+                ->setBody(
+                    $body,
+                    'text/html'
+                )->addPart(
+                    strip_tags($body),
+                    'text/plain'
+                );
+
+            return $this;
+        }
+
+        /**
+         * @param string $path
+         * @param array $args
+         *
+         * @return Mailable
+         *
+         * @throws \Exception
+         * @throws \ReflectionException
+         */
+        public function php(string $body, array $args = []): self
+        {
+            $body = blader($body, $args);
 
             $this->swift
                 ->setBody(
