@@ -8,15 +8,12 @@
     <meta charset="utf-8" />
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf() }}">
+
     <title>
-        {{ __('global.global_title') }}
-        @if(isset($pageTitle))
-         - {{ $pageTitle }}
-        @endif
+        @lng('global.global_title') @if(isset($pageTitle)) - {{ $pageTitle }}@endif
     </title>
+
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
-    <meta content="" name="description" />
-    <meta content="" name="author" />
 
     <link rel="shortcut icon" type="image/png" href="{{ url('assets/img/logo.ico') }}" />
 
@@ -28,12 +25,34 @@
     <link href="{{ url('admin/plugins/animate/animate.min.css') }}" rel="stylesheet" />
     <link href="{{ url('admin/css/default/style.min.css') }}" rel="stylesheet" />
     <link href="{{ url('admin/css/default/style-responsive.min.css') }}" rel="stylesheet" />
-    <link href="{{ url('admin/css/default/theme/default.css') }}?{{ time() }}" rel="stylesheet" id="theme" />
     <!-- ================== END BASE CSS STYLE ================== -->
+
+    <!-- ================== BEGIN PAGE LEVEL STYLE ================== -->
+    <link href="{{ url('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-datepicker/css/bootstrap-datepicker3.css') }}"
+          rel="stylesheet" />
+    <link href="{{ url('admin/plugins/ionRangeSlider/css/ion.rangeSlider.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/ionRangeSlider/css/ion.rangeSlider.skinNice.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-colorpicker/css/bootstrap-colorpicker.min.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-timepicker/css/bootstrap-timepicker.min.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/password-indicator/css/password-indicator.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-combobox/css/bootstrap-combobox.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-select/bootstrap-select.min.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-tagsinput/bootstrap-tagsinput.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/jquery-tag-it/css/jquery.tagit.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-daterangepicker/daterangepicker.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/select2/dist/css/select2.min.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-eonasdan-datetimepicker/build/css/bootstrap-datetimepicker.min.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/bootstrap-colorpalette/css/bootstrap-colorpalette.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/jquery-simplecolorpicker/jquery.simplecolorpicker.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/jquery-simplecolorpicker/jquery.simplecolorpicker-fontawesome.css') }}" rel="stylesheet" />
+    <link href="{{ url('admin/plugins/jquery-simplecolorpicker/jquery.simplecolorpicker-glyphicons.css') }}" rel="stylesheet" />
+    <!-- ================== END PAGE LEVEL STYLE ================== -->
 
     <!-- ================== BEGIN BASE JS ================== -->
     <script src="{{ url('admin/plugins/pace/pace.min.js') }}"></script>
     <!-- ================== END BASE JS ================== -->
+    <link href="{{ url('admin/css/default/theme/default.css') }}?{{ time() }}" rel="stylesheet" id="theme" />
 </head>
 <body>
 <!-- begin #page-loader -->
@@ -62,6 +81,7 @@
 
         <!-- begin header navigation right -->
         <ul class="navbar-nav navbar-right">
+            @if(isset($searchable))
             <li>
                 <form class="navbar-form full-width">
                     <div class="form-group">
@@ -70,10 +90,13 @@
                     </div>
                 </form>
             </li>
+            @endif
+
+            @isLogged
             <li class="dropdown navbar-user">
                 <a href="javascript:;" class="dropdown-toggle" data-toggle="dropdown">
-                    <img src="{{ url('admin/img/user/user-13.jpg') }}" alt="" />
-                    <span class="hidden-xs">Username</span> <b class="caret"></b>
+                    <img src="{!! user('photo') !!}" alt="" />
+                    <span class="hidden-xs">{!! user('username') !!}</span> <b class="caret"></b>
                 </a>
                 <ul class="dropdown-menu">
                     <li class="arrow"></li>
@@ -84,6 +107,11 @@
                     </li>
                 </ul>
             </li>
+            @isNotLogged
+            <li>
+                <a href="{{ to('login') }}">@lng('global.app_connect')</a>
+            </li>
+            @endIsLogged
         </ul>
         <!-- end header navigation right -->
     </div>
@@ -133,15 +161,15 @@
         <!-- end page-header -->
         @endif
 
-        @if (Session::has('success'))
+        @if (flash()->hasSuccess())
         <!-- begin page-success -->
         <div class="row">
             <div class="col-md-12">
-                <div class="note note-success fade show">
-                    <div class="note-icon"><i class="fa fa-info"></i></div>
+                <div class="note note-success fade show limitedShow">
+                    <div class="note-icon"><i class="fa fa-trophy"></i></div>
                     <div class="note-content">
                         <h4><b>Message</b></h4>
-                        <p>{{ Session::pull('success') }}</p>
+                        <p>{{ flash()->getSuccess() }}</p>
                     </div>
                 </div>
             </div>
@@ -149,20 +177,52 @@
         <!-- end page-success -->
         @endif
 
-        @if (Session::has('error'))
+        @if (flash()->hasError())
         <!-- begin page-error -->
         <div class="row">
             <div class="col-md-12">
-                <div class="note note-danger fade show">
+                <div class="note note-danger fade show limitedShow">
                     <div class="note-icon"><i class="fa fa-info"></i></div>
                     <div class="note-content">
                         <h4><b>Message</b></h4>
-                        <p>{{ Session::pull('error') }}</p>
+                        <p>{{ flash()->getError() }}</p>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- end page-success -->
+        <!-- end page-error -->
+        @endif
+
+        @if (flash()->hasWarning())
+        <!-- begin page-warning -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="note note-warning fade show limitedShow">
+                    <div class="note-icon"><i class="fa fa-warning"></i></div>
+                    <div class="note-content">
+                        <h4><b>Message</b></h4>
+                        <p>{{ flash()->getWarning() }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end page-warning -->
+        @endif
+
+        @if (flash()->hasInfo())
+        <!-- begin page-info -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="note note-info fade show limitedShow">
+                    <div class="note-icon"><i class="fa fa-info"></i></div>
+                    <div class="note-content">
+                        <h4><b>Message</b></h4>
+                        <p>{{ flash()->getInfo() }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end page-info -->
         @endif
 
         @if ($errors->count() > 0)
@@ -193,11 +253,16 @@
 </div>
 <!-- end page container -->
 
-<form style="display:none;" id="logout" action="{{ route('auth.logout') }}" method="post">
+<form style="display:none;" id="logout" action="{{ to('logout') }}" method="post">
     {!! csrf_field() !!}
     <button type="submit">{{ __('global.logout') }}</button>
 </form>
 
+<script type="text/javascript">
+    var octo = window.octo || {};
+    octo._token = '{{ csrf() }}';
+    octo.locale = '@locale';
+</script>
 <!-- ================== BEGIN BASE JS ================== -->
 <script src="{{ url('admin/plugins/jquery/jquery-3.2.1.min.js') }}"></script>
 <script src="{{ url('admin/plugins/jquery-ui/jquery-ui.min.js') }}"></script>
@@ -213,11 +278,41 @@
 <script src="{{ url('admin/js/apps.min.js') }}"></script>
 <!-- ================== END BASE JS ================== -->
 
-<script>
-    window._token = '{{ csrf() }}';
+<!-- ================== BEGIN PAGE LEVEL JS ================== -->
+<script src="{{ url('admin/plugins/highlight/highlight.common.js') }}"></script>
+<script src="{{ url('admin/js/demo/render.highlight.js') }}"></script>
 
+<script src="{{ url('admin/plugins/bootstrap-datepicker/js/bootstrap-datepicker.js') }}"></script>
+<script src="{{ url('admin/plugins/ionRangeSlider/js/ion-rangeSlider/ion.rangeSlider.min.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-colorpicker/js/bootstrap-colorpicker.min.js') }}"></script>
+<script src="{{ url('admin/plugins/masked-input/masked-input.min.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-timepicker/js/bootstrap-timepicker.min.js') }}"></script>
+<script src="{{ url('admin/plugins/password-indicator/js/password-indicator.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-combobox/js/bootstrap-combobox.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-select/bootstrap-select.min.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-tagsinput/bootstrap-tagsinput.min.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-tagsinput/bootstrap-tagsinput-typeahead.js') }}"></script>
+<script src="{{ url('admin/plugins/jquery-tag-it/js/tag-it.min.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-daterangepicker/moment.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
+<script src="{{ url('admin/plugins/select2/dist/js/select2.min.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-eonasdan-datetimepicker/build/js/bootstrap-datetimepicker.min.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-show-password/bootstrap-show-password.js') }}"></script>
+<script src="{{ url('admin/plugins/bootstrap-colorpalette/js/bootstrap-colorpalette.js') }}"></script>
+<script src="{{ url('admin/plugins/jquery-simplecolorpicker/jquery.simplecolorpicker.js') }}"></script>
+<script src="{{ url('admin/plugins/clipboard/clipboard.min.js') }}"></script>
+<script src="{{ url('admin/js/demo/form-plugins.demo.min.js') }}"></script>
+<!-- ================== END PAGE LEVEL JS ================== -->
+
+<script type="text/javascript">
     $(document).ready(function() {
         App.init();
+
+        $(".input-datepicker").datepicker({autoclose:true});
+
+        setTimeout(function () {
+            $('.limitedShow').fadeOut();
+        }, 5000);
     });
 </script>
 </body>

@@ -8,7 +8,10 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf() }}">
     <title>
-        {{ $pageTitle ?? __('global.global_title') }}
+        {{ __('global.global_title') }}
+        @if(isset($pageTitle))
+        - {{ $pageTitle }}
+        @endif
     </title>
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
     <meta content="" name="description" />

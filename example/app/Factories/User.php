@@ -13,9 +13,11 @@ class User
     {
         FastFactory::add(\App\Models\User::class, function (Faker $faker) {
             return [
-                "name"      => $faker->name,
-                "email"     => $faker->email,
-                "password"  => encrypt('000000')
+                "firstname"     => $faker->firstName,
+                "lastname"      => $faker->lastName,
+                "username"      => $faker->userName,
+                "email"         => $faker->unique()->email,
+                "password"      => encrypt('000000')
             ];
         });
     }

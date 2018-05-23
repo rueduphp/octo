@@ -2847,6 +2847,34 @@
         }
 
         /**
+         * @return null|FastObject
+         * @throws \ReflectionException
+         */
+        public function route(): ?FastObject
+        {
+            return $this->app()->define('route');
+        }
+
+        /**
+         * @return null|Module
+         * @throws \ReflectionException
+         */
+        public function module(): ?Module
+        {
+            return $this->app()->define('module');
+        }
+
+        /**
+         * @return Component
+         * @throws Exception
+         * @throws \ReflectionException
+         */
+        public function auth() {
+
+            return Setup::auth($this->session());
+        }
+
+        /**
          * @param string $method
          * @param array $params
          * @return mixed
@@ -3213,7 +3241,7 @@
         /**
          * @param $path
          * @param int $status
-         * @return \GuzzleHttp\Psr7\MessageTrait|static
+         * @return \GuzzleHttp\Psr7\MessageTrait
          * @throws \ReflectionException
          */
         public function to($path, $status = 302)
@@ -3316,14 +3344,19 @@
                 return "<?php echo e({$asset}); ?>";
             });
 
-            bladeDirective('path', function ($name, array $args = []) use ($twig) {
+            bladeDirective('path', function ($expression) use ($twig) {
+                $args = explode(', ', $expression);
+                $name = array_shift($args);
                 $path = $twig->path($name, $args);
 
                 return "<?php echo e({$path}); ?>";
             });
 
-            bladeDirective('flash', function (string $key, $default = null) use ($twig) {
-                $flash = $twig->flash($key, $default);
+            bladeDirective('flash', function ($expression) use ($twig) {
+                $args       = explode(',', preg_replace("/[\(\)\\\"\']/", '', $expression));
+                $key        = array_shift($args);
+                $default    = array_shift($args);
+                $flash      = $twig->flash($key, $default);
 
                 return "<?php echo e({$flash}); ?>";
             });
@@ -3359,22 +3392,28 @@
                 return "<?php echo {$field}; ?>";
             });
 
-            bladeDirective('submit', function (string $value = 'OK') {
+            bladeDirective('submit', function ($expression) {
+                $value = empty($expression) ? 'OK' : $expression;
                 $submit = csrf() . "\n" . "<button class=\"btn btn-primary\">{$value}</button>";
 
                 return "<?php echo {$submit}; ?>";
             });
 
-            bladeDirective('paginate', function (Pagerfanta $paginatedResults, string $route, array $queryArgs = []) use ($twig) {
-                $html = $twig->paginate($paginatedResults, $route, $queryArgs);
+            bladeDirective('paginate', function ($expression) use ($twig) {
+                $args = explode(',', preg_replace("/[\(\)\\\"\']/", '', $expression));
+                $paginatedResults = array_shift($args);
+                $route = array_shift($args);
+                $html = $twig->paginate($paginatedResults, $route, $args);
 
                 return "<?php echo {$html}; ?>";
             });
 
-            bladeDirective('lng', function (string $key, array $parameters = []) use ($twig) {
-                $trad = $twig->lang($key, $parameters);
+            bladeDirective('lng', function ($expression) use ($twig) {
+                $args   = explode(',', preg_replace("/[\(\)\\\"\']/", '', $expression));
+                $key    = array_shift($args);
+                $trad   = $twig->lang($key, $args);
 
-                return "<?php echo {$trad}; ?>";
+                return echoInDirective($trad);
             });
         }
     }

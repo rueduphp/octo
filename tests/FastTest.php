@@ -302,7 +302,7 @@ class FastTest extends TestCase
 
         $this->app
             ->set(Octo\FastContainerInterface::class, function () {
-                return $this->instanciator()->singleton(Octo\Fastcontainer::class);
+                return $this->gi()->make(Octo\Fastcontainer::class);
             })
             ->set(PDODummy::class, function () {
                 return new PDODummy('sqlite::memory:');
@@ -754,7 +754,7 @@ class FastTest extends TestCase
      */
     public function testFlash()
     {
-        $flash = $this->instanciator()->singleton(Flash::class);
+        $flash = $this->gi()->make(Flash::class);
 
         $flash->success('whaou');
         $flash->fail('oups');

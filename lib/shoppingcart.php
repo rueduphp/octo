@@ -142,8 +142,11 @@ class Shoppingcart
      */
     public function discountResolve($data)
     {
-        if (isset($data['discount'])) return floatval($data['discount']);
-        else return null;
+        if (isset($data['discount'])) {
+            return floatval($data['discount']);
+        }
+
+        return null;
     }
 
     /**

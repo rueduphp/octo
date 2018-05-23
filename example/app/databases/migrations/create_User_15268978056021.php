@@ -11,10 +11,14 @@ class CreateUser15268978056021
             $table->charset = 'utf8';
             $table->collation = 'utf8_general_ci';
             $table->increments('id');
-            $table->string('name');
-            $table->string('email');
+            $table->string('firstname')->nullable();
+            $table->string('lastname')->nullable();
+            $table->string('username')->nullable();
+            $table->string('email')->unique()->index();
+            $table->text('roles')->nullable()->default(serialize([]));
             $table->string('password');
-            $table->string('remember_token')->nullable();
+            $table->string('remember_token')->nullable()->index();
+            $table->timestamp('logged_at')->nullable();
             $table->timestamp('created_at')->nullable()->useCurrent();
             $table->timestamp('updated_at')->nullable()->useCurrent();
             $table->engine = 'InnoDB';

@@ -16,11 +16,11 @@ class Module
      */
     public function __construct()
     {
-        In::self()['module'] = $this;
-
         if ($path = in_path('views')) {
             $this->setViewPath($path);
         }
+
+        setCore('modules.' . get_called_class(), $this);
 
         $this->request = gi()->make(FastRequest::class);
     }

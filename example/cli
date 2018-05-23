@@ -8,9 +8,7 @@ use Octo\Fast;
 use Octo\FastCache;
 use Octo\Orm;
 use Octo\Work;
-use function Octo\appenv as getConfEnv;
 use function Octo\faker;
-use function Octo\instanciator;
 use function Octo\path;
 
 ini_set('error_reporting', E_ALL);
@@ -114,7 +112,7 @@ class CliOcto
     public function setupDb()
     {
         /** @var PDO pdo */
-        $this->pdo = in(PDO::class);
+        $this->pdo = Octo\in(PDO::class);
 
         $this->orm = new Orm($this->pdo);
 

@@ -2,7 +2,6 @@
 ::-moz-selection{color:#fff;background:#dc3545;text-shadow:none}
 ::selection{color:#fff;background:#dc3545;text-shadow:none}
 
-.login .login-header .brand .logo,
 .header .navbar-nav > li > a .label,
 .label.label-theme,
 .btn.btn-scroll-to-top {
@@ -34,6 +33,15 @@
 .navbar-title {
     position: relative;
     top: 4px;
+}
+
+.login .login-header .brand .logo {
+    border: 0px solid transparent !important;
+}
+
+.login .login-header .brand .logo img {
+    width: 28px !important;
+    height: 28px !important;
 }
 
 /* Added in v1.5 */

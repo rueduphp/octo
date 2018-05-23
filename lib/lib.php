@@ -2493,9 +2493,9 @@
      * @return Ultimate
      */
     function ultimate(
-        string $namespace = 'web',
-        string $userKey = 'user',
-        string $userModel = '\\App\User'
+        string $namespace   = 'web',
+        string $userKey     = 'user',
+        string $userModel   = '\\App\\Models\\User'
     ): Ultimate {
         static $ultimates = [];
 
@@ -4358,13 +4358,13 @@
 
         $in = In::self();
 
-        $in['paths'] = function () {
-            return gi()->make(Fillable::class, ['paths']);
-        };
+        $in->singleton('paths', function () {
+            return new Fillable('paths');
+        });
 
-        $in['config'] = function () {
-            return gi()->make(Fillable::class, ['config']);
-        };
+        $in->singleton('config', function () {
+            return new Fillable('config');
+        });
 
         $in['locale'] = function () {
             $session         = getSession();
@@ -5714,7 +5714,7 @@
         $token          = csrf_make();
         $tokenName      = $middleware->getFormKey();
 
-        return '<input type="hidden" name="' . $tokenName . '" id="' . $tokenName . '" value="' . $token . '">';
+        return '<input type="hidden" name="' . $tokenName . '" value="' . $token . '">';
     }
 
     /**
@@ -11871,6 +11871,19 @@
     function evalApp(string $html, array $data = []): string
     {
         return evalNs('App', $html, $data);
+    }
+
+    /**
+     * @param $concern
+     * @return string
+     */
+    function echoInDirective($concern): string
+    {
+        $compiled = '<?php echo ' . json_encode($concern) . '; ?>';
+
+        $compiled = str_replace(['\\/'], ['/'], $compiled);
+
+        return $compiled;
     }
 
     /**

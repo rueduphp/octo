@@ -26,15 +26,17 @@ use Octo\Inflector;
 use Octo\Orm;
 use Octo\Setup;
 use Octo\Shoppingcart;
-use function Octo\systemBoot;
+use Octo\Url;
+use Zend\Expressive\Router\FastRouteRouter;
+use function Octo\bladeDirective;
+use function Octo\echoInDirective;
 use function Octo\in_paths;
 use function Octo\inners;
 use function Octo\startSession;
-use function Octo\getSession;
-use Octo\Url;
-use Zend\Expressive\Router\FastRouteRouter;
+use function Octo\systemBoot;
 
 /**
+ * @param bool $cli
  * @throws ReflectionException
  * @throws \Octo\Exception
  */
@@ -76,7 +78,7 @@ function bootApp($cli = false)
 
     l('config', app(Configurator::class));
 
-    FastBladeDirectives::register();
+    directives();
 
     dic('eventer', \Octo\getEventManager());
 
@@ -89,9 +91,12 @@ function bootApp($cli = false)
     if (false === $cli) {
         $app
             ->set(Octo\Fastmiddlewarecsrf::class, function () {
-                $session = getSession();
+                $session = session();
 
                 return new Octo\Fastmiddlewarecsrf($session);
+            })
+            ->set(Octo\FastSessionInterface::class, function () {
+                return session();
             })
         ;
 
@@ -111,6 +116,7 @@ function bootMiddlewares($app)
         ->addMiddleware(Octo\Fastmiddlewaretrailingslash::class)
         ->addMiddleware(Octo\Fastmiddlewarecsrf::class)
         ->addMiddleware(Octo\Fastmiddlewarerouter::class)
+        ->addMiddleware(\App\Middlewares\Gate::class)
         ->addMiddleware(Octo\Fastmiddlewaredispatch::class)
         ->addMiddleware(Octo\Fastmiddlewarenotfound::class)
     ;
@@ -130,7 +136,7 @@ function startDb()
         PDO::ATTR_ORACLE_NULLS         => PDO::NULL_NATURAL,
         PDO::ATTR_DEFAULT_FETCH_MODE   => PDO::FETCH_ASSOC,
         PDO::ATTR_STRINGIFY_FETCHES    => false,
-        PDO::ATTR_EMULATE_PREPARES     => false
+        PDO::ATTR_EMULATE_PREPARES     => false,
     ];
 
     $pdo = new PDO(
@@ -152,8 +158,8 @@ function startDb()
                 'username'      => $db['username'],
                 'password'      => $db['password'],
                 'unix_socket'   => '',
-                'charset'       => 'utf8mb4',
-                'collation'     => 'utf8mb4_unicode_ci',
+                'charset'       => 'utf8',
+                'collation'     => 'utf8_unicode_ci',
                 'prefix'        => '',
                 'strict'        => true,
                 'engine'        => null,
@@ -185,6 +191,128 @@ function aliases()
     Setup::alias('App\Session',    'session');
     Setup::alias('App\Form',       'form');
     Setup::alias('App\Html',       'html');
+}
+
+/**
+ * @throws ReflectionException
+ */
+function directives()
+{
+    /** @var FastTwigExtension $twig */
+    $twig = app(FastTwigExtension::class);
+
+    FastBladeDirectives::register();
+
+    bladeDirective('locale', function () {
+        return echoInDirective(locale());
+    });
+
+    bladeDirective('isLogged', function () {
+        return '<?php if (auth()->logged()): ?>';
+    });
+
+    bladeDirective('isNotLogged', function () {
+        return '<?php else: ?>';
+    });
+
+    bladeDirective('endIsLogged', function () {
+        return '<?php endif; ?>';
+    });
+
+    bladeDirective('panelBtns', function ($expression) {
+        $class = empty($expression) ? 'hide' : '';
+
+        $btns = '<div class="panel-heading-btn">
+                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-default" data-click="panel-expand"><i class="fa fa-expand"></i></a>
+                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-warning" data-click="panel-collapse"><i class="fa fa-minus"></i></a>
+                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-danger '.$class.'" 
+                            data-click="panel-remove"><i class="fa fa-times"></i></a>
+                        </div>';
+
+        return echoInDirective($btns);
+    });
+}
+
+function flash()
+{
+    static $flash;
+
+    if (!is_object($flash)) {
+        $flash = new Component;
+        $session = session();
+
+        $flash['set'] = function (string $type, string $message) use ($session, $flash) {
+            $key = 'flash.' . Inflector::lower($type);
+            $session->set($key, $message);
+
+            return $flash;
+        };
+
+        $flash['get'] = function (string $type) use ($session, $flash) {
+            $key = 'flash.' . Inflector::lower($type);
+
+            return $session->pull($key);
+        };
+
+        $flash['has'] = function (string $type) use ($session, $flash) {
+            $key = 'flash.' . Inflector::lower($type);
+
+            return $session->has($key);
+        };
+
+        /** set */
+        $flash['success'] = function (string $message) use ($flash) {
+            return $flash->set('success', $message);
+        };
+
+        $flash['error'] = function (string $message) use ($flash) {
+            return $flash->set('error', $message);
+        };
+
+        $flash['warning'] = function (string $message) use ($flash) {
+            return $flash->set('warning', $message);
+        };
+
+        $flash['info'] = function (string $message) use ($flash) {
+            return $flash->set('warning', $message);
+        };
+
+        /** get */
+        $flash['getSuccess'] = function () use ($flash) {
+            return $flash->get('success');
+        };
+
+        $flash['getError'] = function () use ($flash) {
+            return $flash->get('error');
+        };
+
+        $flash['getWarning'] = function () use ($flash) {
+            return $flash->get('warning');
+        };
+
+        $flash['getInfo'] = function () use ($flash) {
+            return $flash->get('info');
+        };
+
+        /** has */
+        $flash['hasSuccess'] = function () use ($flash) {
+            return $flash->has('success');
+        };
+
+        $flash['hasError'] = function () use ($flash) {
+            return $flash->has('error');
+        };
+
+        $flash['hasWarning'] = function () use ($flash) {
+            return $flash->has('warning');
+        };
+
+        $flash['hasInfo'] = function () use ($flash) {
+            return $flash->has('info');
+        };
+    }
+
+    return $flash;
 }
 
 /**
@@ -293,6 +421,15 @@ function csrf(): string
 }
 
 /**
+ * @param  \DateTimeZone|string|null $tz
+ * @return \Carbon\Carbon
+ */
+function now($tz = null)
+{
+    return \Carbon\Carbon::now($tz);
+}
+
+/**
  * @param string $path
  * @return string
  */
@@ -364,12 +501,8 @@ function response(...$args)
  * @return mixed|object|Fast
  * @throws ReflectionException
  */
-function app($abstract = null, array $parameters = [], $singleton = true)
+function app($abstract, array $parameters = [], $singleton = true)
 {
-    if (is_null($abstract)) {
-        return Octo\getContainer();
-    }
-
     return Octo\gi()->make($abstract, $parameters, $singleton);
 }
 
@@ -667,7 +800,13 @@ function action(...$args): ?string
  */
 function user(?string $key = null, $default = null)
 {
-    return session()->user($key, $default);
+    $result = session()->user($key, $default);
+
+    if ($key && is_string($result)) {
+        $result = utf8_encode($result);
+    }
+
+    return $result;
 }
 
 /**
@@ -705,14 +844,9 @@ function is(string $role): bool
  * @param string $userKey
  * @return Component
  */
-function auth(
-    string $namespace = 'web',
-    string $userKey = 'user',
-    string $userModel = '\\App\\User`'
-) {
-    $session = Octo\ultimate($namespace, $userKey, $userModel);
-
-    return Setup::auth($session);
+function auth()
+{
+    return Setup::auth(session());
 }
 
 /**
@@ -752,6 +886,11 @@ function view(string $file, array $parameters = [], ?string $path = null)
 function event(...$params)
 {
     return \Octo\event(...$params);
+}
+
+function locale()
+{
+    return dic('locale');
 }
 
 /**
@@ -869,7 +1008,11 @@ function observer(string $name)
  */
 function model(string $name): Elegant
 {
-    $class = '\\App\\Models\\' . Inflector::camelize($name);
+    if (!class_exists($name) || !Inflector::contains($name, 'App\Models')) {
+        $class = '\\App\\Models\\' . Inflector::camelize($name);
+    } else {
+        $class = $name;
+    }
 
     return app($class);
 }
@@ -998,13 +1141,4 @@ function dbstore(string $table, string $database = 'core')
     }
 
     return $db->reset();
-}
-
-function panelBtns()
-{
-    return '<div class="panel-heading-btn">
-                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-default" data-click="panel-expand"><i class="fa fa-expand"></i></a>
-                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-warning" data-click="panel-collapse"><i class="fa fa-minus"></i></a>
-                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-danger" data-click="panel-remove"><i class="fa fa-times"></i></a>
-                        </div>';
 }

@@ -26,7 +26,7 @@ class Ultimate implements
     public function __construct(
         string $namespace = 'web',
         string $userKey = 'user',
-        string $userModel = '\\App\\User'
+        string $userModel = '\\App\\Models\\User'
     )  {
         $this->namespace    = $namespace;
         $this->userKey      = $userKey;

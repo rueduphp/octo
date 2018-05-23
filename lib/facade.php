@@ -5,33 +5,21 @@ use RuntimeException;
 
 class Facade
 {
-    /** @var In */
-    protected static $app;
-
     /**
      * @param string $method
      * @param array $args
      * @return mixed|null
+     * @throws \ReflectionException
      */
     public static function __callStatic(string $method, array $args)
     {
-        if (null === static::$app) {
-            static::$app = In::self();
-        }
-
-        $in = static::$app;
-
         try {
-            $instance = null;
-
             $class = static::getNativeClass();
 
-            if ($in::has($class)) {
-                $instance = $in::get($class);
-            } else {
+            if (!$instance = in($class)) {
                 if (class_exists($class)) {
                     $instance = gi()->make($class);
-                    $in::setInstance($instance);
+                    in($class, $instance);
                 }
             }
 

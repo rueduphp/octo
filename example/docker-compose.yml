@@ -61,4 +61,5 @@ services:
     volumes:
       - ~/data/octo/es:/bitnami
     ports:
-      - "9230:9200"
+      - "9201:9200"
+      - "9301:9300"
