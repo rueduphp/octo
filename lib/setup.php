@@ -157,7 +157,7 @@ class Setup
         };
 
         $auth['policy'] = function (string $name, $callback) use ($auth, $session) {
-            Facades\Rights::add($name . '.' . $session->getNamespace(), $callback);
+            static::rights()->add($name . '.' . $session->getNamespace(), $callback);
 
             return $auth;
         };
@@ -275,6 +275,34 @@ class Setup
 
         $path['get'] = function (string $name, ?string $default = null) {
             return in_path($name) ?: $default;
+        };
+
+        $path['current'] = function () {
+            return getContainer()->define('route') ?? null;
+        };
+
+        $path['currentName'] = function () {
+            if ($route = getContainer()->define('route')) {
+                return $route->name;
+            }
+
+            return null;
+        };
+
+        $path['isActive'] = function ($name) {
+            $route = getContainer()->define('route') ?? null;
+
+            if ($route) {
+                $name = is_string($name) ? [$name] : $name;
+
+                foreach ($name as $routeName) {
+                    if ($routeName === $route->name) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         };
 
         $path['set'] = function (string $name, string $_path) use ($path) {

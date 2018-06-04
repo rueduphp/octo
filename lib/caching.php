@@ -20,6 +20,12 @@ class Caching implements FastCacheInterface
         return $this->dir . '.' . $k;
     }
 
+    /**
+     * @param $key
+     * @param null $default
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
     public function pull($key, $default = null)
     {
         $value = $this->get($key, $default);
@@ -96,6 +102,14 @@ class Caching implements FastCacheInterface
         }
     }
 
+    /**
+     * @param $k
+     * @param $condition
+     * @param $value
+     * @param null $expire
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
     public function cacheIf($k, $condition, $value, $expire = null)
     {
         $condition  = value($condition);

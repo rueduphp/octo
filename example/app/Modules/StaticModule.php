@@ -9,34 +9,47 @@ use Octo\Facades\Redirect;
 class StaticModule extends Module
 {
     /**
+     * @throws \Octo\Exception
      * @throws \ReflectionException
      */
     public function routes()
     {
+        view()->addNamespace('mail', __DIR__ . '/../views/mails');
+
         dic(404, function () {
-            return $this->render('static.404', ['pageTitle' => 'Error 404']);
+            return view('static.404', ['pageTitle' => 'Error 404']);
         });
 
         Route::get('/', function () {
-            return $this->render(
+            return view(
                 'static.home', [
-                    'pageTitle' => 'Super Page',
-                    'subPageTitle' => 'Super Title'
+                    'pageTitle'     => 'Super Page',
+                    'subPageTitle'  => 'Super Title'
                 ]
             );
         }, 'home');
 
         Route::get('login', function () {
-            return $this->render(
-                'static.login', [
-                    'pageTitle' => 'Login'
-                ]
-            );
+            if (!auth()->logged()) {
+                return view(
+                    'static.login', [
+                        'pageTitle' => 'Login'
+                    ]
+                );
+            } else {
+                $url = session()->previousUrl();
+
+                if ($url === fullRoute('login')) {
+                    $url = route('home');
+                }
+
+                return Redirect::to($url);
+            }
         }, 'login');
 
         Route::post('login', function () {
             /** @var null|User $user */
-            $user = repo('user')->login(request('email'), request('password'), request('remember'));
+            $user = repo('user')->login(...inputs('email', 'password', 'remember'));
 
             if (null === $user) {
                 flash()->error('Unknown account');
@@ -55,8 +68,9 @@ class StaticModule extends Module
 
         Route::post('logout', function () {
             repo('user')->logout();
+            flash()->success('Good Bye');
 
-            return Redirect::to('login');
+            return Redirect::route('login');
         }, 'logout');
     }
 }

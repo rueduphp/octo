@@ -80,7 +80,7 @@ class Ultimate implements
      * @param string $key
      * @return bool
      */
-    public function has(string $key)
+    public function has(string $key): bool
     {
         $this->check();
 
@@ -132,11 +132,13 @@ class Ultimate implements
      */
     public function setPreviousUrl(string $url, ?FastObject $route = null): self
     {
+        $routeName = $route ? $route->name : null;
+
         return $this
             ->set('previous.url', $this->get('_previous.url', '/'))
             ->set('previous.route', $this->get('_previous.route', 'home'))
             ->set('_previous.url', $url)
-            ->set('_previous.route', $route->getName());
+            ->set('_previous.route', $routeName);
     }
 
     /**
@@ -438,7 +440,7 @@ class Ultimate implements
 
         $this->check();
 
-        foreach (Arrays::pattern($_SESSION, $this->namespace . '.*') as $key => $value) {
+        foreach (Arrays::pattern($_SESSION, $this->namespace . '.*') as $key) {
             unset($_SESSION[$key]);
         }
 
@@ -698,6 +700,14 @@ class Ultimate implements
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
+    }
+
+    /**
+     * @return bool
+     */
+    public function alive()
+    {
+        return session_status() === PHP_SESSION_ACTIVE;
     }
 
     /**

@@ -26,63 +26,47 @@ class Work
     /**
      * @param string $className
      * @param array $args
-     *
      * @return Work
      */
-    public function new(string $className, array $args = []): Work
+    public function new(string $className, array $args = []): self
     {
-        return $this
-            ->payload('job', $className)
-            ->payload('args', $args)
-        ;
+        return $this->payload('job', $className)->payload('args', $args);
     }
 
     /**
      * @return Work
      */
-    public function now(): Work
+    public function now(): self
     {
-        return $this
-            ->payload('when', 0)
-            ->save()
-        ;
+        return $this->payload('when', 0)->save();
     }
 
     /**
      * @param int $minutes
-     *
      * @return Work
      */
-    public function in(int $minutes = 5): Work
+    public function in(int $minutes = 5): self
     {
         $when = time() + ($minutes * 60);
 
-        return $this
-            ->payload('when', $when)
-            ->save()
-        ;
+        return $this->payload('when', $when)->save();
     }
 
     /**
      * @param int $timestamp
-     *
      * @return Work
      */
-    public function at(int $timestamp): Work
+    public function at(int $timestamp): self
     {
-        return $this
-            ->payload('when', $timestamp)
-            ->save()
-        ;
+        return $this->payload('when', $timestamp)->save();
     }
 
     /**
      * @param string $key
-     * @param mixed $value
-     *
+     * @param $value
      * @return Work
      */
-    private function payload(string $key, $value): Work
+    private function payload(string $key, $value): self
     {
         $this->payload[$key] = $value;
 
@@ -92,7 +76,7 @@ class Work
     /**
      * @return Work
      */
-    private function save(): Work
+    private function save(): self
     {
         if ($this->ready()) {
             $row = [
@@ -109,37 +93,26 @@ class Work
 
     /**
      * @return int
+     * @throws \ReflectionException
      */
     public function process(): int
     {
         $computed = 0;
 
         if ($this->hasNext()) {
-            $all = $this
-                ->store
-                ->get('queue.whens', [])
-            ;
+            $all = $this->store->get('queue.whens', []);
 
             $now = time();
 
-            $jobs = $this
-                ->store
-                ->get('queue.jobs', [])
-            ;
+            $jobs = $this->store->get('queue.jobs', []);
 
-            $args = $this
-                ->store
-                ->get('queue.args', [])
-            ;
+            $args = $this->store->get('queue.args', []);
 
-            $failed = $this
-                ->store
-                ->get('queue.failed', [])
-            ;
+            $failed = $this->store->get('queue.failed', []);
 
             foreach ($all as $row) {
                 if ((int) $row['when'] <= $now) {
-                    $computed++;
+                    ++$computed;
                     array_shift($all);
 
                     $id     = $row['id'];
@@ -148,14 +121,10 @@ class Work
                     if ($job) {
                         $params = isAke($args, $id, []);
 
-                        $instance = instanciator()
-                            ->make($job, $params, false)
-                        ;
+                        $instance = gi()->make($job, $params, false);
 
                         try {
-                            instanciator()
-                                ->call($instance, 'process')
-                            ;
+                            gi()->call($instance, 'process');
 
                             unset($jobs[$id]);
                             unset($args[$id]);
@@ -181,10 +150,7 @@ class Work
                     $all = [];
                 }
 
-                $this
-                    ->store
-                    ->set('queue.whens', $all)
-                ;
+                $this->store->set('queue.whens', $all);
             }
         }
 
@@ -198,15 +164,9 @@ class Work
     {
         $schedule   = [];
 
-        $all = $this
-            ->store
-            ->get('queue.whens', [])
-        ;
+        $all = $this->store->get('queue.whens', []);
 
-        $jobs = $this
-            ->store
-            ->get('queue.jobs', [])
-        ;
+        $jobs = $this->store->get('queue.jobs', []);
 
         foreach ($all as $item) {
             $job = isAke(
@@ -230,15 +190,10 @@ class Work
     {
         $fails  = [];
 
-        $all  = $this
-            ->store
-            ->get('queue.failed', [])
+        $all  = $this->store->get('queue.failed', [])
         ;
 
-        $jobs   = $this
-            ->store
-            ->get('queue.jobs', [])
-        ;
+        $jobs   = $this->store->get('queue.jobs', []);
 
         foreach ($all as $id => $timestamp) {
             $job = isAke(
@@ -260,42 +215,20 @@ class Work
      */
     public function hasNext(): bool
     {
-        return !empty(
-            $this
-            ->store
-            ->get(
-                'queue.whens',
-                []
-            )
-        );
+        return !empty($this->store->get('queue.whens', []));
     }
 
     /**
      * @param array $job
-     *
      * @return Work
      */
-    private function store(array $job): Work
+    private function store(array $job): self
     {
-        $jobs       = $this
-            ->store
-            ->get(
-                'queue.jobs', []
-            );
+        $jobs = $this->store->get('queue.jobs', []);
 
-        $args       = $this
-            ->store
-            ->get(
-                'queue.args', []
-            )
-        ;
+        $args = $this->store->get('queue.args', []);
 
-        $whens      = $this
-            ->store
-            ->get(
-                'queue.whens', []
-            )
-        ;
+        $whens = $this->store->get('queue.whens', []);
 
         $id = token();
 
@@ -307,11 +240,7 @@ class Work
             'when' => (int) $job['when']
         ];
 
-        $whens = array_values(
-            coll($whens)
-                ->sortBy('when')
-                ->toArray()
-        );
+        $whens = array_values(coll($whens)->sortBy('when')->toArray());
 
         $this->store
             ->set('queue.jobs', $jobs)
@@ -322,21 +251,25 @@ class Work
         return $this;
     }
 
+    /**
+     * @param $instance
+     * @throws \ReflectionException
+     */
     private function failed($instance): void
     {
         if (method_exists($instance, 'onFail')) {
-            instanciator()
-                ->call($instance, 'onFail')
-            ;
+            gi()->call($instance, 'onFail');
         }
     }
 
+    /**
+     * @param $instance
+     * @throws \ReflectionException
+     */
     private function success($instance): void
     {
         if (method_exists($instance, 'onSuccess')) {
-            instanciator()
-                ->call($instance, 'onSuccess')
-            ;
+            gi()->call($instance, 'onSuccess');
         }
     }
 
@@ -345,18 +278,14 @@ class Work
      */
     private function ready(): bool
     {
-        return isset($this->payload['job'])
-            && isset($this->payload['when'])
-            && isset($this->payload['args'])
-        ;
+        return isset($this->payload['job']) && isset($this->payload['when']) && isset($this->payload['args']);
     }
 
     /**
      * @param string $date_format
-     *
      * @return Work
      */
-    public function setDateFormat(string $date_format): Work
+    public function setDateFormat(string $date_format): self
     {
         $this->date_format = $date_format;
 
@@ -364,11 +293,10 @@ class Work
     }
 
     /**
-     * @param mixed $store
-     *
+     * @param $store
      * @return Work
      */
-    public function setStore($store): Work
+    public function setStore($store): self
     {
         $this->store = $store;
 

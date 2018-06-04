@@ -9,14 +9,15 @@ class Custom
     private $__target;
 
     /**
-     * @param array ...$args
+     * @param mixed ...$args
+     * @throws \ReflectionException
      */
     public function __construct(...$args)
     {
         $target = array_shift($args);
 
         if (is_string($target) && class_exists($target)) {
-            $target = instanciator()->make($target, $args);
+            $target = gi()->make($target, $args);
         }
 
         set('custom.instance', $this);
@@ -25,9 +26,9 @@ class Custom
     }
 
     /**
-     * @param array ...$parameters
-     *
+     * @param mixed ...$parameters
      * @return Custom
+     * @throws \ReflectionException
      */
     public function override(...$parameters): self
     {
@@ -42,10 +43,8 @@ class Custom
     }
 
     /**
-     * @param array ...$parameters
-     *
+     * @param mixed ...$parameters
      * @return mixed
-     *
      * @throws \ReflectionException
      */
     public function withNative(...$parameters)
@@ -53,7 +52,7 @@ class Custom
         $container  = getContainer();
         $method     = array_shift($parameters);
         $params     = array_merge([$this->__target, $method], $parameters);
-        $res        = instanciator()->call(...$params);
+        $res        = gi()->call(...$params);
         $callable   = get_class($this->__target) . '@' . $method;
         $args       = array_merge([$callable], $parameters);
         $args       = array_merge($args, [$res]);

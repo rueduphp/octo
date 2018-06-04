@@ -23,7 +23,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
         if (!is_null($route)) {
             /** @var Ultimate $session */
             $session = $this->getSession();
-            /** @var FastRequest $request */
+            /** @var FastRequest $req */
             $req = gi()->make(FastRequest::class);
 
             if ($req->method() === 'GET' && !$req->ajax() && !IS_CLI) {
@@ -63,6 +63,10 @@ class Fastmiddlewaredispatch extends FastMiddleware
                 actual('fast.module', $module);
             }
 
+            if ($response instanceof ResponseInterface) {
+                return $response;
+            }
+
             if (is_string($response) || is_numeric($response)) {
                 return $app->response(200, [], $response);
             }
@@ -81,10 +85,6 @@ class Fastmiddlewaredispatch extends FastMiddleware
                     ['content-type' => 'application/json; charset=utf-8'],
                     json_encode($response->toArray(), JSON_PRETTY_PRINT)
                 );
-            }
-
-            if ($response instanceof ResponseInterface) {
-                return $response;
             }
 
             $this->exception('fastmiddlewaredispatch', 'The response is not valid.');

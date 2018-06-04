@@ -21,11 +21,16 @@
          */
         public function __construct(string $db = 'core', string $table = 'core', $driver = null, $dir = null)
         {
-            $dir            = $dir      ?? conf('octalia.dir', session_save_path());
-            $driver         = $driver   ?? fmr("odb.$db.$table", $dir);
+            $dir = $dir ?? conf('octalia.dir', session_save_path());
+
+            $driver = $driver ?? fmr("odb.$db.$table", $dir);
+
+            if (empty($dir) && !$driver instanceof Now) {
+                throw new Exception('Provide a path to store.');
+            }
 
             $this->ns       = "$db.$table";
-            $this->path     = "$db.$table";
+            $this->path      = "$db.$table";
 
             if ($driver instanceof Cache || $driver instanceof Cachelite) {
                 $this->ns .= str_replace(DS, '.', $driver->getDirectory());

@@ -14,7 +14,9 @@ use function Octo\path;
 ini_set('error_reporting', E_ALL);
 ini_set('display_errors', true);
 
-if (file_exists(realpath(__DIR__) . '/../.env')) {
+if (file_exists(realpath(__DIR__) . '/.env')) {
+    $ini = parse_ini_file(realpath(__DIR__) . '/.env');
+} elseif (file_exists(realpath(__DIR__) . '/../.env')) {
     $ini = parse_ini_file(realpath(__DIR__) . '/../.env');
 }
 
@@ -154,6 +156,49 @@ class CliOcto
     /**
      * @throws ReflectionException
      */
+    private function sessions_migrate()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('sessions')) {
+            $this->getSchema()->create('sessions', function (Blueprint $table) {
+                $table->string('id')->unique();
+                $table->text('payload');
+                $table->integer('last_activity');
+            });
+
+            $this->show("Sessions table has been created.");
+        } else {
+            $this->show("Sessions table ever exists.", 'ERROR');
+        }
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function sessions_rollback()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('sessions')) {
+            $this->show("Sessions table does not exists.", 'ERROR');
+        } else {
+            $this->getSchema()->dropIfExists('sessions');
+            $this->show("Sessions table has been dropped.");
+        }
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function notification_migrate()
+    {
+        $this->make_notification_table();
+    }
+
+    /**
+     * @throws ReflectionException
+     */
     private function make_notification_table()
     {
         $this->setupDb();
@@ -163,7 +208,7 @@ class CliOcto
                 $table->uuid('id')->primary();
                 $table->string('type');
                 $table->morphs('notifiable');
-                $table->text('data');
+                $table->longText('data');
                 $table->timestamp('read_at')->nullable();
                 $table->timestamp('created_at')->nullable()->useCurrent();
                 $table->timestamp('updated_at')->nullable()->useCurrent();
@@ -195,13 +240,90 @@ class CliOcto
         }
     }
 
-    private function serve()
+    /**
+     * @throws ReflectionException
+     */
+    private function caching_migrate()
+    {
+        $this->caching();
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function queue_migrate()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('queue')) {
+            $this->getSchema()->create('queue', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('name')->nullable()->default(null);
+                $table->integer('status')->default(0);
+                $table->integer('retries')->default(0);
+                $table->timestamp('timestamp');
+                $table->longText('payload')->nullable();
+                $table->timestamp('created_at')->nullable()->useCurrent();
+                $table->timestamp('updated_at')->nullable()->useCurrent();
+            });
+
+            $this->show("Queue table has been created.");
+        } else {
+            $this->show("Queue table ever exists.", 'ERROR');
+        }
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function queue_rollback()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('queue')) {
+            $this->show("Queue table does not exists.", 'ERROR');
+        } else {
+            $this->getSchema()->dropIfExists('queue');
+            $this->show("Queue table has been dropped.");
+        }
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    private function caching_rollback()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('caching')) {
+            $this->show("Caching table does not exists.", 'ERROR');
+        } else {
+            $this->getSchema()->dropIfExists('caching');
+            $this->show("Caching table has been dropped.");
+        }
+    }
+    /**
+     * @throws ReflectionException
+     */
+    private function notification_rollback()
+    {
+        $this->setupDb();
+
+        if (!$this->hasTable('notification')) {
+            $this->show("Notification table does not exists.", 'ERROR');
+        } else {
+            $this->getSchema()->dropIfExists('notification');
+            $this->show("Notification table has been dropped.");
+        }
+    }
+
+    private function serve($port = 8000)
     {
         $base = realpath(__DIR__);
 
-        $this->show('Server is running on http://localhost:8000');
+        $this->show('Server is running on http://localhost:' . $port);
 
-        passthru("php -S localhost:8000 {$base}/server.php");
+        passthru("php -S localhost:{$port} {$base}/server.php");
     }
 
     /**
@@ -292,6 +414,7 @@ class CliOcto
     }
 
     /**
+     * @throws ReflectionException
      * @throws \Octo\Exception
      */
     private function cron()
@@ -302,6 +425,7 @@ class CliOcto
     }
 
     /**
+     * @throws ReflectionException
      * @throws \Octo\Exception
      */
     private function run_jobs()
@@ -310,6 +434,7 @@ class CliOcto
     }
 
     /**
+     * @throws ReflectionException
      * @throws \Octo\Exception
      */
     private function job_process()
@@ -1060,6 +1185,22 @@ class ' . $class . ' extends FastRequest
     {
         parent::__construct();
     }
+
+    /**
+     * @return bool
+     */
+    protected function can(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array
+     */
+    protected function rules(): array
+    {
+        // return [];
+    }
 }
 ',
             'entity' => '<?php
@@ -1179,6 +1320,22 @@ namespace App\Observers;
 class ' . $class . ' 
 {
     
+}
+',
+            'notification' => '<?php
+namespace App\Notifications;
+
+class ' . $class . ' 
+{
+    public function channels()
+    {
+        return ["mail"];
+    }
+    
+    public function mail($notifiable)
+    {
+        //
+    }
 }
 ',
             'service' => '<?php

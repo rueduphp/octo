@@ -55,6 +55,8 @@ services:
     command: redis-server --appendonly yes
     ports:
       - "6377:6379"
+    volumes:
+      - ~/data/octo/redis:/data
 
   es:
     image: bitnami/elasticsearch:latest

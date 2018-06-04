@@ -39,7 +39,7 @@ class Instant implements ArrayAccess
      */
     public function __construct(string $name, SessionHandlerInterface $handler)
     {
-        $this->setId(sha1(in('auth')::token() . $name));
+        $this->setId(sha1(forever() . $name));
         $this->name = $name;
         $this->handler = $handler;
     }

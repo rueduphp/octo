@@ -197,9 +197,9 @@ class Htmlfactory
      * @return HtmlString
      * @throws \ReflectionException
      */
-    public function linkAction($action, $title = null, $parameters = [], $attributes = [])
+    public function linkAction($module, $action, $title = null, $parameters = [], $attributes = [])
     {
-        return $this->link(\action($action, $parameters), $title, $attributes);
+        return $this->link(action($module, $action, $parameters), $title, $attributes);
     }
 
     /**

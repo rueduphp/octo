@@ -733,6 +733,13 @@
         viewCache($key, $maxAge, $callable, $driver);
     }
 
+    /**
+     * @param $key
+     * @param $maxAge
+     * @param callable $callable
+     * @param null $driver
+     * @throws Exception
+     */
     function viewCache($key, $maxAge, callable $callable, $driver = null)
     {
         $continue   = true;
@@ -3897,6 +3904,16 @@
     }
 
     /**
+     * @param string $path
+     *
+     * @return string
+     */
+    function database_path(string $path = '')
+    {
+        return in_path('database') . ($path ? DS . trim($path, DS) : $path);
+    }
+
+    /**
      * @return null
      */
     function paths()
@@ -4446,10 +4463,6 @@
             return gi()->make(IllDic::class);
         });
 
-        $in['session'] = function () {
-            return getSession();
-        };
-
         $in['request'] = function () {
             return gi()->make(FastRequest::class);
         };
@@ -4473,17 +4486,13 @@
         $in['renderer'] = function () {
             return getRenderer();
         };
-
+//
         $in['event'] = function () {
             return gi()->make(Fire::class, ['app']);
         };
-
+//
         $in['larevent'] = function () {
             return dispatcher('app');
-        };
-
-        $in['flash'] = function () {
-            return gi()->make(Flasher::class, [getSession()]);
         };
 
         $in['routes'] = function () {
@@ -4493,23 +4502,6 @@
         $in['redirect'] = function () {
             return gi()->make(FastRedirector::class);
         };
-
-        $in['auth'] = function () {
-            return You::called();
-        };
-
-        $in::singleton('validator', function () {
-            $locale = in('locale');
-
-            $t = setTranslator(lang_path(), $locale);
-
-            $validator = new \Illuminate\Validation\Factory(
-                $t,
-                \Illuminate\Container\Container::getInstance()
-            );
-
-            return $validator;
-        });
 
         $in::singleton('event', function () {
             return new Fire('core');
@@ -4521,20 +4513,6 @@
 
         $in::singleton('html', function () use ($in) {
             return new Htmlfactory($in['blade']);
-        });
-
-        $in::singleton('form', function () use ($in) {
-            /** @var Ultimate $session */
-            $session = getSession();
-
-            $form = new Formfactory(
-                $in['html'],
-                $in['blade'],
-                $session->token(),
-                new FastRequest
-            );
-
-            return $form->setSessionStore($session);
         });
 
         $in::singleton('hash', function () {
@@ -4556,29 +4534,52 @@
         $in::singleton('bag', function () {
             return new Ghost;
         });
+    }
 
-        $in::singleton('view', function () use ($in) {
-            $view = new Component;
+    /**
+     * @throws \ReflectionException
+     */
+    function innersSession()
+    {
+        $in = in();
 
-            $view['with'] = function ($type, $message) use ($in, $view) {
-                $in['session']->push($type, $message);
+        $in['sessions'] = function () {
+            return getSession();
+        };
 
-                return $view;
-            };
+        $in['flash'] = function () {
+            return gi()->make(Flasher::class, [getSession()]);
+        };
 
-            $view['self'] = function () use ($view) {
-                return $view;
-            };
+        $in['auth'] = function () {
+            return You::called();
+        };
 
-            $view['render'] = function (string $name, array $parameters = []) use ($in) {
-                return gi()->call($in['module'], 'render', $name, $parameters);
-            };
+        $in::singleton('form', function () use ($in) {
+            /** @var Ultimate $session */
+            $session = getSession();
 
-            $view['make'] = function (string $name, array $parameters = []) use ($in) {
-                return gi()->call($in['module'], 'render', $name, $parameters);
-            };
+            $form = new Formfactory(
+                $in['html'],
+                $in['blade'],
+                $session->token(),
+                new FastRequest
+            );
 
-            return $view;
+            return $form->setSessionStore($session);
+        });
+
+        $in::singleton('validator', function () {
+            $locale = in('locale');
+
+            $t = setTranslator(lang_path(), $locale);
+
+            $validator = new \Illuminate\Validation\Factory(
+                $t,
+                \Illuminate\Container\Container::getInstance()
+            );
+
+            return $validator;
         });
     }
 
@@ -9601,6 +9602,12 @@
         return $res;
     }
 
+    /**
+     * @param string $ns
+     * @return mixed|null|Live|Ultimate
+     * @throws Exception
+     * @throws \ReflectionException
+     */
     function start_session($ns = 'web')
     {
         if (!session_id() && !headers_sent() && !isset($_SESSION)) {
@@ -9779,19 +9786,21 @@
 
     /**
      * @param mixed ...$args
-     * @return null|string
+     * @return string
      */
-    function action(...$args): ?string
+    function action(...$args): string
     {
-        $next = array_shift($args);
+        $module = array_shift($args);
+        $action = array_shift($args);
+        $next = $module . '@' . $action;
 
         $route = coll(In::self()['routes'])->where('next', $next)->first();
 
-        if ($route) {
+        if (null !== $route) {
             return getRouter()->generateUri($route['name'], $args);
         }
 
-        return null;
+        return '/';
     }
 
     /**

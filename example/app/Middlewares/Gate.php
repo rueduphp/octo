@@ -23,18 +23,12 @@ class Gate extends FastMiddleware
     private $redirect;
 
     /**
-     * @var null|\Octo\FastObject
-     */
-    private $route;
-
-    /**
      * @param FastRequest $request
      * @throws \ReflectionException
      */
     public function __construct(FastRequest $request, FastRedirector $redirect)
     {
         $this->request  = $request;
-        $this->route    = $request->route();
         $this->redirect = $redirect;
     }
 
@@ -47,14 +41,24 @@ class Gate extends FastMiddleware
      */
     public function process(ServerRequestInterface $request, DelegateInterface $delegate)
     {
-        if (null !== $this->route) {
-            $routeName = $this->route->name;
+        if ($route = $this->request->route()) {
+            $routeName = $route->name;
 
-            $excepts = ['login', 'log', 'forgot'];
+            $excepts = [
+                'login',
+                'log',
+                'forgot',
+                'social.github',
+                'social.linkedin',
+                'social.google',
+                'social.facebook',
+                'social.twitter',
+            ];
 
             if (!$this->request->auth()->logged() && !in_array($routeName, $excepts)) {
                 $found  = false;
                 $user   = model($this->request->session()->getUserModel())
+                    ->whereNotNull('remember_token')
                     ->whereRememberToken(\Octo\forever())
                     ->orderByDesc('logged_at')
                     ->first()
@@ -65,11 +69,11 @@ class Gate extends FastMiddleware
                     $found = true;
                 }
 
-                if (false === $found) {
-                    if ($this->request->method() === 'GET') {
-                        $this->request->session()->set('redirect_url', Url::get(true));
-                    }
+                if ('GET' === $this->request->method()) {
+                    $this->request->session()->set('redirect_url', Url::get(true));
+                }
 
+                if (false === $found) {
                     return $this->redirect->to('login');
                 }
             }

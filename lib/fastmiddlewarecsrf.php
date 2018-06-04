@@ -58,7 +58,7 @@ class Fastmiddlewarecsrf extends FastMiddleware
             }
 
             if (false === $this->check($params[$this->formKey], $this->session[$this->sessionKey] ?? [])) {
-                exception('InvalidCsrfException', 'invalid csrf');
+                exception('InvalidCsrf', 'invalid csrf');
             }
 
             $this->removeToken($params[$this->formKey]);

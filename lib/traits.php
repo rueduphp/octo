@@ -3,12 +3,9 @@ namespace Octo;
 
 /* Traits */
 
-use ArrayAccess;
 use BadMethodCallException;
 use Closure;
 use Exception as PHPException;
-use function func_get_args;
-use function get_called_class;
 use ReflectionClass;
 use ReflectionMethod;
 use SplFixedArray as FA;
@@ -162,18 +159,18 @@ trait Notifiable
     public function notify(...$args)
     {
         $class      = array_shift($args);
-        $instance   = instanciator()->factory($class, $this);
+        $instance   = gi()->factory($class, $this);
         $params     = array_merge([$instance, 'handle'], array_merge([$this], $args));
-        $driver     = instanciator()->call(...$params);
+        $driver     = gi()->call(...$params);
 
         if ('database' === $driver) {
-            $data = instanciator()->call($instance, 'toDatabase', $this);
+            $data = gi()->call($instance, 'toDatabase', $this);
 
             return Alert::sendToDatabase($instance, $this, $data);
         } elseif ('mail' === $driver) {
-            return instanciator()->call($instance, 'sendToMail', $this);
+            return gi()->call($instance, 'sendToMail', $this);
         } elseif ('redis' === $driver) {
-            $data = instanciator()->call($instance, 'toDatabase', $this);
+            $data = gi()->call($instance, 'toDatabase', $this);
 
             return Alert::sendToRedis($instance, $this, $data);
         }

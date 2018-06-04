@@ -1,6 +1,7 @@
 <?php
 namespace Octo;
 
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 
 class Elegant extends EloquentModel implements FastModelInterface
@@ -62,6 +63,40 @@ class Elegant extends EloquentModel implements FastModelInterface
             $this->__capsule = Capsule::getInstance()->model(get_called_class());
         }
 
+        if ('list' === $m) {
+            return $this->get()->pluck(...$a);
+        }
+
+        if ('like' === $m) {
+            return $this->newQuery()->where(current($a), 'like', end($a));
+        }
+
+        if ('orLike' === $m) {
+            return $this->newQuery()->where(current($a), 'like', end($a), 'or');
+        }
+
+        if ('null' === $m) {
+            return $this->newQuery()->whereNull(current($a));
+        }
+
+        if ('orNull' === $m) {
+            return $this->newQuery()->whereNull(current($a), 'or');
+        }
+
+        if ('notNull' === $m) {
+            return $this->newQuery()->whereNull(current($a), 'and', true);
+        }
+
+        if ('orNotNull' === $m) {
+            return $this->newQuery()->whereNull(current($a), 'or', true);
+        }
+
+        if ('or' === $m) {
+            $params = array_merge($a, ['or']);
+
+            return $this->newQuery()->where(...$params);
+        }
+
         if (in_array($m, ['increment', 'decrement'])) {
             return $this->$m(...$a);
         }
@@ -70,7 +105,15 @@ class Elegant extends EloquentModel implements FastModelInterface
 
         $params = array_merge($callable, $a);
 
-        return gi()->call(...$params);
+        $result = gi()->call(...$params);
+
+        if (is_object($result)) {
+            if ($result instanceof EloquentCollection) {
+                return new ElegantCollection($result);
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -80,5 +123,23 @@ class Elegant extends EloquentModel implements FastModelInterface
     public static function factory()
     {
         return new FastFactory($class = get_called_class(), gi()->make($class));
+    }
+}
+
+class ElegantCollection
+{
+    /**
+     * @var EloquentCollection
+     */
+    private $collection;
+
+    public function __construct(EloquentCollection $collection)
+    {
+        $this->collection = $collection;
+    }
+
+    public function __call(string $method, array $parameters)
+    {
+        return $this->collection->{$method}($parameters);
     }
 }

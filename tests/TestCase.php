@@ -40,14 +40,6 @@ abstract class TestCase extends Octo\TestCase
 
         Octo\Capsule::instance($pdo);
 
-//        Octo\Db::listen(
-//            function ($q) {
-//                if (!fnmatch('*caching*', $q->sql)) {
-//                    Octo\lvd($q->sql . ' ('.implode(', ', $q->bindings).') ['.$q->time.']');
-//                }
-//            }
-//        );
-
         $paths = Octo\in_paths();
 
         $paths['app']       = __DIR__;
@@ -59,6 +51,7 @@ abstract class TestCase extends Octo\TestCase
         $paths['lang']      = __DIR__ . '/lang';
 
         Octo\inners();
+        Octo\innersSession();
 
         $in = Octo\In::self();
 
@@ -69,6 +62,8 @@ abstract class TestCase extends Octo\TestCase
         $in::singleton('instant', function () use ($in) {
             return (new Octo\Instant('core', $in['filesession']))->start();
         });
+
+        Octo\Config::set('octalia.dir',  realpath(__DIR__ . '/storage'));
     }
 
     public function tearDown()

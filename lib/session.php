@@ -151,7 +151,7 @@ class Session implements ArrayAccess, FastSessionInterface
 
         $check = sha1(__FILE__);
 
-        return $check != isAke($_SESSION, $this->_name . '.' . $key, $check);
+        return $check !== isAke($_SESSION, $this->_name . '.' . $key, $check);
     }
 
     public function getOr($key, callable $c)

@@ -117,6 +117,8 @@ class LockTest extends TestCase
         $this->db = new Orm($this->pdo);
 
         Migrations::migrate($this->db->schema());
+
+        Octo\Config::set('octalia.engine', 'ndb');
     }
 
     /**
@@ -222,8 +224,8 @@ class LockTest extends TestCase
         $this->assertSame(5, (int) UserModel::count());
         $this->assertCount(5, $rows);
 
-        $rows = Post::factory()->create(8, ["title" => 'test']);
-        $this->assertSame("test", Post::first()->title);
+        $rows = Post::factory()->create(8, ['title' => 'test']);
+        $this->assertSame('test', Post::first()->title);
         $this->assertSame(8, (int) Post::count());
         $this->assertCount(8, $rows);
 

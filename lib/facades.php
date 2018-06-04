@@ -77,7 +77,7 @@ class Session extends Facade
      */
     public static function getNativeClass(): string
     {
-        return 'session';
+        return 'sessions';
     }
 }
 

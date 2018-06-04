@@ -102,13 +102,13 @@ class You
     }
 
     /**
-     * @return Live|Session
+     * @return Ultimate
+     * @throws Exception
      * @throws \ReflectionException
-     * @throws \TypeError
      */
     public static function getSession()
     {
-        return in(static::called()->store);
+        return getSession();
     }
 
     /**

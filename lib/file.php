@@ -72,14 +72,12 @@
 
         /**
          * @param $value
-         *
-         * @return mixed|null
-         *
+         * @return mixed
          * @throws \ReflectionException
          */
         public static function value($value)
         {
-            return $value instanceof Closure ? callCallable($value) : $value;
+            return $value instanceof Closure ? gi()->makeClosure($value) : $value;
         }
 
         /**

@@ -29,8 +29,8 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|object
-     *
      * @throws \ReflectionException
      */
     public function factory(...$args)
@@ -53,8 +53,8 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|object
-     *
      * @throws \ReflectionException
      */
     public function foundry(...$args)
@@ -63,8 +63,8 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|object
-     *
      * @throws \ReflectionException
      */
     public function singleton(...$args)
@@ -123,7 +123,7 @@ class Instanciator
                     $isVariadic = $firstParam->isVariadic();
                 }
 
-                if ((empty($args) || count($args) != count($params)) && !$isVariadic) {
+                if ((empty($args) || count($args) !== count($params)) && !$isVariadic) {
                     $instanceParams = [];
 
                     foreach ($params as $param) {
@@ -152,9 +152,10 @@ class Instanciator
                                     try {
                                         $p = $this->factory($c);
 
+                                        $made = true;
+
                                         if ($p instanceof FastModelInterface) {
                                             $p = $this->makeModel($p);
-                                            $made = true;
                                         }
                                     } catch (\Exception $e) {
                                         exception('Instanciator', $e->getMessage());
@@ -168,6 +169,16 @@ class Instanciator
                                         if (is_object($p) && !$p instanceof $t) {
                                             if (true === $param->isDefaultValueAvailable()) {
                                                 $p = $param->getDefaultValue();
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    if ($param->hasType()) {
+                                        $t = (string) $param->getType()->getName();
+
+                                        if (is_object($p) && get_class($p) !== $t) {
+                                            if ($aw = $this->autowire($t)) {
+                                                $p = $aw;
                                             }
                                         }
                                     }
@@ -257,8 +268,8 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed
-     *
      * @throws \ReflectionException
      */
     public function invoker(...$args)
@@ -267,10 +278,8 @@ class Instanciator
     }
 
     /**
-     * @param array ...$args
-     *
+     * @param mixed ...$args
      * @return mixed
-     *
      * @throws \ReflectionException
      */
     public function callMethod(...$args)
@@ -398,9 +407,10 @@ class Instanciator
                             try {
                                 $p = $this->factory($c);
 
+                                $made = true;
+
                                 if ($p instanceof FastModelInterface) {
                                     $p = $this->makeModel($p);
-                                    $made = true;
                                 }
                             } catch (\Exception $e) {
                                 exception('Instanciator', $e->getMessage());
@@ -414,6 +424,16 @@ class Instanciator
                                 if (is_object($p) && !$p instanceof $t) {
                                     if (true === $param->isDefaultValueAvailable()) {
                                         $p = $param->getDefaultValue();
+                                    }
+                                }
+                            }
+                        } else {
+                            if ($param->hasType()) {
+                                $t = (string) $param->getType()->getName();
+
+                                if (is_object($p) && get_class($p) !== $t) {
+                                    if ($aw = $this->autowire($t)) {
+                                        $p = $aw;
                                     }
                                 }
                             }
@@ -479,8 +499,8 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|null
-     *
      * @throws \ReflectionException
      */
     public function interact(...$args)
@@ -492,8 +512,8 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|null
-     *
      * @throws \ReflectionException
      */
     public function call(...$args)
@@ -540,9 +560,10 @@ class Instanciator
                                 try {
                                     $p = $this->factory($c);
 
+                                    $made = true;
+
                                     if ($p instanceof FastModelInterface) {
                                         $p = $this->makeModel($p);
-                                        $made = true;
                                     }
                                 } catch (\Exception $e) {
                                     exception('Instanciator', $e->getMessage());
@@ -556,6 +577,16 @@ class Instanciator
                                     if (is_object($p) && !$p instanceof $t) {
                                         if (true === $param->isDefaultValueAvailable()) {
                                             $p = $param->getDefaultValue();
+                                        }
+                                    }
+                                }
+                            } else {
+                                if ($param->hasType()) {
+                                    $t = (string) $param->getType()->getName();
+
+                                    if (is_object($p) && get_class($p) !== $t) {
+                                        if ($aw = $this->autowire($t)) {
+                                            $p = $aw;
                                         }
                                     }
                                 }
@@ -619,7 +650,6 @@ class Instanciator
 
     /**
      * @param null $concern
-     *
      * @return mixed
      */
     public function binds($concern = null)
@@ -696,9 +726,9 @@ class Instanciator
     }
 
     /**
-     * @param array ...$args
-     *
+     * @param mixed ...$args
      * @return Instanciator
+     * @throws \ReflectionException
      */
     public function set(...$args): self
     {
@@ -714,11 +744,10 @@ class Instanciator
         return $this->share(...$args);
     }
 
-
     /**
-     * @param array ...$args
-     *
+     * @param mixed ...$args
      * @return Instanciator
+     * @throws \ReflectionException
      */
     public function setInstance(...$args): self
     {
@@ -792,10 +821,8 @@ class Instanciator
     }
 
     /**
-     * @param array ...$args
-     *
+     * @param mixed ...$args
      * @return Instanciator
-     *
      * @throws \ReflectionException
      */
     public function __invoke(...$args): self
@@ -996,7 +1023,7 @@ class Instanciator
      */
     public function autowire(string $concern, bool $raw = false)
     {
-        $wires      = Registry::get('core.wires', []);
+        $wires      = Registry::get('core.wires', []) + getCore('app.resolvers', []);
         $callable   = isAke($wires, $concern, null);
 
         if (!$raw && is_callable($callable)) {
@@ -1007,8 +1034,7 @@ class Instanciator
     }
 
     /**
-     * @param array ...$args
-     *
+     * @param mixed ...$args
      * @return Closure
      */
     public function callable(...$args): Closure
@@ -1038,7 +1064,6 @@ class Instanciator
 
     /**
      * @param $object
-     *
      * @return Closure
      */
     public function resolver($object)
@@ -1073,8 +1098,7 @@ class Instanciator
     }
 
     /**
-     * @param mixed $callable
-     *
+     * @param $callable
      * @return Lazy
      */
     public function lazy($callable)
@@ -1086,6 +1110,7 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|null
      */
     public function with(...$args)
@@ -1094,8 +1119,8 @@ class Instanciator
     }
 
     /**
+     * @param mixed ...$args
      * @return mixed|null
-     *
      * @throws \ReflectionException
      */
     public function resolve(...$args)
@@ -1118,11 +1143,9 @@ class Instanciator
     /**
      * @param string $key
      * @param callable|null $resolver
-     *
-     * @return mixed|null
-     *
+     * @return mixed|null|object
      * @throws Exception
-     * @throws PHPException
+     * @throws \ReflectionException
      */
     public function cache(string $key, ?callable $resolver = null)
     {
@@ -1156,8 +1179,7 @@ class Instanciator
     }
 
     /**
-     * @param mixed $cache
-     *
+     * @param $cache
      * @return Instanciator
      */
     public function setCache($cache): self
@@ -1178,9 +1200,7 @@ class Instanciator
     /**
      * @param string $name
      * @param string $class
-     *
      * @return Instanciator
-     *
      * @throws \ReflectionException
      */
     public function alias(string $name, string $class): self

@@ -273,6 +273,29 @@ class Fillable implements ArrayAccess
      */
     public function __call(string $name, array $arguments)
     {
+        if (fnmatch('get*', $name)) {
+            $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($name, 3)));
+            $key                = Strings::lower($uncamelizeMethod);
+            $args               = [$key];
+
+            if (!empty($arguments)) {
+                $args[] = current($arguments);
+            }
+
+            return call_user_func_array([$this, 'get'], $args);
+        } elseif (fnmatch('set*', $name)) {
+            $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($name, 3)));
+            $key                = Strings::lower($uncamelizeMethod);
+
+            return $this->set($key, current($arguments));
+        } elseif (fnmatch('forget*', $name)) {
+            $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($name, 6)));
+            $key                = Strings::lower($uncamelizeMethod);
+            $args               = [$key];
+
+            return call_user_func_array([$this, 'remove'], $args);
+        }
+
         return $this->toCollection()->{$name}(...$arguments);
     }
 }

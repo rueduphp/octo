@@ -698,13 +698,14 @@
 
         /**
          * @param $uri
+         * @param int $status
          * @return \GuzzleHttp\Psr7\MessageTrait|Psr7Response
          * @throws \ReflectionException
          */
-        public function redirectResponse($uri)
+        public function redirectResponse($uri, int $status = 301)
         {
             $this->response = $this->response()
-                ->withStatus(301)
+                ->withStatus($status)
                 ->withHeader('Location', $uri)
             ;
 
@@ -714,15 +715,16 @@
         /**
          * @param string $route
          * @param array $params
+         * @param int $status
          * @return \GuzzleHttp\Psr7\MessageTrait|Psr7Response
          * @throws Exception
          * @throws \ReflectionException
          */
-        public function redirectRouteResponse(string $route, array $params = [])
+        public function redirectRouteResponse(string $route, array $params = [], int $status = 301)
         {
             $uri = $this->router()->urlFor($route, $params);
 
-            return $this->redirectResponse($uri);
+            return $this->redirectResponse($uri, $status);
         }
 
         /**
@@ -2715,32 +2717,32 @@
         }
 
         /**
-         * @param array ...$keys
-         * @return array
+         * @param $keys
+         * @return mixed
          * @throws \ReflectionException
          */
-        public function only(...$keys): array
+        public function only($keys)
         {
             $inputs = [];
             $attrs = $this->all();
 
-            foreach ($keys as $key) {
+            foreach (is_array($keys) ? $keys : func_get_args() as $key) {
                 $inputs[$key] = isAke($attrs, $key, null);
             }
 
-            return $inputs;
+            return 1 === func_num_args() ? reset($inputs) : $inputs;
         }
 
         /**
-         * @param array ...$keys
+         * @param $keys
          * @return array
          * @throws \ReflectionException
          */
-        public function except(...$keys): array
+        public function except($keys): array
         {
             $attrs = $this->all();
 
-            foreach ($keys as $key) {
+            foreach (is_array($keys) ? $keys : func_get_args() as $key) {
                 unset($attrs[$key]);
             }
 
@@ -3209,7 +3211,7 @@
          * @param string $name
          * @param array $args
          * @param int $status
-         * @return \GuzzleHttp\Psr7\MessageTrait|FastRedirector
+         * @return \GuzzleHttp\Psr7\MessageTrait
          * @throws \ReflectionException
          */
         public function route(string $name, array $args = [], $status = 302)
@@ -3291,6 +3293,21 @@
         public function backWith(array $parameters, $status = 302)
         {
             return $this->with($parameters)->back($status);
+        }
+
+        /**
+         * @param array $args
+         * @param int $status
+         * @return \GuzzleHttp\Psr7\MessageTrait
+         * @throws \ReflectionException
+         */
+        public function current(array $args = [], $status = 302)
+        {
+            $route = getContainer()->define('route');
+
+            $name = $route ? $route->name : 'home';
+
+            return $this->route($name, $args, $status);
         }
     }
 

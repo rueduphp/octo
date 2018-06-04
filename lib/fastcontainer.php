@@ -125,10 +125,10 @@ class Fastcontainer implements FastContainerInterface
     }
 
     /**
-     * @param string $concern
-     * @param mixed $value
-     *
+     * @param $concern
+     * @param $value
      * @return Fastcontainer
+     * @throws \ReflectionException
      */
     public function set($concern, $value)
     {
@@ -201,7 +201,9 @@ class Fastcontainer implements FastContainerInterface
     }
 
     /**
-     * @return mixed
+     * @param mixed ...$args
+     * @return mixed|object
+     * @throws \ReflectionException
      */
     public function singleton(...$args)
     {
@@ -212,8 +214,8 @@ class Fastcontainer implements FastContainerInterface
      * @param $concern
      * @param callable $callable
      * @param null $c
-     *
      * @return Fastcontainer
+     * @throws \ReflectionException
      */
     public function register($concern, callable $callable, $c = null): self
     {
@@ -223,7 +225,7 @@ class Fastcontainer implements FastContainerInterface
 
         Registry::set('core.Fastcontainer.registered', $data);
 
-        instanciator()->wire($concern, $callable);
+        gi()->wire($concern, $callable);
 
         if ($c) {
             $c->set($concern, true);
@@ -233,10 +235,10 @@ class Fastcontainer implements FastContainerInterface
     }
 
     /**
-     * @param string $concern
+     * @param $concern
      * @param callable $callable
-     *
      * @return Fastcontainer
+     * @throws \ReflectionException
      */
     public function define($concern, callable $callable)
     {
@@ -244,17 +246,20 @@ class Fastcontainer implements FastContainerInterface
     }
 
     /**
-     * @return object
+     * @param mixed ...$args
+     * @return mixed|object
+     * @throws \ReflectionException
      */
-    public function mock()
+    public function mock(...$args)
     {
-        $args = func_get_args();
-
         $mock = $this->resolve(...$args);
 
         return dyn($mock);
     }
 
+    /**
+     * @return Fast
+     */
     public function getApp()
     {
         return $this->self('fast');

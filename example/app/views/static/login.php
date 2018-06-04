@@ -29,9 +29,6 @@
 <!-- begin #page-loader -->
 <div id="page-loader" class="fade show"><span class="spinner"></span></div>
 <!-- end #page-loader -->
-
-<!-- begin #page-container -->
-<div id="page-container" class="fade">
     <!-- begin login -->
     <div class="login bg-black animated fadeInDown">
         <!-- begin brand -->
@@ -48,6 +45,25 @@
         <!-- end brand -->
         <!-- begin login-content -->
         <div class="login-content">
+
+            <!-- begin #page-container -->
+            <div id="page-container" class="fade">
+
+                @if (flash()->hasSuccess())
+                <!-- begin page-success -->
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="note note-success fade show limitedShow">
+                            <div class="note-icon"><i class="fa fa-trophy"></i></div>
+                            <div class="note-content">
+                                <h4><b>Message</b></h4>
+                                <p>{{ flash()->getSuccess() }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- end page-success -->
+                @endif
 
             @if (flash()->hasError())
             <!-- begin page-error -->
@@ -87,6 +103,19 @@
                     <button type="submit" class="btn btn-success btn-block btn-lg">Sign me in</button>
                 </div>
             </form>
+            <hr>
+            <div class="form-group">
+                <a href="{{ to('social.google') }}" class="btn btn-block btn-social btn-google"><i class="fab
+                fa-google"></i> Google</a>
+                <a href="{{ to('social.twitter') }}" class="btn btn-block btn-social btn-twitter"><i class="fab
+                fa-twitter"></i> Twitter</a>
+                <a href="{{ to('social.facebook') }}" class="btn btn-block btn-social btn-facebook"><i class="fab
+                 fa-facebook"></i> Facebook</a>
+                <a href="{{ to('social.linkedin') }}" class="btn btn-block btn-social btn-linkedin"><i class="fab
+                 fa-linkedin"></i> Linkedin</a>
+                <a href="{{ to('social.github') }}" class="btn btn-block btn-social btn-github"><i class="fab
+                fa-github"></i> Github</a>
+            </div>
         </div>
         <!-- end login-content -->
     </div>
@@ -126,4 +155,3 @@
 </script>
 </body>
 </html>
-

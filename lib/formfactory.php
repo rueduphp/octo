@@ -980,11 +980,7 @@ class Formfactory
      */
     protected function getControllerAction($options)
     {
-        if (is_array($options)) {
-            return \action($options[0], array_slice($options, 1));
-        }
-
-        return \action($options);
+        return action($options[0], $options[1], $options[2] ?? []);
     }
 
     /**
