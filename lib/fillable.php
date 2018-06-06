@@ -2,8 +2,9 @@
 namespace Octo;
 
 use ArrayAccess;
+use IteratorAggregate;
 
-class Fillable implements ArrayAccess
+class Fillable implements ArrayAccess, IteratorAggregate
 {
     /** @var array  */
     private static $data = [];
@@ -297,5 +298,10 @@ class Fillable implements ArrayAccess
         }
 
         return $this->toCollection()->{$name}(...$arguments);
+    }
+
+    public function getIterator()
+    {
+        return new \ArrayIterator($this->toArray());
     }
 }

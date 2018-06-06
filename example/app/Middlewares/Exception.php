@@ -4,6 +4,7 @@ namespace App\Middlewares;
 use Interop\Http\ServerMiddleware\DelegateInterface;
 use function Octo\aget;
 use function Octo\app_path;
+use function Octo\fast;
 use Octo\Facades\Config;
 use Octo\FastMiddleware;
 use Psr\Http\Message\ResponseInterface;
@@ -24,15 +25,15 @@ class Exception extends FastMiddleware
 
         $debug = $env !== 'production';
 
-        if (true === $debug) {
-            return $delegate->process($request);
-        } else {
+        if (false === $debug) {
             try {
                 return $delegate->process($request);
             } catch (\Exception $e) {
                 return $this->handle($e);
             }
         }
+
+        return $delegate->process($request);
     }
 
     /**
@@ -44,6 +45,6 @@ class Exception extends FastMiddleware
     {
         $content = render(app_path('views/static/error.php'));
 
-        return \Octo\fast()->response(500, [], $content);
+        return fast()->response(500, [], $content);
     }
 }

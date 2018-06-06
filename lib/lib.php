@@ -3914,6 +3914,16 @@
     }
 
     /**
+     * @param string $path
+     *
+     * @return string
+     */
+    function views_path(string $path = '')
+    {
+        return in_path('views') . ($path ? DS . trim($path, DS) : $path);
+    }
+
+    /**
      * @return null
      */
     function paths()

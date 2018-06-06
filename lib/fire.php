@@ -67,7 +67,7 @@ class Fire
 
         $priority = !is_int($priority) ? 0 : $priority;
 
-        if (!is_callable($callable)) {
+        if (!is_callable($callable) && !class_exists($callable)) {
             $callable = resolverClass($callable);
         }
 
@@ -154,7 +154,18 @@ class Fire
 
                     if (is_object($listener->callable) && is_invokable(get_class($listener->callable))) {
                         $params = array_merge([$listener->callable, '__invoke'], $args);
-                        $result = gi()->call(...$params);
+
+                        try {
+                            $result = gi()->call(...$params);
+
+                            if (method_exists($listener->callable, 'onSuccess')) {
+                                gi()->call($listener->callable, 'onSuccess', $result);
+                            }
+                        } catch (\Exception $e) {
+                            if (method_exists($listener->callable, 'onFail')) {
+                                return gi()->call($listener->callable, 'onFail');
+                            }
+                        }
                     } else {
                         if ($listener->callable instanceof Closure) {
                             $params = array_merge([$listener->callable], $args);
@@ -162,6 +173,21 @@ class Fire
                         } elseif (is_array($listener->callable)) {
                             $params = array_merge($listener->callable, $args);
                             $result = gi()->call(...$params);
+                        } elseif (is_string($listener->callable) && class_exists($listener->callable)) {
+                            $instance = gi()->make($listener->callable);
+                            $params = array_merge([$instance, 'handle'], $args);
+
+                            try {
+                                $result = gi()->call(...$params);
+
+                                if (method_exists($instance, 'onSuccess')) {
+                                    gi()->call($instance, 'onSuccess', $result);
+                                }
+                            } catch (\Exception $e) {
+                                if (method_exists($instance, 'onFail')) {
+                                    return gi()->call($instance, 'onFail');
+                                }
+                            }
                         }
                     }
 

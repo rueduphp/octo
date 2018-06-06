@@ -244,14 +244,6 @@ class Mailable implements FastMailerInterface
     }
 
     /**
-     * @return \Swift_Message
-     */
-    public function __invoke(): Swift_Message
-    {
-        return $this->swift;
-    }
-
-    /**
      * @param null|Swift_Mailer $mailer
      * @return int
      */
@@ -313,6 +305,45 @@ class Mailable implements FastMailerInterface
     }
 
     /**
+     * @param string $name
+     * @param bool $text
+     * @param array $parameters
+     * @return $this
+     * @throws \ReflectionException
+     */
+    public function render(string $name, array $parameters = [], bool $text = true)
+    {
+        /** @var \Illuminate\View\Factory $view */
+        $view = In::self()['view'];
+
+        $vars = viewParams();
+
+        foreach ($vars as $key => $value) {
+            $data[$key] = $value;
+        }
+
+        $data['errors'] = $data['errors'] ?? coll();
+
+        setCore('blade.context', $data);
+
+        $body = $view->make($name, $parameters, [])->render();
+
+        $this->swift->setBody(
+            $body,
+            'text/html'
+        );
+
+        if (true === $text) {
+            $this->swift->addPart(
+                strip_tags($body),
+                'text/plain'
+            );
+        }
+
+        return $this;
+    }
+
+    /**
      * @param string $path
      * @param array $args
      * @return Mailable
@@ -333,7 +364,8 @@ class Mailable implements FastMailerInterface
             )->addPart(
                 strip_tags($body),
                 'text/plain'
-            );
+            )
+        ;
 
         return $this;
     }
@@ -358,7 +390,8 @@ class Mailable implements FastMailerInterface
             )->addPart(
                 strip_tags($body),
                 'text/plain'
-            );
+            )
+        ;
 
         return $this;
     }
@@ -383,7 +416,8 @@ class Mailable implements FastMailerInterface
             )->addPart(
                 strip_tags($body),
                 'text/plain'
-            );
+            )
+        ;
 
         return $this;
     }
@@ -401,13 +435,14 @@ class Mailable implements FastMailerInterface
         $body = $view->inline();
 
         $this->swift
-        ->setBody(
-            $body,
-            'text/html'
-        )->addPart(
-            strip_tags($body),
-            'text/plain'
-        );
+            ->setBody(
+                $body,
+                'text/html'
+            )->addPart(
+                strip_tags($body),
+                'text/plain'
+            )
+        ;
 
         return $this;
     }
@@ -431,7 +466,8 @@ class Mailable implements FastMailerInterface
             )->addPart(
                 strip_tags($body),
                 'text/plain'
-            );
+            )
+        ;
 
         return $this;
     }

@@ -409,6 +409,21 @@ class Ultimate implements
     }
 
     /**
+     * @param string $key
+     * @param $new
+     * @param null $default
+     * @return mixed
+     */
+    public function permute(string $key, $new, $default = null)
+    {
+        $value = $this->pull($key, $default);
+
+        $this->set($key, $new);
+
+        return $value;
+    }
+
+    /**
      * @return array
      */
     public function all(): array

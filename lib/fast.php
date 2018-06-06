@@ -7,6 +7,7 @@
     use Exception as NativeException;
     use GuzzleHttp\Psr7\Response as Psr7Response;
     use GuzzleHttp\Psr7\ServerRequest as Psr7Request;
+    use GuzzleHttp\Psr7\Stream;
     use GuzzleHttp\Psr7\UploadedFile;
     use Illuminate\Filesystem\Filesystem;
     use Illuminate\Support\MessageBag;
@@ -1409,10 +1410,8 @@
 
         /**
          * @param string $name
-         *
          * @return string
-         *
-         * @throws TypeError
+         * @throws \ReflectionException
          */
         public function getLang(string $name = 'lng'): string
         {
@@ -2365,6 +2364,78 @@
         }
     }
 
+    class StatusCode
+    {
+        const HTTP_CONTINUE = 100;
+        const HTTP_SWITCHING_PROTOCOLS = 101;
+        const HTTP_PROCESSING = 102;
+
+        const HTTP_OK = 200;
+        const HTTP_CREATED = 201;
+        const HTTP_ACCEPTED = 202;
+        const HTTP_NONAUTHORITATIVE_INFORMATION = 203;
+        const HTTP_NO_CONTENT = 204;
+        const HTTP_RESET_CONTENT = 205;
+        const HTTP_PARTIAL_CONTENT = 206;
+        const HTTP_MULTI_STATUS = 207;
+        const HTTP_ALREADY_REPORTED = 208;
+        const HTTP_IM_USED = 226;
+
+        const HTTP_MULTIPLE_CHOICES = 300;
+        const HTTP_MOVED_PERMANENTLY = 301;
+        const HTTP_FOUND = 302;
+        const HTTP_SEE_OTHER = 303;
+        const HTTP_NOT_MODIFIED = 304;
+        const HTTP_USE_PROXY = 305;
+        const HTTP_UNUSED= 306;
+        const HTTP_TEMPORARY_REDIRECT = 307;
+        const HTTP_PERMANENT_REDIRECT = 308;
+
+        const HTTP_BAD_REQUEST = 400;
+        const HTTP_UNAUTHORIZED  = 401;
+        const HTTP_PAYMENT_REQUIRED = 402;
+        const HTTP_FORBIDDEN = 403;
+        const HTTP_NOT_FOUND = 404;
+        const HTTP_METHOD_NOT_ALLOWED = 405;
+        const HTTP_NOT_ACCEPTABLE = 406;
+        const HTTP_PROXY_AUTHENTICATION_REQUIRED = 407;
+        const HTTP_REQUEST_TIMEOUT = 408;
+        const HTTP_CONFLICT = 409;
+        const HTTP_GONE = 410;
+        const HTTP_LENGTH_REQUIRED = 411;
+        const HTTP_PRECONDITION_FAILED = 412;
+        const HTTP_REQUEST_ENTITY_TOO_LARGE = 413;
+        const HTTP_REQUEST_URI_TOO_LONG = 414;
+        const HTTP_UNSUPPORTED_MEDIA_TYPE = 415;
+        const HTTP_REQUESTED_RANGE_NOT_SATISFIABLE = 416;
+        const HTTP_EXPECTATION_FAILED = 417;
+        const HTTP_IM_A_TEAPOT = 418;
+        const HTTP_MISDIRECTED_REQUEST = 421;
+        const HTTP_UNPROCESSABLE_ENTITY = 422;
+        const HTTP_LOCKED = 423;
+        const HTTP_FAILED_DEPENDENCY = 424;
+        const HTTP_UPGRADE_REQUIRED = 426;
+        const HTTP_PRECONDITION_REQUIRED = 428;
+        const HTTP_TOO_MANY_REQUESTS = 429;
+        const HTTP_REQUEST_HEADER_FIELDS_TOO_LARGE = 431;
+        const HTTP_CONNECTION_CLOSED_WITHOUT_RESPONSE = 444;
+        const HTTP_UNAVAILABLE_FOR_LEGAL_REASONS = 451;
+        const HTTP_CLIENT_CLOSED_REQUEST = 499;
+
+        const HTTP_INTERNAL_SERVER_ERROR = 500;
+        const HTTP_NOT_IMPLEMENTED = 501;
+        const HTTP_BAD_GATEWAY = 502;
+        const HTTP_SERVICE_UNAVAILABLE = 503;
+        const HTTP_GATEWAY_TIMEOUT = 504;
+        const HTTP_VERSION_NOT_SUPPORTED = 505;
+        const HTTP_VARIANT_ALSO_NEGOTIATES = 506;
+        const HTTP_INSUFFICIENT_STORAGE = 507;
+        const HTTP_LOOP_DETECTED = 508;
+        const HTTP_NOT_EXTENDED = 510;
+        const HTTP_NETWORK_AUTHENTICATION_REQUIRED = 511;
+        const HTTP_NETWORK_CONNECTION_TIMEOUT_ERROR = 599;
+    }
+
     /**
      * Class FastRequest
      * @method hasHeader($header)
@@ -2455,7 +2526,7 @@
         public function validate()
         {
             /** @var \Illuminate\Validation\Factory $validator */
-            $validator = gi()->make(\Octo\Facades\Validator::class);
+            $validator = gi()->make(Facades\Validator::class);
 
             $check = $validator->make(
                 $this->all(),
@@ -3734,10 +3805,7 @@
             } elseif ($type === 'time') {
                 $attributes['type'] = 'time';
                 $input = $this->input($value, $attributes);
-            } elseif ($type === 'file') {
-                $attributes['type'] = 'file';
-                $input = $this->input(null, $attributes);
-            } elseif ($type === 'image') {
+            } elseif ($type === 'file' || $type === 'image') {
                 $attributes['type'] = 'file';
                 $input = $this->input(null, $attributes);
             } elseif ($type === 'checkbox') {
@@ -3750,7 +3818,7 @@
             }
 
             return "<div class=\"" . $class . "\">
-              <label for=\"name\">{$label}</label>
+              <label for=\"" . $key . "\">{$label}</label>
               {$input}
               {$error}
             </div>";
@@ -3765,7 +3833,7 @@
             if ($value instanceof \DateTime) {
                 return $value->format('Y-m-d H:i:s');
             }
-            return (string)$value;
+            return (string) $value;
         }
 
         /**
@@ -3871,6 +3939,218 @@
         public function process(ServerRequestInterface $request)
         {
             return process($request);
+        }
+    }
+
+    class FastResponse
+    {
+        /**
+         * @return Fast
+         * @throws \ReflectionException
+         */
+        public function app()
+        {
+            return getContainer();
+        }
+
+        /**
+         * @return Psr7Response
+         * @throws \ReflectionException
+         */
+        public function native()
+        {
+            return $this->app()->getResponse();
+        }
+
+        /**
+         * @param $data
+         * @param null $status
+         * @param int $encodingOptions
+         * @return \Psr\Http\Message\ResponseInterface
+         * @throws \ReflectionException
+         */
+        public function json($data, $status = null, int $encodingOptions = 0)
+        {
+            /** @var \Psr\Http\Message\ResponseInterface $response */
+            $response = $this->native()->withBody(new Stream(fopen('php://temp', 'r+')));
+            $response->getBody()->write($json = json_encode($data, $encodingOptions));
+
+            if ($json === false) {
+                throw new \RuntimeException(json_last_error_msg(), json_last_error());
+            }
+
+            $responseWithJson = $response->withHeader('Content-Type', 'application/json;charset=utf-8');
+
+            if (isset($status)) {
+                return $responseWithJson->withStatus($status);
+            }
+
+            return $responseWithJson;
+        }
+
+        /**
+         * @param $url
+         * @param null $status
+         * @return ResponseInterface
+         * @throws \ReflectionException
+         */
+        public function redirect($url, $status = null)
+        {
+            /** @var \Psr\Http\Message\ResponseInterface $responseWithRedirect */
+            $responseWithRedirect = $this->native()->withHeader('Location', (string)$url);
+
+            if (is_null($status) && $this->native()->getStatusCode() === StatusCode::HTTP_OK) {
+                $status = StatusCode::HTTP_FOUND;
+            }
+
+            if (!is_null($status)) {
+                return $responseWithRedirect->withStatus($status);
+            }
+
+            return $responseWithRedirect;
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isEmpty()
+        {
+            return in_array(
+                $this->native()->getStatusCode(),
+                [StatusCode::HTTP_NO_CONTENT, StatusCode::HTTP_RESET_CONTENT, StatusCode::HTTP_NOT_MODIFIED]
+            );
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isInformational()
+        {
+            return $this->native()->getStatusCode() >= StatusCode::HTTP_CONTINUE &&
+                $this->native()->getStatusCode() < StatusCode::HTTP_OK;
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isOk()
+        {
+            return $this->native()->getStatusCode() === StatusCode::HTTP_OK;
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isSuccessful()
+        {
+            return $this->native()->getStatusCode() >= StatusCode::HTTP_OK &&
+                $this->native()->getStatusCode() < StatusCode::HTTP_MULTIPLE_CHOICES;
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isRedirect()
+        {
+            return in_array(
+                $this->native()->getStatusCode(),
+                [
+                    StatusCode::HTTP_MOVED_PERMANENTLY,
+                    StatusCode::HTTP_FOUND,
+                    StatusCode::HTTP_SEE_OTHER,
+                    StatusCode::HTTP_TEMPORARY_REDIRECT
+                ]
+            );
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isRedirection()
+        {
+            return $this->native()->getStatusCode() >= StatusCode::HTTP_MULTIPLE_CHOICES &&
+                $this->native()->getStatusCode() < StatusCode::HTTP_BAD_REQUEST;
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isForbidden()
+        {
+            return $this->native()->getStatusCode() === StatusCode::HTTP_FORBIDDEN;
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isNotFound()
+        {
+            return $this->native()->getStatusCode() === StatusCode::HTTP_NOT_FOUND;
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isClientError()
+        {
+            return $this->native()->getStatusCode() >= StatusCode::HTTP_BAD_REQUEST &&
+                $this->native()->getStatusCode() < StatusCode::HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        /**
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function isServerError()
+        {
+            return $this->native()->getStatusCode() >= StatusCode::HTTP_INTERNAL_SERVER_ERROR &&
+                $this->native()->getStatusCode() < 600;
+        }
+
+        /**
+         * @return string
+         * @throws \ReflectionException
+         */
+        public function __toString()
+        {
+            $output = sprintf(
+                'HTTP/%s %s %s',
+                $this->native()->getProtocolVersion(),
+                $this->native()->getStatusCode(),
+                $this->native()->getReasonPhrase()
+            );
+
+            $output .= "\r\n";
+
+            foreach ($this->native()->getHeaders() as $name => $values) {
+                $output .= sprintf('%s: %s', $name, $this->native()->getHeaderLine($name)) . Response::EOL;
+            }
+
+            $output .= "\r\n";
+
+            $output .= (string) $this->native()->getBody();
+
+            return $output;
+        }
+
+        /**
+         * @param string $method
+         * @param array $params
+         * @return mixed
+         * @throws \ReflectionException
+         */
+        public function __call(string $method, array $params)
+        {
+            return $this->native()->{$method}(...$params);
         }
     }
 

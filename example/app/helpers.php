@@ -11,6 +11,7 @@ use Illuminate\Database\SQLiteConnection;
 use Illuminate\Redis\RedisManager;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\DatabasePresenceVerifier;
+use Mmanos\Search\Search;
 use Monolog\Logger as Monolog;
 use Octo\App;
 use Octo\Bcrypt;
@@ -25,13 +26,13 @@ use Octo\Facades\Config as CoreConf;
 use Octo\Facades\Validator;
 use Octo\Fast;
 use Octo\FastBladeDirectives;
-use Octo\Fastcontainer;
 use Octo\FastRequest;
 use Octo\FastTwigExtension;
 use Octo\Fillable;
 use Octo\In;
 use Octo\Inflector;
 use Octo\Orm;
+use Octo\Pack;
 use Octo\Setup;
 use Octo\Shoppingcart;
 use Octo\Url;
@@ -85,7 +86,7 @@ function bootApp($cli = false)
         ->smtp();
 
     dic('mail', function () {
-        return new \Octo\Mailable;
+        return new Octo\Mailable;
     });
 
     dic()::singleton('view', function () {
@@ -109,12 +110,35 @@ function bootApp($cli = false)
 
     l('config', app(Configurator::class));
 
-    $sessions = include \Octo\config_path() . '/session.php';
+    $sessions = include Octo\config_path('session.php');
     l('config')->set(['session' => $sessions]);
+
+    $search = include Octo\config_path('search.php');
+    l('config')->set(['search' => $search]);
+
+    makeFacade('Config', function () {
+        return l('config');
+    });
+
+    makeFacade('Search', function () {
+        return new Search;
+    });
+
+    makeFacade('Mail', function () {
+        return new Octo\Mailable;
+    });
+
+    if (!is_dir(Octo\storage_path('search/default'))) {
+        Octo\File::mkdir(Octo\storage_path('search/default'));
+    }
 
     directives();
 
     dic('eventer', \Octo\getEventManager());
+
+    makeFacade('Event', function () {
+        return dic('eventer');
+    });
 
     inners();
     startDb();
@@ -129,6 +153,12 @@ function bootApp($cli = false)
     $verifier = new DatabasePresenceVerifier(l('db'));
 
     Validator::setPresenceVerifier($verifier);
+
+    makeFacade('Cache', function () {
+        $config = CoreConf::get('app');
+
+        return cacheService($config['cache_ttl'] ?? 60, 'app');
+    });
 
     $app = App::create();
 
@@ -146,8 +176,28 @@ function bootApp($cli = false)
         return new \Illuminate\Filesystem\Filesystem;
     });
 
+    makeFacade('Files', function () {
+        return l('files');
+    });
+
     l()->singleton('session.store', function ($app) {
         return $app->make('session')->driver();
+    });
+
+    makeFacade('Session', function () {
+        return session();
+    });
+
+    makeFacade('Auth', function () {
+        return auth();
+    });
+
+    makeFacade('Flash', function () {
+        return flash();
+    });
+
+    makeFacade('Log', function () {
+        return dic('logservice');
     });
 
     l()->singleton('request', function ($app) use ($dirApp) {
@@ -180,6 +230,18 @@ function bootApp($cli = false)
 
         $app->render($response);
     }
+}
+
+/**
+ * @param $facade
+ * @param $resolver
+ * @throws ReflectionException
+ */
+function makeFacade($facade, $resolver)
+{
+    dic()::singleton($facade, $resolver);
+
+    class_alias('\App\Facades\\' . $facade, $facade);
 }
 
 function bootMiddlewares($app)
@@ -277,6 +339,10 @@ function startDb()
 
     dic('db', l('db'));
 
+    makeFacade('Db', function () {
+        return l('db');
+    });
+
     dic('orm', new Orm($pdo));
 
     Dynamicmodel::migrate();
@@ -293,6 +359,19 @@ function startDb()
     });
 
     dic('redis', l('redis'));
+
+    makeFacade('Redys', function () {
+        return l('redis');
+    });
+
+    makeFacade('Lite', function () {
+        return dic('db')->connection('sqlite');
+    });
+
+    makeFacade('Schema', function () {
+        return \Octo\getSchema();
+    });
+
     dic('redis.connection', l('redis.connection'));
 }
 
@@ -664,7 +743,7 @@ function session($key = null, $default = null)
  */
 function old(?string $key = null, $default = null)
 {
-    return session()->alive() ? session()->getOldInput($key, $default) : $default;
+    return session()->alive() ? Octo\isAke(Octo\viewParams()['olds'], $key, null) : $default;
 }
 
 /**
@@ -1741,19 +1820,55 @@ function resolve(...$args)
 }
 
 /**
- * @return Component
+ * @param null|string $key
+ * @param string $value
+ * @return mixed|Component
+ * @throws ReflectionException
  */
-function container()
+function container(?string $key = null, $value = 'octodummy')
 {
     static $container;
 
     if (!is_object($container)) {
-        $container = new Component;
+        $container = new Pack;
 
-        $container['factory'] = function (string $name, Closure $resolver) {
+        $container['factory'] = function (string $name, Closure $resolver) use ($container) {
             resolver($name, $resolver);
+            $container[$name] = $resolver;
         };
     }
 
+    if (null !== $key && 'factory' !== $key) {
+        if ('octodummy' === $value) {
+            return $container[$key];
+        } else {
+            $container[$key] = $value;
+        }
+    }
+
     return $container;
+}
+
+/**
+ * @param string $ip
+ * @return mixed
+ */
+function ipinfo(string $ip)
+{
+    $json = file_get_contents("https://fr.mappy.com/front-services/geoip?ip=$ip");
+
+    return json_decode($json, true);
+}
+
+/**
+ * @param object $object
+ * @param string $property
+ * @param $value
+ * @throws ReflectionException
+ */
+function setValue(&$object, string $property, $value)
+{
+    $prop = new ReflectionProperty($object, $property);
+    $prop->setAccessible(true);
+    $prop->setValue($object, $value);
 }

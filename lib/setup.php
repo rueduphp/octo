@@ -277,34 +277,6 @@ class Setup
             return in_path($name) ?: $default;
         };
 
-        $path['current'] = function () {
-            return getContainer()->define('route') ?? null;
-        };
-
-        $path['currentName'] = function () {
-            if ($route = getContainer()->define('route')) {
-                return $route->name;
-            }
-
-            return null;
-        };
-
-        $path['isActive'] = function ($name) {
-            $route = getContainer()->define('route') ?? null;
-
-            if ($route) {
-                $name = is_string($name) ? [$name] : $name;
-
-                foreach ($name as $routeName) {
-                    if ($routeName === $route->name) {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        };
-
         $path['set'] = function (string $name, string $_path) use ($path) {
             in_path($name, $_path);
 
@@ -344,6 +316,27 @@ class Setup
         };
 
         $route['add'] = function ($method, $path, $next, $name = null, $middleware = null) use ($router, $route) {
+            $options = getCore('routes.options', []);
+
+            $prefix = $options['prefix'] ?? '';
+            $midopt = $options['middleware'] ?? null;
+
+            if ($prefix) {
+                $path = $prefix . '/' . ltrim($path, '/');
+            }
+
+            if ($midopt) {
+                if ($middleware) {
+                    if (!is_array($middleware)) {
+                        $middleware = [$middleware, $midopt];
+                    } else {
+                        $middleware[] = $midopt;
+                    }
+                } else {
+                    $middleware = $midopt;
+                }
+            }
+
             $router->addRoute(Inflector::upper($method), $path, $next, $name, $middleware);
 
             return $route;
@@ -378,8 +371,64 @@ class Setup
             return $route->add('delete', $path, $next, $name, $middleware);
         };
 
+        $route['group'] = function (array $options, \Closure $next) {
+            setCore('routes.options', $options);
+            gi()->makeClosure($next);
+            setCore('routes.options', []);
+        };
+
+        $route['middleware'] = function ($middleware) use ($route) {
+            $options = getCore('routes.options', []);
+            $midopt = $options['middleware'] ?? null;
+
+            if ($midopt) {
+                if (!is_array($midopt)) {
+                    $newMidOpt = [$midopt, $middleware];
+                } else {
+                    $midopt[] = $middleware;
+                    $newMidOpt = $midopt;
+                }
+            } else {
+                $newMidOpt = $middleware;
+            }
+
+            $options['middleware'] = $newMidOpt;
+
+            setCore('routes.options', $options);
+
+            return $route;
+        };
+
         $route['list'] = function () {
             return getCore('allroutes', []);
+        };
+
+        $route['current'] = function () {
+            return getContainer()->define('route') ?? null;
+        };
+
+        $route['currentName'] = function () {
+            if ($route = getContainer()->define('route')) {
+                return $route->name;
+            }
+
+            return null;
+        };
+
+        $route['isActive'] = function ($name) {
+            $route = getContainer()->define('route') ?? null;
+
+            if ($route) {
+                $name = is_string($name) ? [$name] : $name;
+
+                foreach ($name as $routeName) {
+                    if ($routeName === $route->name) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         };
 
         return $route;

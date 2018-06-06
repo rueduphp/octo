@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Carbon\Carbon;
 use Closure;
 
 class Cache
@@ -48,6 +49,35 @@ class Cache
         $value = $this->connection()->get($this->prefix.$key);
 
         return !is_null($value) ? $this->unserialize($value) : $default;
+    }
+
+    /**
+     * @param string $key
+     * @param null $default
+     * @return mixed
+     */
+    public function pull(string $key, $default = null)
+    {
+        $value = $this->get($key, $default);
+        $this->delete($key);
+
+        return $value;
+    }
+
+    /**
+     * @param string $key
+     * @param $value
+     * @return mixed
+     */
+    public function getSet(string $key, $value)
+    {
+        if ($this->has($key)) {
+            return $this->get($key);
+        }
+
+        $this->set($key, $value);
+
+        return $value;
     }
 
     /**
@@ -313,7 +343,27 @@ class Cache
      */
     public function has(string $key): bool
     {
-        return 'octodummy' !== $this->get($key, 'octodummy');
+        return $this->connection()->exists($this->prefix.$key) > 0;
+    }
+
+    /**
+     * @param string $key
+     * @return int
+     */
+    public function ttl(string $key): int
+    {
+        return $this->connection()->ttl($this->prefix.$key);
+    }
+
+    /**
+     * @param string $key
+     * @return Carbon
+     */
+    public function expireAt(string $key)
+    {
+        $timestamp = time() + $this->ttl($key);
+
+        return Carbon::createFromTimestamp($timestamp);
     }
 
     /**

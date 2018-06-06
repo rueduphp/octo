@@ -78,6 +78,12 @@
             return $obj;
         }
 
+        /**
+         * @param $lat
+         * @param $lng
+         * @return array
+         * @throws Exception
+         */
         public function addressByLatLng($lat, $lng)
         {
             $url = "https://www.google.com/maps/preview/reveal?authuser=0&hl=en&pb=!2m12!1m3!1d48113.26392487962!2d2.5015467909161497!3d44.430221399384884!2m3!1f0!2f0!3f0!3m2!1i1440!2i445!4f13.1!3m2!2d$lng!3d$lat";

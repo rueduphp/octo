@@ -30,20 +30,35 @@ class Fastmiddlewaredispatch extends FastMiddleware
                 $session->setPreviousUrl(Url::full(), $route);
             }
 
-            $action = Arrays::last(explode('.', $route->getName()));
+            $filters = puller('routes.middlewares', $route->getName());
+
+            if (null !== $filters) {
+                if (!is_array($filters)) {
+                    $filters = [$filters];
+                }
+
+                foreach ($filters as $ind => $filter) {
+                    unset($filters[$ind]);
+
+                    if (!empty($filters)) {
+                        pusher('routes.middlewares', [$route->getName() => $filters]);
+                    }
+
+                    if ($filter instanceof Closure) {
+                        return gi()->makeClosure($filter, $request, $this);
+                    } else {
+                        $instance = gi()->make($filter);
+
+                        return gi()->call($instance, 'process', $request, $this);
+                    }
+                }
+            }
 
             $middleware = $route->getMiddleware();
 
             if (is_array($middleware)) {
                 $module = $middleware[0];
                 $action = $middleware[1];
-                $filter = puller('routes.middlewares', $route->getName());
-
-                if (null !== $filter) {
-                    $instance = gi()->make($filter);
-
-                    return gi()->call($instance, 'process', $request, $this);
-                }
 
                 $response = gi()->call($module, $action);
             } else {
@@ -53,9 +68,10 @@ class Fastmiddlewaredispatch extends FastMiddleware
                     $module     = getCore('modules.' . $scope->getName());
                     $response   = gi()->makeClosure($middleware, $request, $next);
                 } else {
+                    $action     = Arrays::last(explode('.', $route->getName()));
                     $module     = gi()->make($middleware);
-                    $callable   = [$module, 'run'];
-                    $response   = call_user_func_array($callable, [$action, $request, $app]);
+                    $parameters = [$module, 'process', $action, $request, $app];
+                    $response   = gi()->call(...$parameters);
                 }
             }
 

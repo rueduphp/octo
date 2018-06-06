@@ -44,12 +44,12 @@ class SenderTest extends TestCase
                 'text/plain'
             );
 
-        $status = $mailer->send($message());
+        $status = $mailer->send($message->getSwiftMessage());
 
         /** @var array $messages */
         $messages = $this->registered('core.mails', []);
 
         $this->assertSame(1, $status);
-        $this->assertSame(end($messages), $message());
+        $this->assertSame(end($messages), $message->getSwiftMessage());
     }
 }

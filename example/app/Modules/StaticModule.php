@@ -8,6 +8,7 @@ use Octo\Facades\Redirect;
 
 class StaticModule extends Module
 {
+
     /**
      * @throws \Octo\Exception
      * @throws \ReflectionException

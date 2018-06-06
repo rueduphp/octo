@@ -1,7 +1,6 @@
 <?php
 namespace App\Modules;
 
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Octo\Module;
 use Octo\Facades\Route;
@@ -62,7 +61,7 @@ class SocialMiddleware extends ModuleMiddleware
 {
     public function before()
     {
-        $services = include \Octo\config_path() . '/services.php';
+        $services = include \Octo\config_path('services.php');
         l('config')->set(['services' => $services]);
         addConfig('services');
     }

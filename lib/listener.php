@@ -33,13 +33,13 @@ class Listener implements FastListenerInterface
     public $callable;
 
     /**
-     * @param callable $callable
+     * @param string|callable $callable
      * @param int $priority
      * @param bool $halt
      * @param bool $once
      */
     public function __construct(
-        callable $callable,
+        $callable,
         $priority = 0,
         $halt = false,
         $once = false
@@ -149,7 +149,7 @@ class Listener implements FastListenerInterface
     }
 
     /**
-     * @return callable
+     * @return string|callable
      */
     public function getCallable()
     {
@@ -157,11 +157,11 @@ class Listener implements FastListenerInterface
     }
 
     /**
-     * @param callable $callable
+     * @param string|callable $callable
      *
      * @return Listener
      */
-    public function setCallable(callable $callable)
+    public function setCallable($callable)
     {
         $this->callable = $callable;
 

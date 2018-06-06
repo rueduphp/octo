@@ -48,7 +48,9 @@
         "monolog/monolog": "~1.11",
         "mobiledetect/mobiledetectlib": "^2.8",
         "pagerfanta/pagerfanta": "^1.0",
-        "algolia/algoliasearch-client-php": "^1.25"
+        "algolia/algoliasearch-client-php": "^1.25",
+        "zendframework/zendsearch": "dev-master",
+        "mmanos/laravel-search": "dev-master"
     },
     "require-dev": {
         "phpunit/phpunit": "@stable",

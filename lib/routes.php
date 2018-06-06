@@ -25,10 +25,10 @@
                 $table  = $model->table();
 
                 if ('core' != $db) {
-                    $prefix = trim(trim($orefix, '/') . '/' . $db, '/');
+                    $prefix = trim(trim($prefix, '/') . '/' . $db, '/');
                 }
 
-                $prefix = trim(trim($orefix, '/') . '/' . $table, '/');
+                $prefix = trim(trim($prefix, '/') . '/' . $table, '/');
 
                 $controller = $db . $table . $suffix;
 
@@ -90,12 +90,12 @@
                 $prefix = '';
 
                 if ('core' != $db) {
-                    $prefix = trim(trim($orefix, '/') . '/' . $db, '/');
+                    $prefix = trim(trim($prefix, '/') . '/' . $db, '/');
                 }
 
                 $controller = empty($controller) ? $table : $controller;
 
-                $prefix = trim(trim($orefix, '/') . '/' . $controller, '/');
+                $prefix = trim(trim($prefix, '/') . '/' . $controller, '/');
 
                 /*
                 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -174,6 +174,11 @@
             Registry::set('core.routes.prefix', $old);
         }
 
+        /**
+         * @param $before
+         * @param callable $next
+         * @throws \ReflectionException
+         */
         public static function before($before, callable $next)
         {
             $old = Registry::get('core.routes.before', null);
