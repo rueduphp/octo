@@ -22,8 +22,8 @@ return [
         'algolia' => [
             'driver' => 'algolia',
             'config' => [
-                'application_id' => 'XJJ21H0FWD',
-                'admin_api_key'  => '3c7a39e3e013bc33144abf9ade33ba3e',
+                'application_id' => '',
+                'admin_api_key'  => '',
             ],
         ],
     ],
