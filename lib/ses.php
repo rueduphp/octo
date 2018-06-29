@@ -11,22 +11,16 @@ use Swift_Transport;
 class Ses implements Swift_Transport
 {
     /**
-     * The Amazon SES instance.
-     *
      * @var \Aws\Ses\SesClient
      */
     protected $ses;
 
     /**
-     * The plug-ins registered with the transport.
-     *
      * @var array
      */
     public $plugins = [];
 
     /**
-     * Create a new SES transport instance.
-     *
      * @param  \Aws\Ses\SesClient  $ses
      * @return void
      */
@@ -60,8 +54,6 @@ class Ses implements Swift_Transport
     }
 
     /**
-     * Register a plug-in with the transport.
-     *
      * @param  \Swift_Events_EventListener  $plugin
      * @return void
      */
@@ -71,8 +63,6 @@ class Ses implements Swift_Transport
     }
 
     /**
-     * Iterate through registered plugins and execute plugins' methods.
-     *
      * @param  \Swift_Mime_Message  $message
      * @return void
      */
@@ -88,8 +78,6 @@ class Ses implements Swift_Transport
     }
 
     /**
-     * Iterate through registered plugins and execute plugins' methods.
-     *
      * @param  \Swift_Mime_Message  $message
      * @return void
      */
@@ -105,16 +93,18 @@ class Ses implements Swift_Transport
     }
 
     /**
-     * Get the number of recipients.
-     *
      * @param  \Swift_Mime_Message  $message
      * @return int
      */
     protected function numberOfRecipients(Swift_Mime_Message $message)
     {
-        return count(array_merge(
-            (array) $message->getTo(), (array) $message->getCc(), (array) $message->getBcc()
-        ));
+        return count(
+            array_merge(
+                (array) $message->getTo(),
+                (array) $message->getCc(),
+                (array) $message->getBcc()
+            )
+        );
     }
 
     /**

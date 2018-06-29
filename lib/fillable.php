@@ -2,9 +2,10 @@
 namespace Octo;
 
 use ArrayAccess;
+use Countable;
 use IteratorAggregate;
 
-class Fillable implements ArrayAccess, IteratorAggregate
+class Fillable implements ArrayAccess, IteratorAggregate, Countable
 {
     /** @var array  */
     private static $data = [];
@@ -300,8 +301,19 @@ class Fillable implements ArrayAccess, IteratorAggregate
         return $this->toCollection()->{$name}(...$arguments);
     }
 
+    /**
+     * @return \ArrayIterator|\Traversable
+     */
     public function getIterator()
     {
         return new \ArrayIterator($this->toArray());
+    }
+
+    /**
+     * @return int
+     */
+    public function count(): int
+    {
+        return count(static::$data[$this->namespace]);
     }
 }

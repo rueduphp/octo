@@ -1460,7 +1460,7 @@
                 }
             }
 
-            $data = call_user_func_array($c, $args);
+            $data = callThat($c, ...$args);
 
             $this->set($k, $data);
 

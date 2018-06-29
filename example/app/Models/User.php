@@ -1,15 +1,17 @@
 <?php
 namespace App\Models;
 
-use Octo\Elegant;
+use App\Services\Model;
 use Octo\Inflector;
 
-class User extends Elegant
+class User extends Model
 {
     /**
      * @var string
      */
     protected $table = 'user';
+    protected $indexables = ['email'];
+    protected $forceCache = true;
 
     /**
      * @var array

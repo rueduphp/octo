@@ -629,7 +629,6 @@ class ShoppingOption extends Collection
 
 class ShoppingRow extends Collection
 {
-
     /**
      * @var string
      */

@@ -361,20 +361,20 @@
         }
 
         /**
-         * @param $m
-         * @param $a
+         * @param string $m
+         * @param array $a
          * @return mixed|null|Record
          * @throws \ReflectionException
          */
-        public static function __callStatic($m, $a)
+        public static function __callStatic(string $m, array $a)
         {
-            $instance = static::db();
-
             if ('new' === $m) {
                 return static::create(current($a));
             }
 
-            $result = call_user_func_array([$instance, $m], $a);
+            $instance = static::db();
+
+            $result = $instance->{$m}(...$a);
 
             if (
                 $m !== 'lastId'
@@ -388,20 +388,20 @@
         }
 
         /**
-         * @param $m
-         * @param $a
+         * @param string $m
+         * @param array $a
          * @return mixed|null|Record
          * @throws \ReflectionException
          */
-        public function __call($m, $a)
+        public function __call(string $m, array $a)
         {
-            $instance = static::db();
-
             if ('new' === $m) {
                 return static::create(current($a));
             }
 
-            $result = call_user_func_array([$instance, $m], $a);
+            $instance = static::db();
+
+            $result = $instance->{$m}(...$a);
 
             if (
                 $m !== 'lastId'

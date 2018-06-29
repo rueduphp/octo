@@ -122,7 +122,7 @@ class OrmTest extends TestCase
         $request = $app->fromGlobals();
         $app->setRequest($request->withAttribute('id', 1));
 
-        $result = \Octo\instanciator()->callMethod('testWithModel');
+        $result = $this->gi()->callMethod('testWithModel');
 
         $this->assertSame(5, $result);
     }

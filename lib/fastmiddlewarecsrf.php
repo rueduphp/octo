@@ -54,7 +54,7 @@ class Fastmiddlewarecsrf extends FastMiddleware
             $params = $request->getParsedBody() ?: [];
 
             if (!array_key_exists($this->formKey, $params)) {
-                exception('NoCsrfException', 'no csrf');
+                exception('NoCsrf', 'no csrf');
             }
 
             if (false === $this->check($params[$this->formKey], $this->session[$this->sessionKey] ?? [])) {

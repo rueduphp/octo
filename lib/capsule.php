@@ -54,7 +54,8 @@ class Capsule
     }
 
     /**
-     * @return Connection
+     * @return Connection|mixed|null
+     * @throws FastContainerException
      * @throws \ReflectionException
      */
     public static function connection()

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Carbon\Carbon;
 use Closure;
+use function Octo\gi;
 
 class Cache
 {
@@ -34,7 +35,6 @@ class Cache
      */
     public function __construct($ttl = 60, $prefix = '', $connection = 'default')
     {
-        $this->redis = dic('redis');
         $this->setPrefix($prefix);
         $this->setConnection($connection);
         $this->ttl = $ttl;
@@ -239,9 +239,17 @@ class Cache
      */
     public function flush()
     {
-        $this->connection()->flushdb();
+        $keys = $this->connection()->keys($this->prefix . '*');
 
-        return true;
+        $this->connection()->multi();
+
+        foreach ($keys as $key) {
+            $this->connection()->del($key);
+        }
+
+        $this->connection()->exec();
+
+        return !empty($keys);
     }
 
     /**
@@ -249,6 +257,8 @@ class Cache
      */
     public function connection()
     {
+        $this->redis = $this->redis ?? l('redis');
+
         return $this->redis->connection($this->connection);
     }
 
@@ -285,7 +295,7 @@ class Cache
      */
     public function setPrefix($prefix): self
     {
-        $this->prefix = ! empty($prefix) ? $prefix.':' : '';
+        $this->prefix = !empty($prefix) ? $prefix.':' : '';
 
         return $this;
     }
@@ -367,6 +377,38 @@ class Cache
     }
 
     /**
+     * @param string $k
+     * @param callable $c
+     * @param int $maxAge
+     * @param array $args
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    public function until(string $k, callable $c, int $updatedAt, array $args = [])
+    {
+        $keyAge = $k . '.until';
+        $v      = $this->get($k, 'octodummy');
+
+        if ('octodummy' !== $v) {
+            $age = (int) $this->get($keyAge, $updatedAt - 1);
+
+            if ($age >= $updatedAt) {
+                return $v;
+            } else {
+                $this->delete($k);
+                $this->delete($keyAge);
+            }
+        }
+
+        $data = call_func($c, ...$args);
+
+        $this->set($k, $data);
+        $this->set($keyAge, $updatedAt);
+
+        return $data;
+    }
+
+    /**
      * @param string $name
      * @param array $arguments
      * @return mixed
@@ -374,5 +416,66 @@ class Cache
     public function __call(string $name, array $arguments)
     {
         return $this->connection()->{$name}(...$arguments);
+    }
+
+    /**
+     * @param $redis
+     * @return Cache
+     */
+    public function setRedis($redis): Cache
+    {
+        $this->redis = $redis;
+
+        return $this;
+    }
+
+    /**
+     * @param $key
+     * @param $minutes
+     * @param Closure $callback
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    public function remember($key, $minutes, Closure $callback)
+    {
+        $value = $this->get($key);
+
+        if (null !== $value) {
+            return $value;
+        }
+
+        $this->put($key, $value = gi()->makeClosure($callback), $minutes);
+
+        return $value;
+    }
+
+    /**
+     * @param $key
+     * @param Closure $callback
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    public function sear($key, Closure $callback)
+    {
+        return $this->rememberForever($key, $callback);
+    }
+
+    /**
+     * @param $key
+     * @param Closure $callback
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    public function rememberForever($key, Closure $callback)
+    {
+        $value = $this->get($key);
+
+        if (null !== $value) {
+            return $value;
+        }
+
+        $this->forever($key, $value = gi()->makeClosure($callback));
+
+        return $value;
     }
 }

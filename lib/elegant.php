@@ -63,6 +63,24 @@ class Elegant extends EloquentModel implements FastModelInterface
             $this->__capsule = Capsule::getInstance()->model(get_called_class());
         }
 
+        if (fnmatch('get*', $m) && strlen($m) > 3) {
+            $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
+            $key                = Strings::lower($uncamelizeMethod);
+
+            return $this->{$key} ?? current($a);
+        } elseif (fnmatch('set*', $m) && strlen($m) > 3) {
+            $uncamelizeMethod   = Strings::uncamelize(lcfirst(substr($m, 3)));
+            $key                = Strings::lower($uncamelizeMethod);
+
+            $this->{$key} = current($a);
+
+            return $this;
+        }
+
+        if (in_array($m, ['increment', 'decrement'])) {
+            return $this->$m(...$a);
+        }
+
         if ('list' === $m) {
             return $this->get()->pluck(...$a);
         }
@@ -97,10 +115,6 @@ class Elegant extends EloquentModel implements FastModelInterface
             return $this->newQuery()->where(...$params);
         }
 
-        if (in_array($m, ['increment', 'decrement'])) {
-            return $this->$m(...$a);
-        }
-
         $callable = [$this->newQuery(), $m];
 
         $params = array_merge($callable, $a);
@@ -114,6 +128,17 @@ class Elegant extends EloquentModel implements FastModelInterface
         }
 
         return $result;
+    }
+
+    /**
+     * @param array $options
+     * @return bool|Elegant
+     */
+    public function save(array $options = [])
+    {
+        $status = parent::save($options);
+
+        return true === $status ? $this : $status;
     }
 
     /**

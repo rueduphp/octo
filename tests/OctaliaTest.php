@@ -110,6 +110,10 @@ class OctaliaTest extends TestCase
             UserEntity::where('id', '>', 1)->count(),
             UserEntity::test(1)->count()
         );
+
+        $this->assertEquals(1, UserEntity::where(function ($row) {
+            return $row["id"] > 0;
+        })->count());
     }
 
     /**

@@ -45,6 +45,9 @@ class HookTest extends TestCase
         });
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function testCustom()
     {
         $custom = new Custom(testHook::class);

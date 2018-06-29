@@ -26,6 +26,6 @@ class Moduleaction implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {
-        return callThat($this->callable);
+        return callThat($this->callable, $request, $next);
     }
 }

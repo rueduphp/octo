@@ -24,7 +24,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 call_user_func(function () use ($argv) {
     try {
-        bootApp(true);
+        Bootstrap::run(true);
 
         if (count($argv) > 1) {
             array_shift($argv);

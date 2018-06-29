@@ -2,27 +2,27 @@
 namespace App\Modules;
 
 use App\Models\User;
+use function Octo\faker;
 use Octo\Module;
 use Octo\Facades\Route;
 use Octo\Facades\Redirect;
 
 class StaticModule extends Module
 {
-
     /**
      * @throws \Octo\Exception
      * @throws \ReflectionException
      */
     public function routes()
     {
-        view()->addNamespace('mail', __DIR__ . '/../views/mails');
+        $this->view()->addNamespace('mail', __DIR__ . '/../views/mails');
 
-        dic(404, function () {
-            return view('static.404', ['pageTitle' => 'Error 404']);
+        $this->dic(404, function () {
+            return $this->view('static.404', ['pageTitle' => 'Error 404']);
         });
 
         Route::get('/', function () {
-            return view(
+            return $this->view(
                 'static.home', [
                     'pageTitle'     => 'Super Page',
                     'subPageTitle'  => 'Super Title'
@@ -30,18 +30,20 @@ class StaticModule extends Module
             );
         }, 'home');
 
+        Route::get('user/{user}', [$this, 'user']);
+
         Route::get('login', function () {
-            if (!auth()->logged()) {
-                return view(
+            if (!$this->auth()->logged()) {
+                return $this->view(
                     'static.login', [
                         'pageTitle' => 'Login'
                     ]
                 );
             } else {
-                $url = session()->previousUrl();
+                $url = $this->session()->previousUrl();
 
-                if ($url === fullRoute('login')) {
-                    $url = route('home');
+                if ($url === $this->fullRoute('login')) {
+                    $url = $this->route('home');
                 }
 
                 return Redirect::to($url);
@@ -50,15 +52,16 @@ class StaticModule extends Module
 
         Route::post('login', function () {
             /** @var null|User $user */
-            $user = repo('user')->login(...inputs('email', 'password', 'remember'));
+            $user = $this->repo('user')->login(...$this->inputs('email', 'password', 'remember'));
+            $this->redirectWith(\Octo\viewParams()->toArray());
 
             if (null === $user) {
-                flash()->error('Unknown account');
+                $this->flash()->error('Unknown account');
 
                 return Redirect::route('login');
             }
 
-            flash()->success('Welcome');
+            $this->flash()->success('Welcome');
 
             if ($url = $this->request->session()->pull('redirect_url')) {
                 return Redirect::to($url);
@@ -68,10 +71,20 @@ class StaticModule extends Module
         }, 'log');
 
         Route::post('logout', function () {
-            repo('user')->logout();
-            flash()->success('Good Bye');
+            $this->repo('user')->logout();
+            $this->flash()->success('Good Bye');
 
             return Redirect::route('login');
         }, 'logout');
+    }
+
+    public function user(User $user)
+    {
+        return $this->view(
+            'static.home', [
+                'pageTitle'     => 'Super Page',
+                'subPageTitle'  => 'Super Title'
+            ]
+        );
     }
 }

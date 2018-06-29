@@ -1,6 +1,5 @@
 <?php
 
-use Octo\Alert;
 use Octo\Arrays;
 use Octo\Breeze;
 use Octo\Component;
@@ -45,18 +44,19 @@ use Octo\Trust;
 use Octo\You;
 use Octo\Your;
 use function Octo\getPdo;
+use function Octo\incr;
 use function Octo\sessionKey;
 
 class Notifier
 {
     public function handle($post)
     {
-        return 'database';
+        return 'testing';
     }
 
-    public function toDatabase($post)
+    public function toTesting($post)
     {
-        return $post->toArray();
+        incr('notifs');
     }
 }
 
@@ -230,6 +230,7 @@ class UsersEntity extends Dynamicentity
     /**
      * @param Dynamicmodel $query
      * @return Dynamicmodel
+     * @throws ReflectionException
      */
     public function scopeSuccess(Dynamicmodel $query)
     {
@@ -239,6 +240,7 @@ class UsersEntity extends Dynamicentity
     /**
      * @param Dynamicmodel $query
      * @return Dynamicmodel
+     * @throws ReflectionException
      */
     public function scopeFail(Dynamicmodel $query)
     {
@@ -282,6 +284,8 @@ class Items extends Dynamicentity
 
 class SimpleTest extends TestCase
 {
+    private $session;
+
     /**
      * @throws ReflectionException
      */
@@ -318,6 +322,29 @@ class SimpleTest extends TestCase
         };
 
         $this->assertTrue($this->sameClosures($a, $b));
+
+        $data = ['foo', 'bar', 'baz', 'foobar', 'foobarbaz'];
+
+        /** @var \Octo\Collection $coll */
+        $coll = $this->coll($data);
+
+        $this->assertEquals(3, $coll->where(function ($item) {
+            return mb_strlen($item) === 3;
+        })->count());
+
+        $this->assertEquals(2, $coll->where(function ($item) {
+            return mb_strlen($item) > 3;
+        })->count());
+
+        $this->assertEquals(1, $coll->where(function ($item) {
+            return mb_strlen($item) > 6;
+        })->count());
+
+        $this->assertEquals(0, $coll->where(function ($item) {
+            return mb_strlen($item) === 10;
+        })->count());
+
+        $this->session = $this->ultimate('test');
     }
 
     /**
@@ -341,11 +368,12 @@ class SimpleTest extends TestCase
             $this->getSession('locale')
         );
 
-        $this->assertSame($this->ultimate(), $this->ultimate());
         $this->assertNotSame($this->ultimate('admin'), $this->ultimate());
 
         /** @var \Octo\Ultimate $session */
-        $session = $this->ultimate();
+        $session = $this->session;
+
+        dd($this->session);
 
         $this->assertTrue($session->guest());
         $this->assertFalse($session->logged());
@@ -355,7 +383,7 @@ class SimpleTest extends TestCase
 
         $this->assertTrue($session->getUser());
         $this->assertTrue($session->user);
-        $this->assertTrue($session['user']);
+        $this->assertTrue($session['user']);dd($session->user('id'));
         $this->assertTrue($session->logged());
         $this->assertFalse($session->guest());
 
@@ -363,7 +391,7 @@ class SimpleTest extends TestCase
         $this->assertCount(1, $this->ultimate('admin')->toArray());
         $this->assertCount(6, $_SESSION);
 
-        $this->assertSame($this->ultimate()->age('user'), $this->ultimate('admin')->age('foo'));
+        $this->assertSame($this->session->age('user'), $this->ultimate('admin')->age('foo'));
         $this->assertSame(0, $session->age('bar'));
 
         LogF::success('foo');
@@ -570,6 +598,10 @@ class SimpleTest extends TestCase
         $this->assertame(2, $db->where('price', '<=', 100)->count());
         $this->assertame(1, $db->where('price', '>', 100)->count());
         $this->assertame(1, $db->where('price', '>=', 100)->count());
+
+        $this->assertame(2, $db->where(function ($row) {
+            return floatval($row['price']) < 100;
+        }, 'price')->count());
 
         $this->assertSame('bar', $db->sortBy('name')->first()['name']);
         $this->assertSame('foo', $db->sortBy('name')->last()['name']);
@@ -1051,15 +1083,7 @@ class SimpleTest extends TestCase
         $post = new PostNotify;
         $post->notify(Notifier::class);
 
-        $this->assertEquals(1, Alert::count());
-
-        $notification = Alert::first();
-
-        $this->assertSame($post->toArray(), unserialize($notification->data));
-
-        $post->notify(Notifier::class);
-
-        $this->assertEquals(2, Alert::count());
+        $this->assertEquals(2, $this->incr('notifs'));
     }
 
     public function testMonkey()

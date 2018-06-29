@@ -1,236 +1,45 @@
 <?php
 
-use App\Modules\SocialLoginModule;
-use App\Modules\StaticModule;
+use App\Facades\Db;
+use App\Services\Directives;
 use App\Services\Log;
+use App\Services\Lua;
 use Carbon\Carbon;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver\PDOMySql\Driver;
 use GuzzleHttp\Psr7\MessageTrait;
-use Illuminate\Database\DatabaseManager;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Database\MySqlConnection;
 use Illuminate\Database\SQLiteConnection;
 use Illuminate\Redis\RedisManager;
 use Illuminate\Support\HtmlString;
-use Illuminate\Validation\DatabasePresenceVerifier;
-use Mmanos\Search\Search;
-use Monolog\Logger as Monolog;
-use Octo\App;
+use Octo\Arrays;
 use Octo\Bcrypt;
-use Octo\Capsule;
 use Octo\Component;
-use Octo\Configurator;
+use Octo\Decorator;
 use Octo\Dynamicentity;
-use Octo\Dynamicmodel;
 use Octo\Elegant;
 use Octo\Entity;
 use Octo\Facades\Config as CoreConf;
 use Octo\Facades\Validator;
 use Octo\Fast;
-use Octo\FastBladeDirectives;
+use Octo\FastContainerException;
 use Octo\FastRequest;
 use Octo\FastTwigExtension;
 use Octo\Fillable;
+use Octo\Fire;
 use Octo\In;
 use Octo\Inflector;
-use Octo\Orm;
 use Octo\Pack;
 use Octo\Setup;
 use Octo\Shoppingcart;
 use Octo\Url;
 use Zend\Expressive\Router\FastRouteRouter;
-use function Octo\bladeDirective;
-use function Octo\echoInDirective;
+use function Octo\arrayable;
 use function Octo\getCore as getIt;
 use function Octo\gi;
-use function Octo\in_paths;
-use function Octo\inners;
-use function Octo\innersSession;
 use function Octo\isAke;
 use function Octo\setCore as setIt;
-use function Octo\startSession;
-use function Octo\systemBoot;
-
-/**
- * @param bool $cli
- * @throws ReflectionException
- * @throws \Octo\Exception
- */
-function bootApp($cli = false)
-{
-    systemBoot(realpath(__DIR__));
-
-    $paths = in_paths();
-
-    $dirApp = __DIR__;
-
-    $paths['app']       = $dirApp;
-    $paths['base']      = realpath(__DIR__ . '/../');
-    $paths['public']    = realpath(__DIR__ . '/../public');
-    $paths['config']    = $dirApp . '/config';
-    $paths['storage']   = $dirApp . '/storage';
-    $paths['database']  = $dirApp . '/storage/database';
-    $paths['cache']     = $dirApp . '/storage/cache';
-    $paths['sessions']  = $dirApp . '/storage/sessions';
-    $paths['log']       = $dirApp . '/storage/log';
-    $paths['lang']      = $dirApp . '/lang';
-    $paths['views']     = $dirApp . '/views';
-
-    addConfig('app');
-    addConfig('session');
-    addConfig('db');
-    addConfig('redis');
-    addConfig('mail');
-
-    (new Octo\Sender())
-        ->setHost(config('mail.host'))
-        ->setPort(config('mail.port'))
-        ->smtp();
-
-    dic('mail', function () {
-        return new Octo\Mailable;
-    });
-
-    dic()::singleton('view', function () {
-       return Octo\bladeFactory([__DIR__ . '/views']);
-    });
-
-    dic()::singleton('logservice', function () {
-        $log = new Log(new Monolog('octo'));
-        $log->useDailyFiles(
-            \Octo\log_path() . '/octo.log',
-            5,
-            'debug'
-        );
-
-        return $log;
-    });
-
-    l()->singleton('view', function () {
-       return dic('view');
-    });
-
-    l('config', app(Configurator::class));
-
-    $sessions = include Octo\config_path('session.php');
-    l('config')->set(['session' => $sessions]);
-
-    $search = include Octo\config_path('search.php');
-    l('config')->set(['search' => $search]);
-
-    makeFacade('Config', function () {
-        return l('config');
-    });
-
-    makeFacade('Search', function () {
-        return new Search;
-    });
-
-    makeFacade('Mail', function () {
-        return new Octo\Mailable;
-    });
-
-    if (!is_dir(Octo\storage_path('search/default'))) {
-        Octo\File::mkdir(Octo\storage_path('search/default'));
-    }
-
-    directives();
-
-    dic('eventer', \Octo\getEventManager());
-
-    makeFacade('Event', function () {
-        return dic('eventer');
-    });
-
-    inners();
-    startDb();
-
-    if (false === $cli) {
-        session_set_save_handler(new \App\Services\SessionRedis);
-        startSession();
-    }
-
-    innersSession();
-
-    $verifier = new DatabasePresenceVerifier(l('db'));
-
-    Validator::setPresenceVerifier($verifier);
-
-    makeFacade('Cache', function () {
-        $config = CoreConf::get('app');
-
-        return cacheService($config['cache_ttl'] ?? 60, 'app');
-    });
-
-    $app = App::create();
-
-    aliases();
-
-    l()->singleton(\Laravel\Socialite\Contracts\Factory::class, function ($app) {
-        return new \Laravel\Socialite\SocialiteManager($app);
-    });
-
-    l()->singleton('session', function ($app) {
-        return new \Illuminate\Session\SessionManager($app);
-    });
-
-    l()->singleton('files', function () {
-        return new \Illuminate\Filesystem\Filesystem;
-    });
-
-    makeFacade('Files', function () {
-        return l('files');
-    });
-
-    l()->singleton('session.store', function ($app) {
-        return $app->make('session')->driver();
-    });
-
-    makeFacade('Session', function () {
-        return session();
-    });
-
-    makeFacade('Auth', function () {
-        return auth();
-    });
-
-    makeFacade('Flash', function () {
-        return flash();
-    });
-
-    makeFacade('Log', function () {
-        return dic('logservice');
-    });
-
-    l()->singleton('request', function ($app) use ($dirApp) {
-        $request = new \Illuminate\Http\Request;
-        $request->setLaravelSession(l('session.store'));
-
-        return $request;
-    });
-
-    dic('social', l(\Laravel\Socialite\Contracts\Factory::class));
-
-    if (false === $cli) {
-        $app
-            ->set(Octo\Fastmiddlewarecsrf::class, function () {
-                $session = session();
-
-                return new Octo\Fastmiddlewarecsrf($session);
-            })
-            ->set(Octo\FastSessionInterface::class, function () {
-                return session();
-            })
-        ;
-
-        bootMiddlewares($app);
-
-        $app->addModule(StaticModule::class);
-        $app->addModule(SocialLoginModule::class);
-
-        $response = $app->run();
-
-        $app->render($response);
-    }
-}
 
 /**
  * @param $facade
@@ -244,182 +53,13 @@ function makeFacade($facade, $resolver)
     class_alias('\App\Facades\\' . $facade, $facade);
 }
 
-function bootMiddlewares($app)
-{
-    $app
-        ->addMiddleware(\App\Middlewares\Exception::class)
-        ->addMiddleware(Octo\Fastmiddlewaretrailingslash::class)
-        ->addMiddleware(Octo\Fastmiddlewarecsrf::class)
-        ->addMiddleware(\App\Middlewares\Session::class)
-        ->addMiddleware(Octo\Fastmiddlewarerouter::class)
-        ->addMiddleware(\App\Middlewares\Gate::class)
-        ->addMiddleware(Octo\Fastmiddlewaredispatch::class)
-        ->addMiddleware(Octo\Fastmiddlewarenotfound::class)
-    ;
-}
-
-/**
- * @param Fillable $db
- * @throws ReflectionException
- */
-function startDb()
-{
-    $db     = CoreConf::get('db');
-    $redis  = CoreConf::get('redis');
-
-    $default = $db['default'];
-
-    $conf = $db[$default];
-    $lite = $db["sqlite"];
-
-    $PDOoptions = [
-        PDO::ATTR_CASE                 => PDO::CASE_NATURAL,
-        PDO::ATTR_ERRMODE              => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_ORACLE_NULLS         => PDO::NULL_NATURAL,
-        PDO::ATTR_DEFAULT_FETCH_MODE   => PDO::FETCH_ASSOC,
-        PDO::ATTR_STRINGIFY_FETCHES    => false,
-        PDO::ATTR_EMULATE_PREPARES     => false,
-    ];
-
-    $pdo = new PDO(
-        "{$conf['driver']}:host={$conf['host']};dbname={$conf['database']}",
-        $conf['username'],
-        $conf['password'],
-        $PDOoptions
-    );
-
-    Capsule::instance($pdo);
-
-    l('config')->set([
-        'database' => [
-            'default' => $default,
-            'connections' => [
-                $default => [
-                    'driver'        => $conf['driver'],
-                    'host'          => $conf['host'],
-                    'port'          => $conf['port'],
-                    'database'      => $conf['database'],
-                    'username'      => $conf['username'],
-                    'password'      => $conf['password'],
-                    'unix_socket'   => '',
-                    'charset'       => $conf['charset'] ?? 'utf8',
-                    'collation'     => $conf['collation'] ?? 'utf8_unicode_ci',
-                    'prefix'        => '',
-                    'strict'        => true,
-                    'engine'        => null,
-                ],
-                'sqlite' => [
-                    'driver'    => 'sqlite',
-                    'database'  => $lite['database'],
-                    'prefix'    => $lite['prefix'] ?? '',
-                ]
-            ],
-            'redis' => [
-
-                'client' => 'predis',
-
-                'default'       => [
-                    'host'      => $redis['host'],
-                    'password'  => $redis['password'],
-                    'port'      => $redis['port'],
-                    'database'  => $redis['database'],
-                ],
-
-            ],
-        ]
-    ]);
-
-    l(
-        'db',
-        new DatabaseManager(
-            l(),
-            new Illuminate\Database\Connectors\ConnectionFactory(l())
-        )
-    );
-
-    dic('db', l('db'));
-
-    makeFacade('Db', function () {
-        return l('db');
-    });
-
-    dic('orm', new Orm($pdo));
-
-    Dynamicmodel::migrate();
-
-    /* REDIS */
-    l()->singleton('redis', function ($app) {
-        $config = $app->make('config')->get('database.redis');
-
-        return new RedisManager(Octo\Arrays::pull($config, 'client', 'predis'), $config);
-    });
-
-    l()->bind('redis.connection', function ($app) {
-        return $app['redis']->connection();
-    });
-
-    dic('redis', l('redis'));
-
-    makeFacade('Redys', function () {
-        return l('redis');
-    });
-
-    makeFacade('Lite', function () {
-        return dic('db')->connection('sqlite');
-    });
-
-    makeFacade('Schema', function () {
-        return \Octo\getSchema();
-    });
-
-    dic('redis.connection', l('redis.connection'));
-}
-
-function aliases()
-{
-    Setup::alias('App\Session',    'session');
-    Setup::alias('App\Form',       'form');
-    Setup::alias('App\Html',       'html');
-}
-
 /**
  * @throws ReflectionException
  */
 function directives()
 {
-    /** @var FastTwigExtension $twig */
-    $twig = app(FastTwigExtension::class);
-
-    FastBladeDirectives::register();
-
-    bladeDirective('locale', function () {
-        return echoInDirective(locale());
-    });
-
-    bladeDirective('isLogged', function () {
-        return '<?php if (auth()->logged()): ?>';
-    });
-
-    bladeDirective('isNotLogged', function () {
-        return '<?php else: ?>';
-    });
-
-    bladeDirective('endIsLogged', function () {
-        return '<?php endif; ?>';
-    });
-
-    bladeDirective('panelBtns', function ($expression) {
-        $class = empty($expression) ? 'hide' : '';
-
-        $btns = '<div class="panel-heading-btn">
-                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-default" data-click="panel-expand"><i class="fa fa-expand"></i></a>
-                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-warning" data-click="panel-collapse"><i class="fa fa-minus"></i></a>
-                            <a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-danger '.$class.'"
-                            data-click="panel-remove"><i class="fa fa-times"></i></a>
-                        </div>';
-
-        return echoInDirective($btns);
-    });
+    $directives = include Octo\config_path('directives.php');
+    Directives::register($directives);
 }
 
 /**
@@ -440,13 +80,23 @@ function response()
             return new GuzzleHttp\Psr7\Response($status, $headers, $content);
         };
 
+        $response['zip'] = function ($source, $destination, $include_dir = false) use ($response) {
+            $file = Octo\zip($source, $destination, $include_dir);
+
+            if (false !== $file) {
+                return $response->download($destination);
+            }
+
+            return err(404, 'File not found.');
+        };
+
         $response['download'] = function (
             string $file,
             ?string $name = null,
             string $disposition = 'attachment',
             array $headers = []
         ) {
-            $name = $name ?? \Octo\Arrays::last(explode('/', $file));
+            $name = $name ?? Arrays::last(explode('/', $file));
             /** @var string $content */
             $content = Octo\File::read($file);
             $response = new GuzzleHttp\Psr7\Response(200, $headers, $content);
@@ -470,7 +120,7 @@ function response()
         };
 
         $response['json'] = function ($data, int $status = 200) {
-            $data = Octo\arrayable($data) ? $data->toArray() : $data;
+            $data = arrayable($data) ? $data->toArray() : $data;
 
             if (is_array($data)) {
                 return Octo\fast()->response(
@@ -653,8 +303,8 @@ function field (
     array $attributes = []
 ) {
     /** @var FastTwigExtension $twig */
-    $twig = app(FastTwigExtension::class);
-    $context = getIt('blade.context', []);
+    $twig       = app(FastTwigExtension::class);
+    $context    = getIt('blade.context', []);
 
     return $twig->field($context, $key, $value, $label, $options, $attributes);
 }
@@ -759,7 +409,28 @@ function old(?string $key = null, $default = null)
  */
 function app($abstract, array $parameters = [], $singleton = true)
 {
+    if (l()->bound($abstract) && true === $singleton) {
+        return l($abstract);
+    }
+
     return gi()->make($abstract, $parameters, $singleton);
+}
+
+/**
+ * @param string $name
+ * @return Fire
+ */
+function dispatcher($name = 'core')
+{
+    static $dispatchers = [];
+
+    if (!$dispatcher = isAke($dispatchers, $name, null)) {
+        $dispatcher = new Fire($name);
+
+        $dispatchers[$name] = $dispatcher;
+    }
+
+    return $dispatcher;
 }
 
 /**
@@ -773,7 +444,7 @@ function bag(string $name = 'core')
     $key = "bag.{$name}";
 
     if (!$bag = isAke($bags, $key, null)) {
-        $bag = new Fillable($key);
+        $bag        = new Fillable($key);
         $bags[$key] = $bag;
     }
 
@@ -791,7 +462,7 @@ function cart(string $name = 'core')
     static $carts = [];
 
     if (!$cart = isAke($carts, $name, null)) {
-        $cart = new Shoppingcart();
+        $cart = new Shoppingcart;
         $cart->instance($name);
         $carts[$name] = $cart;
     }
@@ -922,12 +593,16 @@ function hasher()
 /**
  * @param int $code
  * @param string $message
- * @return \GuzzleHttp\Psr7\Response
+ * @return Response
  * @throws ReflectionException
  */
-function abort($code = 403, $message = 'Forbidden')
+function abort($code = 403, $message = null)
 {
-    $message = Octo\value($message);
+    if (null === $message) {
+        $message = \Octo\Api::getMessage($code);
+    } else {
+        $message = Octo\value($message);
+    }
 
     if (is_array($message)) {
         $message = json_encode($message);
@@ -940,7 +615,7 @@ function abort($code = 403, $message = 'Forbidden')
  * @param $condition
  * @param int $code
  * @param string $message
- * @return \GuzzleHttp\Psr7\Response
+ * @return Response
  * @throws ReflectionException
  */
 function abort_if($condition, $code = 403, $message = 'Forbidden')
@@ -956,7 +631,7 @@ function abort_if($condition, $code = 403, $message = 'Forbidden')
  * @param $condition
  * @param int $code
  * @param string $message
- * @return \GuzzleHttp\Psr7\Response
+ * @return Response
  * @throws ReflectionException
  */
 function abort_unless($condition, $code = 403, $message = 'Forbidden')
@@ -1075,16 +750,12 @@ function action(...$args): string
  * @param null|string $key
  * @param null $default
  * @return mixed|null
+ * @throws FastContainerException
+ * @throws ReflectionException
  */
 function user(?string $key = null, $default = null)
 {
-    $result = session()->user($key, $default);
-
-    if ($key && is_string($result)) {
-        $result = utf8_encode($result);
-    }
-
-    return $result;
+    return session()->user($key, $default);
 }
 
 /**
@@ -1158,7 +829,7 @@ function tpl(string $file, array $parameters = [], ?string $path = null)
 
 /**
  * @param mixed ...$params
- * @return mixed|null|\Octo\Fire
+ * @return mixed|null|Fire
  * @throws ReflectionException
  */
 function event(...$params)
@@ -1167,20 +838,63 @@ function event(...$params)
 }
 
 /**
- * @param null|string $locale
- * @return null|string
+ * @return string
+ * @throws ReflectionException
+ * @throws Exception
  */
-function locale(?string $locale = null): ?string
+function locale()
 {
-    if (null === $locale) {
-        return dic('locale');
+    $session         = session();
+    $language        = $session['_locale'];
+    $isCli           = false;
+    $fromBrowser     = isAke($_SERVER, 'HTTP_ACCEPT_LANGUAGE', false);
+
+    if (false === $fromBrowser) {
+        $isCli = true;
     }
 
-    dic('locale', function () use ($locale) {
-        return $locale;
-    });
+    if ($isCli) {
+        $app = CoreConf::get('app');
 
-    return $locale;
+        return $app['locale'] ?? $app['fallback_locale'] ?? 'en';
+    }
+
+    if (is_null($language) || !is_string($language)) {
+        $request = new FastRequest;
+
+        $language = $request->input('_locale', Locale::acceptFromHttp($fromBrowser));
+    }
+
+    if (fnmatch('*_*', $language)) {
+        $language = explode('_', $language, 2)[0];
+    }
+
+    $session['_locale'] = $language;
+
+    return $language;
+}
+
+/**
+ * @param null|string $key
+ * @param string $value
+ * @return \App\Services\Container|mixed|null|object
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
+function c(?string $key = null, $value = 'octodummy')
+{
+    /** @var \App\Services\Container $app */
+    $app = gi()->make(\App\Services\Container::class);
+
+    if (null === $key) {
+        return $app;
+    }
+
+    if ($value === 'octodummy') {
+        return $app->get($key);
+    }
+
+    return $app->set($key, $value);
 }
 
 /**
@@ -1205,9 +919,32 @@ function l(?string $key = null, $value = 'octodummy')
     return $app;
 }
 
+/**
+ * @param array $conf
+ */
+function lc(array $conf)
+{
+    l('config')->set($conf);
+}
+
+/**
+ * @return Inflector
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
 function i(): Inflector
 {
-    return app(Inflector::class);
+    return c(Inflector::class);
+}
+
+/**
+ * @return Arrays
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
+function arr(): Arrays
+{
+    return c(Arrays::class);
 }
 
 /**
@@ -1246,18 +983,17 @@ function ioc(...$args)
  * @param array $rules
  * @param array $messages
  * @param array $customAttributes
- * @return \Illuminate\Validation\Factory|\Illuminate\Validation\Validator
+ * @return mixed|object
  */
 function validator(array $data = [], array $rules = [], array $messages = [], array $customAttributes = [])
 {
-    /** @var \Illuminate\Validation\Factory $validator */
     $validator = app(Validator::class);
 
     if (0 === func_num_args()) {
         return $validator;
     }
 
-    return $validator->make($data, $rules, $messages, $customAttributes);
+    return $validator::make($data, $rules, $messages, $customAttributes);
 }
 
 /**
@@ -1463,7 +1199,7 @@ function dbstore(string $table, string $database = 'core')
  */
 function redis()
 {
-    return dic('redis');
+    return l('redis');
 }
 
 /**
@@ -1533,6 +1269,7 @@ function setViewVar($key, $value)
  * @param array $data
  * @param array $mergeData
  * @return \Illuminate\View\Factory|string
+ * @throws ReflectionException
  */
 function view(?string $name = null, array $data = [], array $mergeData = [])
 {
@@ -1543,17 +1280,29 @@ function view(?string $name = null, array $data = [], array $mergeData = [])
         return $view;
     }
 
-    $vars = Octo\viewParams();
+    /** @var Octo\Module $module */
+    $module = Octo\getCore('module');
 
-    foreach ($vars as $key => $value) {
-        $data[$key] = $value;
+    if (null !== $module) {
+        $data += $module->getVars();
     }
+
+    $data += Octo\viewParams()->toArray();
+    $data += session()->pull('_with', []);
 
     $data['errors'] = $data['errors'] ?? coll();
 
-    \Octo\setCore('blade.context', $data);
+    Octo\setCore('blade.context', $data);
 
     return $view->make($name, $data, $mergeData)->render();
+}
+
+/**
+ * @param array $data
+ */
+function redirectWith(array $data)
+{
+    session()->set('_with', $data);
 }
 
 /**
@@ -1601,11 +1350,11 @@ function cacheService($ttl = 60, $prefix = '', $connection = 'default')
  * @param string $name
  * @return \App\Services\Data
  */
-function data(string $name = 'core')
+function dataStore(string $name = 'core')
 {
     static $datas = [];
 
-    $key = sha1(serialize(func_get_args()));
+    $key = sha1($name);
 
     if (!$data = isAke($datas, $key, null)) {
         $data = new \App\Services\Data($name);
@@ -1776,13 +1525,14 @@ function cloner($arg)
 /**
  * @param string $name
  * @param Closure|null $resolver
+ * @param bool $makeAlias
  * @throws ReflectionException
  */
-function resolver(string $name, ?Closure $resolver = null)
+function resolver(string $name, ?Closure $resolver = null, bool $makeAlias = true)
 {
     $resolvers = getIt('app.resolvers', []);
 
-    if (!class_exists($name)) {
+    if (!class_exists($name) && true === $makeAlias) {
         $aliases = include(\Octo\app_path('config/aliases.php'));
 
         if ($alias = isAke($aliases, $name, null)) {
@@ -1798,7 +1548,9 @@ function resolver(string $name, ?Closure $resolver = null)
         } else {
             $factory = gi()->makeClosure($resolver);
 
-            class_alias(get_class($factory), $name);
+            if (is_object($factory)) {
+                class_alias(get_class($factory), $name);
+            }
 
             $resolver = \Octo\voidToCallback($factory);
         }
@@ -1809,14 +1561,23 @@ function resolver(string $name, ?Closure $resolver = null)
     setIt('app.resolvers', $resolvers);
 }
 
+/**
+ * @param mixed ...$args
+ * @return mixed|null
+ * @throws ReflectionException
+ */
 function resolve(...$args)
 {
     $class = array_shift($args);
     $resolvers = getIt('app.resolvers', []);
 
     if ($resolver = isAke($resolvers, $class, null)) {
-        if (is_callable($resolver)) {
-            return $resolver(...$args);
+        if ($resolver instanceof Closure) {
+            return gi()->makeClosure($resolver, ...$args);
+        } elseif (is_callable($resolver) && is_array($resolver)) {
+            $params = array_merge($resolver, $args);
+
+            return gi()->call(...$params);
         }
     }
 
@@ -1873,6 +1634,500 @@ function ipinfo(string $ip)
 function setValue(&$object, string $property, $value)
 {
     $prop = new ReflectionProperty($object, $property);
-    $prop->setAccessible(true);
+    $accessible = $prop->isPublic();
+
+    if (false === $accessible) {
+        $prop->setAccessible(true);
+    }
+
     $prop->setValue($object, $value);
+
+    if (false === $accessible) {
+        $prop->setAccessible(false);
+    }
+}
+
+/**
+ * @param string $path
+ * @param string $manifestDirectory
+ * @return string
+ * @throws Exception
+ */
+function mix(string $path, string $manifestDirectory = '')
+{
+    return Octo\mix($path, $manifestDirectory);
+}
+
+/**
+ * @param string $start
+ * @param string $end
+ * @param string $concern
+ * @param null|string $default
+ * @return null|string
+ */
+function findIn(string $start, string $end, string $concern, ?string $default = null): ?string
+{
+    if (!empty($concern) &&
+        strstr($concern, $start) &&
+        strstr($concern, $end) &&
+        !empty($start) &&
+        !empty($end)) {
+        $segment = explode($start, $concern, 2)[1];
+
+        if (!empty($segment) && strstr($segment, $end)) {
+            return explode($end, $segment, 2)[0];
+        }
+    }
+
+    return $default;
+}
+
+/**
+ * @param string $code
+ * @return mixed
+ * @throws Exception
+ */
+function evaluate(string $code)
+{
+    $output = \Octo\evalApp("return $code;");
+
+    return eval($output);
+}
+
+/**
+ * @param string $expression
+ * @return string
+ */
+function stripParentheses(string $expression)
+{
+    if (Octo\startsWith($expression, '(')) {
+        $expression = substr($expression, 1, -1);
+    }
+
+    return $expression;
+}
+
+/**
+ * @param string $string
+ * @return string
+ */
+function he(string $string): string
+{
+    return htmlentities($string, ENT_QUOTES, 'UTF-8', false);
+}
+
+/**
+ * @param $concern
+ * @return mixed
+ */
+function w($concern)
+{
+    return $concern;
+}
+
+/**
+ * @param $concern
+ * @return mixed
+ */
+function cl($concern)
+{
+    return cloner($concern);
+}
+
+/**
+ * @param $concern
+ * @return Decorator
+ */
+function decorate($concern)
+{
+    return new Decorator($concern);
+}
+
+/**
+ * @param $concern
+ * @return mixed
+ */
+function instance($concern)
+{
+    return \App\Facades\Container::set(get_class($concern), Octo\toClosure($concern));
+}
+
+/**
+ * @param $concern
+ * @return \Octo\Nullable
+ */
+function nullable($concern)
+{
+    return Octo\nullable($concern);
+}
+
+/**
+ * @param string $key
+ * @param $value
+ * @return \App\Services\Container
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
+function set(string $key, $value)
+{
+    return c()->define($key, $value);
+}
+
+/**
+ * @param string $key
+ * @param null $default
+ * @return mixed|null
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
+function get(string $key, $default = null)
+{
+    return c()->defined($key, $default);
+}
+
+/**
+ * @param string $key
+ * @return bool
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
+function has(string $key)
+{
+    return c()->isDefined($key);
+}
+
+/**
+ * @param string $key
+ * @return bool
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
+function del(string $key)
+{
+    return c()->forget($key);
+}
+
+/**
+ * @param string $key
+ * @param int $by
+ * @return int
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
+function incr(string $key, int $by = 1)
+{
+    return c()->incr($key, $by);
+}
+
+/**
+ * @param string $key
+ * @param int $by
+ * @return int
+ * @throws ReflectionException
+ * @throws FastContainerException
+ */
+function decr(string $key, int $by = 1)
+{
+    return c()->decr($key, $by);
+}
+
+/**
+ * @param int $ŝtatus
+ * @param string $content
+ * @param array $headers
+ * @return Response
+ */
+function err(int $status, string $content, array $headers = [])
+{
+    return new Response($status, $headers, $content);
+}
+
+/**
+ * @param string $message
+ * @param string $class
+ */
+function fail(string $message, string $class = Exception::class)
+{
+    throw new $class($message);
+}
+
+/**
+ * @param null $job
+ * @return \App\Services\Queue|mixed
+ * @throws Exception
+ */
+function queue($job = null)
+{
+    /** @var \App\Services\Queue $queue */
+    $queue = dic(\App\Services\Queue::class);
+
+    if (is_object($job)) {
+        return $queue->push($job);
+    } elseif (is_string($job) && class_exists($job)) {
+        return $queue->push(dic($job));
+    }
+
+    return $queue;
+}
+
+/**
+ * @param Throwable $e
+ * @return bool
+ */
+function lostRedis(Throwable $e): bool
+{
+    $message = $e->getMessage();
+
+    return Inflector::contains($message, [
+        'server has gone away',
+        'no connection to the server',
+        'Lost connection',
+        'is dead or not enabled',
+        'Error while sending',
+        'decryption failed or bad record mac',
+        'server closed the connection unexpectedly',
+        'SSL connection has been closed unexpectedly',
+        'Error writing data to the connection',
+        'Resource deadlock avoided',
+        'Transaction() on null',
+        'child connection forced to terminate due to client_idle_limit',
+        'query_wait_timeout',
+        'reset by peer',
+    ]);
+}
+
+/**
+ * @param $concern
+ * @return bool|mixed|null
+ */
+function data($concern)
+{
+    static $stored = [];
+
+    if (is_array($concern) && count($concern) === 1) {
+        $stored[key($concern)] = reset($concern);
+
+        return true;
+    }
+
+    if (is_object($concern)) {
+        $stored[get_class($concern)] = $concern;
+
+        return true;
+    }
+
+    if (is_string($concern)) {
+        if (1 === func_num_args()) {
+            return $stored[$concern] ?? null;
+        } elseif (2 === func_num_args()) {
+            $args = func_get_args();
+
+            $stored[array_shift($args)] = array_shift($args);
+
+            return true;
+        }
+    }
+}
+
+/**
+ * @param Elegant $item
+ * @param array $fields
+ * @throws Exception
+ */
+function searchable(Elegant $item, array $fields = [])
+{
+    $pipe   = redis()->pipeline();
+    $data   = $item->toArray();
+    $class  = str_replace('\\', '_', get_class($item));
+    $key    = $class . '.' . $data['id'];
+
+    unset($data['created_at']);
+    unset($data['deleted_at']);
+    unset($data['updated_at']);
+
+    $pipe->hmset($key, $data);
+
+    if (!empty($fields)) {
+        foreach ($fields as $field) {
+            $ikey = $class . '.' . $field . '.' . $data[$field];
+            $pipe->sadd($ikey, $data['id']);
+        }
+    }
+
+    $pipe->execute();
+}
+
+/**
+ * @param $a
+ * @param Closure $c
+ * @return mixed
+ * @throws ReflectionException
+ */
+function watch($concern, Closure $callback, ...$args)
+{
+    return $concern ?? gi()->makeClosure($callback, ...$args);
+}
+
+/**
+ * @return Connection
+ * @throws \Doctrine\DBAL\DBALException
+ */
+function em()
+{
+    $db         = CoreConf::get('db');
+    $default    = $db['default'];
+    $conf       = $db[$default];
+
+    $driver = new Driver;
+
+    return new Connection([
+        'pdo'       => dic(PDO::class),
+        'dbname'    => $conf['database'],
+        'driver'    => $driver->getName(),
+    ], $driver);
+}
+
+/**
+ * @return \Doctrine\DBAL\Query\QueryBuilder
+ */
+function qb()
+{
+    return em()->createQueryBuilder();
+}
+
+/**
+ * @param string $table
+ * @return \Illuminate\Database\Query\Builder
+ */
+function table(string $table)
+{
+    return Db::table($table);
+}
+
+/**
+ * @param $key
+ * @param string $match
+ * @return mixed
+ */
+function sscan($key, $match = '*')
+{
+    return redis()->eval(Lua::sscan(), 2, $key, $match)[1];
+}
+
+/**
+ * @param array $attributes
+ * @return \Octo\Fluent
+ */
+function fluent($attributes = [])
+{
+    return new \Octo\Fluent($attributes);
+}
+
+/**
+ * @param array $attributes
+ * @return \Octo\Fluent
+ */
+function crudField($attributes = [])
+{
+    return fluent($attributes);
+}
+
+/**
+ * @param mixed ...$arrays
+ * @return array
+ */
+function unique(...$arrays)
+{
+    return array_unique(array_merge(...$arrays));
+}
+
+/**
+ * @param mixed $concerns
+ * @param Closure $callback
+ * @return array
+ */
+function filter($concerns, Closure $callback)
+{
+    $concerns = arrayable($concerns) ? $concerns->toArray() : $concerns;
+
+    return array_filter($concerns, $callback);
+}
+
+/**
+ * @param $needle
+ * @param $haystack
+ * @return bool
+ */
+function in_arrayi($needle, $haystack)
+{
+    return in_array(mb_strtolower($needle), array_map('mb_strtolower', $haystack));
+}
+
+/**
+ * @param $callback
+ * @param mixed ...$args
+ * @return mixed|null
+ * @throws ReflectionException
+ */
+function call_func($callback, ...$args)
+{
+    if (is_string($callback) && strpos($callback, '::') !== false) {
+        $callback = explode('::', $callback);
+    } elseif (is_string($callback) && strpos($callback, '@') !== false) {
+        $callback = explode('@', $callback);
+    }
+
+    if (is_string($callback) && class_exists($callback)) {
+        $callback = gi()->make($callback);
+    }
+
+    if (is_array($callback) && isset($callback[1]) && is_object($callback[0])){
+        if (!empty($args)) {
+            $args = array_values($args);
+        }
+
+        $params = array_merge($callback, $args);
+
+        return gi()->call(...$params);
+    } elseif (is_array($callback) && isset($callback[1]) && is_string($callback[0])) {
+        list($class, $method) = $callback;
+        $class = '\\'.ltrim($class, '\\');
+        $instance = gi()->make($class);
+        $params = array_merge([$instance, $method], $args);
+
+        return gi()->call(...$params);
+    } elseif ($callback instanceOf Closure) {
+        return gi()->makeClosure($callback, ...$args);
+    } elseif (is_object($callback) && \Octo\is_invokable($callback)) {
+        return gi()->call([$callback, '__invoke'], ...$args);
+    }
+
+    return $callback(...$args);
+}
+
+/**
+ * @return bool
+ */
+function isProd()
+{
+    return getAppenv() === 'production';
+}
+
+/**
+ * @return string
+ */
+function getAppenv()
+{
+    return CoreConf::get('app')['env'] ?? 'production';
+}
+
+/**
+ * @param mixed ...$args
+ * @return mixed
+ * @throws FastContainerException
+ * @throws ReflectionException
+ */
+function callOnce(...$args)
+{
+    return Octo\callOnce(...$args);
 }

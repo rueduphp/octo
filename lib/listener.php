@@ -51,11 +51,13 @@ class Listener implements FastListenerInterface
     }
 
     /**
+     * @param bool $once
+     *
      * @return $this
      */
-    public function once()
+    public function once(bool $once = true)
     {
-        $this->once = !$this->once;
+        $this->once = $once;
 
         return $this;
     }

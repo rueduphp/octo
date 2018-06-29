@@ -17,6 +17,7 @@ services:
       - mysql
       - postgres
       - redis
+      - mongo
       - es
       - maildev
 
@@ -57,6 +58,18 @@ services:
       - "6377:6379"
     volumes:
       - ~/data/octo/redis:/data
+
+  mongo:
+    image: bitnami/mongodb:latest
+    ports:
+      - "27018:27017"
+    environment:
+      - MONGODB_ROOT_PASSWORD=root
+      - MONGODB_USERNAME=octo
+      - MONGODB_PASSWORD=octo
+      - MONGODB_DATABASE=octo
+    volumes:
+      - ~/data/octo/mongodb:/bitnami
 
   es:
     image: bitnami/elasticsearch:latest

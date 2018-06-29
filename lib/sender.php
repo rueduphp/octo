@@ -39,7 +39,6 @@ class Sender
 
     /**
      * @param string $host
-     *
      * @return Sender
      */
     public function setHost(string $host = 'localhost'): self
@@ -51,7 +50,6 @@ class Sender
 
     /**
      * @param int $port
-     *
      * @return Sender
      */
     public function setPort(int $port = 25): self
@@ -63,7 +61,6 @@ class Sender
 
     /**
      * @param null|string $protocol
-     *
      * @return Sender
      */
     public function setProtocol(?string $protocol = null): self
@@ -75,7 +72,6 @@ class Sender
 
     /**
      * @param null|string $username
-     *
      * @return Sender
      */
     public function setUsername(?string $username = null): self
@@ -87,7 +83,6 @@ class Sender
 
     /**
      * @param null|string $password
-     *
      * @return Sender
      */
     public function setPassword(?string $password = null): self
@@ -115,7 +110,6 @@ class Sender
 
     /**
      * @param \Psr\Log\LoggerInterface $logger
-     *
      * @return Swift_Mailer
      */
     public function log(LoggerInterface $logger)
@@ -125,7 +119,6 @@ class Sender
 
     /**
      * @param string $cmd
-     *
      * @return Swift_Mailer
      */
     function sendmail(string $cmd = '/usr/sbin/sendmail -bs')
@@ -154,7 +147,6 @@ class Sender
 
     /**
      * @param SesClient $client
-     *
      * @return Swift_Mailer
      */
     public function ses(SesClient $client)
@@ -167,12 +159,16 @@ class Sender
      */
     public function amazonsmtp()
     {
-            $transport = Awsmail::newInstance($this->host, (int) $this->port, $this->protocol)
-                ->setUsername($this->username)
-                ->setPassword($this->password)
-            ;
+        $transport = Awsmail::newInstance(
+            $this->host,
+            (int) $this->port,
+            $this->protocol
+        )
+            ->setUsername($this->username)
+            ->setPassword($this->password)
+        ;
 
-            return $this->mailer($transport);
+        return $this->mailer($transport);
     }
 
     /**
@@ -182,6 +178,7 @@ class Sender
     protected function mailer(Swift_Transport $transport)
     {
         $mailer = Swift_Mailer::newInstance($transport);
+
         in('mailer', $mailer);
 
         return $mailer;

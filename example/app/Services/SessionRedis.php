@@ -84,4 +84,12 @@ class SessionRedis implements SessionHandlerInterface
     {
         return $this->cache;
     }
+
+    /**
+     * @param $redis
+     */
+    public function setRedis($redis)
+    {
+        $this->cache->setRedis($redis);
+    }
 }

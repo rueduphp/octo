@@ -54,13 +54,21 @@ class EavValue extends Elegant
 
 class EavRow extends Elegant
 {
+    /** @var string $table */
     protected $table = 'eav_rows';
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function entity()
     {
         return $this->belongsTo(EavEntity::class, 'entity_id');
     }
 
+    /**
+     * @param bool $raw
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function values($raw = false)
     {
         $query = $this->hasMany(EavValue::class, 'row_id');
@@ -122,7 +130,12 @@ class Dynamicmodel
             $schema->create('eav_rows', function (Blueprint $table) {
                 $table->increments('id');
                 $table->integer('entity_id')->unsigned()->index();
-                $table->foreign('entity_id', 'fk_entities_rows')->references('id')->on('eav_entities')->onDelete('cascade');
+                $table
+                    ->foreign('entity_id', 'fk_entities_rows')
+                    ->references('id')
+                    ->on('eav_entities')
+                    ->onDelete('cascade')
+                ;
                 $table->timestamp('created_at')->nullable()->useCurrent();
                 $table->timestamp('updated_at')->nullable()->useCurrent();
             });
@@ -131,7 +144,8 @@ class Dynamicmodel
                 $table->increments('id');
                 $table->string('name');
                 $table->integer('entity_id')->unsigned()->index();
-                $table->foreign('entity_id', 'fk_entities_attributes')
+                $table
+                    ->foreign('entity_id', 'fk_entities_attributes')
                     ->references('id')
                     ->on('eav_entities')
                     ->onDelete('cascade')
@@ -142,13 +156,15 @@ class Dynamicmodel
                 $table->increments('id');
                 $table->longText('value')->nullable();
                 $table->integer('row_id')->unsigned()->index();
-                $table->foreign('row_id', 'fk_rows_values')
+                $table
+                    ->foreign('row_id', 'fk_rows_values')
                     ->references('id')
                     ->on('eav_rows')
                     ->onDelete('cascade')
                 ;
                 $table->integer('attribute_id')->unsigned()->index();
-                $table->foreign('attribute_id', 'fk_attr_values')
+                $table
+                    ->foreign('attribute_id', 'fk_attr_values')
                     ->references('id')
                     ->on('eav_attributes')
                     ->onDelete('cascade')
@@ -184,7 +200,7 @@ class Dynamicmodel
     /**
      * @return Dynamicmodel
      */
-    public function newQuery()
+    public function newQuery(): self
     {
         return $this->reset();
     }
@@ -261,6 +277,7 @@ class Dynamicmodel
 
     /**
      * @return int
+     * @throws \ReflectionException
      */
     public function remove(): int
     {
@@ -286,7 +303,7 @@ class Dynamicmodel
         $affected = 0;
 
         foreach ($this->ids() as $id) {
-            $this->update($id,$parameters);
+            $this->update($id, $parameters);
             $affected++;
         }
 
@@ -409,6 +426,11 @@ class Dynamicmodel
         }, $this->getAge());
     }
 
+    /**
+     * @param null $fields
+     * @return array
+     * @throws \ReflectionException
+     */
     public function select($fields = null)
     {
         $data = [];
@@ -438,54 +460,75 @@ class Dynamicmodel
 
     /**
      * @param $key
-     * @param null|string $operator
-     * @param null $value
+     * @param null|mixed $operator
+     * @param null|mixed $value
      * @return Dynamicmodel
      * @throws \ReflectionException
      */
-    public function where($key, ?string $operator = null, $value = null): self
+    public function where($key, $operator = null, $value = null): self
     {
-        if (func_num_args() === 1) {
+        $isCallable = is_callable($key);
+
+        if (func_num_args() === 1 && false === $isCallable) {
             if (is_array($key)) {
                 list($key, $operator, $value) = $key;
                 $operator = Inflector::lower($operator);
             }
-        } elseif (func_num_args() === 2) {
+        } elseif (func_num_args() === 2 && false === $isCallable) {
             list($value, $operator) = [$operator, '='];
         }
 
-        $collection = coll($this->select($key));
+        if (true === $isCallable) {
+            $this->ids = coll(empty($operator) ? $this->get() : $this->select($operator))->filter(function($item) use
+            ($key) {
+                if ($key instanceof \Closure) {
+                    return gi()->makeClosure($key, $item);
+                } elseif (is_array($key)) {
+                    $params = array_merge($key, $item);
 
-        $this->query[] = [$key, $value, $operator];
+                    return gi()->call(...$params);
+                } else {
+                    $params = array_merge([$key, '__invoke'], $item);
 
-        $keyCache = sha1(serialize($this->query) . $this->entity->id . $key . '.query');
-
-        $this->ids = $this->cache->until($keyCache, function () use ($key, $operator, $value, $collection) {
-            return $collection->filter(function($item) use ($key, $operator, $value) {
-                $item = (object) $item;
-                $actual = isset($item->{$key}) ? $item->{$key} : null;
-
-                $insensitive = in_array($operator, ['=i', 'like i', 'not like i']);
-
-                if ((!is_array($actual) || !is_object($actual)) && $insensitive) {
-                    $actual = Inflector::lower(Inflector::unaccent($actual));
+                    return gi()->call(...$params);
                 }
-
-                if ((!is_array($value) || !is_object($value)) && $insensitive) {
-                    $value  = Inflector::lower(Inflector::unaccent($value));
-                }
-
-                if ($insensitive) {
-                    $operator = str_replace(['=i', 'like i'], ['=', 'like'], $operator);
-                }
-
-                if ($key === 'id' || fnmatch('*_id', $key) && is_numeric($actual)) {
-                    $actual = (int) $actual;
-                }
-
-                return compare($actual, $operator, $value);
             })->pluck('id');
-        }, $this->getAge());
+
+            $this->query[] = $key;
+        } else {
+            $collection = coll($this->select($key));
+
+            $this->query[] = [$key, $value, $operator];
+
+            $keyCache = sha1(serialize($this->query) . $this->entity->id . $key . '.query');
+
+            $this->ids = $this->cache->until($keyCache, function () use ($key, $operator, $value, $collection) {
+                return $collection->filter(function($item) use ($key, $operator, $value) {
+                    $item = (object) $item;
+                    $actual = isset($item->{$key}) ? $item->{$key} : null;
+
+                    $insensitive = in_array($operator, ['=i', 'like i', 'not like i']);
+
+                    if ((!is_array($actual) || !is_object($actual)) && $insensitive) {
+                        $actual = Inflector::lower(Inflector::unaccent($actual));
+                    }
+
+                    if ((!is_array($value) || !is_object($value)) && $insensitive) {
+                        $value  = Inflector::lower(Inflector::unaccent($value));
+                    }
+
+                    if ($insensitive) {
+                        $operator = str_replace(['=i', 'like i'], ['=', 'like'], $operator);
+                    }
+
+                    if ($key === 'id' || fnmatch('*_id', $key) && is_numeric($actual)) {
+                        $actual = (int) $actual;
+                    }
+
+                    return compare($actual, $operator, $value);
+                })->pluck('id');
+            }, $this->getAge());
+        }
 
         return $this;
     }
@@ -500,7 +543,7 @@ class Dynamicmodel
         $entity = null === $entity ? getDynamicEntity($this->entity->name) : $entity;
 
         if ($entity && null !== $entity->getIterator()) {
-            $iterator   = $entity->getIterator();
+            $iterator = $entity->getIterator();
 
             $callback = function ($row) use ($entity, $iterator) {
                 return new $iterator($this->find($row), $this, $entity);
@@ -558,6 +601,7 @@ class Dynamicmodel
 
     /**
      * @return int
+     * @throws \ReflectionException
      */
     public function count(): int
     {
@@ -567,6 +611,7 @@ class Dynamicmodel
     /**
      * @param Closure $callable
      * @return Iterator
+     * @throws \ReflectionException
      */
     public function each(Closure $callable): Iterator
     {
@@ -581,6 +626,7 @@ class Dynamicmodel
 
     /**
      * @return Iterator
+     * @throws \ReflectionException
      */
     public function get(): Iterator
     {
@@ -1196,6 +1242,15 @@ class Dynamicmodel
         return $this->count() > 0;
     }
 
+
+    /**
+     * @return bool
+     */
+    public function doesnotexist(): bool
+    {
+        return $this->count() === 0;
+    }
+
     /**
      * @return null
      */
@@ -1512,6 +1567,7 @@ class Dynamicmodel
      * @param $date
      * @param bool $strict
      * @return Dynamicmodel
+     * @throws \ReflectionException
      */
     public function after($date, bool $strict = true): self
     {
@@ -1861,6 +1917,7 @@ class Dynamicmodel
     /**
      * @param bool $model
      * @return Iterator
+     * @throws \ReflectionException
      */
     public function all(bool $model = true): Iterator
     {

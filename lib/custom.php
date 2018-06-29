@@ -63,9 +63,8 @@ class Custom
     /**
      * @param string $method
      * @param array $parameters
-     *
      * @return mixed
-     *
+     * @throws FastContainerException
      * @throws \ReflectionException
      */
     public static function __callStatic(string $method, array $parameters)

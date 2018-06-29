@@ -1492,7 +1492,7 @@
          */
         public function delete(?string $table = null): self
         {
-            if ($table) {
+            if (is_string($table)) {
                 $this->table = $table;
             }
 

@@ -358,7 +358,12 @@
             ]);
         }
 
-        public static function getMessage($code, $defaultMessage = 'unknown')
+        /**
+         * @param int $code
+         * @param string $defaultMessage
+         * @return string
+         */
+        public static function getMessage(int $code, string $defaultMessage = 'unknown'): string
         {
             static $statusMessage = [
                 100 => 'Continue',

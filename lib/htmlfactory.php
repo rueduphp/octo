@@ -7,15 +7,8 @@ use Illuminate\View\Compilers\Compiler;
 
 class Htmlfactory
 {
-
-    /**
-     * @var \Illuminate\Contracts\Routing\UrlGenerator
-     */
     protected $url;
 
-    /**
-     * @var \Illuminate\Contracts\View\Factory
-     */
     protected $view;
 
     /**
@@ -27,8 +20,7 @@ class Htmlfactory
     }
 
     /**
-     * @param string $value
-     *
+     * @param $value
      * @return string
      */
     public function entities($value)
@@ -37,8 +29,7 @@ class Htmlfactory
     }
 
     /**
-     * @param string $value
-     *
+     * @param $value
      * @return string
      */
     public function decode($value)
@@ -47,11 +38,9 @@ class Htmlfactory
     }
 
     /**
-     * @param string $url
-     * @param array  $attributes
-     * @param bool   $secure
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $url
+     * @param array $attributes
+     * @return HtmlString
      */
     public function script($url, $attributes = [])
     {
@@ -61,11 +50,9 @@ class Htmlfactory
     }
 
     /**
-     * @param string $url
-     * @param array  $attributes
-     * @param bool   $secure
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $url
+     * @param array $attributes
+     * @return HtmlString
      */
     public function style($url, $attributes = [])
     {
@@ -79,12 +66,10 @@ class Htmlfactory
     }
 
     /**
-     * @param string $url
-     * @param string $alt
-     * @param array  $attributes
-     * @param bool   $secure
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $url
+     * @param null $alt
+     * @param array $attributes
+     * @return HtmlString
      */
     public function image($url, $alt = null, $attributes = [])
     {
@@ -96,11 +81,9 @@ class Htmlfactory
     }
 
     /**
-     * @param string $url
-     * @param array  $attributes
-     * @param bool   $secure
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $url
+     * @param array $attributes
+     * @return HtmlString
      */
     public function favicon($url, $attributes = [])
     {
@@ -134,15 +117,17 @@ class Htmlfactory
             $title = $this->entities($title);
         }
 
-        return $this->toHtmlString('<a href="' . $this->entities($url) . '"' . $this->attributes($attributes) . '>' . $title . '</a>');
+        return $this->toHtmlString(
+            '<a href="' . $this->entities($url) . '"' . $this->attributes($attributes) . '>' . $title . '</a>'
+        );
     }
 
     /**
-     * @param string $url
-     * @param string $title
-     * @param array  $attributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $url
+     * @param null $title
+     * @param array $attributes
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function secureLink($url, $title = null, $attributes = [])
     {
@@ -165,11 +150,11 @@ class Htmlfactory
     }
 
     /**
-     * @param string $url
-     * @param string $title
-     * @param array  $attributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $url
+     * @param null $title
+     * @param array $attributes
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function linkSecureAsset($url, $title = null, $attributes = [])
     {
@@ -203,12 +188,11 @@ class Htmlfactory
     }
 
     /**
-     * @param string $email
-     * @param string $title
-     * @param array  $attributes
-     * @param bool   $escape
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $email
+     * @param null $title
+     * @param array $attributes
+     * @param bool $escape
+     * @return HtmlString
      */
     public function mailto($email, $title = null, $attributes = [], $escape = true)
     {
@@ -222,13 +206,14 @@ class Htmlfactory
 
         $email = $this->obfuscate('mailto:') . $email;
 
-        return $this->toHtmlString('<a href="' . $email . '"' . $this->attributes($attributes) . '>' . $title . '</a>');
+        return $this->toHtmlString(
+            '<a href="' . $email . '"' . $this->attributes($attributes) . '>' . $title . '</a>'
+        );
     }
 
     /**
-     * @param string $email
-     *
-     * @return string
+     * @param $email
+     * @return mixed
      */
     public function email($email)
     {
@@ -237,7 +222,6 @@ class Htmlfactory
 
     /**
      * @param int $num
-     *
      * @return string
      */
     public function nbsp($num = 1)
@@ -246,10 +230,9 @@ class Htmlfactory
     }
 
     /**
-     * @param array $list
+     * @param $list
      * @param array $attributes
-     *
-     * @return \Illuminate\Support\HtmlString|string
+     * @return HtmlString|string
      */
     public function ol($list, $attributes = [])
     {
@@ -257,10 +240,9 @@ class Htmlfactory
     }
 
     /**
-     * @param array $list
+     * @param $list
      * @param array $attributes
-     *
-     * @return \Illuminate\Support\HtmlString|string
+     * @return HtmlString|string
      */
     public function ul($list, $attributes = [])
     {
@@ -270,8 +252,7 @@ class Htmlfactory
     /**
      * @param array $list
      * @param array $attributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @return HtmlString
      */
     public function dl(array $list, array $attributes = [])
     {
@@ -295,11 +276,10 @@ class Htmlfactory
     }
 
     /**
-     * @param string $type
-     * @param array  $list
-     * @param array  $attributes
-     *
-     * @return \Illuminate\Support\HtmlString|string
+     * @param $type
+     * @param $list
+     * @param array $attributes
+     * @return HtmlString|string
      */
     protected function listing($type, $list, $attributes = [])
     {
@@ -319,11 +299,10 @@ class Htmlfactory
     }
 
     /**
-     * @param mixed  $key
-     * @param string $type
-     * @param mixed  $value
-     *
-     * @return string
+     * @param $key
+     * @param $type
+     * @param $value
+     * @return HtmlString|string
      */
     protected function listingElement($key, $type, $value)
     {
@@ -335,11 +314,10 @@ class Htmlfactory
     }
 
     /**
-     * @param mixed  $key
-     * @param string $type
-     * @param mixed  $value
-     *
-     * @return string
+     * @param $key
+     * @param $type
+     * @param $value
+     * @return HtmlString|string
      */
     protected function nestedListing($key, $type, $value)
     {
@@ -351,8 +329,7 @@ class Htmlfactory
     }
 
     /**
-     * @param array $attributes
-     *
+     * @param $attributes
      * @return string
      */
     public function attributes($attributes)
@@ -371,9 +348,8 @@ class Htmlfactory
     }
 
     /**
-     * @param string $key
-     * @param string $value
-     *
+     * @param $key
+     * @param $value
      * @return string
      */
     protected function attributeElement($key, $value)
@@ -393,10 +369,9 @@ class Htmlfactory
 
     /**
      * @param string $value
-     *
      * @return string
      */
-    public function obfuscate($value)
+    public function obfuscate(string $value): string
     {
         $safe = '';
 
@@ -423,11 +398,10 @@ class Htmlfactory
     }
 
     /**
-     * @param string $name
-     * @param string $content
-     * @param array  $attributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param $content
+     * @param array $attributes
+     * @return HtmlString
      */
     public function meta($name, $content, array $attributes = [])
     {
@@ -439,11 +413,10 @@ class Htmlfactory
     }
 
     /**
-     * @param string $tag
-     * @param mixed $content
-     * @param array  $attributes
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $tag
+     * @param $content
+     * @param array $attributes
+     * @return HtmlString
      */
     public function tag($tag, $content, array $attributes = [])
     {
@@ -456,8 +429,7 @@ class Htmlfactory
 
     /**
      * @param $html
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @return HtmlString
      */
     protected function toHtmlString($html)
     {

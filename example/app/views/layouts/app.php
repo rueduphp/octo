@@ -15,7 +15,7 @@
 
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
 
-    <link rel="shortcut icon" type="image/png" href="{{ url('assets/img/logo.ico') }}" />
+    <link rel="shortcut icon" type="image/png" href="@asset('assets/img/logo.ico')" />
 
     <!-- ================== BEGIN BASE CSS STYLE ================== -->
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700|Montserrat|Julius+Sans+One" rel="stylesheet" />
@@ -52,7 +52,8 @@
     <!-- ================== BEGIN BASE JS ================== -->
     <script src="{{ url('admin/plugins/pace/pace.min.js') }}"></script>
     <!-- ================== END BASE JS ================== -->
-    <link href="{{ url('admin/css/default/theme/default.css') }}?{{ time() }}" rel="stylesheet" id="theme" />
+    <link href="@asset('admin/css/default/theme/default.css')" rel="stylesheet" id="theme" />
+    <link href="{{ mix('/dist/css/app.css') }}" rel="stylesheet" id="app">
 </head>
 <body>
 <!-- begin #page-loader -->
@@ -65,9 +66,9 @@
     <div id="header" class="header navbar-default">
         <!-- begin navbar-header -->
         <div class="navbar-header">
-            <a href="{{ to('home') }}" class="navbar-brand">
+            <a href="@to('home')" class="navbar-brand">
                 <span class="navbar-logo">
-                    <img src="{{ url('assets/img/logo.svg') }}" alt="">
+                    <img src="@asset('assets/img/logo.svg')" alt="">
                 </span>
                 <span class="navbar-title"><b>Octo</b> Admin</span>
             </a>
@@ -95,9 +96,10 @@
             @isLogged
             <li class="dropdown navbar-user">
                 <a href="javascript:;" class="dropdown-toggle" data-toggle="dropdown">
-                    <img src="{!! user('photo') !!}" alt="" />
-                    <span class="hidden-xs">{!! user('username') !!}</span> <b class="caret"></b>
+                    <img src="@user('photo')" alt="" />
+                    <span class="hidden-xs">@user('username')</span> <b class="caret"></b>
                 </a>
+
                 <ul class="dropdown-menu">
                     <li class="arrow"></li>
                     <li>
@@ -106,6 +108,7 @@
                         </a>
                     </li>
                 </ul>
+
             </li>
             @isNotLogged
             <li>
@@ -122,9 +125,9 @@
         <!-- begin top-menu nav -->
         <ul class="nav">
             <li class="active">
-                <a href="{{ to('home') }}">
+                <a href="@to('home')">
                     <i class="fa fa-th-large"></i>
-                    <span>Dashboard</span>
+                    <span>@lng('global.app_dashboard')</span>
                 </a>
             </li>
             <li class="menu-control menu-control-left">
@@ -229,12 +232,16 @@
         <!-- begin page-errors -->
         <div class="row">
             <div class="col-md-12">
-                <div class="note note-danger">
-                    <ul class="list-unstyled">
-                        @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
+                <div class="note note-danger fade show limitedShow">
+                    <div class="note-icon"><i class="fa fa-info"></i></div>
+                    <div class="note-content">
+                        <h4><b>Message</b></h4>
+                        <ul class="list-unstyled">
+                            @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -275,7 +282,6 @@
 <script src="{{ url('admin/plugins/slimscroll/jquery.slimscroll.min.js') }}"></script>
 <script src="{{ url('admin/plugins/js-cookie/js.cookie.js') }}"></script>
 <script src="{{ url('admin/js/theme/default.min.js') }}"></script>
-<script src="{{ url('admin/js/apps.min.js') }}"></script>
 <!-- ================== END BASE JS ================== -->
 
 <!-- ================== BEGIN PAGE LEVEL JS ================== -->
@@ -303,6 +309,8 @@
 <script src="{{ url('admin/plugins/clipboard/clipboard.min.js') }}"></script>
 <script src="{{ url('admin/js/demo/form-plugins.demo.min.js') }}"></script>
 <!-- ================== END PAGE LEVEL JS ================== -->
+<script src="@asset('admin/js/apps.min.js')"></script>
+<script src="{{ mix('/dist/js/app.js') }}"></script>
 
 <script type="text/javascript">
     $(document).ready(function() {

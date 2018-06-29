@@ -1,6 +1,5 @@
 {
-    "/assets/js/app.js": "/assets/js/app.js",
-    "/assets/css/app.css": "/assets/css/app.css",
-    "/assets/js/sweetalert.min.js": "/assets/js/sweetalert.min.js",
-    "/assets/css/sweetalert.css": "/assets/css/sweetalert.css"
+    "/dist/js/app.js": "/dist/js/app.js",
+    "/dist/css/app.css": "/dist/css/app.css",
+    "/0.dea7498117ddfe67d8f6.hot-update.js": "/0.dea7498117ddfe67d8f6.hot-update.js"
 }

@@ -6,7 +6,7 @@
 
     class Record extends ArrayObject implements ArrayAccess
     {
-        use Notifiable, Eventable;
+        use Notifiable, Eventable, Hookable;
 
         /**
          * @var Entity
@@ -66,6 +66,15 @@
             if (is_object($this->entity) && false === $isProxy) {
                 $this->proxy($data);
             }
+        }
+
+        /**
+         * @return Record
+         * @throws \ReflectionException
+         */
+        public function original()
+        {
+            return new self($this->initial, $this->entity);
         }
 
         /**
@@ -720,7 +729,7 @@
         }
 
         /**
-         * @return mixed|null
+         * @return mixed|Record
          * @throws \ReflectionException
          */
         public function copy()
@@ -735,7 +744,7 @@
                 return $this->entity->create($row);
             }
 
-            return null;
+            return new self($this->data, $this->entity);
         }
 
         /**

@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'default' => 'algolia',
+    'default' => 'zend',
 
     'default_index' => 'default',
 

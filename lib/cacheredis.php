@@ -62,6 +62,14 @@
             }
         }
 
+        /**
+         * @param string $k
+         * @param $condition
+         * @param $value
+         * @param null $expire
+         * @return mixed|null
+         * @throws \ReflectionException
+         */
         public function cacheIf(string $k, $condition, $value, $expire = null)
         {
             $condition  = value($condition);

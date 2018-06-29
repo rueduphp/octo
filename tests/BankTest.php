@@ -130,6 +130,9 @@ class BankTest extends TestCase
         $count = $this->db->where('price', '>', 100)->count();
         $this->assertEquals(999, $count);
         $this->assertEquals(1, $this->db->where('price', 100)->count());
+        $this->assertEquals(1, $this->db->where(function ($item) {
+            return $item['price'] === 100;
+        })->count());
         $this->assertEquals(1, $this->db->where('price', 200)->count());
         $this->assertEquals(1, $this->db->where('price', 100000)->count());
 

@@ -9,19 +9,20 @@ use Monolog\Handler\ErrorLogHandler;
 use Monolog\Handler\RotatingFileHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogHandler;
-use Monolog\Logger as MonologLogger;
+use Monolog\Logger as Monologger;
+use Octo\Fire;
 use Psr\Log\LoggerInterface as PsrLoggerInterface;
 use RuntimeException;
 
 class Log implements PsrLoggerInterface
 {
     /**
-     * @var MonologLogger
+     * @var Monologger
      */
     protected $monolog;
 
     /**
-     * @var \Octo\Fire
+     * @var Fire
      */
     protected $dispatcher;
 
@@ -29,25 +30,25 @@ class Log implements PsrLoggerInterface
      * @var array
      */
     protected $levels = [
-        'debug'     => MonologLogger::DEBUG,
-        'info'      => MonologLogger::INFO,
-        'notice'    => MonologLogger::NOTICE,
-        'warning'   => MonologLogger::WARNING,
-        'error'     => MonologLogger::ERROR,
-        'critical'  => MonologLogger::CRITICAL,
-        'alert'     => MonologLogger::ALERT,
-        'emergency' => MonologLogger::EMERGENCY,
+        'debug'     => Monologger::DEBUG,
+        'info'      => Monologger::INFO,
+        'notice'    => Monologger::NOTICE,
+        'warning'   => Monologger::WARNING,
+        'error'     => Monologger::ERROR,
+        'critical'  => Monologger::CRITICAL,
+        'alert'     => Monologger::ALERT,
+        'emergency' => Monologger::EMERGENCY,
     ];
 
     /**
      * @param  \Monolog\Logger  $monolog
      * @return void
      */
-    public function __construct(MonologLogger $monolog)
+    public function __construct(Monologger $monolog)
     {
         $this->monolog = $monolog;
 
-        $this->dispatcher = new \Octo\Fire('log');
+        $this->dispatcher = dispatcher('log');
     }
 
     /**
@@ -195,7 +196,7 @@ class Log implements PsrLoggerInterface
      * @param string $name
      * @param string $level
      * @param int $facility
-     * @return MonologLogger
+     * @return Monologger
      */
     public function useSyslog($name = 'laravel', $level = 'debug', $facility = LOG_USER)
     {
@@ -269,7 +270,7 @@ class Log implements PsrLoggerInterface
     }
 
     /**
-     * @return MonologLogger
+     * @return Monologger
      */
     public function getMonolog()
     {
@@ -285,7 +286,7 @@ class Log implements PsrLoggerInterface
     }
 
     /**
-     * @return \Octo\Fire
+     * @return Fire
      */
     public function getEventDispatcher()
     {
@@ -293,9 +294,9 @@ class Log implements PsrLoggerInterface
     }
 
     /**
-     * @param $dispatcher
+     * @param Fire $dispatcher
      */
-    public function setEventDispatcher($dispatcher)
+    public function setEventDispatcher(Fire $dispatcher)
     {
         $this->dispatcher = $dispatcher;
     }

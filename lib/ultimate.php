@@ -211,13 +211,15 @@ class Ultimate implements
      * @param null|string $key
      * @param null $default
      * @return mixed|null
+     * @throws FastContainerException
+     * @throws \ReflectionException
      */
     public function user(?string $key = null, $default = null)
     {
         $user = $this->get($this->userKey);
 
         if (null !== $user) {
-            return null !== $key ? isAke($user, $key, $default) : $user;
+            return null !== $key ? isAke($user, $key, $default) : $this->makeUser($user['id']);
         }
 
         return $default;
@@ -233,10 +235,12 @@ class Ultimate implements
 
     /**
      * @return bool
+     * @throws FastContainerException
+     * @throws \ReflectionException
      */
     public function logged(): bool
     {
-        return null !== $this->user();
+        return null !== $this->user('id');
     }
 
     /**
@@ -294,6 +298,19 @@ class Ultimate implements
         $this->userModel = $userModel;
 
         return $this;
+    }
+
+    /**
+     * @param $id
+     * @return mixed
+     * @throws FastContainerException
+     * @throws \ReflectionException
+     */
+    protected function makeUser($id)
+    {
+        return callOnce(function () use ($id) {
+            return (new $this->userModel)->findOrFail($id);
+        });
     }
 
     /**
@@ -782,7 +799,13 @@ class Ultimate implements
      */
     public function getOldInput(?string $key = null, $default = null)
     {
-        return aget($this->get('_old_input', []), $key, $default);
+        $olds = viewParams()['olds'];
+
+        if (null === $key) {
+            return $olds ?? [];
+        }
+
+        return aget($olds, $key, $default);
     }
 
     /**

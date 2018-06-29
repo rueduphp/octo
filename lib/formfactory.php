@@ -7,19 +7,10 @@ use Illuminate\Support\HtmlString;
 
 class Formfactory
 {
-    /**
-     * @var Htmlfactory
-     */
     protected $html;
 
-    /**
-     * @var \Illuminate\Contracts\Routing\UrlGenerator
-     */
     protected $url;
 
-    /**
-     * @var \Illuminate\Contracts\View\Factory
-     */
     protected $view;
 
     /**
@@ -70,9 +61,9 @@ class Formfactory
      * @param Htmlfactory $html
      * @param $view
      * @param $csrfToken
-     * @param FastRequest|null $request
+     * @param null|FastRequest $request
      */
-    public function __construct(Htmlfactory $html, $view, $csrfToken, FastRequest $request = null)
+    public function __construct(Htmlfactory $html, $view, $csrfToken, ?FastRequest $request = null)
     {
         $this->html = $html;
         $this->view = $view;
@@ -81,11 +72,9 @@ class Formfactory
     }
 
     /**
-     * Open up a new HTML form.
-     *
-     * @param  array $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function open(array $options = [])
     {
@@ -103,7 +92,6 @@ class Formfactory
             $options['enctype'] = 'multipart/form-data';
         }
 
-
         $attributes = array_merge(
             $attributes, Arrays::except($options, $this->reserved)
         );
@@ -114,10 +102,10 @@ class Formfactory
     }
 
     /**
-     * @param  mixed $model
-     * @param  array $options
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $model
+     * @param array $options
+     * @return HtmlString
+     * @throws \ReflectionException
      */
     public function model($model, array $options = [])
     {
@@ -157,22 +145,23 @@ class Formfactory
     }
 
     /**
-     * @return string
+     * @return HtmlString
+     * @throws \ReflectionException
+     * @throws \Exception
      */
     public function token()
     {
-        $token = !empty($this->csrfToken) ? $this->csrfToken : $this->session->token();
+        $middleware = new Fastmiddlewarecsrf($this->session);
 
-        return $this->hidden('_csrf', $token);
+        return $this->hidden($middleware->getFormKey(), $this->session->token());
     }
 
     /**
-     * @param  string $name
-     * @param  string $value
-     * @param  array  $options
-     * @param  bool   $escape_html
-     *
-     * @return \Illuminate\Support\HtmlString
+     * @param $name
+     * @param null $value
+     * @param array $options
+     * @param bool $escape_html
+     * @return HtmlString
      */
     public function label($name, $value = null, $options = [], $escape_html = true)
     {
@@ -932,7 +921,7 @@ class Formfactory
     protected function getAction(array $options)
     {
         if (isset($options['url'])) {
-            return $this->getUrlAction($options['url']);
+            return $options['url'];
         }
 
         if (isset($options['route'])) {
@@ -1176,5 +1165,4 @@ class Formfactory
             $customAttributes
         )->validate();
     }
-
 }

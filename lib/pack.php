@@ -8,7 +8,7 @@ use IteratorAggregate;
 class Pack implements ArrayAccess, IteratorAggregate
 {
     /**
-     * @var mixed
+     * @var Parametermemory
      */
     protected $__bag;
 
@@ -153,8 +153,11 @@ class Pack implements ArrayAccess, IteratorAggregate
         $this->__bag->remove($key);
     }
 
+    /**
+     * @return \ArrayIterator|\Traversable
+     */
     public function getIterator()
     {
-        return new \ArrayIterator($this->toArray());
+        return $this->__bag->getIterator();
     }
 }

@@ -30,6 +30,7 @@ class Bank implements FastOrmInterface, FastDbInterface
      * @param string $database
      * @param string $table
      * @param FastStorageInterface $engine
+     * @throws \ReflectionException
      */
     public function __construct(string $database, string $table, FastStorageInterface $engine)
     {
@@ -42,6 +43,7 @@ class Bank implements FastOrmInterface, FastDbInterface
 
     /**
      * @return FastFactory
+     * @throws \ReflectionException
      */
     public static function factory()
     {
@@ -323,9 +325,7 @@ class Bank implements FastOrmInterface, FastDbInterface
      */
     public function where($key, $operator = null, $value = null)
     {
-        if ($key instanceof Closure) {
-            return $key($this);
-        }
+        $isCallable = false;
 
         if ($key instanceof Objet) {
             $fkTable = $key->table();
@@ -350,8 +350,12 @@ class Bank implements FastOrmInterface, FastDbInterface
 
         $nargs = func_num_args();
 
-        if ($nargs == 1) {
-            if (is_array($key)) {
+        if ($nargs === 1) {
+            if (is_callable($key)) {
+                $isCallable = true;
+            }
+
+            if (is_array($key) && false === $isCallable) {
                 if (count($key) === 1) {
                     $operator   = '=';
                     $value      = array_values($key);
@@ -368,44 +372,60 @@ class Bank implements FastOrmInterface, FastDbInterface
             exception('Bank', "This method requires at least one argument to proceed.");
         }
 
-        if ($value instanceof Closure) {
-            $value = $value($this);
-        }
+        if (true === $isCallable) {
+            $results = coll($this->all())->filter(function($item) use ($key) {
+                if ($key instanceof \Closure) {
+                    return gi()->makeClosure($key, $item);
+                } elseif (is_array($key)) {
+                    $params = array_merge($key, $item);
 
-        $operator = Strings::lower($operator);
+                    return gi()->call(...$params);
+                } else {
+                    $params = array_merge([$key, '__invoke'], $item);
 
-        $results    = coll($this->select($key))->filter(function($item) use ($key, $operator, $value) {
-            $item   = (object) $item;
-            $actual = isset($item->{$key}) ? $item->{$key} : null;
-
-            $insensitive = in_array($operator, ['=i', 'like i', 'not like i']);
-
-            if ((!is_array($actual) || !is_object($actual)) && $insensitive) {
-                $actual = Strings::lower(Strings::unaccent($actual));
-            }
-
-            if ((!is_array($value) || !is_object($value)) && $insensitive) {
-                $value  = Strings::lower(Strings::unaccent($value));
-            }
-
-            if ($insensitive) {
-                $operator = str_replace(['=i', 'like i'], ['=', 'like'], $operator);
-            }
-
-            if ($key == 'id' || fnmatch('*_id', $key) && is_numeric($actual)) {
-                $actual = (int) $actual;
-            }
-
-            if (is_null($actual) && in_array($operator, ['=', '!=', '<>', '<', '>', '>=', '<='])) {
-                $v = Strings::lower(Strings::unaccent($value));
-
-                if (!is_null($value) || 'null' != $v) {
-                    return false;
+                    return gi()->call(...$params);
                 }
+            });
+        } else {
+            if ($value instanceof Closure) {
+                $value = $value($this);
             }
 
-            return compare($actual, $operator, $value);
-        });
+            $operator = Strings::lower($operator);
+
+            $results    = coll($this->select($key))->filter(function($item) use ($key, $operator, $value) {
+                $item   = (object) $item;
+                $actual = isset($item->{$key}) ? $item->{$key} : null;
+
+                $insensitive = in_array($operator, ['=i', 'like i', 'not like i']);
+
+                if ((!is_array($actual) || !is_object($actual)) && $insensitive) {
+                    $actual = Strings::lower(Strings::unaccent($actual));
+                }
+
+                if ((!is_array($value) || !is_object($value)) && $insensitive) {
+                    $value  = Strings::lower(Strings::unaccent($value));
+                }
+
+                if ($insensitive) {
+                    $operator = str_replace(['=i', 'like i'], ['=', 'like'], $operator);
+                }
+
+                if ($key == 'id' || fnmatch('*_id', $key) && is_numeric($actual)) {
+                    $actual = (int) $actual;
+                }
+
+                if (is_null($actual) && in_array($operator, ['=', '!=', '<>', '<', '>', '>=', '<='])) {
+                    $v = Strings::lower(Strings::unaccent($value));
+
+                    if (!is_null($value) || 'null' != $v) {
+                        return false;
+                    }
+                }
+
+                return compare($actual, $operator, $value);
+            });
+        }
 
         $this->computed = $results->fetch('id')->all();
 

@@ -1,7 +1,7 @@
 <?php
 namespace Octo;
 
-class Module
+class Module implements FastModuleInterface
 {
     use Framework;
 
@@ -10,6 +10,9 @@ class Module
 
     /** @var FastRequest */
     protected $request;
+
+    /** @var array */
+    protected $vars = [];
 
     /**
      * @throws \ReflectionException
@@ -26,16 +29,21 @@ class Module
     }
 
     /**
-     * @param string $class
+     * @param $concern
+     * @return mixed|null
      * @throws \ReflectionException
      */
-    public function middleware(string $class)
+    public function middleware($concern)
     {
+        if ($concern instanceof \Closure) {
+            return gi()->makeClosure($concern, $this->getContainer()->getRequest());
+        }
+
         $di = $this->getContainer();
 
-        $middleware = $di->resolve($class);
+        $middleware = $di->resolve($concern);
 
-        gi()->call(
+        return gi()->call(
             $middleware,
             'process',
             $di->getRequest(),
@@ -123,6 +131,7 @@ class Module
     /**
      * @param string $route
      * @param array $params
+     * @throws Exception
      * @throws \ReflectionException
      */
     public function redirect(string $route, array $params = [])
@@ -191,13 +200,84 @@ class Module
 
         $vars = viewParams();
 
+        foreach ($this->vars as $key => $value) {
+            $parameters[$key] = $value;
+        }
+
         foreach ($vars as $key => $value) {
             $parameters[$key] = $value;
         }
 
         $parameters['errors'] = $parameters['errors'] ?? coll();
 
+        setCore('blade.context', $parameters);
+
         return $blade->make($name, (array) $parameters)->render();
+    }
+
+    /**
+     * @param string $key
+     * @param $value
+     */
+    public function __set(string $key, $value)
+    {
+        $this->vars[$key] = $value;
+    }
+
+    /**
+     * @param string $key
+     * @return mixed|null
+     */
+    public function __get(string $key)
+    {
+        return $this->vars[$key] ?? null;
+    }
+
+    /**
+     * @param string $key
+     * @return bool
+     */
+    public function __isset(string $key)
+    {
+        return isset($this->vars[$key]);
+    }
+
+    /**
+     * @param string $key
+     */
+    public function __unset(string $key)
+    {
+        unset($this->vars[$key]);
+    }
+
+    /**
+     * @param string $method
+     * @param array $args
+     * @return mixed
+     */
+    public function __call(string $method, array $args)
+    {
+        if (function_exists('\\' . $method)) {
+            $method = '\\' . $method;
+
+            return $method(...$args);
+        } elseif (function_exists('\App\\' . $method)) {
+            $method = '\App\\' . $method;
+
+            return $method(...$args);
+        } elseif (function_exists('\Octo\\' . $method)) {
+            $method = '\Octo\\' . $method;
+
+            return $method(...$args);
+        }
+    }
+
+    /**
+     * @return array
+     */
+    public function getVars(): array
+    {
+        return $this->vars;
     }
 }
 

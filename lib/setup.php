@@ -142,16 +142,21 @@ class Setup
 
         $auth['can'] = function (...$args) use ($session) {
             $permission = array_shift($args) . '.' . $session->getNamespace();
-            $user       = $session->user();
-            $parameters = array_merge([$permission, $user], $args);
+            $parameters = array_merge([$permission], $args);
+
+            return static::rights()->allows(...$parameters);
+        };
+
+        $auth['check'] = function (...$args) use ($session) {
+            $permission = array_shift($args) . '.' . $session->getNamespace();
+            $parameters = array_merge([$permission], $args);
 
             return static::rights()->allows(...$parameters);
         };
 
         $auth['cannot'] = function (...$args) use ($session) {
             $permission = array_shift($args) . '.' . $session->getNamespace();
-            $user       = $session->user();
-            $parameters = array_merge([$permission, $user], $args);
+            $parameters = array_merge([$permission], $args);
 
             return static::rights()->denies(...$parameters);
         };
@@ -249,6 +254,10 @@ class Setup
             if (\is_callable($rule)) {
                 $params = array_merge([$rule, getSession()->user()], $args);
 
+                if ($rule instanceof \Closure) {
+                    return gi()->makeClosure(...$params);
+                }
+
                 return gi()->call(...$params);
             }
 
@@ -319,9 +328,14 @@ class Setup
             $options = getCore('routes.options', []);
 
             $prefix = $options['prefix'] ?? '';
+            $as = $options['as'] ?? '';
             $midopt = $options['middleware'] ?? null;
 
-            if ($prefix) {
+            if (!empty($as) && $name) {
+                $name = $as . $name;
+            }
+
+            if (!empty($prefix)) {
                 $path = $prefix . '/' . ltrim($path, '/');
             }
 

@@ -4,6 +4,7 @@ namespace Octo;
 use Closure;
 
 /**
+ * @method Listener listen(string $name)
  * @method static fire(string $name)
  * @method static subscribe(string $name)
  **/
@@ -231,8 +232,8 @@ class Fire
                     $ev->halt($halt);
                 }
 
-                if ($method->getOnce()) {
-                    $ev->once();
+                if ($once = $method->getOnce()) {
+                    $ev->once($once);
                 }
             }
         }
@@ -361,5 +362,17 @@ class Fire
     public function forgetPushed()
     {
         Registry::set('fire.events.' . $this->ns, []);
+    }
+
+    /**
+     * @param string $method
+     * @param int $priority
+     * @param bool $halt
+     * @param bool $once
+     * @return Objet
+     */
+    public function makeEvent(string $method, $priority = 0, $halt = false, $once = false): Objet
+    {
+        return o(compact('method', 'priority', 'halt', 'once'));
     }
 }

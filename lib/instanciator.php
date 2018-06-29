@@ -12,6 +12,19 @@ class Instanciator
     protected $cache;
 
     /**
+     * @var FastRequest
+     */
+    private $request;
+
+    /**
+     * @throws PHPException
+     */
+    public function __construct()
+    {
+        $this->request = new FastRequest;
+    }
+
+    /**
      * @return Listener
      * @throws \ReflectionException
      */
@@ -155,7 +168,7 @@ class Instanciator
                                         $made = true;
 
                                         if ($p instanceof FastModelInterface) {
-                                            $p = $this->makeModel($p);
+                                            $p = $this->makeModel($p, $param->getName());
                                         }
                                     } catch (\Exception $e) {
                                         exception('Instanciator', $e->getMessage());
@@ -207,7 +220,7 @@ class Instanciator
                                     $p = $this->factory($classParam->getName());
 
                                     if ($p instanceof FastModelInterface) {
-                                        $p = $this->makeModel($p);
+                                        $p = $this->makeModel($p, $param->getName());
                                     }
                                 } catch (\Exception $e) {
                                     exception('Instanciator', $e->getMessage());
@@ -216,7 +229,7 @@ class Instanciator
                                 try {
                                     $p = $param->getDefaultValue();
                                 } catch (PHPException $e) {
-                                    $attr = getContainer()->getRequest()->getAttribute($param->getName());
+                                    $attr = $this->request->input($param->getName());
 
                                     if ($attr) {
                                         $p = $attr;
@@ -292,17 +305,9 @@ class Instanciator
      * @return mixed
      * @throws \ReflectionException
      */
-    private function makeModel($entity)
+    private function makeModel($entity, $key)
     {
-        $key = 'id';
-
-        if ($entity instanceof \Illuminate\Database\Eloquent\Model) {
-            $key = $entity->getKeyName();
-        } elseif ($entity instanceof Entity) {
-            $key = $entity->pk();
-        }
-
-        $id = getRequest()->getAttribute($key);
+        $id = $this->request->input($key);
 
         if (!is_null($id)) {
             return $entity->find($id);
@@ -410,7 +415,7 @@ class Instanciator
                                 $made = true;
 
                                 if ($p instanceof FastModelInterface) {
-                                    $p = $this->makeModel($p);
+                                    $p = $this->makeModel($p, $param->getName());
                                 }
                             } catch (\Exception $e) {
                                 exception('Instanciator', $e->getMessage());
@@ -462,7 +467,7 @@ class Instanciator
                             $p = $this->factory($classParam->getName());
 
                             if ($p instanceof FastModelInterface) {
-                                $p = $this->makeModel($p);
+                                $p = $this->makeModel($p, $param->getName());
                             }
                         } catch (\Exception $e) {
                             exception('Instanciator', $e->getMessage());
@@ -471,7 +476,7 @@ class Instanciator
                         try {
                             $p = $param->getDefaultValue();
                         } catch (PHPException $e) {
-                            $attr = getContainer()->getRequest()->getAttribute($param->getName());
+                            $attr = $this->request->input($param->getName());
 
                             if ($attr) {
                                 $p = $attr;
@@ -535,7 +540,7 @@ class Instanciator
                 $isVariadic = $firstParam->isVariadic();
             }
 
-            if (empty($args) || count($args) !== count($params) && !$isVariadic) {
+            if ((empty($args) || count($args) !== count($params)) && !$isVariadic) {
                 foreach ($params as $param) {
                     if (!empty($args)) {
                         $p = array_shift($args);
@@ -563,7 +568,7 @@ class Instanciator
                                     $made = true;
 
                                     if ($p instanceof FastModelInterface) {
-                                        $p = $this->makeModel($p);
+                                        $p = $this->makeModel($p, $param->getName());
                                     }
                                 } catch (\Exception $e) {
                                     exception('Instanciator', $e->getMessage());
@@ -614,13 +619,13 @@ class Instanciator
                             $p = $this->factory($classParam->getName());
 
                             if ($p instanceof FastModelInterface) {
-                                $p = $this->makeModel($p);
+                                $p = $this->makeModel($p, $param->getName());
                             }
                         } else {
                             try {
                                 $p = $param->getDefaultValue();
                             } catch (PHPException $e) {
-                                $attr = getContainer()->getRequest()->getAttribute($param->getName());
+                                $attr = $this->request->input($param->getName());
 
                                 if ($attr) {
                                     $p = $attr;

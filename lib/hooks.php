@@ -23,7 +23,7 @@
 
             if (is_callable($cb)) {
                 $table      = isAke($this->object->callbacks, "table", null);
-                $databse    = isAke($this->object->callbacks, "db", null);
+                $database   = isAke($this->object->callbacks, "db", null);
 
                 $db = null;
 

@@ -2,11 +2,12 @@
 namespace App\Services;
 
 use function Octo\callCallable;
+use Octo\FastStorageInterface;
 use function Octo\gi;
 use Octo\Inflector;
 use Octo\Registry;
 
-class Data
+class Data implements FastStorageInterface
 {
     private $dir;
     private $id;

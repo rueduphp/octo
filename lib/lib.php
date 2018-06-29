@@ -1290,26 +1290,28 @@
     /**
      * @param null $concern
      * @param string $value
-     * @return mixed|object|Instanciator
+     * @return mixed|null|object|Instanciator
      * @throws \ReflectionException
      */
     function gi($concern = null, $value = 'octodummy')
     {
+        $i = instanciator();
+
         if (null !== $concern) {
             if ('octodummy' === $value) {
-                if (!instanciator()->has($concern)) {
-                    instanciator()->set(
+                if (!$i->has($concern)) {
+                    $i->set(
                         $concern,
-                        instanciator()->make($concern)
+                        $i->make($concern)
                     );
                 }
 
-                $object = instanciator()->get($concern);
+                $object = $i->get($concern);
 
                 if (is_string($object) && class_exists($object)) {
-                    $object = instanciator()->make($object);
+                    $object = $i->make($object);
 
-                    instanciator()->set(
+                    $i->set(
                         $concern,
                         $object
                     );
@@ -1317,11 +1319,11 @@
 
                 return $object;
             } else {
-                return instanciator()->set($concern, $value);
+                return $i->set($concern, $value);
             }
         }
 
-        return instanciator();
+        return $i;
     }
 
     /**
@@ -2497,6 +2499,7 @@
     /**-
      * @param string $namespace
      * @param string $userKey
+     * @param string $userModel
      * @return Ultimate
      */
     function ultimate(
@@ -2506,9 +2509,9 @@
     ): Ultimate {
         static $ultimates = [];
 
-        $key = sha1($namespace . $userKey);
+        $key = sha1($namespace . $userKey . $userModel);
 
-        if (!$session = isAke($ultimates, $key, null)) {
+        if (null === ($session = isAke($ultimates, $key, null))) {
             $session = new Ultimate($namespace, $userKey, $userModel);
 
             $ultimates[$key] = $session;
@@ -4393,36 +4396,6 @@
             return new Fillable('config');
         });
 
-        $in['locale'] = function () {
-            $session         = getSession();
-            $language        = $session['locale'];
-            $isCli           = false;
-            $fromBrowser     = isAke($_SERVER, 'HTTP_ACCEPT_LANGUAGE', false);
-
-            if (false === $fromBrowser) {
-                $isCli = true;
-            }
-
-            if ($isCli) {
-                return in('config')['locale'] ?: 'en';
-            }
-
-            if (is_null($language)) {
-                /** @var FastRequest $request */
-                $request = in('request');
-
-                $language = $request->input('locale', \Locale::acceptFromHttp($fromBrowser));
-            }
-
-            if (fnmatch('*_*', $language)) {
-                list($language, $d) = explode('_', $language, 2);
-            }
-
-            $session['locale'] = $language;
-
-            return $language;
-        };
-
         loadEvents();
 
         listening('system.bootstrap');
@@ -4552,6 +4525,35 @@
     function innersSession()
     {
         $in = in();
+
+        $in['locale'] = function () {
+            $session         = getSession();
+            $language        = $session['_locale'];
+            $isCli           = false;
+            $fromBrowser     = isAke($_SERVER, 'HTTP_ACCEPT_LANGUAGE', false);
+
+            if (false === $fromBrowser) {
+                $isCli = true;
+            }
+
+            if ($isCli) {
+                return in('config')['locale'] ?: 'en';
+            }
+
+            if (is_null($language) || !is_string($language)) {
+                $request = new FastRequest;
+
+                $language = $request->input('_locale', \Locale::acceptFromHttp($fromBrowser));
+            }
+
+            if (fnmatch('*_*', $language)) {
+                $language = explode('_', $language, 2)[0];
+            }
+
+            $session['_locale'] = $language;
+
+            return $language;
+        };
 
         $in['sessions'] = function () {
             return getSession();
@@ -4744,8 +4746,8 @@
     /**
      * @param $mock
      * @param array $args
-     *
-     * @return Mockery
+     * @return mixed|object
+     * @throws \ReflectionException
      */
     function mockery($mock, array $args = [])
     {
@@ -4754,8 +4756,7 @@
         $methods = get_class_methods($class);
 
         $mock = lib(
-            'mockery',
-            [
+            'mockery', [
                 [],
                 Inflector::camelize(
                     'mock_' .
@@ -5497,6 +5498,10 @@
         Registry::set('core.middlewares', $middlewares);
     }
 
+    /**
+     * @param string $when
+     * @throws \ReflectionException
+     */
     function middlewares($when = 'before')
     {
         listening('middlewares.booting');
@@ -5735,17 +5740,15 @@
      */
     function csrf_make()
     {
-        $session    = getSession();
-        $middleware = new Fastmiddlewarecsrf($session);
-        $token      = $middleware->generateToken();
+        $session = getSession();
 
-        return $token;
+        return (new Fastmiddlewarecsrf($session))->generateToken();
     }
 
     /**
      * @return bool
+     * @throws Exception
      * @throws \ReflectionException
-     * @throws \TypeError
      */
     function csrf_match()
     {
@@ -6118,11 +6121,7 @@
      */
     function startSession(string $name = 'core')
     {
-        $container  = getContainer();
-        $session    = ultimate($name);
-        $container->setSession($session);
-
-        new Live($session);
+        getContainer()->setSession($session = ultimate($name));
 
         return $session;
     }
@@ -8577,7 +8576,7 @@
         foreach (get_defined_functions() as $group) {
             foreach ($group as $function) {
                 if (fnmatch('Octo*', $function)) {
-                    $native = str_replace_first('octo', '', $function);
+                    $native = str_replace_first('Octo', '', $function);
 
                     if (!function_exists($native)) {
                         $fn = str_replace('\\', '', $native);
@@ -8695,6 +8694,13 @@
         return base64_decode(strtr($str, '-_,', '+/='));
     }
 
+    /**
+     * @param $source
+     * @param $destination
+     * @param bool $include_dir
+     * @return bool
+     * @throws \Exception
+     */
     function zip($source, $destination, $include_dir = false)
     {
         if (!extension_loaded('zip') || !file_exists($source)) {
@@ -9393,10 +9399,34 @@
         $toSerialize = [
             'namespace' => $reflection->getNamespaceName(),
             'code'      => $reflection->getCode(),
+            'start'     => $reflection->getStartLine(),
+            'end'       => $reflection->getEndLine(),
             'params'    => $params
         ];
 
         return serialize($toSerialize);
+    }
+
+    /**
+     * @param mixed ...$args
+     * @return mixed
+     * @throws FastContainerException
+     * @throws \ReflectionException
+     */
+    function callOnce(...$args)
+    {
+        $closure = array_shift($args);
+        $key = serializeClosure($closure);
+
+        $calls = get('callOnce', []);
+
+        if (null === ($result = isAke($calls, $key, null))) {
+            $result = gi()->makeClosure($closure, ...$args);
+            $calls[$key] = $result;
+            set('callOnce', $calls);
+        }
+
+        return $result;
     }
 
     function unserializeClosure($string)
@@ -9415,6 +9445,12 @@
         return $closure;
     }
 
+    /**
+     * @param callable $closure
+     * @param array $args
+     * @param null $when
+     * @throws \ReflectionException
+     */
     function after(callable $closure, array $args = [], $when = null)
     {
         $when = empty($when) ? now() : $when;
@@ -9488,6 +9524,12 @@
         after($closure, $args, $timestamp);
     }
 
+    /**
+     * @param $when
+     * @param callable $callback
+     * @param array $args
+     * @throws \ReflectionException
+     */
     function cron($when, callable $callback, array $args = [])
     {
         if (is_string($when)) {
@@ -11518,11 +11560,19 @@
         return fmr()->getOr($key, $callback, $minutes);
     }
 
+    /**
+     * @param $concern
+     * @return Closure
+     */
     function toClosure($concern)
     {
         return voidToCallback($concern);
     }
 
+    /**
+     * @param $concern
+     * @return Closure
+     */
     function voidToCallback($concern)
     {
         return function () use ($concern) {
@@ -11530,6 +11580,13 @@
         };
     }
 
+    /**
+     * @param string $host
+     * @param int $port
+     * @param string $ns
+     * @return mixed|object
+     * @throws \ReflectionException
+     */
     function mcache($host = 'localhost', $port = 11211, $ns = 'octo.core')
     {
         $mc = mc($host, $port, $ns);
@@ -11667,6 +11724,13 @@
         return $cache;
     }
 
+    /**
+     * @param string $host
+     * @param int $port
+     * @param string $ns
+     * @return mixed|object
+     * @throws \ReflectionException
+     */
     function mc($host = 'localhost', $port = 11211, $ns = 'octo.core')
     {
         $i = maker(Memcached::class, [$ns]);
@@ -11689,7 +11753,7 @@
     function filer(string $directory, bool $hidden = false): array
     {
         return iterator_to_array(
-            Finder::create()
+            FinderFile::create()
                 ->files()
                 ->ignoreDotFiles(!$hidden)
                 ->in($directory)

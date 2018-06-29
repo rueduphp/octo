@@ -61,10 +61,12 @@ class User
                 $user->save();
 
                 $this->session->set($this->session->getUserKey(), $user->toArray());
+
+                return $user;
             }
         }
 
-        return $user;
+        return null;
     }
 
     public function connect(UserModel $user)

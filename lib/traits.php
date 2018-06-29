@@ -23,8 +23,8 @@ trait Tractor
             $function = Inflector::camelize('boot_' . $class);
 
             try {
-                $i =  instanciator()->singleton($called);
-                instanciator()->call($i, $function);
+                $i =  gi()->singleton($called);
+                gi()->call($i, $function);
             } catch (PHPException $e) {}
         }
     }
@@ -45,7 +45,7 @@ trait Singleton
 
         return isset(static::$instance) ?
             static::$instance :
-            static::$instance = instanciator()->singleton($called);
+            static::$instance = gi()->singleton($called);
     }
 
     final protected function __construct()
@@ -82,7 +82,7 @@ trait Instantiable
             $args   = func_get_args();
             Registry::set('instances.' . $class, $args
                 ? $ref->newinstanceargs($args)
-                : instanciator()->singleton($class)
+                : gi()->singleton($class)
             );
         }
 
@@ -161,19 +161,12 @@ trait Notifiable
         $class      = array_shift($args);
         $instance   = gi()->factory($class, $this);
         $params     = array_merge([$instance, 'handle'], array_merge([$this], $args));
-        $driver     = gi()->call(...$params);
 
-        if ('database' === $driver) {
-            $data = gi()->call($instance, 'toDatabase', $this);
+        $to = gi()->call(...$params);
 
-            return Alert::sendToDatabase($instance, $this, $data);
-        } elseif ('mail' === $driver) {
-            return gi()->call($instance, 'sendToMail', $this);
-        } elseif ('redis' === $driver) {
-            $data = gi()->call($instance, 'toDatabase', $this);
+        $params = array_merge([$instance, Inflector::camelize('to_' . $to)], array_merge([$this], $args));
 
-            return Alert::sendToRedis($instance, $this, $data);
-        }
+        return gi()->call(...$params);
     }
 }
 
@@ -354,12 +347,12 @@ trait Macroable
 {
     protected static $macros = [];
 
-    public static function macro(string $name, callable $macro)
+    public static function macro(string $name, $macro)
     {
         static::$macros[$name] = $macro;
     }
 
-    public static function fn(string $name, callable $macro)
+    public static function fn(string $name, $macro)
     {
         static::$macros[$name] = $macro;
     }
@@ -409,7 +402,7 @@ trait Macroable
                 $parameters
             );
 
-            return instanciator()->makeClosure(...$params);
+            return gi()->makeClosure(...$params);
         }
 
         $params = array_merge(
@@ -417,7 +410,7 @@ trait Macroable
             $parameters
         );
 
-        return instanciator()->call(...$params);
+        return gi()->call(...$params);
     }
 
     /**
@@ -442,7 +435,7 @@ trait Macroable
                 $parameters
             );
 
-            return instanciator()->makeClosure(...$params);
+            return gi()->makeClosure(...$params);
         }
 
         $params = array_merge(
@@ -450,7 +443,7 @@ trait Macroable
             $parameters
         );
 
-        return instanciator()->call(...$params);
+        return gi()->call(...$params);
     }
 }
 

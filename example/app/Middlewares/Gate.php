@@ -71,6 +71,14 @@ class Gate extends FastMiddleware
 
                 if ('GET' === $this->request->method()) {
                     $this->request->session()->set('redirect_url', Url::get(true));
+                } else {
+                    $this->request->session()->set(
+                        'redirect_url',
+                        $this->request->post(
+                            'redirect_url',
+                            $this->request->session()->get('redirect_url', Url::get(true))
+                        )
+                    );
                 }
 
                 if (false === $found) {

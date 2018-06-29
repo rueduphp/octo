@@ -16,6 +16,7 @@
     use Interop\Http\ServerMiddleware\MiddlewareInterface;
     use Pagerfanta\Pagerfanta;
     use Pagerfanta\View\TwitterBootstrap4View;
+    use Psr\Container\ContainerExceptionInterface;
     use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ResponseInterface;
     use Psr\Http\Message\ServerRequestInterface;
@@ -1913,6 +1914,7 @@
     interface FastListenerInterface {}
     interface FastQueueInterface {}
     interface FastModelInterface {}
+    interface FastModuleInterface {}
     interface FastJobInterface
     {
         public function process();
@@ -2525,10 +2527,7 @@
          */
         public function validate()
         {
-            /** @var \Illuminate\Validation\Factory $validator */
-            $validator = gi()->make(Facades\Validator::class);
-
-            $check = $validator->make(
+            $check = Facades\Validator::make(
                 $this->all(),
                 $this->rules(),
                 $this->messages(),
@@ -2539,9 +2538,7 @@
 
             if ($check->fails()) {
                 $errors = $check->errors();
-
-                $vars = viewParams();
-                $vars['errors'] = $errors;
+                viewParams('errors', $errors);
             }
 
             return $errors;
@@ -2672,6 +2669,7 @@
          * @param mixed ...$args
          * @return mixed|null
          * @throws Exception
+         * @throws FastContainerException
          * @throws \ReflectionException
          */
         public function user(...$args)
@@ -2744,14 +2742,13 @@
          */
         public function all($keys = null): array
         {
-            $get    = $this->native()->getQueryParams();
-            $post   = $this->native()->getParsedBody();
+            $req = $this->native();
 
-            $getpost = array_merge($get, $post);
-
-            $files  = $this->native()->getUploadedFiles();
-
-            $all = array_replace_recursive($getpost, $files);
+            $all = $req->getQueryParams() +
+                $req->getParsedBody() +
+                $req->getUploadedFiles() +
+                $req->getAttributes()
+            ;
 
             if (null === $keys) {
                 return $all;
@@ -4153,6 +4150,8 @@
             return $this->native()->{$method}(...$params);
         }
     }
+
+    class FastContainerException extends \Exception implements ContainerExceptionInterface {}
 
     class FastObject
     extends Objet

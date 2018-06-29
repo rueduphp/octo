@@ -62,7 +62,7 @@ class SocialMiddleware extends ModuleMiddleware
     public function before()
     {
         $services = include \Octo\config_path('services.php');
-        l('config')->set(['services' => $services]);
+        lc(['services' => $services]);
         addConfig('services');
     }
 }

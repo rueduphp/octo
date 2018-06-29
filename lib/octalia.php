@@ -248,6 +248,11 @@
             }
         }
 
+        /**
+         * @param null $rows
+         * @return mixed|null
+         * @throws Exception
+         */
         public function data($rows = null)
         {
             if (is_array($rows)) {
@@ -858,6 +863,10 @@
             return $create ? $coll->create() : $coll;
         }
 
+        /**
+         * @return mixed|null
+         * @throws Exception
+         */
         public function fields()
         {
             $keyCache = sha1('fields.' . $this->ns);
@@ -875,6 +884,11 @@
             }, $this->age());
         }
 
+        /**
+         * @param null $fields
+         * @return mixed|null
+         * @throws Exception
+         */
         public function select($fields = null)
         {
             if (is_null($fields)) {
@@ -1687,6 +1701,13 @@
             return $this;
         }
 
+        /**
+         * @param $key
+         * @param null $operator
+         * @param null $value
+         * @return $this
+         * @throws Exception
+         */
         public function where($key, $operator = null, $value = null)
         {
             if (!empty($this->query)) {
@@ -1697,11 +1718,7 @@
                 }
             }
 
-            if ($key instanceof \Closure) {
-                return $key($this);
-            }
-
-            if ($key instanceof Object) {
+            if ($key instanceof Objet) {
                 $fkTable = $key->table();
 
                 return $this->where($fkTable . '_id', (int) $key->id);
@@ -1738,77 +1755,102 @@
             }
 
             $nargs = func_num_args();
+            $isCallable = false;
 
-            if ($nargs == 1) {
-                if (is_array($key)) {
-                    if (count($key) == 1) {
+            if ($nargs === 1) {
+                if (is_callable($key)) {
+                    $isCallable = true;
+                }
+
+                if (is_array($key) && false === $isCallable) {
+                    if (count($key) === 1) {
                         $operator   = '=';
                         $value      = array_values($key);
                         $key        = array_keys($key);
-                    } elseif (count($key) == 3) {
+                    } elseif (count($key) === 3) {
                         list($key, $operator, $value) = $key;
                     }
                 }
-            } elseif ($nargs == 2) {
+            } elseif ($nargs === 2) {
                 list($value, $operator) = [$operator, '='];
-            } elseif ($nargs == 3) {
+            } elseif ($nargs === 3) {
                 list($key, $operator, $value) = func_get_args();
             } else {
                 exception('Octalia', "This method requires at least one argument to proceed.");
             }
 
-            if ($value instanceof \Closure) {
-                $value = $value($this);
-            }
+            if (true === $isCallable) {
+                $this->query[] = $key;
 
-            $operator = Strings::lower($operator);
+                $results    = coll($this->data())->filter(function($item) use ($key) {
+                    if ($key instanceof \Closure) {
+                        return gi()->makeClosure($key, $item);
+                    } elseif (is_array($key)) {
+                        $params = array_merge($key, $item);
 
-            $this->query[] = [$key, $operator, $value];
+                        return gi()->call(...$params);
+                    } else {
+                        $params = array_merge([$key, '__invoke'], $item);
 
-            $this->query = $this->fire('query', $this->query, true);
-
-            $keyCache = 'owhs.' . sha1(serialize($this->query) . $this->ns);
-
-            $ids = $this->driver->until($keyCache, function () use ($key, $operator, $value) {
-                $collection = coll($this->select($key));
-
-                $results    = $collection->filter(function($item) use ($key, $operator, $value) {
-                    $item   = (object) $item;
-                    $actual = isset($item->{$key}) ? $item->{$key} : null;
-
-                    $insensitive = in_array($operator, ['=i', 'like i', 'not like i']);
-
-                    if ((!is_array($actual) || !is_object($actual)) && $insensitive) {
-                        $actual = Strings::lower(Strings::unaccent($actual));
+                        return gi()->call(...$params);
                     }
-
-                    if ((!is_array($value) || !is_object($value)) && $insensitive) {
-                        $value  = Strings::lower(Strings::unaccent($value));
-                    }
-
-                    if ($insensitive) {
-                        $operator = str_replace(['=i', 'like i'], ['=', 'like'], $operator);
-                    }
-
-                    if ($key == 'id' || fnmatch('*_id', $key) && is_numeric($actual)) {
-                        $actual = (int) $actual;
-                    }
-
-                    if (is_null($actual) && in_array($operator, ['=', '!=', '<>', '<', '>', '>=', '<='])) {
-                        $v = Strings::lower(Strings::unaccent($value));
-
-                        if (!is_null($value) || 'null' != $v) {
-                            return false;
-                        }
-                    }
-
-                    return compare($actual, $operator, $value);
                 });
 
                 $ids = $results->fetch('id')->all();
+            } else {
+                if ($value instanceof \Closure) {
+                    $value = $value($this);
+                }
 
-                return $ids;
-            }, $this->age());
+                $operator = Strings::lower($operator);
+
+                $this->query[] = [$key, $operator, $value];
+
+                $keyCache = 'owhs.' . sha1(serialize($this->query) . $this->ns);
+
+                $this->query = $this->fire('query', $this->query, true);
+
+                $ids = $this->driver->until($keyCache, function () use ($key, $operator, $value) {
+                    $collection = coll($this->select($key));
+
+                    $results    = $collection->filter(function($item) use ($key, $operator, $value) {
+                        $item   = (object) $item;
+                        $actual = isset($item->{$key}) ? $item->{$key} : null;
+
+                        $insensitive = in_array($operator, ['=i', 'like i', 'not like i']);
+
+                        if ((!is_array($actual) || !is_object($actual)) && $insensitive) {
+                            $actual = Strings::lower(Strings::unaccent($actual));
+                        }
+
+                        if ((!is_array($value) || !is_object($value)) && $insensitive) {
+                            $value  = Strings::lower(Strings::unaccent($value));
+                        }
+
+                        if ($insensitive) {
+                            $operator = str_replace(['=i', 'like i'], ['=', 'like'], $operator);
+                        }
+
+                        if ($key == 'id' || fnmatch('*_id', $key) && is_numeric($actual)) {
+                            $actual = (int) $actual;
+                        }
+
+                        if (is_null($actual) && in_array($operator, ['=', '!=', '<>', '<', '>', '>=', '<='])) {
+                            $v = Strings::lower(Strings::unaccent($value));
+
+                            if (!is_null($value) || 'null' != $v) {
+                                return false;
+                            }
+                        }
+
+                        return compare($actual, $operator, $value);
+                    });
+
+                    $ids = $results->fetch('id')->all();
+
+                    return $ids;
+                }, $this->age());
+            }
 
             $this->ids = SplFixedArray::fromArray($ids);
 
@@ -2047,6 +2089,10 @@
             );
         }
 
+        /**
+         * @return OctaliaIterator
+         * @throws Exception
+         */
         public function all()
         {
             return $this->newQuery()->get();

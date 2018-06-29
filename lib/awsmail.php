@@ -33,11 +33,10 @@ class Awsmail extends \Swift_SmtpTransport
     /**
      * @param string $host
      * @param int $port
-     * @param null|string $security
-     *
-     * @return Awsmail|\Swift_SmtpTransport
+     * @param null $security
+     * @return Awsmail
      */
-    public static function newInstance($host = 'localhost', $port = 25,  $security = null)
+    public static function newInstance(string $host = 'localhost', int $port = 25,  $security = null): self
     {
         return new self($host, $port, $security);
     }
@@ -45,7 +44,7 @@ class Awsmail extends \Swift_SmtpTransport
     /**
      * @return null|string
      */
-    public function getMessageId(): string
+    public function getMessageId(): ?string
     {
         $messageId = null;
 

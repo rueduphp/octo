@@ -59,6 +59,7 @@ class Fastmiddlewaredispatch extends FastMiddleware
             if (is_array($middleware)) {
                 $module = $middleware[0];
                 $action = $middleware[1];
+                setCore('module', $module);
 
                 $response = gi()->call($module, $action);
             } else {
@@ -66,17 +67,19 @@ class Fastmiddlewaredispatch extends FastMiddleware
                     $ref        = new \ReflectionFunction($middleware);
                     $scope      = $ref->getClosureScopeClass();
                     $module     = getCore('modules.' . $scope->getName());
+
+                    if (isset($module) && null !== $module) {
+                        setCore('module', $module);
+                    }
+
                     $response   = gi()->makeClosure($middleware, $request, $next);
                 } else {
                     $action     = Arrays::last(explode('.', $route->getName()));
                     $module     = gi()->make($middleware);
+                    setCore('module', $module);
                     $parameters = [$module, 'process', $action, $request, $app];
                     $response   = gi()->call(...$parameters);
                 }
-            }
-
-            if (isset($module) && null !== $module) {
-                actual('fast.module', $module);
             }
 
             if ($response instanceof ResponseInterface) {

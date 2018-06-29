@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Models\User;
 use Octo\Collection;
 use Octo\Facades\Config as CoreConf;
 use Octo\FastObject;
@@ -37,7 +38,7 @@ class Reddy implements
     public function __construct(
         string $namespace = 'web',
         string $userKey = 'user',
-        string $userModel = '\\App\\Models\\User'
+        string $userModel = User::class
     )  {
         $this->namespace    = $namespace;
         $this->userKey      = $userKey;
