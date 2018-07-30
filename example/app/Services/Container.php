@@ -16,6 +16,19 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     private static $bound = [];
     private static $factories = [];
     private static $datas = [];
+    private static $instance = null;
+
+    /**
+     * @return Container
+     */
+    public static function getInstance()
+    {
+        if (null === static::$instance) {
+            static::$instance = new static;
+        }
+
+        return static::$instance;
+    }
 
     /**
      * @return array
@@ -120,6 +133,27 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
         static::$factories[$key] = $value;
 
         return $this;
+    }
+
+    /**
+     * @param mixed ...$args
+     * @return mixed|null|object
+     * @throws FastContainerException
+     * @throws \ReflectionException
+     */
+    public function make(...$args)
+    {
+        return $this->get(...$args);
+    }
+
+    /**
+     * @param mixed ...$args
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    public function call(...$args)
+    {
+        return call_func(...$args);
     }
 
     /**
@@ -352,5 +386,13 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     public function decr(string $key, int $by = 1): int
     {
         return $this->incr($key, $by * -1);;
+    }
+
+    /**
+     * @return bool
+     */
+    public function runningInConsole(): bool
+    {
+        return php_sapi_name() === 'cli' || php_sapi_name() === 'phpdbg';
     }
 }

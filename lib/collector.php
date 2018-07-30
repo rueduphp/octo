@@ -73,9 +73,9 @@
             return self::$data[$this->ns];
         }
 
-        public function toJson()
+        public function toJson($option = JSON_PRETTY_PRINT)
         {
-            return json_encode(self::$data[$this->ns]);
+            return json_encode(self::$data[$this->ns], $option);
         }
 
         public function pattern($pattern = '*')

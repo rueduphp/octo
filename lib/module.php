@@ -33,7 +33,7 @@ class Module implements FastModuleInterface
      * @return mixed|null
      * @throws \ReflectionException
      */
-    public function middleware($concern)
+    public function callMiddleware($concern)
     {
         if ($concern instanceof \Closure) {
             return gi()->makeClosure($concern, $this->getContainer()->getRequest());

@@ -1,11 +1,15 @@
 <?php
 namespace App\Providers;
 
+use App\Facades\Event;
 use App\Facades\Config;
 use App\Services\Container;
+use App\Services\Dispatcher;
 use App\Services\Log;
+use App\Services\Queue;
 use App\Services\ViewCache;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Http\Request;
 use Illuminate\Session\SessionManager;
 use Laravel\Socialite\Contracts\Factory;
@@ -13,15 +17,30 @@ use Laravel\Socialite\SocialiteManager;
 use Monolog\Logger as Monolog;
 use Mmanos\Search\Search;
 use function Octo\bladeFactory;
+use Octo\FastRequest;
 use function Octo\lang_path;
 use Octo\Limiter;
 use function Octo\log_path;
 use Octo\Mailable;
 use function Octo\setTranslator;
 use function Octo\views_path;
+use SocialiteProviders\Manager\Contracts\Helpers\ConfigRetrieverInterface;
+use SocialiteProviders\Manager\Helpers\ConfigRetriever;
+use SocialiteProviders\Manager\SocialiteWasCalled;
+use SocialiteProviders\Spotify\SpotifyExtendSocialite;
 
 class Facades
 {
+    /**
+     * @throws \ReflectionException
+     */
+    protected function social()
+    {
+        Event::listen('social.called', SpotifyExtendSocialite::class . '@handle');
+
+        Event::fire('social.called');
+    }
+
     /**
      * @throws \ReflectionException
      */
@@ -57,7 +76,23 @@ class Facades
             return new SocialiteManager($app);
         });
 
+        dic()::singleton(Factory::class, function () {
+            return new SocialiteManager(l());
+        });
+
         dic('social', l(Factory::class));
+
+        l()->singleton(ConfigRetrieverInterface::class, function () {
+            return new ConfigRetriever();
+        });
+
+        dic()::singleton(ConfigRetrieverInterface::class, function () {
+            return l(ConfigRetrieverInterface::class);
+        });
+
+        dic()::singleton(SocialiteWasCalled::class, function () {
+            return new SocialiteWasCalled(l(), l(ConfigRetrieverInterface::class));
+        });
 
         l()->singleton('view', function () {
             return dic('view');
@@ -75,6 +110,10 @@ class Facades
             return new Filesystem;
         });
 
+        l()->singleton('filesystem', function () {
+            return new FilesystemManager(l());
+        });
+
         l()->singleton('session.store', function ($app) {
             return $app->make('session')->driver();
         });
@@ -83,7 +122,11 @@ class Facades
             return new Container;
         });
 
-        makeFacade('Redys', function () {
+        makeFacade('Formy', function () {
+            return \Octo\gi()->make(\App\Services\FormCrud::class, [new \Form]);
+        });
+
+        makeFacade('Redis', function () {
             return l('redis');
         });
 
@@ -115,6 +158,10 @@ class Facades
             return dic('eventer');
         });
 
+        makeFacade('View', function () {
+            return view();
+        });
+
         makeFacade('Cache', function () {
             $config = Config::get('app');
 
@@ -125,20 +172,46 @@ class Facades
             return l('files');
         });
 
+        makeFacade('App', function () {
+            return l();
+        });
+
+        makeFacade('Storage', function () {
+            return l('filesystem');
+        });
+
         makeFacade('Session', function () {
             return session();
         });
 
         makeFacade('Auth', function () {
-            return auth();
+            return trust();
         });
 
         makeFacade('Flash', function () {
             return flash();
         });
 
+        makeFacade('Response', function () {
+            return response();
+        });
+
         makeFacade('Log', function () {
             return dic('logservice');
+        });
+
+        makeFacade('Request', function () {
+            return new FastRequest;
+        });
+
+        makeFacade('Dispatcher', function () {
+            return new Dispatcher(Container::getInstance(), function ($connection = null) {
+                return new Queue('app', $connection);
+            });
+        });
+
+        makeFacade('Bus', function () {
+            return \Octo\gi()->make(\Octo\Work::class, [new \App\Services\Data('queues')]);
         });
 
         makeFacade('Lang', function () {
@@ -150,5 +223,7 @@ class Facades
 
             return new Limiter($cache);
         });
+
+        $this->social();
     }
 }

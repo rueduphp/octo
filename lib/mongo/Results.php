@@ -211,9 +211,9 @@
             }, $rows));
         }
 
-        public function toJson()
+        public function toJson($option = JSON_PRETTY_PRINT)
         {
-            return json_encode($this->toArray());
+            return json_encode($this->toArray(), $option);
         }
 
         public function hasNext()

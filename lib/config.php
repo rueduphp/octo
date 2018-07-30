@@ -127,9 +127,9 @@
             return coll(self::toArray());
         }
 
-        public static function toJson()
+        public static function toJson($option = JSON_PRETTY_PRINT)
         {
-            return json_encode(self::toArray());
+            return json_encode(self::toArray(), $option);
         }
 
         public static function toSerialize()

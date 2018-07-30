@@ -8,20 +8,17 @@ class Ultimate implements
     \ArrayAccess,
     \Countable,
     \IteratorAggregate {
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $namespace;
 
-    /**
-     * @var string
-     */
+    /** @var string */
     protected $userKey;
 
-    /**
-     * @var string
-     */
-    private $userModel;
+    /** @var string */
+    protected $userModel;
+
+    /** @var string */
+    protected $localeKey = '_locale';
 
     public function __construct(
         string $namespace = 'web',
@@ -218,7 +215,7 @@ class Ultimate implements
     {
         $user = $this->get($this->userKey);
 
-        if (null !== $user) {
+        if (!empty($user)) {
             return null !== $key ? isAke($user, $key, $default) : $this->makeUser($user['id']);
         }
 
@@ -311,6 +308,22 @@ class Ultimate implements
         return callOnce(function () use ($id) {
             return (new $this->userModel)->findOrFail($id);
         });
+    }
+
+    /**
+     * @return string
+     */
+    public function getLocaleKey(): string
+    {
+        return $this->localeKey;
+    }
+
+    /**
+     * @param string $localeKey
+     */
+    public function setLocaleKey(string $localeKey): void
+    {
+        $this->localeKey = $localeKey;
     }
 
     /**
@@ -506,9 +519,9 @@ class Ultimate implements
     /**
      * @return string
      */
-    public function toJson(): string
+    public function toJson($option = JSON_PRETTY_PRINT): string
     {
-        return json_encode($this->all(), JSON_PRETTY_PRINT);
+        return json_encode($this->all(), $option);
     }
 
     /**

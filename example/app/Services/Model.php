@@ -3,16 +3,36 @@ namespace App\Services;
 
 use App\Facades\Search;
 use App\Traits\Remember;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\MessageBag;
 use Mmanos\Search\Index;
 use Mmanos\Search\Query;
 use function Octo\dispatcher;
 use Octo\Elegant;
+use function Octo\gi;
 
 class Model extends Elegant
 {
     use Remember;
 
     protected $indexables = [];
+    protected $rules = [];
+    protected $rulesMessages = [];
+    protected $forceSave = false;
+
+    /**
+     * @param $id
+     * @param array $columns
+     * @return Model|null
+     */
+    public function findWithoutFail($id, $default = null, $columns = ['*'])
+    {
+        try {
+            return $this->find($id, $columns);
+        } catch (Exception $e) {
+            return $default;
+        }
+    }
 
     /**
      * @param array $attributes
@@ -34,6 +54,16 @@ class Model extends Elegant
 
         parent::boot();
 
+        static::saving(function ($item) {
+            if (!empty($item->rules) && false === $item->forceSave) {
+                $errors = $item->performValidation();
+
+                if (0 !== count($errors)) {
+                    throw new \Exception(implode("\n", $errors->all()));
+                }
+            }
+        });
+
         static::saved(function ($item) {
             static::indexIt($item);
         });
@@ -49,7 +79,7 @@ class Model extends Elegant
      * @param mixed ...$params
      * @return Query
      */
-    protected static function search(...$params): Query
+    public static function search(...$params): Query
     {
         return static::indexator()->search(...$params);
     }
@@ -57,7 +87,7 @@ class Model extends Elegant
     /**
      * @return Index
      */
-    protected static function indexator(): Index
+    public static function indexator(): Index
     {
         return Search::index(str_replace('\\', '.', mb_strtolower(get_called_class())));
     }
@@ -69,7 +99,7 @@ class Model extends Elegant
     {
         if (true === $this->exists && true === $this->timestamps) {
             return sprintf("%s.%s.%s",
-                str_replace('\\', '.', mb_strtolower(get_called_class())),
+                $this->searchableAs(),
                 $this->getKey(),
                 $this->updated_at->timestamp
             );
@@ -79,9 +109,56 @@ class Model extends Elegant
     }
 
     /**
-     * @param Model $item
+     * @return mixed
      */
-    protected static function indexIt(Model $item)
+    public function sk()
+    {
+        return $this->getKey();
+    }
+
+    /**
+     * @return string
+     */
+    public function skName()
+    {
+        return $this->getQualifiedKeyName();
+    }
+
+
+    /**
+     * @return string
+     */
+    protected function searchableAs()
+    {
+        return str_replace('\\', '.', mb_strtolower(get_called_class()));
+    }
+
+    /**
+     * @return array
+     * @throws \ReflectionException
+     */
+    protected function toSearchableArray()
+    {
+        $row = $this->toArray();
+
+        $data = [];
+
+        foreach ($this->indexables as $key) {
+            if (is_string($key)) {
+                $data[$key] = $row[$key] ?? null;
+            } elseif ($key instanceof \Closure) {
+                $data = gi()->makeClosure($key, $data, $this);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param Model $item
+     * @throws \ReflectionException
+     */
+    public static function indexIt(Model $item)
     {
         if (!empty($item->indexables)) {
             $index = static::indexator();
@@ -90,10 +167,73 @@ class Model extends Elegant
             $data = [];
 
             foreach ($item->indexables as $key) {
-                $data[$key] = $row[$key] ?? null;
+                if (is_string($key)) {
+                    $data[$key] = $row[$key] ?? null;
+                } elseif ($key instanceof \Closure) {
+                    $data = gi()->makeClosure($key, $data, $item);
+                }
             }
 
             $index->insert($item->getKey(), $data);
         }
+    }
+
+    public function performValidation()
+    {
+        $attributes = $this->getAttributes();
+
+        $check = validator($attributes, $this->rules, $this->rulesMessages);
+
+        $errors = new MessageBag();
+
+        if ($check->fails()) {
+            $errors = $check->errors();
+        }
+
+        return $errors;
+    }
+
+    public function isValid()
+    {
+        $errors = $this->performValidation();
+
+        return 0 === count($errors);
+    }
+
+    public function forceSave(array $options = [])
+    {
+        $this->forceSave = true;
+
+        return parent::save($options);
+    }
+
+    /**
+     * @param array $ids
+     * @return \Illuminate\Database\Eloquent\Builder[]|\Illuminate\Database\Eloquent\Collection
+     */
+    public function getSearchModelsByIds(array $ids)
+    {
+        $builder = in_array(SoftDeletes::class, class_uses_recursive($this))
+            ? $this->withTrashed() : $this->newQuery();
+
+        return $builder->whereIn(
+            $this->sk(), $ids
+        )->get();
+    }
+
+    /**
+     * @param string $alias
+     * @param null|string $indexBy
+     * @return \Doctrine\DBAL\Query\QueryBuilder
+     */
+    public function qb(string $alias, ?string $indexBy = null)
+    {
+        return qb()->select($alias)
+            ->from($this->table, $alias, $indexBy);
+    }
+
+    public function many(string $class, $foreignKey = null, $localKey = null)
+    {
+        return $this->hasMany($class, $foreignKey, $localKey);
     }
 }

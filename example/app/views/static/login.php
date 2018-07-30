@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8" />
     <title>
-        @lng('global.global_title') @if(isset($pageTitle)) - {{ $pageTitle }}@endif
+        @lng('global.global_title')@if(isset($pageTitle)) - {{ $pageTitle }}@endif
     </title>
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
 
@@ -105,6 +105,8 @@
             </form>
             <hr>
             <div class="form-group">
+                <a href="{{ to('social.spotify') }}" class="btn btn-block btn-social btn-spotify"><i class="fab
+                fa-spotify"></i> Spotify</a>
                 <a href="{{ to('social.google') }}" class="btn btn-block btn-social btn-google"><i class="fab
                 fa-google"></i> Google</a>
                 <a href="{{ to('social.twitter') }}" class="btn btn-block btn-social btn-twitter"><i class="fab

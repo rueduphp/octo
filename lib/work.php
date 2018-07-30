@@ -100,7 +100,7 @@ class Work
         $computed = 0;
 
         if ($this->hasNext()) {
-            $all = $this->store->get('queue.whens', []);
+            $all = coll($this->store->get('queue.whens', []))->sortBy('when')->toArray();
 
             $now = time();
 
@@ -112,13 +112,16 @@ class Work
 
             foreach ($all as $row) {
                 if ((int) $row['when'] <= $now) {
-                    ++$computed;
-                    array_shift($all);
+                    $processing = $this->store->get('queue.processing', []);
 
                     $id     = $row['id'];
                     $job    = isAke($jobs, $id, false);
 
-                    if ($job) {
+                    if ($job && !array_key_exists($id, $processing)) {
+                        ++$computed;
+                        $processing[$id] = time();
+                        $this->store->set('queue.processing', $processing);
+
                         $params = isAke($args, $id, []);
 
                         $instance = gi()->make($job, $params, false);
@@ -128,6 +131,7 @@ class Work
 
                             unset($jobs[$id]);
                             unset($args[$id]);
+                            array_shift($all);
 
                             $this->success($instance);
                         } catch (\Exception $e) {
@@ -135,6 +139,10 @@ class Work
 
                             $this->failed($instance);
                         }
+
+                        $processing = $this->store->get('queue.processing', []);
+                        unset($processing[$id]);
+                        $this->store->set('queue.processing', $processing);
                     }
                 }
             }

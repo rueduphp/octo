@@ -123,11 +123,16 @@ class Dynamicmodel
             $schema = getSchema();
 
             $schema->create('eav_entities', function (Blueprint $table) {
+                $table->collation = 'utf8_general_ci';
+                $table->charset = 'utf8';
                 $table->increments('id');
                 $table->string('name');
+                $table->engine = 'InnoDB';
             });
 
             $schema->create('eav_rows', function (Blueprint $table) {
+                $table->collation = 'utf8_general_ci';
+                $table->charset = 'utf8';
                 $table->increments('id');
                 $table->integer('entity_id')->unsigned()->index();
                 $table
@@ -138,9 +143,12 @@ class Dynamicmodel
                 ;
                 $table->timestamp('created_at')->nullable()->useCurrent();
                 $table->timestamp('updated_at')->nullable()->useCurrent();
+                $table->engine = 'InnoDB';
             });
 
             $schema->create('eav_attributes', function (Blueprint $table) {
+                $table->collation = 'utf8_general_ci';
+                $table->charset = 'utf8';
                 $table->increments('id');
                 $table->string('name');
                 $table->integer('entity_id')->unsigned()->index();
@@ -150,9 +158,12 @@ class Dynamicmodel
                     ->on('eav_entities')
                     ->onDelete('cascade')
                 ;
+                $table->engine = 'InnoDB';
             });
 
             $schema->create('eav_values', function (Blueprint $table) {
+                $table->collation = 'utf8_general_ci';
+                $table->charset = 'utf8';
                 $table->increments('id');
                 $table->longText('value')->nullable();
                 $table->integer('row_id')->unsigned()->index();
@@ -169,6 +180,7 @@ class Dynamicmodel
                     ->on('eav_attributes')
                     ->onDelete('cascade')
                 ;
+                $table->engine = 'InnoDB';
             });
         }
     }

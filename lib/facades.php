@@ -160,7 +160,7 @@ class Mail extends Facade
 
 class Route
 {
-    private static $router;
+    protected static $router;
 
     /**
      * @param string $name

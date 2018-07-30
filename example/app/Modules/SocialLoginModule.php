@@ -1,10 +1,10 @@
 <?php
 namespace App\Modules;
 
+use App\Facades\Redirect;
+use App\Facades\Route;
+use App\Services\Module;
 use Illuminate\Http\RedirectResponse;
-use Octo\Module;
-use Octo\Facades\Route;
-use Octo\Facades\Redirect;
 use Octo\ModuleMiddleware;
 
 class SocialLoginModule extends Module
@@ -14,20 +14,12 @@ class SocialLoginModule extends Module
      */
     public function routes()
     {
-        Route::get('social/github', [$this, 'redirector'], 'social.github');
-        Route::get('social/github/callback', [$this, 'handle']);
+        $providers = ['github', 'facebook', 'google', 'twitter', 'linkedin', 'spotify'];
 
-        Route::get('social/facebook', [$this, 'redirector'], 'social.facebook');
-        Route::get('social/facebook/callback', [$this, 'handle']);
-
-        Route::get('social/google', [$this, 'redirector'], 'social.google');
-        Route::get('social/google/callback', [$this, 'handle'], 'social.google.handle');
-
-        Route::get('social/twitter', [$this, 'redirector'], 'social.twitter');
-        Route::get('social/twitter/callback', [$this, 'handle']);
-
-        Route::get('social/linkedin', [$this, 'redirector'], 'social.linkedin');
-        Route::get('social/linkedin/callback', [$this, 'handle']);
+        foreach ($providers as $provider) {
+            Route::get('social/' . $provider, [$this, 'redirector'], 'social.' . $provider);
+            Route::get('social/' . $provider . '/callback', [$this, 'handle'], 'social.handle.' . $provider);
+        }
     }
 
     /**
@@ -43,7 +35,7 @@ class SocialLoginModule extends Module
 
             return Redirect::to($response->getTargetUrl());
         } catch (\Exception $e) {
-            return Redirect::route('login');
+            return Redirect::error('A problem occured with ' . ucfirst($provider))->route('login');
         }
 
     }

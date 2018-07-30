@@ -571,7 +571,7 @@
          */
         public function toJson($render = false)
         {
-            $json = json_encode($this->toArray(true, true));
+            $json = json_encode($this->toArray(true, true), JSON_PRETTY_PRINT);
 
             if (false === $render) {
                 return $json;

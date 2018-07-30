@@ -418,9 +418,9 @@ class Node
     /**
      * @return string
      */
-    public function toJson()
+    public function toJson($option = JSON_PRETTY_PRINT)
     {
-        return json_encode($this->toArray(), JSON_PRETTY_PRINT);
+        return json_encode($this->toArray(), $option);
     }
 
     /**

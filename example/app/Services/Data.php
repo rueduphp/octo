@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use Illuminate\Database\Query\Builder;
 use function Octo\callCallable;
 use Octo\FastStorageInterface;
 use function Octo\gi;
@@ -9,6 +10,7 @@ use Octo\Registry;
 
 class Data implements FastStorageInterface
 {
+    private $store;
     private $dir;
     private $id;
     private static $instances = [];
@@ -377,31 +379,34 @@ class Data implements FastStorageInterface
     }
 
     /**
-     * @param $k
+     * @param string $k
      * @param string $v
      * @param null $e
      * @return Data|mixed|null
+     * @throws \Octo\Exception
+     * @throws \Octo\FastContainerException
      * @throws \ReflectionException
      */
-    public function session($k, $v = 'dummyget', $e = null)
+    public function session(string $k, $v = 'dummyget', $e = null)
     {
         $user       = session()->user();
         $isLogged   = !is_null($user);
         $key        = $isLogged
             ? sha1(\Octo\lng() . '.' . \Octo\forever() . '1.' . $k)
-            : sha1(\Octo\lng() . '.' . \Octo\forever() . '0.' . $k);
+            : sha1(\Octo\lng() . '.' . \Octo\forever() . '0.' . $k)
+        ;
 
         return 'dummyget' == $v ? $this->get($key) : $this->set($key, $v, $e);
     }
 
     /**
      * @param $k
-     * @param string $v
+     * @param mixed $v
      * @param null $e
      * @return Data|mixed|null
      * @throws \ReflectionException
      */
-    public function my($k, $v = 'dummyget', $e = null)
+    public function my(string $k, $v = 'dummyget', $e = null)
     {
         $user       = \Octo\my('web')->getUser();
         $isLogged   = !is_null($user);
@@ -453,6 +458,17 @@ class Data implements FastStorageInterface
 
         return false;
     }
+
+    /**
+     * @param $k
+     * @return int
+     * @throws \ReflectionException
+     */
+    public function exists($k)
+    {
+        return $this->has($k) ? 1 : 0;
+    }
+
 
     /**
      * @param $k
@@ -634,9 +650,9 @@ class Data implements FastStorageInterface
     /**
      * @return string
      */
-    public function toJson()
+    public function toJson($option = JSON_PRETTY_PRINT)
     {
-        return json_encode($this->all(), JSON_PRETTY_PRINT);
+        return json_encode($this->all(), $option);
     }
 
     /**
@@ -1553,10 +1569,21 @@ class Data implements FastStorageInterface
     }
 
     /**
-     * @return \Illuminate\Database\Query\Builder
+     * @return Builder
      */
     protected function store()
     {
-        return sqlite()->table('d');
+        return $this->store ?? sqlite()->table('d');
+    }
+
+    /**
+     * @param Builder $store
+     * @return Data
+     */
+    public function setStore(Builder $store)
+    {
+        $this->store = $store;
+
+        return $this;
     }
 }

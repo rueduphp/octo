@@ -18,37 +18,43 @@ return [
 
     'stripe' => [
         'model'  => \App\Models\User::class,
-        'key'    => "",
-        'secret' => "",
+        'key'    => pkey('stripe.key'),
+        'secret' => pkey('stripe.secret'),
     ],
 
     'facebook' => [
         'client_id' => '',
         'client_secret' => '',
-        'redirect' => '',
+        'redirect' => fullRoute('social') . 'facebook/callback',
     ],
 
     'google' => [
         'client_id' => '',
         'client_secret' => '',
-        'redirect' => fullRoute('social.google.handle'),
+        'redirect' => fullRoute('social') . 'google/callback',
     ],
 
     'twitter' => [
         'client_id' => '',
         'client_secret' => '',
-        'redirect' => '',
+        'redirect' => fullRoute('social') . 'twitter/callback',
     ],
 
     'linkedin' => [
         'client_id' => '',
         'client_secret' => '',
-        'redirect' => '',
+        'redirect' => fullRoute('social') . 'linkedin/callback',
+    ],
+
+    'spotify' => [
+        'client_id' => env('SPOTIFY_KEY'),
+        'client_secret' => env('SPOTIFY_SECRET'),
+        'redirect' => fullRoute('social') . 'spotify/callback',
     ],
 
     'github' => [
         'client_id' => '',
         'client_secret' => '',
-        'redirect' => '',
+        'redirect' => fullRoute('social') . 'github/callback',
     ],
 ];

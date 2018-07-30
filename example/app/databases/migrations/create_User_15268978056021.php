@@ -8,8 +8,8 @@ class CreateUser15268978056021
     public function up(Builder $schema)
     {
         $schema->create('user', function (Blueprint $table) {
-            $table->charset = 'utf8';
             $table->collation = 'utf8_general_ci';
+            $table->charset = 'utf8';
             $table->increments('id');
             $table->string('firstname')->nullable();
             $table->string('lastname')->nullable();

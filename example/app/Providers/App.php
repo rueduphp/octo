@@ -2,11 +2,19 @@
 namespace App\Providers;
 
 use App\Facades\Container;
+use App\Facades\Request;
+use App\Facades\Route;
+use App\Middlewares\Etag;
 use App\Middlewares\Exception;
 use App\Middlewares\Gate;
 use App\Middlewares\Session;
+use App\Modules\CrudModule;
 use App\Modules\SocialLoginModule;
 use App\Modules\StaticModule;
+use App\Modules\UserModule;
+use App\Services\Loader;
+use Illuminate\Pagination\AbstractPaginator;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Validation\DatabasePresenceVerifier;
 use Octo\Facades\Validator;
 use Octo\Fast;
@@ -15,12 +23,52 @@ use Octo\Fastmiddlewaredispatch;
 use Octo\Fastmiddlewarenotfound;
 use Octo\Fastmiddlewarerouter;
 use Octo\Fastmiddlewaretrailingslash;
+use function Octo\config_path;
 use function Octo\inners;
 use function Octo\innersSession;
 use function Octo\startSession;
+use Psr\Http\Message\ResponseInterface;
 
 class App
 {
+    /**
+     * @throws \ReflectionException
+     */
+    protected function boot()
+    {
+        $aliases = include config_path('aliases.php');
+        Loader::getInstance($aliases)->register();
+
+        \Config::set('search.connections.algolia.config.application_id', pkey('algolia.application_id'));
+        \Config::set('search.connections.algolia.config.admin_api_key', pkey('algolia.admin_api_key'));
+
+        $storage = include config_path('storage.php');
+        l('config')->set('filesystems', $storage);
+
+        makeFacade('Disk', function () {
+            return \Storage::disk('local');
+        });
+
+        Facade::setFacadeApplication(l());
+    }
+
+    /**
+     * @param Fast $app
+     */
+    protected function booted(Fast $app)
+    {
+
+    }
+
+    /**
+     * @param ResponseInterface $response
+     * @return ResponseInterface
+     */
+    protected function after(ResponseInterface $response)
+    {
+        return $response;
+    }
+
     /**
      * @param Fast $app
      * @throws \ReflectionException
@@ -29,6 +77,18 @@ class App
     {
         $app->addModule(StaticModule::class);
         $app->addModule(SocialLoginModule::class);
+
+        if (Request::contains('crud')) {
+            $app->addModule(CrudModule::class);
+        }
+
+        AbstractPaginator::viewFactoryResolver(function () {
+            return view();
+        });
+
+        AbstractPaginator::currentPageResolver(function () {
+            return Request::get('page');
+        });
     }
 
     /**
@@ -60,7 +120,11 @@ class App
         $this->middlewares($app);
         $this->modules($app);
 
+        $this->booted($app);
+
         $response = $app->run();
+
+        $response = $this->after($response);
 
         $app->render($response);
     }
@@ -90,6 +154,8 @@ class App
         $verifier = new DatabasePresenceVerifier(l('db'));
 
         Validator::setPresenceVerifier($verifier);
+
+        $this->boot();
 
         if (false === $cli) {
             $this->start();

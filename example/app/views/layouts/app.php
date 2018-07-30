@@ -47,6 +47,7 @@
     <link href="{{ url('admin/plugins/jquery-simplecolorpicker/jquery.simplecolorpicker.css') }}" rel="stylesheet" />
     <link href="{{ url('admin/plugins/jquery-simplecolorpicker/jquery.simplecolorpicker-fontawesome.css') }}" rel="stylesheet" />
     <link href="{{ url('admin/plugins/jquery-simplecolorpicker/jquery.simplecolorpicker-glyphicons.css') }}" rel="stylesheet" />
+    @yield('css')
     <!-- ================== END PAGE LEVEL STYLE ================== -->
 
     <!-- ================== BEGIN BASE JS ================== -->
@@ -201,7 +202,7 @@
         <div class="row">
             <div class="col-md-12">
                 <div class="note note-warning fade show limitedShow">
-                    <div class="note-icon"><i class="fa fa-warning"></i></div>
+                    <div class="note-icon"><i class="fa fa-exclamation-triangle"></i></div>
                     <div class="note-content">
                         <h4><b>Message</b></h4>
                         <p>{{ flash()->getWarning() }}</p>
@@ -228,7 +229,7 @@
         <!-- end page-info -->
         @endif
 
-        @if ($errors->count() > 0)
+        @if ($errors->count() > 0 && !isset($no_flash))
         <!-- begin page-errors -->
         <div class="row">
             <div class="col-md-12">
@@ -308,6 +309,7 @@
 <script src="{{ url('admin/plugins/jquery-simplecolorpicker/jquery.simplecolorpicker.js') }}"></script>
 <script src="{{ url('admin/plugins/clipboard/clipboard.min.js') }}"></script>
 <script src="{{ url('admin/js/demo/form-plugins.demo.min.js') }}"></script>
+@yield('js')
 <!-- ================== END PAGE LEVEL JS ================== -->
 <script src="@asset('admin/js/apps.min.js')"></script>
 <script src="{{ mix('/dist/js/app.js') }}"></script>

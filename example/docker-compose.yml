@@ -1,7 +1,7 @@
 version: '2.1'
 services:
   app:
-    image: rueduphp/phpdevapp72
+    image: rueduphp/php72devlatest:first
     volumes:
       - .:/var/www
       - ../vendor:/var/www/vendor
@@ -15,11 +15,11 @@ services:
       - "8888:80"
     links:
       - mysql
-      - postgres
+#      - postgres
       - redis
-      - mongo
-      - es
       - maildev
+#      - mongo
+#      - es
 
   mysql:
     image: mariadb
@@ -34,16 +34,16 @@ services:
     ports:
       - "3366:3306"
 
-  postgres:
-    image: postgres:9.6
-    volumes:
-      - ~/data/octo/pg:/var/lib/postgresql/data
-    environment:
-      - "POSTGRES_USER=octo"
-      - "POSTGRES_PASSWORD=octo"
-      - "POSTGRES_DB=octo"
-    ports:
-      - "5532:5432"
+#  postgres:
+#    image: postgres:9.6
+#    volumes:
+#      - ~/data/octo/pg:/var/lib/postgresql/data
+#    environment:
+#      - "POSTGRES_USER=octo"
+#      - "POSTGRES_PASSWORD=octo"
+#      - "POSTGRES_DB=octo"
+#    ports:
+#      - "5532:5432"
 
   maildev:
     restart: always
@@ -59,22 +59,22 @@ services:
     volumes:
       - ~/data/octo/redis:/data
 
-  mongo:
-    image: bitnami/mongodb:latest
-    ports:
-      - "27018:27017"
-    environment:
-      - MONGODB_ROOT_PASSWORD=root
-      - MONGODB_USERNAME=octo
-      - MONGODB_PASSWORD=octo
-      - MONGODB_DATABASE=octo
-    volumes:
-      - ~/data/octo/mongodb:/bitnami
-
-  es:
-    image: bitnami/elasticsearch:latest
-    volumes:
-      - ~/data/octo/es:/bitnami
-    ports:
-      - "9201:9200"
-      - "9301:9300"
+#  mongo:
+#    image: bitnami/mongodb:latest
+#    ports:
+#      - "27018:27017"
+#    environment:
+#      - MONGODB_ROOT_PASSWORD=root
+#      - MONGODB_USERNAME=octo
+#      - MONGODB_PASSWORD=octo
+#      - MONGODB_DATABASE=octo
+#    volumes:
+#      - ~/data/octo/mongodb:/bitnami
+#
+#  es:
+#    image: bitnami/elasticsearch:latest
+#    volumes:
+#      - ~/data/octo/es:/bitnami
+#    ports:
+#      - "9201:9200"
+#      - "9301:9300"

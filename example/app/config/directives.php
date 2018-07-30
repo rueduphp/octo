@@ -411,6 +411,18 @@ return [
         return "<?php echo '<pre>' . print_r(explode({$delimiter}, {$string})) . '</pre>'; ?>";
     },
 
+    'granted' => function ($expression) {
+        return "<?php if(trust()->can({$expression})): ?>";
+    },
+
+    'notgranted' => function () {
+        return '<?php else: ?>';
+    },
+
+    'endgranted' => function () {
+        return '<?php endif; ?>';
+    },
+
     'lng' => function ($expression) {
         return "<?php echo __({$expression}); ?>";
     },

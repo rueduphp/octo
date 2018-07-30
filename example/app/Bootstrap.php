@@ -1,9 +1,12 @@
 <?php
 namespace App;
 
+use App\Facades\Event;
+use App\Providers\Event as EventProvider;
 use App\Providers\Paths;
 use Octo\Configurator;
 use Octo\File;
+use function Octo\aget;
 use function Octo\config_path;
 use function Octo\gi;
 use function Octo\storage_path;
@@ -27,6 +30,14 @@ class Bootstrap
 
         static::config();
         static::providers();
+        static::events();
+    }
+
+    private static function events()
+    {
+        foreach (EventProvider::subscribers() as $subscriber) {
+            Event::subscribe($subscriber);
+        }
     }
 
     /**
@@ -40,6 +51,8 @@ class Bootstrap
         addConfig('db');
         addConfig('redis');
         addConfig('mail');
+
+        spl_autoload_register([new static, 'loader']);
 
         l('config', app(Configurator::class));
 
@@ -63,8 +76,34 @@ class Bootstrap
         $providers = include config_path('providers.php');
 
         foreach ($providers as $provider) {
-            $instance = gi()->make($provider);
-            gi()->call($instance, 'handler', static::$cli);
+            gi()->call(gi()->make($provider), 'handler', static::$cli);
+        }
+    }
+
+    /**
+     * @param $class
+     * @throws \ReflectionException
+     */
+    public function loader($class)
+    {
+        static $facades = null;
+
+        if (null === $facades) {
+            $facades = include config_path('facades.php');
+        }
+
+        if (!class_exists($class)) {
+            if (null !== ($target = aget($facades, $class, null))) {
+                if (is_string($target) && class_exists($target)) {
+                    class_alias($target, $class);
+                } elseif (is_callable($target)) {
+                    $target = get_class(call_func($target));
+
+                    if (class_exists($target)) {
+                        class_alias($target, $class);
+                    }
+                }
+            }
         }
     }
 }

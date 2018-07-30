@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 class Elegant extends EloquentModel implements FastModelInterface
 {
     protected $guarded  = [];
-    protected $__capsule;
+    public $__capsule;
 
     /**
      * @param array $attributes
@@ -33,6 +33,37 @@ class Elegant extends EloquentModel implements FastModelInterface
     }
 
     /**
+     * @param array $columns
+     * @return EloquentCollection|EloquentModel[]
+     * @throws \ReflectionException
+     */
+    public static function all($columns = ['*'])
+    {
+        return gi()->make(get_called_class())->alls(is_array($columns) ? $columns : func_get_args());
+    }
+
+    /**
+     * @param array|string $relations
+     * @return \Illuminate\Database\Eloquent\Builder|EloquentModel
+     * @throws \ReflectionException
+     */
+    public static function with($relations)
+    {
+        return gi()->make(get_called_class())->withRelation(
+            is_string($relations) ? func_get_args() : $relations
+        );
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder
+     * @throws \ReflectionException
+     */
+    public static function query()
+    {
+        return gi()->make(get_called_class())->q();
+    }
+
+    /**
      * @param string $m
      * @param array $a
      *
@@ -42,11 +73,7 @@ class Elegant extends EloquentModel implements FastModelInterface
      */
     public static function __callStatic($m, $a)
     {
-        $callable = [gi()->make(get_called_class()), $m];
-
-        $params = array_merge($callable, $a);
-
-        return gi()->call(...$params);
+        return gi()->call(gi()->make(get_called_class()), $m, ...$a);
     }
 
     /**
@@ -81,8 +108,32 @@ class Elegant extends EloquentModel implements FastModelInterface
             return $this->$m(...$a);
         }
 
+        if ('q' === $m || 'builder' === $m) {
+            return $this->newQuery();
+        }
+
+        if ('alls' === $m) {
+            return new ElegantCollection($this->newQuery()->get(is_array(current($a)) ? current($a) : $a));
+        }
+
+        if ('withRelation' === $m) {
+            return $this->newQuery()->with(
+                is_string(current($a)) ? func_get_args() : current($a)
+            );
+        }
+
         if ('list' === $m) {
-            return $this->get()->pluck(...$a);
+            $field = 2 === count($a) ? end($a) : $this->getKeyName();
+
+            return Arrays::pluck(
+                $this
+                    ->newQuery()
+                    ->select(current($a), $field)
+                    ->get()
+                    ->toArray(),
+                current($a),
+                $field
+            );
         }
 
         if ('like' === $m) {
@@ -149,10 +200,19 @@ class Elegant extends EloquentModel implements FastModelInterface
     {
         return new FastFactory($class = get_called_class(), gi()->make($class));
     }
+
+    /**
+     * @return FastFactory
+     */
+    public function factorer()
+    {
+        return new FastFactory(get_class($this), $this);
+    }
 }
 
 class ElegantCollection
 {
+    use Macroable;
     /**
      * @var EloquentCollection
      */

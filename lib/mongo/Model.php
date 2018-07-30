@@ -839,9 +839,9 @@
             return $this->_data;
         }
 
-        public function toJson()
+        public function toJson($option = JSON_PRETTY_PRINT)
         {
-            return json_encode($this->_data);
+            return json_encode($this->_data, $option);
         }
 
         public function __tostring()

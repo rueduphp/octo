@@ -24,7 +24,7 @@ class Builder extends \Illuminate\Database\Query\Builder
     /**
      * @var string
      */
-    protected $cachePrefix = 'rememberable';
+    protected $cachePrefix = 'cacheable';
 
     /**
      * @var bool
@@ -171,6 +171,7 @@ class Builder extends \Illuminate\Database\Query\Builder
 
     /**
      * @return bool
+     * @throws \Exception
      */
     public function flushCache(): bool
     {
@@ -178,13 +179,14 @@ class Builder extends \Illuminate\Database\Query\Builder
 
         $keys = $cnx->keys($this->getCache()->getPrefix() . $this->cachePrefix . ':*');
 
-        $cnx->multi();
+        /** @var \Predis\Pipeline\Pipeline $pipeline */
+        $pipeline = $cnx->pipeline();
 
         foreach ($keys as $key) {
-            $cnx->del($key);
+            $pipeline->del($key);
         }
 
-        $cnx->exec();
+        $pipeline->execute();
 
         return !empty($keys);
     }

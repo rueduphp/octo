@@ -344,9 +344,9 @@
             return $this->storage;
         }
 
-        public function toJson()
+        public function toJson($option = JSON_PRETTY_PRINT)
         {
-            return json_encode($this->storage);
+            return json_encode($this->storage, $option);
         }
 
         public function __toString()

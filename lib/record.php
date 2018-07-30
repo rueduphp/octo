@@ -12,6 +12,7 @@
          * @var Entity
          */
         protected $entity = null;
+
         protected $data = [], $initial = [], $callbacks = [];
 
         /**
@@ -62,10 +63,6 @@
             }
 
             $entity->fire('model', $this);
-
-            if (is_object($this->entity) && false === $isProxy) {
-                $this->proxy($data);
-            }
         }
 
         /**
@@ -94,6 +91,9 @@
             actual('orm.proxy.' . $class, gi()->factory('Octo\\' . $class, $data, $this->entity, true));
         }
 
+        /**
+         * @return Entity
+         */
         public function entity()
         {
             return $this->entity;
@@ -126,7 +126,11 @@
             return $check;
         }
 
-        public function fill(array $data = [])
+        /**
+         * @param array $data
+         * @return Record
+         */
+        public function fill(array $data = []): self
         {
             foreach ($data as $key => $value) {
                 $this->set($key, $value);
@@ -135,18 +139,30 @@
             return $this;
         }
 
-        public function merge(array $data = [])
+        /**
+         * @param array $data
+         * @return Record
+         */
+        public function merge(array $data = []): self
         {
             $this->data = array_merge($this->data, $data);
 
             return $this;
         }
 
-        public function contains($key)
+        /**
+         * @param string $key
+         * @return bool
+         * @throws \ReflectionException
+         */
+        public function contains(string $key)
         {
             return 'octodummy' !== $this->get($key, 'octodummy');
         }
 
+        /**
+         * @return Collection
+         */
         public function collection()
         {
             return coll($this->data);
@@ -313,6 +329,9 @@
             }
         }
 
+        /**
+         * @return array
+         */
         public function toArray()
         {
             $result = [];
@@ -326,14 +345,21 @@
             return $result;
         }
 
-        public function toJson()
+        /**
+         * @param int $option
+         * @return string
+         */
+        public function toJson($option = JSON_PRETTY_PRINT)
         {
-            return json_encode($this->toArray());
+            return json_encode($this->toArray(), $option);
         }
 
-        public function json()
+        /**
+         * @param int $option
+         */
+        public function json($option = JSON_PRETTY_PRINT)
         {
-            echo $this->toJson();
+            echo $this->toJson($option);
         }
 
         /**

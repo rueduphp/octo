@@ -15,10 +15,8 @@ use Octo\Emit;
 use Octo\Facade;
 use Octo\Facades\{
     Cache as CacheF,
-    Event as EventF,
     Flash as FlashF,
     Is as IsF,
-    Log as LogF,
     Route,
     Session as SessionF
 };
@@ -284,6 +282,7 @@ class Items extends Dynamicentity
 
 class SimpleTest extends TestCase
 {
+    /** @var \Octo\Ultimate */
     private $session;
 
     /**
@@ -369,68 +368,6 @@ class SimpleTest extends TestCase
         );
 
         $this->assertNotSame($this->ultimate('admin'), $this->ultimate());
-
-        /** @var \Octo\Ultimate $session */
-        $session = $this->session;
-
-        dd($this->session);
-
-        $this->assertTrue($session->guest());
-        $this->assertFalse($session->logged());
-
-        $session['user'] = true;
-        $this->ultimate('admin')['foo'] = 'bar';
-
-        $this->assertTrue($session->getUser());
-        $this->assertTrue($session->user);
-        $this->assertTrue($session['user']);dd($session->user('id'));
-        $this->assertTrue($session->logged());
-        $this->assertFalse($session->guest());
-
-        $this->assertCount(1, $session->toArray());
-        $this->assertCount(1, $this->ultimate('admin')->toArray());
-        $this->assertCount(6, $_SESSION);
-
-        $this->assertSame($this->session->age('user'), $this->ultimate('admin')->age('foo'));
-        $this->assertSame(0, $session->age('bar'));
-
-        LogF::success('foo');
-        LogF::error('foo');
-
-        $this->assertCount(2, LogF::all());
-        $this->assertCount(1, LogF::getBytype("success"));
-        $this->assertCount(1, LogF::getBytype("error"));
-
-        $this->assertSame(EventF::self(), EventF::self());
-
-        $event = EventF::on('foo', function ($by) {
-            $this->incr('fooevent', $by);
-        });
-
-        $event->halt(true);
-
-        EventF::on('foobar', function ($by) {
-            $this->incr('fooevent', $by);
-        });
-
-        Octo\set('fooevent', 5);
-
-        $this->assertTrue(EventF::has('foo'));
-
-        EventF::fire('foo', 10);
-        $this->assertEquals(15, Octo\get('fooevent'));
-
-        EventF::fire('foo', 10);
-        $this->assertEquals(15, Octo\get('fooevent'));
-
-        EventF::fire('foobar', 100);
-        $this->assertEquals(15, Octo\get('fooevent'));
-
-        EventF::fire('foobar', 100);
-        $this->assertEquals(15, Octo\get('fooevent'));
-
-        EventF::delete('foo');
-        $this->assertFalse(EventF::has('foo'));
     }
 
     /**

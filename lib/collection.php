@@ -62,9 +62,10 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
     }
 
     /**
+     * @param array $items
      * @return Collection
      */
-    public static function make($items = null)
+    public static function make($items = [])
     {
         return new static($items);
     }
@@ -275,7 +276,13 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
         $this->offsetUnset($key);
     }
 
-    public function get($key, $default = null)
+    /**
+     * @param string $key
+     * @param null $default
+     * @return mixed|null
+     * @throws \ReflectionException
+     */
+    public function get(string $key, $default = null)
     {
         if ($this->offsetExists($key)) {
             return $this->items[$key];
@@ -337,8 +344,14 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
 
         $results = [];
 
-        foreach ($this->items as $item) {
-            $results[$keyBy($item)] = $item;
+        foreach ($this->items as $key => $item) {
+            $resolvedKey = $keyBy($item, $key);
+
+            if (is_object($resolvedKey)) {
+                $resolvedKey = (string) $resolvedKey;
+            }
+
+            $results[$resolvedKey] = $item;
         }
 
         return new static($results);
@@ -909,7 +922,7 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
 
     protected function useAsCallable($value)
     {
-        return ! is_string($value) && is_callable($value);
+        return !is_string($value) && is_callable($value);
     }
 
     /**
@@ -1135,6 +1148,51 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
     public function isNotNull($field)
     {
         return $this->where($field, 'is not', 'null');
+    }
+
+    /**
+     * @param string $key
+     * @param mixed $type
+     * @return Collection
+     */
+    public function is(string $key, $type)
+    {
+        return $this->where(function ($item) use ($key, $type) {
+            $value = $item[$key] ?? null;
+
+            return $type === $value;
+        });
+    }
+
+    /**
+     * @param string $key
+     * @return Collection
+     */
+    public function isTrue(string $key)
+    {
+        return $this->is($key, true);
+    }
+
+    /**
+     * @param string $key
+     * @return Collection
+     */
+    public function isFalse(string $key)
+    {
+        return $this->is($key, false);
+    }
+
+    /**
+     * @param string $key
+     * @return Collection
+     */
+    public function hasEmptyValue(string $key)
+    {
+        return $this->where(function ($item) use ($key) {
+            $value = $item[$key] ?? null;
+
+            return empty($value);
+        });
     }
 
     /**

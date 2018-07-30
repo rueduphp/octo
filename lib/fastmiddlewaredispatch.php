@@ -6,7 +6,7 @@ use Interop\Http\ServerMiddleware\DelegateInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-class Fastmiddlewaredispatch extends FastMiddleware
+class Fastmiddlewaredispatch extends FastMiddleware implements DelegateInterface
 {
     /**
      * @param ServerRequestInterface $request
@@ -59,30 +59,48 @@ class Fastmiddlewaredispatch extends FastMiddleware
             if (is_array($middleware)) {
                 $module = $middleware[0];
                 $action = $middleware[1];
-                setCore('module', $module);
+                $response = $this->initModule($request, $module);
 
-                $response = gi()->call($module, $action);
+                if (empty($response)) {
+                    $response = gi()->call($module, $action);
+                }
             } else {
                 if ($middleware instanceof Closure) {
                     $ref        = new \ReflectionFunction($middleware);
                     $scope      = $ref->getClosureScopeClass();
                     $module     = getCore('modules.' . $scope->getName());
 
-                    if (isset($module) && null !== $module) {
-                        setCore('module', $module);
+                    if (null !== $module) {
+                        $response = $this->initModule($request, $module);
                     }
 
-                    $response   = gi()->makeClosure($middleware, $request, $next);
+                    if (empty($response)) {
+                        $response = gi()->makeClosure($middleware, $request, $next);
+                    }
                 } else {
                     $action     = Arrays::last(explode('.', $route->getName()));
                     $module     = gi()->make($middleware);
-                    setCore('module', $module);
+                    $this->initModule($request, $module);
                     $parameters = [$module, 'process', $action, $request, $app];
                     $response   = gi()->call(...$parameters);
                 }
             }
 
             if ($response instanceof ResponseInterface) {
+                return $response;
+            }
+
+            if (in_array($request->getMethod(), ['GET', 'HEAD']) && is_string($response) || is_numeric($response)) {
+                $etag       = md5($response);
+                $response   = $app->response(200, [], $response);
+                $response   = $response->withHeader('Etag', $etag);
+
+                if ($request->hasHeader('if-none-match')) {dd('ici');
+                    if ($request->getHeaderLine('if-none-match') === $etag) {
+                        $response = $response->withStatus(304);
+                    }
+                }
+
                 return $response;
             }
 
@@ -98,6 +116,14 @@ class Fastmiddlewaredispatch extends FastMiddleware
                 );
             }
 
+            if (jsonable($response)) {
+                return $app->response(
+                    200,
+                    ['content-type' => 'application/json; charset=utf-8'],
+                    $response->toJson(JSON_PRETTY_PRINT)
+                );
+            }
+
             if (arrayable($response)) {
                 return $app->response(
                     200,
@@ -110,5 +136,58 @@ class Fastmiddlewaredispatch extends FastMiddleware
         }
 
         return $next->process($request);
+    }
+
+    /**
+     * @param $module
+     * @throws \ReflectionException
+     */
+    protected function initModule(ServerRequestInterface $request, Module $module)
+    {
+        $methods = get_class_methods($module);
+
+        if (in_array('init', $methods)) {
+            $middlewares = gi()->call($module, 'init', $this);
+
+            if (!empty($middlewares)) {
+                $response = null;
+
+                foreach ($middlewares as $middleware) {
+                    if (empty($response)) {
+                        $response = gi()->call(gi()->make($middleware), 'process', $request);
+                    }
+                }
+
+                if (!empty($response)) {
+                    return $response;
+                }
+            }
+        }
+
+        if (in_array('boot', $methods)) {
+            gi()->call($module, 'boot', $this);
+        }
+
+        if (in_array('config', $methods)) {
+            gi()->call($module, 'config', $this);
+        }
+
+        if (in_array('di', $methods)) {
+            gi()->call($module, 'di', $this);
+        }
+
+        if (in_array('twig', $methods)) {
+            gi()->call($module, 'twig', $this);
+        }
+
+        if (in_array('policies', $methods)) {
+            gi()->call($module, 'policies', $this);
+        }
+
+        if (in_array('events', $methods)) {
+            gi()->call($module, 'events', gi()->make(FastEvent::class));
+        }
+
+        setCore('module', $module);
     }
 }

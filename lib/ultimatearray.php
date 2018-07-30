@@ -435,9 +435,9 @@ class Ultimatearray implements
     /**
      * @return string
      */
-    public function toJson(): string
+    public function toJson($option = JSON_PRETTY_PRINT): string
     {
-        return json_encode($this->all(), JSON_PRETTY_PRINT);
+        return json_encode($this->all(), $option);
     }
 
     /**

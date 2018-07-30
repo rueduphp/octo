@@ -299,12 +299,22 @@ h6 small, .h6 small, h6 .small, .h6 .small {
 .btn-tumblr:active,.btn-tumblr.active,.open>.dropdown-toggle.btn-tumblr{background-image:none}
 .btn-tumblr.disabled:hover,.btn-tumblr[disabled]:hover,fieldset[disabled] .btn-tumblr:hover,.btn-tumblr.disabled:focus,.btn-tumblr[disabled]:focus,fieldset[disabled] .btn-tumblr:focus,.btn-tumblr.disabled.focus,.btn-tumblr[disabled].focus,fieldset[disabled] .btn-tumblr.focus{background-color:#2c4762;border-color:rgba(0,0,0,0.2)}
 .btn-tumblr .badge{color:#2c4762;background-color:#fff}
+
 .btn-twitter{color:#fff;background-color:#55acee;border-color:rgba(0,0,0,0.2)}.btn-twitter:focus,.btn-twitter.focus{color:#fff;background-color:#2795e9;border-color:rgba(0,0,0,0.2)}
 .btn-twitter:hover{color:#fff;background-color:#2795e9;border-color:rgba(0,0,0,0.2)}
 .btn-twitter:active,.btn-twitter.active,.open>.dropdown-toggle.btn-twitter{color:#fff;background-color:#2795e9;border-color:rgba(0,0,0,0.2)}.btn-twitter:active:hover,.btn-twitter.active:hover,.open>.dropdown-toggle.btn-twitter:hover,.btn-twitter:active:focus,.btn-twitter.active:focus,.open>.dropdown-toggle.btn-twitter:focus,.btn-twitter:active.focus,.btn-twitter.active.focus,.open>.dropdown-toggle.btn-twitter.focus{color:#fff;background-color:#1583d7;border-color:rgba(0,0,0,0.2)}
 .btn-twitter:active,.btn-twitter.active,.open>.dropdown-toggle.btn-twitter{background-image:none}
 .btn-twitter.disabled:hover,.btn-twitter[disabled]:hover,fieldset[disabled] .btn-twitter:hover,.btn-twitter.disabled:focus,.btn-twitter[disabled]:focus,fieldset[disabled] .btn-twitter:focus,.btn-twitter.disabled.focus,.btn-twitter[disabled].focus,fieldset[disabled] .btn-twitter.focus{background-color:#55acee;border-color:rgba(0,0,0,0.2)}
 .btn-twitter .badge{color:#55acee;background-color:#fff}
+
+.btn-spotify{color:#fff;background-color:#7EDD7D;border-color:rgba(0,0,0,0.2)}.btn-spotify:focus,.btn-spotify.focus{color:#fff;background-color:#6AE368;border-color:rgba(0,0,0,0.2)}
+.btn-spotify:hover{color:#fff;background-color:#6AE368;border-color:rgba(0,0,0,0.2)}
+.btn-spotify:active,.btn-spotify.active,.open>.dropdown-toggle.btn-spotify{color:#fff;background-color:#6AE368;border-color:rgba(0,0,0,0.2)}.btn-spotify:active:hover,.btn-spotify.active:hover,.open>.dropdown-toggle.btn-spotify:hover,.btn-spotify:active:focus,.btn-spotify.active:focus,.open>.dropdown-toggle.btn-spotify:focus,.btn-spotify:active.focus,.btn-spotify.active.focus,.open>.dropdown-toggle.btn-spotify.focus{color:#fff;background-color:#3FD43C;border-color:rgba(0,0,0,0.2)}
+.btn-spotify:active,.btn-spotify.active,.open>.dropdown-toggle.btn-spotify{background-image:none}
+.btn-spotify.disabled:hover,.btn-spotify[disabled]:hover,fieldset[disabled] .btn-spotify:hover,.btn-spotify.disabled:focus,.btn-spotify[disabled]:focus,fieldset[disabled] .btn-spotify:focus,.btn-spotify.disabled.focus,.btn-spotify[disabled].focus,fieldset[disabled] .btn-spotify.focus{background-color:#7EDD7D;border-color:rgba(0,0,0,0.2)}
+.btn-spotify .badge{color:#7EDD7D;background-color:#fff}
+
+
 .btn-vimeo{color:#fff;background-color:#1ab7ea;border-color:rgba(0,0,0,0.2)}.btn-vimeo:focus,.btn-vimeo.focus{color:#fff;background-color:#1295bf;border-color:rgba(0,0,0,0.2)}
 .btn-vimeo:hover{color:#fff;background-color:#1295bf;border-color:rgba(0,0,0,0.2)}
 .btn-vimeo:active,.btn-vimeo.active,.open>.dropdown-toggle.btn-vimeo{color:#fff;background-color:#1295bf;border-color:rgba(0,0,0,0.2)}.btn-vimeo:active:hover,.btn-vimeo.active:hover,.open>.dropdown-toggle.btn-vimeo:hover,.btn-vimeo:active:focus,.btn-vimeo.active:focus,.open>.dropdown-toggle.btn-vimeo:focus,.btn-vimeo:active.focus,.btn-vimeo.active.focus,.open>.dropdown-toggle.btn-vimeo.focus{color:#fff;background-color:#0f7b9f;border-color:rgba(0,0,0,0.2)}

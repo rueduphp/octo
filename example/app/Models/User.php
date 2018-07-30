@@ -2,16 +2,24 @@
 namespace App\Models;
 
 use App\Services\Model;
+use App\Traits\Attributable;
+use App\Traits\Authable;
 use Octo\Inflector;
+use Octo\Notifiable;
 
 class User extends Model
 {
+    use Authable;
+    use Notifiable;
+    use Attributable;
+
     /**
      * @var string
      */
     protected $table = 'user';
     protected $indexables = ['email'];
-    protected $forceCache = true;
+    protected $forceCache = false;
+    protected $rules = [];
 
     /**
      * @var array
@@ -44,7 +52,11 @@ class User extends Model
     {
         $value = $value ?? serialize([]);
 
-        return unserialize($value);
+        try {
+            return unserialize($value);
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     /**

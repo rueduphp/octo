@@ -8,8 +8,8 @@ class CreateIndices15295021284230
     public function up(Builder $schema)
     {
         $schema->create('indices', function (Blueprint $table) {
-            $table->charset = 'utf8';
             $table->collation = 'utf8_general_ci';
+            $table->charset = 'utf8';
             $table->increments('id');
             $table->string('searchable')->index();
             $table->unsignedInteger('searchable_id')->index();

@@ -364,6 +364,9 @@ class Instanciator
     {
         $closure = array_shift($args);
 
+        if (!$closure instanceof Closure) {
+        }
+
         if (!$closure instanceof Closure && is_object($closure)) {
             $closure = voidToCallback($closure);
         }
@@ -519,7 +522,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return mixed|null
-     * @throws \ReflectionException
      */
     public function call(...$args)
     {

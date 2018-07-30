@@ -3,4 +3,4 @@ namespace App\Facades;
 
 use App\Services\Facade;
 
-class Redys extends Facade {}
+class Request extends Facade {}

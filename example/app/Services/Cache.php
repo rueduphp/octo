@@ -5,6 +5,7 @@ namespace App\Services;
 use Carbon\Carbon;
 use Closure;
 use function Octo\gi;
+use Predis\ClientInterface;
 
 class Cache
 {
@@ -236,24 +237,26 @@ class Cache
 
     /**
      * @return bool
+     * @throws \Exception
      */
     public function flush()
     {
         $keys = $this->connection()->keys($this->prefix . '*');
 
-        $this->connection()->multi();
+        /** @var \Predis\Pipeline\Pipeline $pipeline */
+        $pipeline = $this->connection()->pipeline();
 
         foreach ($keys as $key) {
-            $this->connection()->del($key);
+            $pipeline->del($key);
         }
 
-        $this->connection()->exec();
+        $pipeline->execute();
 
         return !empty($keys);
     }
 
     /**
-     * @return \Predis\ClientInterface
+     * @return ClientInterface
      */
     public function connection()
     {

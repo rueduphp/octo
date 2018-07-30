@@ -920,36 +920,8 @@
 
             $methods = get_class_methods($module);
 
-            if (in_array('boot', $methods)) {
-                gi()->call($module, 'boot', $this);
-            }
-
-            if (in_array('init', $methods)) {
-                gi()->call($module, 'init', $this);
-            }
-
-            if (in_array('config', $methods)) {
-                gi()->call($module, 'config', $this);
-            }
-
-            if (in_array('di', $methods)) {
-                gi()->call($module, 'di', $this);
-            }
-
             if (in_array('routes', $methods)) {
                 gi()->call($module, 'routes', $this->router(), $this);
-            }
-
-            if (in_array('twig', $methods)) {
-                gi()->call($module, 'twig', $this);
-            }
-
-            if (in_array('policies', $methods)) {
-                gi()->call($module, 'policies', $this);
-            }
-
-            if (in_array('events', $methods)) {
-                gi()->call($module, 'events', gi()->make(FastEvent::class));
             }
 
             return $this;
@@ -1708,9 +1680,9 @@
         /**
          * @return Work
          */
-        public function job()
+        public function job($concern = null, array $args = [])
         {
-            return job(...func_get_args());
+            return job($concern, $args);
         }
 
         /**
@@ -2228,7 +2200,7 @@
             $factory = isAke($factories, $model, false);
 
             if (is_callable($factory)) {
-                throw new NativeException("The factory $model ever exists.");
+                throw new NativeException("The factory {$model} ever exists.");
             }
 
             $factories[$model] = $resolver;
@@ -2242,8 +2214,8 @@
          */
         public function __construct(string $model, $entity)
         {
-            $this->entity   = $entity;
             $this->model    = $model;
+            $this->entity   = $entity;
         }
 
         /**
@@ -2440,7 +2412,6 @@
 
     /**
      * Class FastRequest
-     * @method hasHeader($header)
      * @method getHeaders()
      * @method getUri()
      * @method getMethod()
@@ -2461,6 +2432,11 @@
      */
     class FastRequest
     {
+        /**
+         * @var bool
+         */
+        public $hasFailed = false;
+
         /**
          * @throws NativeException
          */
@@ -2537,6 +2513,7 @@
             $errors = new MessageBag();
 
             if ($check->fails()) {
+                $this->hasFailed = true;
                 $errors = $check->errors();
                 viewParams('errors', $errors);
             }
@@ -2635,6 +2612,25 @@
         public function method(): string
         {
             return $this->native()->getMethod();
+        }
+
+        /**
+         * @param string $header
+         * @return string
+         * @throws \ReflectionException
+         */
+        public function header(string $header)
+        {
+            return $this->native()->getHeaderLine($header);
+        }
+
+        /**
+         * @return \string[][]
+         * @throws \ReflectionException
+         */
+        public function headers()
+        {
+            return $this->native()->getHeaders();
         }
 
         /**
@@ -2803,6 +2799,23 @@
 
         /**
          * @param $keys
+         * @return mixed
+         * @throws \ReflectionException
+         */
+        public function onlyTab($keys)
+        {
+            $inputs = [];
+            $attrs = $this->all();
+
+            foreach (is_array($keys) ? $keys : func_get_args() as $key) {
+                $inputs[$key] = isAke($attrs, $key, null);
+            }
+
+            return $inputs;
+        }
+
+        /**
+         * @param $keys
          * @return array
          * @throws \ReflectionException
          */
@@ -2857,6 +2870,15 @@
             }
 
             return false;
+        }
+
+        /**
+         * @param string $word
+         * @return bool
+         */
+        public function contains(string $word): bool
+        {
+            return fnmatch('*/'.$word.'*', $this->getUri()) ? true : false;
         }
 
         /**
@@ -3772,10 +3794,10 @@
             array $options = [],
             array $attributes = []
         ): string {
-            $type = $options['type'] ?? 'text';
-            $error = $this->getErrorHtml($context, $key);
-            $class = 'form-group';
-            $value = $this->convertValue($value);
+            $type   = $options['type'] ?? 'text';
+            $error  = $this->getErrorHtml($context, $key);
+            $class  = 'form-group';
+            $value  = $this->convertValue($value);
 
             $attributes = array_merge([
                 'class' => trim('form-control ' . ($options['class'] ?? '')),
@@ -3792,6 +3814,9 @@
                 $input = $this->textarea($value, $attributes);
             } elseif ($type === 'password') {
                 $attributes['type'] = 'password';
+                $input = $this->input($value, $attributes);
+            } elseif ($type === 'hidden') {
+                $attributes['type'] = 'hidden';
                 $input = $this->input($value, $attributes);
             } elseif ($type === 'date') {
                 $attributes['type'] = 'date';
@@ -3810,7 +3835,7 @@
             } elseif (array_key_exists('options', $options)) {
                 $input = $this->select($value, $options['options'], $attributes);
             } else {
-                $attributes['type'] = $options['type'] ?? 'text';
+                $attributes['type'] = $type;
                 $input = $this->input($value, $attributes);
             }
 
@@ -3840,10 +3865,15 @@
          */
         private function getErrorHtml(array $context, string $key)
         {
-            $error = $context['errors'][$key] ?? false;
+            $errors = $context['errors'];
+            $error = null;
+
+            if ($errors->has($key)) {
+                $error = $errors->first($key);
+            }
 
             if ($error) {
-                return "<small class=\"form-text text-muted\">{$error}</small>";
+                return "<p class=\"form-text text-muted text-danger\">{$error}</p>";
             }
 
             return "";
@@ -3864,11 +3894,11 @@
          * @param array $attributes
          * @return string
          */
-        private function checkbox(?string $value, array $attributes): string
+        private function checkbox(?string $value = null, array $attributes): string
         {
             $html = '<input type="hidden" name="' . $attributes['name'] . '" value="0"/>';
 
-            if ($value) {
+            if (strlen($value)) {
                 $attributes['checked'] = true;
             }
 

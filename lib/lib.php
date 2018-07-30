@@ -9843,8 +9843,13 @@
     function action(...$args): string
     {
         $module = array_shift($args);
-        $action = array_shift($args);
-        $next = $module . '@' . $action;
+
+        if (!\fnmatch('*@*', $module)) {
+            $action = array_shift($args);
+            $next = $module . '@' . $action;
+        } else {
+            $next = $module;
+        }
 
         $route = coll(In::self()['routes'])->where('next', $next)->first();
 
@@ -11882,6 +11887,13 @@
             }
         );
 
+        $resolver->register(
+            'blade',
+            function () use ($compiler) {
+                return $compiler;
+            }
+        );
+
         $fs = new \Illuminate\Filesystem\Filesystem;
 
         $finder = new FileViewFinder(
@@ -12003,7 +12015,7 @@
      */
     function client()
     {
-        return instanciator()->singleton(\GuzzleHttp\Client::class, [], false);
+        return gi()->make(\GuzzleHttp\Client::class, [], false);
     }
 
     function itOr($a, $b)
@@ -12026,6 +12038,33 @@
     function addressToCoords($address)
     {
         return lib('geo')->getCoordsMap($address);
+    }
+
+    function recursivUtf8($dat)
+    {
+        if (is_string($dat)) {
+            return utf8_encode($dat);
+        } elseif (is_array($dat)) {
+            $ret = [];
+            foreach ($dat as $i => $d) $ret[$i] = recursivUtf8($d);
+
+            return $ret;
+        } elseif (is_object($dat)) {
+            foreach ($dat as $i => $d) $dat->{$i} = recursivUtf8($d);
+
+            return $dat;
+        } else {
+            return $dat;
+        }
+    }
+
+    /**
+     * @param $concern
+     * @return bool
+     */
+    function jsonable($concern)
+    {
+        return is_object($concern) && in_array('toJson', get_class_methods($concern));
     }
 
     /**

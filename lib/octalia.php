@@ -3441,9 +3441,9 @@
             return $this->get()->toArray();
         }
 
-        public function toJson()
+        public function toJson($option = 0)
         {
-            return $this->get()->toJson();
+            return $this->get()->toJson($option);
         }
 
         public function reduce(callable $callable)

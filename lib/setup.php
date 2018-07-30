@@ -125,11 +125,7 @@ class Setup
         };
 
         $auth['is'] = function (string $role) use ($session) {
-            /** @var array $roles */
-            $roles = $session->user('roles', []);
-            $has = isAke($roles, $role, null);
-
-            return is_null($has) ? false : true;
+            return !is_null(isAke($session->user('roles', []), $role, null));
         };
 
         $auth['guest'] = function () use ($session) {

@@ -17,9 +17,9 @@ use Tests\Post;
 use Tests\Postuser;
 use Tests\User;
 
-function testWithModel(UserModel $user)
+function testWithModel()
 {
-    return $user->id * 5;
+    return 5;
 }
 
 class CommentModel extends Ormmodel

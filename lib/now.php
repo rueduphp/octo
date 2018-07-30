@@ -536,9 +536,9 @@ class Now implements AA
         return coll($this->toArray());
     }
 
-    public function toJson()
+    public function toJson($option = JSON_PRETTY_PRINT)
     {
-        return json_encode($this->toArray(), JSON_PRETTY_PRINT);
+        return json_encode($this->toArray(), $option);
     }
 
     public function toSerialize()

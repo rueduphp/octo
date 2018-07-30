@@ -1,5 +1,33 @@
-$color:#0a6aa7;
+$pink:#dc3545;
 
-.theme {
-  background-color: $color !important;
+.btn-upp {
+  text-transform: uppercase !important;
+}
+
+.sortableLink {
+  font-weight: bold !important;
+  color: #111 !important;
+}
+
+.filedList {
+  float: left;
+  width: 80%;
+}
+
+.sortByLink {
+  float: left;
+  width: 20%;
+  text-align: right;
+}
+
+.text-danger, .has-danger > label {
+  color: red !important;
+}
+.form-control-danger {
+  color: red !important;
+  border-color: red !important;
+}
+
+.pink {
+  color: $pink !important;
 }

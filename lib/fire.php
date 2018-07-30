@@ -92,11 +92,10 @@ class Fire
     }
 
     /**
-     * @param $event
-     *
+     * @param string $event
      * @return bool
      */
-    public function delete($event)
+    public function delete(string $event)
     {
         if ($this->has($event)) {
             $events = Registry::get('fire.events.' . $this->ns, []);
@@ -210,10 +209,13 @@ class Fire
 
     /**
      * @param $class
+     * @return Listener[]
      * @throws \ReflectionException
      */
     public function subscriber($class)
     {
+        $collection = [];
+
         /** @var FastEventSubscriberInterface $instance */
         $instance = gi()->make($class);
 
@@ -222,9 +224,9 @@ class Fire
 
         foreach ($events as $event => $method) {
             if (is_string($method)) {
-                $this->on($event, [$instance, $method]);
+                $ev = $this->on($event, [$instance, $method]);
             } elseif (is_callable($method)) {
-                $this->on($event, $method);
+                $ev = $this->on($event, $method);
             } else {
                 $ev = $this->on($event, [$instance, $method->getMethod()], $method->getPriority(0));
 
@@ -236,7 +238,11 @@ class Fire
                     $ev->once($once);
                 }
             }
+
+            $collection[] = $ev;
         }
+
+        return $collection;
     }
 
     /**
@@ -272,8 +278,6 @@ class Fire
     }
 
     /**
-     * Determine if a given event has listeners.
-     *
      * @param  string $eventName
      * @return bool
      */
@@ -342,8 +346,6 @@ class Fire
     }
 
     /**
-     * Remove a set of listeners from the dispatcher.
-     *
      * @param  string $event
      * @return void
      */
@@ -355,8 +357,6 @@ class Fire
     }
 
     /**
-     * Forget all of the queued listeners.
-     *
      * @return void
      */
     public function forgetPushed()
@@ -371,8 +371,12 @@ class Fire
      * @param bool $once
      * @return Objet
      */
-    public function makeEvent(string $method, $priority = 0, $halt = false, $once = false): Objet
-    {
+    public static function makeEvent(
+        string $method,
+        int $priority = 0,
+        bool $halt = false,
+        bool $once = false
+    ): Objet {
         return o(compact('method', 'priority', 'halt', 'once'));
     }
 }

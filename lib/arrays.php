@@ -463,14 +463,32 @@ class Arrays
         return $found;
     }
 
-    public static function pluck($array, $value, $key = null)
+    /**
+     * @param array $array
+     * @param $value
+     * @param null $key
+     * @return array
+     * @throws \ReflectionException
+     */
+    public static function pluck(array $array, $value, $key = null)
     {
         $results = [];
 
         list($value, $key) = static::explodePluckParameters($value, $key);
 
         foreach ($array as $item) {
-            $itemValue = dget($item, $value);
+            if (!\fnmatch('*&&*', $value[0])) {
+                $itemValue = dget($item, $value);
+            } else {
+                $parts = explode('&&', $value[0]);
+                $itemValue = [];
+
+                foreach ($parts as $part) {
+                    $itemValue[] = dget($item, $part, null);
+                }
+
+                $itemValue = implode(' ', $itemValue);
+            }
 
             if (is_null($key)) {
                 $results[] = $itemValue;

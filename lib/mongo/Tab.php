@@ -128,7 +128,7 @@
             return \SplFixedArray::fromArray(array_values($array));
         }
 
-        public function toJson()
+        public function toJson($option = JSON_PRETTY_PRINT)
         {
             $cursor = iterator_to_array($this->results);
 
@@ -138,7 +138,7 @@
                 return $row;
             }, $cursor);
 
-            return json_encode(array_values($array));
+            return json_encode(array_values($array), $option);
         }
 
         public function __toString()

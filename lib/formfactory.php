@@ -691,6 +691,7 @@ class Formfactory
      * @param null $checked
      * @param array $options
      * @return HtmlString
+     * @throws \ReflectionException
      */
     public function checkbox($name, $value = 1, $checked = null, $options = [])
     {
@@ -703,6 +704,7 @@ class Formfactory
      * @param null $checked
      * @param array $options
      * @return HtmlString
+     * @throws \ReflectionException
      */
     public function radio($name, $value = null, $checked = null, $options = [])
     {
@@ -893,9 +895,9 @@ class Formfactory
      * @param array $options
      * @return HtmlString
      */
-    public function button($value = null, $options = [])
+    public function button($value = null, array $options = [])
     {
-        if (! array_key_exists('type', $options)) {
+        if (!array_key_exists('type', $options)) {
             $options['type'] = 'button';
         }
 

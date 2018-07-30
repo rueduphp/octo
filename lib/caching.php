@@ -506,9 +506,9 @@ class Caching implements FastCacheInterface
     /**
      * @return string
      */
-    public function toJson()
+    public function toJson($option = JSON_PRETTY_PRINT)
     {
-        return json_encode($this->all(), JSON_PRETTY_PRINT);
+        return json_encode($this->all(), $option);
     }
 
     /**

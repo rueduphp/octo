@@ -30,6 +30,12 @@ abstract class Queuer
         }
     }
 
+    /**
+     * @param $job
+     * @param string $data
+     * @return string
+     * @throws \Exception
+     */
     protected function createPayload($job, $data = '')
     {
         $payload = json_encode($this->createPayloadArray($job, $data));

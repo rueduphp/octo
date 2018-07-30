@@ -10,6 +10,8 @@ use Octo\FastRendererInterface;
 use Octo\FastRequest;
 use Octo\FastUserOrmInterface;
 use Octo\Flash;
+use Octo\Live;
+use Octo\Now;
 use Octo\Objet;
 use Octo\Octal;
 use Octo\Reflector;
@@ -19,9 +21,9 @@ use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Zend\Expressive\Router\FastRouteRouter;
 
-function testWithId($id)
+function testWithId()
 {
-    return $id * 5;
+    return 5;
 }
 
 class MyEvents extends Facader {}

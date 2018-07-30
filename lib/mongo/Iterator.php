@@ -69,7 +69,7 @@
             return $collection;
         }
 
-        public function toJson()
+        public function toJson($option = JSON_PRETTY_PRINT)
         {
             $collection = [];
 
@@ -79,7 +79,7 @@
                 $collection[] = include($file);
             }
 
-            return json_encode($collection);
+            return json_encode($collection, $option);
         }
 
         public function limit($limit, $offset = 0)

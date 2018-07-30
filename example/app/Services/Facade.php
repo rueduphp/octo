@@ -12,7 +12,7 @@ class Facade
     {
         $original = Arrays::last(explode('\\', get_called_class()));
 
-        return dic($original);
+        return dic('facades.' . $original);
     }
 
     /**
@@ -21,6 +21,16 @@ class Facade
      * @return mixed
      */
     public static function __callStatic(string $method, array $parameters)
+    {
+        return static::__concern()->{$method}(...$parameters);
+    }
+
+    /**
+     * @param string $method
+     * @param array $parameters
+     * @return mixed
+     */
+    public function __call(string $method, array $parameters)
     {
         return static::__concern()->{$method}(...$parameters);
     }

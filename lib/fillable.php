@@ -246,9 +246,9 @@ class Fillable implements ArrayAccess, IteratorAggregate, Countable
     /**
      * @return string
      */
-    public function toJson()
+    public function toJson($option = JSON_PRETTY_PRINT)
     {
-        return json_encode($this->toArray(), JSON_PRETTY_PRINT);
+        return json_encode($this->toArray(), $option);
     }
 
     /**

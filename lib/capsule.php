@@ -109,8 +109,8 @@ class Capsule
 
         $builder = new Builder($connection);
 
-        $builder->macro('all', function () use ($builder) {
-            return $builder->get();
+        $builder->macro('all', function ($columns = ['*']) use ($builder) {
+            return $builder->newQuery()->get(is_array($columns) ? $columns : func_get_args());
         });
 
         $eloquent = new Builderer($builder);

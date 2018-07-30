@@ -43,8 +43,6 @@ class Exception extends FastMiddleware
      */
     public function handle($exception)
     {
-        $content = render(app_path('views/static/error.php'));
-
-        return fast()->response(500, [], $content);
+        return fast()->response(500, [], render(app_path('views/static/error.php')));
     }
 }

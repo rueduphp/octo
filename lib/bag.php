@@ -422,9 +422,9 @@
             return coll($this->toArray());
         }
 
-        public function toJson()
+        public function toJson($option = 0)
         {
-            return json_encode($this->toArray());
+            return json_encode($this->toArray(), $option);
         }
 
         public function toSerialize()

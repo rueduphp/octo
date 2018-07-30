@@ -70,7 +70,7 @@ class HookTest extends TestCase
      */
     public function testClosure(): void
     {
-        $res = $this->app::callHook('Inflector@dummy', 5, 3);
+        $res = $this->app::callHook(Inflector::class . '@dummy', 5, 3);
 
         $this->assertSame(15, $res);
     }

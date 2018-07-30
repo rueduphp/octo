@@ -1,0 +1,23 @@
+<?php
+return [
+    App::class => App\Facades\App::class,
+    Cache::class => App\Facades\Cache::class,
+    Config::class => App\Facades\Config::class,
+    Cookie::class => Illuminate\Support\Facades\Cookie::class,
+    Crud::class => App\Services\Crud::class,
+    Db::class => App\Facades\Db::class,
+    Disk::class => App\Facades\Disk::class,
+    Event::class => App\Facades\Event::class,
+    File::class => App\Facades\Files::class,
+    Form::class => Octo\Facades\Form::class,
+    Formy::class => App\Facades\Formy::class,
+    Log::class => App\Facades\Log::class,
+    Mail::class => App\Facades\Mail::class,
+    Queue::class => App\Facades\Bus::class,
+    Redirect::class => App\Facades\Redirect::class,
+    Schema::class => App\Facades\Schema::class,
+    Session::class => App\Facades\Session::class,
+    Storage::class => App\Facades\Storage::class,
+    Tpl::class => Illuminate\Support\Facades\Blade::class,
+    View::class => App\Facades\View::class,
+];

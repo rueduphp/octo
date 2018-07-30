@@ -9,6 +9,7 @@ use Octo\FastRequest;
 use Octo\Url;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use function Octo\forever;
 
 class Gate extends FastMiddleware
 {
@@ -52,6 +53,7 @@ class Gate extends FastMiddleware
                 'social.linkedin',
                 'social.google',
                 'social.facebook',
+                'social.spotify',
                 'social.twitter',
             ];
 
@@ -59,7 +61,7 @@ class Gate extends FastMiddleware
                 $found  = false;
                 $user   = model($this->request->session()->getUserModel())
                     ->whereNotNull('remember_token')
-                    ->whereRememberToken(\Octo\forever())
+                    ->whereRememberToken(forever())
                     ->orderByDesc('logged_at')
                     ->first()
                 ;

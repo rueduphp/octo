@@ -48,6 +48,11 @@ class Fastmiddlewarecsrf extends FastMiddleware
         $this->limit        = $limit;
     }
 
+    /**
+     * @param ServerRequestInterface $request
+     * @param DelegateInterface $next
+     * @return \Psr\Http\Message\ResponseInterface
+     */
     public function process(ServerRequestInterface $request, DelegateInterface $next)
     {
         if (in_array($request->getMethod(), ['PUT', 'POST', 'DELETE'], true)) {
@@ -100,8 +105,6 @@ class Fastmiddlewarecsrf extends FastMiddleware
     }
 
     /**
-     * Remove a token from session.
-     *
      * @param string $token
      */
     private function removeToken($token)
@@ -131,8 +134,6 @@ class Fastmiddlewarecsrf extends FastMiddleware
     }
 
     /**
-     * Limit the number of tokens.
-     *
      * @param array $tokens
      *
      * @return array

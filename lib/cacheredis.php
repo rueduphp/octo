@@ -187,6 +187,12 @@
             return $this->set($k, $v, $timestamp);
         }
 
+        /**
+         * @param string $k
+         * @param null $d
+         * @return mixed|null
+         * @throws \ReflectionException
+         */
         public function get(string $k, $d = null)
         {
             $file = $this->getPath($k);
@@ -925,9 +931,9 @@
         /**
          * @return string
          */
-        public function toJson()
+        public function toJson($option = JSON_PRETTY_PRINT)
         {
-            return json_encode($this->all(), JSON_PRETTY_PRINT);
+            return json_encode($this->all(), $option);
         }
 
         /**
