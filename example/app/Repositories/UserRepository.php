@@ -32,6 +32,11 @@ class UserRepository extends Repository
      */
     private $hash;
 
+    /**
+     * @param FastRequest $request
+     * @param FastSessionInterface $session
+     * @param Bcrypt $hash
+     */
     public function __construct(FastRequest $request, FastSessionInterface $session, Bcrypt $hash)
     {
         $this->request  = $request;
@@ -76,10 +81,8 @@ class UserRepository extends Repository
         $this->session->set($this->session->getUserKey(), $user->toArray());
     }
 
-    /**
-     * @throws \ReflectionException
-     */
-    public function logout()
+
+    public function logout(): void
     {
         if ($user = user()) {
             $user->remember_token = null;
@@ -101,7 +104,6 @@ class UserRepository extends Repository
 
     /**
      * @return array
-     * @throws \ReflectionException
      */
     public function crud()
     {

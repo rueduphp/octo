@@ -1,17 +1,12 @@
 <?php
 namespace App\Models;
 
-use App\Services\Data;
 use ArrayAccess;
-use Octo\FastContainerException;
-use ReflectionException;
 
 class Option implements ArrayAccess
 {
     /**
      * @return Settings
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public static function self()
     {
@@ -22,8 +17,6 @@ class Option implements ArrayAccess
      * @param string $name
      * @param array $arguments
      * @return mixed|null
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public static function __callStatic(string $name, array $arguments)
     {
@@ -39,8 +32,6 @@ class Option implements ArrayAccess
     /**
      * @param mixed $offset
      * @return bool
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function offsetExists($offset)
     {
@@ -50,8 +41,6 @@ class Option implements ArrayAccess
     /**
      * @param mixed $offset
      * @return mixed|null
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function offsetGet($offset)
     {
@@ -61,8 +50,6 @@ class Option implements ArrayAccess
     /**
      * @param mixed $offset
      * @param mixed $value
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function offsetSet($offset, $value)
     {
@@ -71,8 +58,6 @@ class Option implements ArrayAccess
 
     /**
      * @param mixed $offset
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function offsetUnset($offset)
     {
@@ -82,8 +67,6 @@ class Option implements ArrayAccess
     /**
      * @param $key
      * @param $value
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function __set($key, $value)
     {
@@ -93,8 +76,6 @@ class Option implements ArrayAccess
     /**
      * @param $key
      * @return mixed|null
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function __get($key)
     {
@@ -104,8 +85,6 @@ class Option implements ArrayAccess
     /**
      * @param $key
      * @return bool
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function __isset($key)
     {
@@ -114,8 +93,6 @@ class Option implements ArrayAccess
 
     /**
      * @param $key
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function __unset($key)
     {

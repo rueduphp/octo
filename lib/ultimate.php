@@ -303,7 +303,7 @@ class Ultimate implements
      * @throws FastContainerException
      * @throws \ReflectionException
      */
-    protected function makeUser($id)
+    public function makeUser($id)
     {
         return callOnce(function () use ($id) {
             return (new $this->userModel)->findOrFail($id);

@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\MessageBag;
 use Mmanos\Search\Index;
 use Mmanos\Search\Query;
-use function Octo\dispatcher;
 use Octo\Elegant;
 use function Octo\gi;
+use function Octo\hydrator;
+use Octo\Listener;
+use Octo\Objet;
 
 class Model extends Elegant
 {
@@ -50,7 +52,7 @@ class Model extends Elegant
      */
     protected static function boot()
     {
-        static::setEventDispatcher(dispatcher('models'));
+        static::setEventDispatcher(\Octo\dispatcher('models'));
 
         parent::boot();
 
@@ -232,8 +234,55 @@ class Model extends Elegant
             ->from($this->table, $alias, $indexBy);
     }
 
+    /**
+     * @param string $class
+     * @param null $foreignKey
+     * @param null $localKey
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function many(string $class, $foreignKey = null, $localKey = null)
     {
         return $this->hasMany($class, $foreignKey, $localKey);
+    }
+
+    /**
+     * @param string $class
+     * @param null $foreignKey
+     * @param null $ownerKey
+     * @param null $relation
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function one(string $class, $foreignKey = null, $ownerKey = null, $relation = null)
+    {
+        return $this->belongsTo($class, $foreignKey, $ownerKey, $relation);
+    }
+
+    /**
+     * @param string $class
+     * @return object
+     * @throws \ReflectionException
+     */
+    public function toObject(string $class = Objet::class)
+    {
+        return hydrator($class, $this->toArray());
+    }
+
+    /**
+     * @param string $event
+     * @param $callback
+     * @return Listener
+     */
+    public function listenEvent(string $event, $callback)
+    {
+        return dispatcher('db')->listen($event . ':' . get_class($this), $callback);
+    }
+
+    /**
+     * @param mixed ...$args
+     * @return mixed
+     */
+    public function fireEvent(...$args)
+    {
+        return dispatcher('db')->fire(...$args);
     }
 }

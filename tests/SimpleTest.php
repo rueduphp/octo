@@ -963,16 +963,6 @@ class SimpleTest extends TestCase
     /**
      * @throws Exception
      */
-    public function testTwigRenderer()
-    {
-        $html = $this->twig(__DIR__ . '/twig/hello', ['name' => 'foo']);
-
-        $this->assertSame('<h1>Hello foo <a href="/slug/foo">link</a></h1>', $html);
-    }
-
-    /**
-     * @throws Exception
-     */
     public function testFinder()
     {
         $finder = new Finder();

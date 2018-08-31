@@ -25,7 +25,7 @@ class Locker
 
         while (true) {
             if (flock($reader, LOCK_EX | LOCK_NB)) {
-                call_func($callback, $reader);
+                cf($callback, $reader);
 
                 fflush($reader);
                 flock($reader, LOCK_UN);
@@ -47,7 +47,7 @@ class Locker
 
         while (true) {
             if (flock($reader, LOCK_SH | LOCK_NB)) {
-                call_func($callback, $this);
+                cf($callback, $this);
 
                 flock($reader, LOCK_UN);
                 fclose($reader);

@@ -12,7 +12,7 @@ class Fastmiddlewarenotfound extends FastMiddleware
      * @return \GuzzleHttp\Psr7\Response|\Psr\Http\Message\ResponseInterface
      * @throws \ReflectionException
      */
-    public function process(ServerRequestInterface $request, DelegateInterface $next)
+    public function process(ServerRequestInterface $request, ?DelegateInterface $next = null)
     {
         $app = $this->getContainer();
 

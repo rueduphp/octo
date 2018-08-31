@@ -18,6 +18,7 @@ return [
     Schema::class => App\Facades\Schema::class,
     Session::class => App\Facades\Session::class,
     Storage::class => App\Facades\Storage::class,
+    Time::class => \Illuminate\Support\Carbon::class,
     Tpl::class => Illuminate\Support\Facades\Blade::class,
     View::class => App\Facades\View::class,
 ];

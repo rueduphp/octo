@@ -11,7 +11,7 @@ class Directives
      * @param array $directives
      * @throws \ReflectionException
      */
-    public static function register(array $directives)
+    public static function register(array $directives = [])
     {
         foreach ($directives as $name => $directive) {
             \Octo\bladeCompiler()->directive($name, $directive);

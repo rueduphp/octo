@@ -3,7 +3,6 @@ namespace App\Traits;
 
 use App\Models\Settings;
 use App\Models\User;
-use App\Services\Data;
 use function Octo\gi;
 
 trait Authable

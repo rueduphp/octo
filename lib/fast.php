@@ -321,17 +321,17 @@
 
         public function applyTwigExtensions()
         {
-            $extensions = $this->app->dataget('add.fast.twig_extensions', []);
+            $extensions = array_unique($this->app->dataget('add.fast.twig_extensions', []));
 
             $twig = $this->getRenderer();
 
             foreach ($extensions as $extension) {
                 if (!in_array($extension, $this->extensionsLoaded)) {
                     try {
-                        $this->extensionsLoaded[] = $extension;
                         $twig->addExtension(
                             gi()->make($extension)
                         );
+                        $this->extensionsLoaded[] = $extension;
                     } catch (\Exception $e) {
                         $this->extensionsLoaded[] = $extension;
                     }
@@ -762,7 +762,7 @@
          * @throws TypeError         *
          * @throws \ReflectionException
          */
-        public function run($request = null)
+        public function run(?ServerRequestInterface $request = null)
         {
             if ($this->getRenderer() instanceof FastTwigRenderer) {
                 $this->add('twig_extensions', FastTwigExtension::class);
@@ -795,6 +795,8 @@
          */
         public function process(ServerRequestInterface $request)
         {
+            setCore('global.request', $request);
+
             if (false === $this->started && true === $this->hasSession()) {
                 unset($this->getSession()['old_inputs']);
                 $this->started = true;
@@ -2438,7 +2440,8 @@
         public $hasFailed = false;
 
         /**
-         * @throws NativeException
+         * @throws \Exception
+         * @throws \ReflectionException
          */
         public function __construct()
         {
@@ -2762,7 +2765,6 @@
         /**
          * @param string $key
          * @return UploadedFile|null
-         * @throws \ReflectionException
          */
         public function file(string $key)
         {
@@ -2783,7 +2785,6 @@
         /**
          * @param $keys
          * @return mixed
-         * @throws \ReflectionException
          */
         public function only($keys)
         {
@@ -3692,11 +3693,15 @@
              */
             $fastRouter = $this->getContainer()->define("router");
 
-            try {
-                return $fastRouter->generateUri($routeName, $params);
-            } catch (\Exception $e) {
-                return '/';
+            if ($fastRouter) {
+                try {
+                    return $fastRouter->generateUri($routeName, $params);
+                } catch (\Exception $e) {
+                    return '/';
+                }
             }
+
+            return '/';
         }
 
         /**

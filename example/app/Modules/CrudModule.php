@@ -5,16 +5,17 @@ use App\Facades\Redirect;
 use App\Facades\Route;
 use App\Models\User;
 use App\Requests\CrudRequest;
+use App\Services\Auth;
 use App\Services\Crud;
 use App\Services\Model;
 use App\Services\Module;
 use App\Services\Repository;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Pluralizer;
-use function Octo\aget;
 use Octo\Arrays;
 use Octo\Elegant;
 use ReflectionException;
+use function Octo\aget;
 
 class CrudModule extends Module
 {
@@ -43,6 +44,9 @@ class CrudModule extends Module
      */
     public function __construct()
     {
+        /** @var Auth auth */
+        $this->auth = $this->getAuth();
+
         parent::__construct();
 
         $this->user = $this->request->user();

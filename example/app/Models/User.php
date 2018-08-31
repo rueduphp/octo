@@ -4,6 +4,8 @@ namespace App\Models;
 use App\Services\Model;
 use App\Traits\Attributable;
 use App\Traits\Authable;
+use App\Traits\Loggable;
+use App\Traits\Optionable;
 use Octo\Inflector;
 use Octo\Notifiable;
 
@@ -12,6 +14,8 @@ class User extends Model
     use Authable;
     use Notifiable;
     use Attributable;
+    use Optionable;
+    use Loggable;
 
     /**
      * @var string

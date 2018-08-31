@@ -1,27 +1,22 @@
 <?php
 namespace App\Models;
 
-use App\Services\Data;
 use ArrayAccess;
-use Octo\FastContainerException;
-use ReflectionException;
 
 class Setting implements ArrayAccess
 {
     /**
      * @return Settings
-     * @throws ReflectionException
      */
     public static function self()
     {
-        return \Octo\gi()->make(Settings::class)->setStore(new Data);
+        return \Octo\gi()->make(Settings::class)->setStore(store('setting'));
     }
 
     /**
      * @param string $name
      * @param array $arguments
      * @return mixed|null
-     * @throws ReflectionException
      */
     public static function __callStatic(string $name, array $arguments)
     {
@@ -37,8 +32,6 @@ class Setting implements ArrayAccess
     /**
      * @param mixed $offset
      * @return bool
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function offsetExists($offset)
     {
@@ -48,8 +41,6 @@ class Setting implements ArrayAccess
     /**
      * @param mixed $offset
      * @return mixed|null
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function offsetGet($offset)
     {
@@ -59,8 +50,6 @@ class Setting implements ArrayAccess
     /**
      * @param mixed $offset
      * @param mixed $value
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function offsetSet($offset, $value)
     {
@@ -69,8 +58,6 @@ class Setting implements ArrayAccess
 
     /**
      * @param mixed $offset
-     * @throws FastContainerException
-     * @throws ReflectionException
      */
     public function offsetUnset($offset)
     {
@@ -80,7 +67,6 @@ class Setting implements ArrayAccess
     /**
      * @param $key
      * @param $value
-     * @throws ReflectionException
      */
     public function __set($key, $value)
     {
@@ -90,7 +76,6 @@ class Setting implements ArrayAccess
     /**
      * @param $key
      * @return mixed|null
-     * @throws ReflectionException
      */
     public function __get($key)
     {
@@ -100,7 +85,6 @@ class Setting implements ArrayAccess
     /**
      * @param $key
      * @return bool
-     * @throws ReflectionException
      */
     public function __isset($key)
     {
@@ -109,7 +93,6 @@ class Setting implements ArrayAccess
 
     /**
      * @param $key
-     * @throws ReflectionException
      */
     public function __unset($key)
     {

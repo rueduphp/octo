@@ -8,6 +8,7 @@ use Octo\FastMiddleware;
 use Octo\Fastmiddlewarecsrf;
 use Octo\FastRendererInterface;
 use Octo\FastRequest;
+use Octo\FastTwigExtension;
 use Octo\FastUserOrmInterface;
 use Octo\Flash;
 use Octo\Live;
@@ -180,7 +181,7 @@ class Module extends Octo\Module
      */
     public function config(ContainerInterface $app)
     {
-        $app->twigRenderer(__DIR__ . DIRECTORY_SEPARATOR . 'twig');
+        \Octo\twigRenderer(__DIR__ . DIRECTORY_SEPARATOR . 'twig');
     }
 
     /**
@@ -191,6 +192,7 @@ class Module extends Octo\Module
     {
         $this->app = $app;
         $this->renderer = $renderer;
+        $this->renderer->addExtension($this->gi()->make(FastTwigExtension::class));
     }
 
     /**
@@ -633,6 +635,20 @@ class FastTest extends TestCase
     }
 
     /**
+     * @throws ReflectionException
+     */
+    public function testBlade()
+    {
+        $_SERVER['REQUEST_URI'] = '/blade';
+        $request = $this->app->fromGlobals();
+        $this->app->addModule(Module::class);
+        $response = $this->app->run($request);
+
+        $this->assertEquals(200, $response->getStatusCode());
+        $this->assertEquals('<h1>Hello bar</h1>', (string) $response->getBody());
+    }
+
+    /**
      * @throws Exception
      * @throws ReflectionException
      * @throws TypeError
@@ -645,21 +661,7 @@ class FastTest extends TestCase
         $response = $this->app->run($request);
 
         $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('<h1>Hello test <a href="/slug/foo">link</a></h1>', (string) $response->getBody());
-    }
-
-    /**
-     * @throws ReflectionException
-     */
-    public function testBlade()
-    {
-        $_SERVER['REQUEST_URI'] = '/blade';
-        $request = $this->app->fromGlobals();
-        $this->app->addModule(Module::class);
-        $response = $this->app->run($request);
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertEquals('<h1>Hello bar</h1>', (string) $response->getBody());
+        $this->assertEquals('<h1>Hello test <a href="/slug/foo">link</a></h1>' . "\n", (string) $response->getBody());
     }
 
     /**

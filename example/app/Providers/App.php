@@ -3,8 +3,6 @@ namespace App\Providers;
 
 use App\Facades\Container;
 use App\Facades\Request;
-use App\Facades\Route;
-use App\Middlewares\Etag;
 use App\Middlewares\Exception;
 use App\Middlewares\Gate;
 use App\Middlewares\Session;
@@ -134,8 +132,12 @@ class App
      * @throws \Octo\Exception
      * @throws \ReflectionException
      */
-    public function handler(bool $cli)
+    public function handler($cli)
     {
+        if (!is_bool($cli)) {
+            $cli = false;
+        }
+
         inners();
 
         if (false === $cli) {

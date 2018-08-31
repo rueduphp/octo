@@ -4,6 +4,7 @@ namespace App;
 use App\Facades\Event;
 use App\Providers\Event as EventProvider;
 use App\Providers\Paths;
+use App\Services\App;
 use Octo\Configurator;
 use Octo\File;
 use function Octo\aget;
@@ -52,6 +53,10 @@ class Bootstrap
         addConfig('redis');
         addConfig('mail');
 
+
+        $app = new App(realpath(__DIR__));
+        inInstance($app, 'larapp');
+
         spl_autoload_register([new static, 'loader']);
 
         l('config', app(Configurator::class));
@@ -76,7 +81,7 @@ class Bootstrap
         $providers = include config_path('providers.php');
 
         foreach ($providers as $provider) {
-            gi()->call(gi()->make($provider), 'handler', static::$cli);
+            cf([gi()->make($provider), 'handler'], static::$cli);
         }
     }
 

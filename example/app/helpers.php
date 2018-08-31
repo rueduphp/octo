@@ -2,10 +2,14 @@
 
 use App\Facades\Db;
 use App\Facades\Event;
+use App\Models\Option;
+use App\Models\Setting;
+use App\Models\Settings;
 use App\Services\Auth;
 use App\Services\Cache;
 use App\Services\Directives;
 use App\Services\Log;
+use App\Services\Logger;
 use App\Services\Lua;
 use App\Services\Model;
 use Carbon\Carbon;
@@ -18,6 +22,8 @@ use Illuminate\Database\SQLiteConnection;
 use Illuminate\Redis\RedisManager;
 use Illuminate\Support\Collection as LColl;
 use Illuminate\Support\HtmlString;
+use League\Flysystem\Sftp\SftpAdapter;
+use League\Flysystem\Filesystem;
 use Octo\Api;
 use Octo\Arrays;
 use Octo\Bcrypt;
@@ -29,7 +35,6 @@ use Octo\Elegant;
 use Octo\Entity;
 use Octo\Facades\Config as CoreConf;
 use Octo\Facades\Validator;
-use Octo\Fast;
 use Octo\FastContainerException;
 use Octo\FastRequest;
 use Octo\FastTwigExtension;
@@ -40,7 +45,6 @@ use Octo\In;
 use Octo\Inflector;
 use Octo\Listener;
 use Octo\Pack;
-use Octo\Setup;
 use Octo\Shoppingcart;
 use Octo\Ultimate;
 use Octo\Url;
@@ -469,11 +473,12 @@ function session($key = null, $default = null)
 
 /**
  * @param string $namespace
+ * @param mixed ...$args
  * @return Ultimate
  */
-function getSession($namespace = 'web')
+function getSession($namespace = 'web', ...$args)
 {
-    return ultimate($namespace);
+    return ultimate($namespace, ...$args);
 }
 
 /**
@@ -621,8 +626,10 @@ function cache(...$arguments)
  * @param string $value
  * @return mixed
  */
-function config(?string $key = null, $value = 'octodummy')
+function config(...$args)
 {
+    $key = array_shift($args);
+
     if (is_array($key)) {
         foreach ($key as $k => $v) {
             CoreConf::set($k, $v);
@@ -631,11 +638,7 @@ function config(?string $key = null, $value = 'octodummy')
         return true;
     }
 
-    if ('octodummy' === $value) {
-        return CoreConf::get($key, $value);
-    }
-
-    CoreConf::set($key, $value);
+    return CoreConf::get($key, reset($args));
 }
 
 /**
@@ -1083,7 +1086,9 @@ function c(?string $key = null, $value = 'octodummy')
  */
 function l(?string $key = null, $value = 'octodummy')
 {
-    $app = Illuminate\Container\Container::getInstance();
+    if (!$app = inInstance('larapp')) {
+        $app = Illuminate\Container\Container::getInstance();
+    }
 
     if (null === $key) {
         return $app;
@@ -1096,6 +1101,24 @@ function l(?string $key = null, $value = 'octodummy')
     $app[$key] = $value;
 
     return $app;
+}
+
+/**
+ * @param string $path
+ * @return string
+ */
+function base_path(string $path = '')
+{
+    return realpath(__DIR__) . ($path ? DS . trim($path, DS) : $path);;
+}
+
+/**
+ * @param string $path
+ * @return string
+ */
+function app_path(string $path = '')
+{
+    return realpath(__DIR__) . ($path ? DS . trim($path, DS) : $path);;
 }
 
 /**
@@ -1386,7 +1409,12 @@ function redis()
  */
 function sqlite()
 {
-    return dic('db')->connection('sqlite');
+    /** @var SQLiteConnection $cnx */
+    $cnx = dic('db')->connection('sqlite');
+
+    inInstance($cnx->getPdo(), 'lite.pdo');
+
+    return $cnx;
 }
 
 /**
@@ -1615,7 +1643,7 @@ function warning(string $message, array $context = [])
  * @return Log
  * @throws ReflectionException
  */
-function logger(?string $message = null, array $context = [])
+function logs(?string $message = null, array $context = [])
 {
     /** @var Log $logger */
     $logger = dic('logservice');
@@ -1858,9 +1886,20 @@ function findIn(string $start, string $end, string $concern, ?string $default = 
  * @return mixed
  * @throws Exception
  */
-function evaluate(string $code)
+function evaluate(string $code, array $data = [])
 {
-    $output = Octo\evalApp("return $code;");
+    $output = Octo\evalNs('', "return $code;", $data);
+
+    return eval($output);
+}
+
+/**
+ * @param $code
+ * @throws Exception
+ */
+function myEval(string $code, array $data = [])
+{
+    $output = Octo\evalNs('', $code, $data);
 
     return eval($output);
 }
@@ -2085,16 +2124,58 @@ function job($job, int $minutes = 0, string $queue = 'main')
 
 function jobs(string $queue = 'main')
 {
+    $now = Carbon::now()->getTimestamp();
     $path = Octo\storage_path("queues/$queue/todo");
     $jobs = glob($path . '/*.job', GLOB_NOSORT);
     $collection = [];
 
     foreach ($jobs as $job) {
-        $item = ['job' => $job, 'time' => filemtime($job)];
-        $collection[] = $item;
+        $at = filemtime($job);
+
+        if ($at <= $now) {
+            $item = ['job' => $job, 'time' => $at];
+            $collection[] = $item;
+        }
     }
 
     return acoll($collection)->sortBy('time')->pluck('job');
+}
+
+function runJobs()
+{
+    $jobs = jobs();
+
+    foreach ($jobs as $job) {
+        $explode = explode('/', $job);
+        array_pop($explode);
+        array_pop($explode);
+        $failDir = implode('/', $explode) . '/failed';
+
+        if (!is_dir($failDir)) {
+            Octo\File::mkdir($failDir);
+        }
+
+        $instance = unserialize(file_get_contents($job));
+
+        try {
+            gi()->call($instance, 'handle');
+
+            if (method_exists($instance, 'onSuccess')) {
+                gi()->call($instance, 'onSuccess');
+            }
+
+            unlink($job);
+        } catch (\Exception $e) {
+            if (method_exists($instance, 'onFail')) {
+                gi()->call($instance, 'onFail');
+            }
+        }
+    }
+}
+
+function execJobs()
+{
+    exec("cd ..;php bg.php > /dev/null &");
 }
 
 /**
@@ -2336,6 +2417,16 @@ function call_func($callback, ...$args)
  * @param $callback
  * @param mixed ...$args
  * @return mixed|null
+ */
+function cf($callback, ...$args)
+{
+    return call_func($callback, ...$args);
+}
+
+/**
+ * @param $callback
+ * @param mixed ...$args
+ * @return mixed|null
  * @throws ReflectionException
  */
 function caller($callback, ...$args)
@@ -2516,12 +2607,12 @@ function xcopy($source, $dest, $permissions = 0755)
 /**
  * @param null|string $key
  * @param mixed $value
- * @return \App\Models\Settings|mixed|null
+ * @return Settings|mixed|null
  * @throws ReflectionException
  */
 function option(?string $key = null, $value = 'octodummy')
 {
-    $option = \App\Models\Option::self();
+    $option = Option::self();
 
     if (null === $key) {
         return $option;
@@ -2537,12 +2628,12 @@ function option(?string $key = null, $value = 'octodummy')
 /**
  * @param null|string $key
  * @param string $value
- * @return \App\Models\Settings|mixed|null
+ * @return Settings|mixed|null
  * @throws ReflectionException
  */
 function setting(?string $key = null, $value = 'octodummy')
 {
-    $option = \App\Models\Setting::self();
+    $option = Setting::self();
 
     if (null === $key) {
         return $option;
@@ -2583,4 +2674,413 @@ function me()
     }
 
     return store('u.' . Octo\forever());
+}
+
+/**
+ * @param callable $job
+ * @param int $count
+ * @param int $sleep
+ * @return array
+ * @throws ReflectionException
+ */
+function multiProcess(callable $job, int $count = 5, int $sleep = 1)
+{
+    $parentPid = getmypid();
+
+    $children = [];
+
+    for ($i = 0; $i < $count; $i += 1) {
+        $pid = pcntl_fork();
+
+        if (!$pid) {
+            sleep($sleep);
+            $partition = [$i, $count, $parentPid];
+            call_func($job, $partition);
+
+            exit($i + 1);
+        } else {
+            $children[] = $pid;
+        }
+    }
+
+    $logs = ['success' => [], 'fail' => []];
+
+    foreach($children as $child) {
+        $pid = pcntl_wait($status);
+
+        if (pcntl_wifexited($status)) {
+            $code = pcntl_wexitstatus($status);
+            $logs['success'][] = ['code' => $code, 'pid' => $pid];
+        } else {
+            $logs['fail'][] = ['pid' => $pid];
+        }
+    }
+
+    return $logs;
+}
+
+/**
+ * @param string $name
+ * @return Logger
+ */
+function logger(string $name = 'core')
+{
+    static $loggers = [];
+
+    if (null === ($instance = isAke($loggers, $name, null))) {
+        $instance = (new Logger)->setNamespace($name);
+
+        $loggers[$name] = $instance;
+    }
+
+    return $instance;
+}
+
+/**
+ * @param null|string $key
+ * @param null $default
+ * @return array|mixed|null
+ */
+function calledBy(?string $key = null, $default = null)
+{
+    $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3)[2] ?? [];
+
+    if (is_string($key)) {
+        return $caller[$key] ?? $default;
+    }
+
+    return $caller;
+}
+
+/**
+ * @param string|object $concern
+ * @param null|string $concernKey
+ * @return mixed|null
+ */
+function inInstance($concern, ?string $concernKey = null)
+{
+    if (is_object($concern)) {
+        if (null === $concernKey) {
+            $key = 'ii.' . get_class($concern);
+        } else {
+            $key = 'ii.' . $concernKey;
+        }
+
+        set($key, $concern);
+    }
+
+    if (is_string($concern)) {
+        $key = 'ii.' . $concern;
+
+        return get($key);
+    }
+}
+
+/**
+ * @param string $url
+ * @return array
+ */
+function urlCron(string $url)
+{
+    exec("wget -q -O /dev/null '$url' > /dev/null 2>&1", $result, $status);
+
+    return [$result, $status];
+}
+
+/**
+ * @param array $array
+ * @param callable $callback
+ */
+function browseArray(array &$array, callable $callback)
+{
+    if (isset($array)) {
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                browseArray($array[$key], $callback);
+            } else {
+                $array[$key] = cf($callback, $array[$key], $key);
+            }
+        }
+    }
+}
+
+/**
+ * @return array
+ */
+function getTZList()
+{
+    return [
+        'EUROPE'        => DateTimeZone::listIdentifiers(DateTimeZone::EUROPE),
+        'AMERICA'       => DateTimeZone::listIdentifiers(DateTimeZone::AMERICA),
+        'INDIAN'        => DateTimeZone::listIdentifiers(DateTimeZone::INDIAN),
+        'AUSTRALIA'     => DateTimeZone::listIdentifiers(DateTimeZone::AUSTRALIA),
+        'ASIA'          => DateTimeZone::listIdentifiers(DateTimeZone::ASIA),
+        'AFRICA'        => DateTimeZone::listIdentifiers(DateTimeZone::AFRICA),
+        'ANTARCTICA'    => DateTimeZone::listIdentifiers(DateTimeZone::ANTARCTICA),
+        'ARCTIC'        => DateTimeZone::listIdentifiers(DateTimeZone::ARCTIC),
+        'ATLANTIC'      => DateTimeZone::listIdentifiers(DateTimeZone::ATLANTIC),
+        'PACIFIC'       => DateTimeZone::listIdentifiers(DateTimeZone::PACIFIC),
+        'UTC'           => DateTimeZone::listIdentifiers(DateTimeZone::UTC),
+    ];
+}
+
+function gd()
+{
+    return new Filesystem(new SftpAdapter(pkey('gd')));
+}
+
+/**
+ * @param string $what
+ * @return PDO
+ */
+function pdo(string $what = 'main')
+{
+    return inInstance($what . '.pdo');
+}
+
+/**
+ * @param string $type
+ * @param int $len
+ * @return bool|int|string
+ */
+function rdmString(string $type = 'alnum', int $len = 8)
+{
+    switch ($type) {
+        case 'basic':
+            return mt_rand();
+        case 'alnum':
+        case 'numeric':
+        case 'nozero':
+        case 'alpha':
+            switch ($type) {
+                case 'alpha':
+                    $pool = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    break;
+                case 'alnum':
+                    $pool = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    break;
+                case 'numeric':
+                    $pool = '0123456789';
+                    break;
+                case 'nozero':
+                    $pool = '123456789';
+                    break;
+            }
+
+            return substr(str_shuffle(str_repeat($pool, ceil($len / strlen($pool)))), 0, $len);
+        case 'unique': // todo: remove in 3.1+
+        case 'md5':
+            return md5(uniqid(mt_rand()));
+        case 'encrypt': // todo: remove in 3.1+
+        case 'sha1':
+            return sha1(uniqid(mt_rand(), TRUE));
+    }
+}
+
+/**
+ * @param string $str
+ * @param string $sep
+ * @param int $first
+ * @return string
+ */
+function incrString(string $str, string $sep = '_', int $first = 1): string
+{
+    preg_match('/(.+)'.preg_quote($sep, '/').'([0-9]+)$/', $str, $match);
+
+    return isset($match[2]) ? $match[1] . $sep . ($match[2] + 1) : $str . $sep . $first;
+}
+
+/**
+ * @param \Psr\Http\Message\ResponseInterface $response
+ * @return \Psr\Http\Message\ResponseInterface
+ */
+function noCache(\Psr\Http\Message\ResponseInterface $response)
+{
+    return $response
+        ->withHeader('Cache-Control', 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0')
+        ->withHeader('Pragma', 'no-cache')
+    ;
+}
+
+/**
+ * @param string $field
+ * @param string $destination
+ * @throws ReflectionException
+ */
+function upload(string $field, string $destination)
+{
+    $request = new FastRequest();
+
+    $file = $request->file($field);
+
+    $file->moveTo($destination);
+}
+
+/**
+ * @param string $to
+ * @param string $from
+ * @param string $subject
+ * @param string $body
+ * @param bool $html
+ * @return bool
+ */
+function mailCurl(string $to, string $from, string $subject, string $body, bool $html = true)
+{
+    $headers = [];
+
+    $headers[] = "From: $from";
+
+    if (true === $html) {
+        $headers[] = "Content-Type: text/html; charset=utf-8";
+    }
+
+    try {
+        $handler = curl_init(pkey('mail.curl'));
+
+        $data = [
+            'to'        => base64_encode($to),
+            'subject'   => base64_encode($subject),
+            'body'      => base64_encode($body),
+            'key'       => pkey('mail.remote.key'),
+            'headers'   => base64_encode(implode("\n", $headers))
+        ];
+
+        curl_setopt($handler, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($handler, CURLOPT_POST, 1);
+        curl_setopt($handler, CURLOPT_POSTFIELDS, $data);
+
+        $result = curl_exec($handler);
+
+        curl_close($handler);
+
+        return 'OK' === $result ? true : false;
+    } catch (\Exception $e) {
+        return false;
+    }
+}
+
+/**
+ * @param string $to
+ * @param string $from
+ * @param string $subject
+ * @param string $html
+ * @param string $text
+ * @param null|string $file
+ * @param null|string $filename
+ * @return bool
+ */
+function remoteMail(
+    string $to,
+    string $from,
+    string $subject,
+    string $html,
+    string $text = '',
+    ?string $file = null,
+    ?string $filename = null
+) {
+    if (!empty($file)) {
+        $content = file_get_contents($file);
+        $content = chunk_split(base64_encode($content));
+
+        if (empty($filename)) {
+            $filename = Arrays::last(explode('/', $file));
+        }
+    }
+
+    $separator = md5(uniqid(time()));
+
+    $eol = "\r\n";
+
+    $headers = "From: " . $from . $eol;
+    $headers .= "MIME-Version: 1.0" . $eol;
+    $headers .= "Content-Type: multipart/alternative; charset=\"UTF-8\"; boundary=\"" . $separator . "\"" . $eol;
+    $headers .= "Content-Transfer-Encoding: 8bit" . $eol;
+    $headers .= "This is a MIME encoded message." . $eol;
+
+    $body = '';
+
+    if (!empty($text)) {
+        $body .= "--" . $separator . $eol;
+        $body .= "Content-Type: text/plain; charset=\"utf-8\"" . $eol;
+        $body .= "Content-Transfer-Encoding: 8bit" . $eol . $eol;
+        $body .= $text . $eol . $eol;
+    }
+
+    if (!empty($html)) {
+        $body .= "--" . $separator . $eol;
+        $body .= "Content-Type: text/html; charset=\"utf-8\"" . $eol;
+        $body .= "Content-Transfer-Encoding: 8bit" . $eol . $eol;
+        $body .= $html . $eol . $eol;
+    }
+
+    if (!empty($file)) {
+        $body .= "--" . $separator . $eol;
+        $body .= "Content-Type: application/octet-stream; name=\"" . $filename . "\"" . $eol;
+        $body .= "Content-Transfer-Encoding: base64" . $eol;
+        $body .= "Content-Disposition: attachment" . $eol . $eol;
+        $body .= $content . $eol . $eol;
+        $body .= "--" . $separator . "--";
+    }
+
+    try {
+        $handler = curl_init(pkey('mail.remote.url'));
+
+        $data = [
+            'to'        => base64_encode($to),
+            'subject'   => base64_encode($subject),
+            'body'      => base64_encode($body),
+            'headers'   => base64_encode($headers),
+            'key'       => pkey('mail.remote.key'),
+        ];
+
+        curl_setopt($handler, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($handler, CURLOPT_POST, 1);
+        curl_setopt($handler, CURLOPT_POSTFIELDS, $data);
+
+        $result = curl_exec($handler);
+
+        curl_close($handler);
+
+        return 'OK' === $result ? true : false;
+    } catch (\Exception $e) {
+        return false;
+    }
+}
+
+/**
+ * @param null|string $key
+ * @param callable|null $hook
+ * @return array|callable|null
+ */
+function hook(?string $key = null, ?callable $hook = null)
+{
+    static $hooks = [];
+
+    if (is_callable($hook)) {
+        $hooks[$key] = $hook;
+    }
+
+    if (is_string($key)) {
+        return $hooks[$key] ?? null;
+    }
+
+    return $hooks;
+}
+
+/**
+ * @param string $key
+ * @param mixed ...$args
+ * @return mixed|null
+ */
+function hooky(string $key, ...$args)
+{
+    $hook = hook($key);
+
+    if (is_callable($hook)) {
+        $params = array_merge([$hook], $args);
+
+        return gi()->makeClosure(...$params);
+    }
+
+    return null;
 }

@@ -280,25 +280,25 @@ class Mailable implements FastMailerInterface
         $headers[] = "Content-Type: text/html;";
 
         try {
-            $ch = curl_init(Registry::get('mail.curl'));
+            $handler = curl_init(Registry::get('mail.curl'));
 
-            $data = array(
+            $data = [
                 'to'        => base64_encode($email),
                 'sujet'     => base64_encode($subject),
                 'message'   => base64_encode($body),
                 'entetes'   => base64_encode(implode("\n", $headers)),
                 'f'         => base64_encode('')
-            );
+            ];
 
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+            curl_setopt($handler, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($handler, CURLOPT_POST, 1);
+            curl_setopt($handler, CURLOPT_POSTFIELDS, $data);
 
-            $resultat = curl_exec($ch);
+            $result = curl_exec($handler);
 
-            curl_close($ch);
+            curl_close($handler);
 
-            return ($resultat == 'OK') ? true : false;
+            return ('OK' === $result) ? true : false;
         } catch (\Exception $e) {
             return false;
         }

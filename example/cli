@@ -4,13 +4,12 @@
 use App\Bootstrap;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Schema\Builder;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Pluralizer;
 use Octo\Fast;
-use Octo\FastCache;
 use Octo\File;
 use Octo\Inflector;
 use Octo\Orm;
-use Octo\Work;
 use function Octo\faker;
 use function Octo\path;
 
@@ -146,6 +145,25 @@ class CliOcto
     public function getPathSeeds(): string
     {
         return $this->path_seeds;
+    }
+
+    private function artisan($command)
+    {
+        define('ARTISAN_BINARY', 'cli');
+
+        l()->singleton('cache', function () {
+            return cacheService(60, 'cli');
+        });
+
+        /** @var Illuminate\Contracts\Console\Kernel $kernel */
+        $kernel = l()->make(Illuminate\Contracts\Console\Kernel::class);
+
+        $status = $kernel->handle(
+            $input = new Symfony\Component\Console\Input\ArgvInput,
+            new Symfony\Component\Console\Output\ConsoleOutput
+        );
+
+        dd(Artisan::call($command));
     }
 
     /**

@@ -225,7 +225,7 @@ class Log implements PsrLoggerInterface
             throw new RuntimeException('Events dispatcher has not been set.');
         }
 
-        $this->dispatcher->listen(MessageLogged::class, $callback);
+        $this->dispatcher->listen('log.event', $callback);
     }
 
     /**

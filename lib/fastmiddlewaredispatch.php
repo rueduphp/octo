@@ -59,9 +59,13 @@ class Fastmiddlewaredispatch extends FastMiddleware implements DelegateInterface
             if (is_array($middleware)) {
                 $module = $middleware[0];
                 $action = $middleware[1];
-                $response = $this->initModule($request, $module);
+                if ($module instanceof Module) {
+                    $response = $this->initModule($request, $module);
 
-                if (empty($response)) {
+                    if (empty($response)) {
+                        $response = gi()->call($module, $action);
+                    }
+                } else {
                     $response = gi()->call($module, $action);
                 }
             } else {
@@ -142,12 +146,14 @@ class Fastmiddlewaredispatch extends FastMiddleware implements DelegateInterface
      * @param $module
      * @throws \ReflectionException
      */
-    protected function initModule(ServerRequestInterface $request, Module $module)
+    protected function initModule($request, Module $module)
     {
+        $app = $this->getContainer();
+
         $methods = get_class_methods($module);
 
         if (in_array('init', $methods)) {
-            $middlewares = gi()->call($module, 'init', $this);
+            $middlewares = gi()->call($module, 'init', $app);
 
             if (!empty($middlewares)) {
                 $response = null;
@@ -165,27 +171,27 @@ class Fastmiddlewaredispatch extends FastMiddleware implements DelegateInterface
         }
 
         if (in_array('boot', $methods)) {
-            gi()->call($module, 'boot', $this);
+            gi()->call($module, 'boot', $app);
         }
 
         if (in_array('config', $methods)) {
-            gi()->call($module, 'config', $this);
+            gi()->call($module, 'config', $app);
         }
 
         if (in_array('di', $methods)) {
-            gi()->call($module, 'di', $this);
+            gi()->call($module, 'di', $app);
         }
 
         if (in_array('twig', $methods)) {
-            gi()->call($module, 'twig', $this);
+            gi()->call($module, 'twig', $app);
         }
 
         if (in_array('policies', $methods)) {
-            gi()->call($module, 'policies', $this);
+            gi()->call($module, 'policies', $app);
         }
 
         if (in_array('events', $methods)) {
-            gi()->call($module, 'events', gi()->make(FastEvent::class));
+            gi()->call($module, 'events', gi()->make(FastEvent::class), $app);
         }
 
         setCore('module', $module);

@@ -412,7 +412,11 @@ return [
     },
 
     'granted' => function ($expression) {
-        return "<?php if(trust()->can({$expression})): ?>";
+        $args       = Directives::parseMultipleArgs($expression);
+        $role       = $args->get(0);
+        $context    = $args->get(1) ?? '';
+
+        return "<?php if(trust({$context})->can({$role})): ?>";
     },
 
     'notgranted' => function () {
@@ -461,6 +465,13 @@ return [
         $btns = '<div class="panel-heading-btn"><a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-default" data-click="panel-expand"><i class="fa fa-expand"></i></a><a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-warning" data-click="panel-collapse"><i class="fa fa-minus"></i></a><a href="javascript:;" class="btn btn-xs btn-icon btn-circle btn-danger ' . $class . '" data-click="panel-remove"><i class="fa fa-times"></i></a></div>';
 
         return Octo\echoInDirective($btns);
+    },
+
+    'comment' => function ($expression) {
+        $args = Directives::cleanArgs($expression);
+        $comment  = $args->get(0);
+
+        return "<?php echo '<!-- ' . {$comment} . ' -->'; ?>";
     },
 
 ];

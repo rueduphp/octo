@@ -273,8 +273,6 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
 
     public static function init()
     {
-        $container = new static;
-
         include config_path('container.php');
     }
 

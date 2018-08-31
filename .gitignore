@@ -4,6 +4,7 @@
 composer.lock
 /example/node_modules
 /example/app/config/keys.php
+/example/app/config/gg
 /example/app/storage
 /example/package-lock.json
 /example/lib

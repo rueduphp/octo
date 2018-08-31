@@ -5847,11 +5847,9 @@
     {
         $concern = is_object($object) ? $concern->bindTo($object) : $concern;
 
-        $callable = function () use ($concern) {
+        return  function () use ($concern) {
             return gi()->makeClosure($concern);
         };
-
-        return $callable;
     }
 
     /**
@@ -9114,14 +9112,14 @@
     }
 
     /**
-     * @param object|string $class
+     * @param $class
      * @param array $data
-     *
      * @return object
+     * @throws \ReflectionException
      */
-    function hydrator($class, array $data)
+    function hydrator($class, array $data = [])
     {
-        $instance = !is_object($class) ? foundry($class) : $class;
+        $instance = is_string($class) && class_exists($class) ? foundry($class) : $class;
 
         $methods = get_class_methods($instance);
 
@@ -11946,7 +11944,7 @@
         ob_start() && extract($data, EXTR_SKIP);
 
         try {
-            eval(' namespace ' . $ns . '; ?>' . $html . '<?php ');
+            eval(' namespace ' . $ns . ' { ?>' . $html . '<?php }');
         } catch (\Exception $e) {
             ob_end_clean();
             throw $e;

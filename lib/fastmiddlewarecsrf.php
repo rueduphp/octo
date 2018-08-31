@@ -53,7 +53,7 @@ class Fastmiddlewarecsrf extends FastMiddleware
      * @param DelegateInterface $next
      * @return \Psr\Http\Message\ResponseInterface
      */
-    public function process(ServerRequestInterface $request, DelegateInterface $next)
+    public function process(ServerRequestInterface $request, ?DelegateInterface $next = null)
     {
         if (in_array($request->getMethod(), ['PUT', 'POST', 'DELETE'], true)) {
             $params = $request->getParsedBody() ?: [];

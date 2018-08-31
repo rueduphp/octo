@@ -12,10 +12,12 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Http\Request;
 use Illuminate\Session\SessionManager;
+use Illuminate\View\Compilers\BladeCompiler as Blader;
 use Laravel\Socialite\Contracts\Factory;
 use Laravel\Socialite\SocialiteManager;
 use Monolog\Logger as Monolog;
 use Mmanos\Search\Search;
+use function Octo\bladeCompiler;
 use function Octo\bladeFactory;
 use Octo\FastRequest;
 use function Octo\lang_path;
@@ -46,6 +48,13 @@ class Facades
      */
     public function handler()
     {
+        l()->singleton(
+            \Illuminate\Contracts\Foundation\Application::class,
+            function () {
+                return l();
+            }
+        );
+
         dic()::singleton('view', function () {
             return bladeFactory([views_path()]);
         });
@@ -60,6 +69,29 @@ class Facades
 
             return $log;
         });
+
+        l()->singleton(
+            \Illuminate\Contracts\Console\Kernel::class,
+            \App\Console\Kernel::class
+        );
+
+        l()->singleton(
+            \Illuminate\Contracts\Debug\ExceptionHandler::class,
+            function () {
+                return new \Illuminate\Foundation\Exceptions\Handler(l());
+            }
+        );
+
+        dic()::singleton(\Illuminate\Contracts\Debug\ExceptionHandler::class, function () {
+            return new \Illuminate\Foundation\Exceptions\Handler(l());
+        });
+
+        l()->singleton(
+            \Illuminate\Contracts\Events\Dispatcher::class,
+            function () {
+                return \Octo\dispatcher();
+            }
+        );
 
         l()->singleton(ViewCache::class, function () {
             return new ViewCache;
@@ -117,6 +149,15 @@ class Facades
         l()->singleton('session.store', function ($app) {
             return $app->make('session')->driver();
         });
+
+        l()->afterResolving('blade.compiler', function (Blader $bladeCompiler) {
+        });
+
+        l()->singleton('blade.compiler', function () {
+            return bladeCompiler();
+        });
+
+        l('blade.compiler');
 
         makeFacade('Container', function () {
             return new Container;
@@ -186,6 +227,10 @@ class Facades
 
         makeFacade('Auth', function () {
             return trust();
+        });
+
+        makeFacade('AdminAuth', function () {
+            return trust('admin');
         });
 
         makeFacade('Flash', function () {

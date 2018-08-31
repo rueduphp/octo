@@ -6,6 +6,7 @@ services:
       - .:/var/www
       - ../vendor:/var/www/vendor
       - ../lib:/var/www/lib
+      - ../classes:/var/www/classes
       - ../example:/var/www/example
     environment:
       - OPCACHE_MAX_ACCELERATED_FILES=983

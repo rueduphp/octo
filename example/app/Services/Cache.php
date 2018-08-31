@@ -7,7 +7,7 @@ use Closure;
 use function Octo\gi;
 use Predis\ClientInterface;
 
-class Cache
+class Cache implements \Illuminate\Contracts\Cache\Factory
 {
     /**
      * @var \Illuminate\Contracts\Redis\Factory
@@ -480,5 +480,16 @@ class Cache
         $this->forever($key, $value = gi()->makeClosure($callback));
 
         return $value;
+    }
+
+    /**
+     * Get a cache store instance by name.
+     *
+     * @param  string|null $name
+     * @return \Illuminate\Contracts\Cache\Repository
+     */
+    public function store($name = null)
+    {
+        // TODO: Implement store() method.
     }
 }

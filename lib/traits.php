@@ -150,11 +150,8 @@ trait RepositoryTrait
 trait Notifiable
 {
     /**
-     * @param array ...$args
-     *
-     * @return mixed|null|Alert
-     *
-     * @throws \ReflectionException
+     * @param mixed ...$args
+     * @return array
      */
     public function notify(...$args)
     {
@@ -164,9 +161,29 @@ trait Notifiable
 
         $to = gi()->call(...$params);
 
-        $params = array_merge([$instance, Inflector::camelize('to_' . $to)], array_merge([$this], $args));
+        if (!is_array($to)) {
+            $to = [$to];
+        }
 
-        return gi()->call(...$params);
+        $result = [];
+
+        try {
+            foreach ($to as $via) {
+                $params = array_merge([$instance, Inflector::camelize('to_' . $via)], array_merge([$this], $args));
+
+                $result[] = gi()->call(...$params);
+            }
+        } catch (\Exception $e) {
+            if (in_array('onFail', get_class_methods($instance))) {
+                gi()->call($instance, 'onFail', $this);
+            }
+        }
+
+        if (in_array('onSuccess', get_class_methods($instance))) {
+            gi()->call($instance, 'onSuccess', $this, $result);
+        }
+
+        return $result;
     }
 }
 

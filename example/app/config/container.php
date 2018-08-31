@@ -3,6 +3,8 @@
 use Octo\Fastmiddlewarecsrf;
 use Octo\FastSessionInterface;
 
+$container = new \App\Services\Container;
+
 $container->set(FastSessionInterface::class, function () {
     return session();
 });

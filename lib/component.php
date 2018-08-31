@@ -6,6 +6,10 @@ use Closure;
 
 class Component implements ArrayAccess
 {
+    use Macroable {
+        __call as macroCall;
+    }
+
     /**
      * @var mixed
      */
@@ -64,6 +68,10 @@ class Component implements ArrayAccess
      */
     public function __call($method, $parameters)
     {
+        if (static::hasMacro($method)) {
+            return $this->macroCall($method, $parameters);
+        }
+
         if ($callable = $this->__bag->{$method}) {
             if (is_callable($callable)) {
                 if ($callable instanceof Closure) {

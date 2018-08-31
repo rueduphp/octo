@@ -49,6 +49,14 @@ trait Remember
             return $this->orWhere($column, $operator, $value);
         });
 
+        $builder::macro('firstWhere', function (...$args) {
+            return $this->where(...$args)->first();
+        });
+
+        $builder::macro('orFirstWhere', function (...$args) {
+            return $this->orWhere(...$args)->first();
+        });
+
         $builder::macro('like', function ($column, $value) {
             return $this->where($column, 'like', $value);
         });

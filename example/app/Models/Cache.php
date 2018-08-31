@@ -4,7 +4,6 @@ namespace App\Models;
 use App\Services\Model;
 use ArrayAccess;
 use Octo\Collection;
-use ReflectionException;
 
 class Cache extends Model implements ArrayAccess
 {
@@ -228,7 +227,7 @@ class Cache extends Model implements ArrayAccess
     /**
      * @return array
      */
-    public function alls(): array
+    public function getAll(): array
     {
         $collection = [];
 
@@ -244,7 +243,7 @@ class Cache extends Model implements ArrayAccess
      */
     public function toCollection(): Collection
     {
-        return acoll($this->alls());
+        return acoll($this->getAll());
     }
 
     /**
@@ -252,7 +251,7 @@ class Cache extends Model implements ArrayAccess
      */
     public function toArray(): array
     {
-        return $this->alls();
+        return $this->getAll();
     }
 
     /**
@@ -260,7 +259,7 @@ class Cache extends Model implements ArrayAccess
      */
     public function toJson($option = JSON_PRETTY_PRINT): string
     {
-        return json_encode($this->alls(), $option);
+        return json_encode($this->getAll(), $option);
     }
 
     /**

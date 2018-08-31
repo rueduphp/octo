@@ -16,11 +16,16 @@
         "ext-json": "*",
         "fzaninotto/faker": "@stable",
         "aws/aws-sdk-php": "@stable",
+        "illuminate/console": "*",
+        "illuminate/config": "*",
         "illuminate/database": "*",
+        "illuminate/log": "*",
+        "illuminate/routing": "*",
+        "dragonmantank/cron-expression": "*",
         "illuminate/pagination": "*",
         "illuminate/redis": "*",
-        "illuminate/view": "*",
         "illuminate/validation": "*",
+        "illuminate/view": "*",
         "laravel/socialite": "*",
         "wisembly/elephant.io": "~3.0",
         "nitmedia/wkhtml2pdf": "*",
@@ -53,7 +58,9 @@
         "algolia/algoliasearch-client-php": "^1.25",
         "zendframework/zendsearch": "dev-master",
         "mmanos/laravel-search": "dev-master",
-        "socialiteproviders/spotify": "*"
+        "socialiteproviders/spotify": "*",
+        "league/flysystem-sftp": "^1.0",
+        "vlucas/phpdotenv": "~2.2"
     },
     "require-dev": {
         "phpunit/phpunit": "@stable",
@@ -66,7 +73,8 @@
             "example/app/helpers.php"
         ],
         "psr-4": {
-          "App\\": "example/app/"
+          "App\\": "example/app/",
+          "Illuminate\\Foundation\\": "classes/Illuminate/Foundation/"
         }
     },
     "autoload-dev": {

@@ -2,12 +2,18 @@
 namespace App\Services;
 
 use App\Facades\Bus as BusDispatcher;
+use App\Models\User;
 use Octo\Module as BaseModule;
 use Octo\Ultimate;
 use Octo\Work;
 
 class Module extends BaseModule
 {
+    /**
+     * @var Auth
+     */
+    protected $auth;
+
     /**
      * @param string $name
      * @return object
@@ -61,7 +67,7 @@ class Module extends BaseModule
      */
     public function addPolicy(string $name, $callback)
     {
-        trust()->policy($name, $callback);
+        inInstance('auth')->policy($name, $callback);
 
         return $this;
     }
@@ -121,7 +127,7 @@ class Module extends BaseModule
      */
     public function can(...$args): bool
     {
-        return trust()->can(...$args);
+        return inInstance('auth')->can(...$args);
     }
 
     /**
@@ -190,5 +196,31 @@ class Module extends BaseModule
         $data += $this->getVars();
 
         return view($path, $data, $mergeData);
+    }
+
+    /**
+     * @param string $field
+     * @param string $destination
+     */
+    public function upload(string $field, string $destination)
+    {
+        $this->request->file($field)->moveTo($destination);
+    }
+
+    /**
+     * @param string $namespace
+     * @param string $userKey
+     * @param string $userModel
+     * @return Auth
+     */
+    public function getAuth(
+        string $namespace = 'core',
+        string $userKey = 'user',
+        string $userModel = User::class
+    ): Auth {
+        $auth = Auth::getInstance($namespace, $userKey, $userModel);
+        inInstance($auth, 'auth');
+
+        return $auth;
     }
 }

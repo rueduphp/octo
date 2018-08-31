@@ -10,6 +10,12 @@ use App\Services\Module;
 
 class StaticModule extends Module
 {
+    public function boot()
+    {
+        /** @var Auth auth */
+        $this->auth = $this->getAuth();
+    }
+
     /**
      * @throws \Octo\Exception
      * @throws \ReflectionException
@@ -32,7 +38,7 @@ class StaticModule extends Module
         Route::get('user/{user}', [$this, 'user']);
 
         Route::get('login', function () {
-            if (!$this->auth()->logged()) {
+            if (!$this->auth->logged()) {
                 $this->pageTitle = 'Login';
 
                 return $this->view('static.login');
@@ -66,7 +72,7 @@ class StaticModule extends Module
         }, 'log');
 
         Route::post('logout', function () {
-            if ($this->auth()->logged()) {
+            if ($this->auth->logged()) {
                 $this->repo(userRepository())->logout();
 
                 return Redirect::success('Good Bye')->route('login');

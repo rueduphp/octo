@@ -42,6 +42,8 @@ class Db
             $PDOoptions
         );
 
+        inInstance($pdo, 'main.pdo');
+
         Capsule::instance($pdo);
 
         l('config')->set([
