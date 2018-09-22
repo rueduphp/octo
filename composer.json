@@ -70,11 +70,9 @@
     },
     "autoload": {
         "files": [
-            "lib/lib.php",
-            "example/app/helpers.php"
+            "lib/lib.php"
         ],
         "psr-4": {
-          "App\\": "example/app/",
           "Illuminate\\Foundation\\": "classes/Illuminate/Foundation/"
         }
     },
