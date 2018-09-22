@@ -378,9 +378,9 @@ class Auth
      * @param string $username
      * @return mixed
      */
-    public function credentials(string $username = 'username')
+    public function credentials(string $username = 'username', string $password = 'password')
     {
-        return (new FastRequest)->only($username, 'password');
+        return (new FastRequest)->only($username, $password);
     }
 
     /**

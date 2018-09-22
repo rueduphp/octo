@@ -18,13 +18,13 @@ class Db
      */
     public function handler()
     {
-        $db     = CoreConf::get('db');
-        $redis  = CoreConf::get('redis');
+        $db     = CoreConf::get('db') ?? [];
+        $redis  = CoreConf::get('redis') ?? [];
 
         $default = $db['default'];
 
-        $conf = $db[$default];
-        $lite = $db["sqlite"];
+        $conf = $db[$default] ?? [];
+        $lite = $db["sqlite"] ?? [];
 
         $PDOoptions = [
             PDO::ATTR_CASE                 => PDO::CASE_NATURAL,
@@ -49,27 +49,7 @@ class Db
         l('config')->set([
             'database' => [
                 'default' => $default,
-                'connections' => [
-                    $default => [
-                        'driver'        => $conf['driver'],
-                        'host'          => $conf['host'],
-                        'port'          => $conf['port'],
-                        'database'      => $conf['database'],
-                        'username'      => $conf['username'],
-                        'password'      => $conf['password'],
-                        'unix_socket'   => '',
-                        'charset'       => $conf['charset'] ?? 'utf8',
-                        'collation'     => $conf['collation'] ?? 'utf8_unicode_ci',
-                        'prefix'        => '',
-                        'strict'        => true,
-                        'engine'        => null,
-                    ],
-                    'sqlite' => [
-                        'driver'    => 'sqlite',
-                        'database'  => $lite['database'],
-                        'prefix'    => $lite['prefix'] ?? '',
-                    ]
-                ],
+                'connections' => include(\Octo\config_path('eloquent.php')),
                 'redis' => [
 
                     'client' => 'predis',

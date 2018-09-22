@@ -9,6 +9,8 @@ use Octo\FastSessionInterface;
 use Octo\Inflector;
 use Octo\Live;
 use Traversable;
+use Symfony\Component\Yaml\Exception\DumpException;
+use Symfony\Component\Yaml\Yaml;
 
 class Reddy implements
     FastSessionInterface,
@@ -35,11 +37,16 @@ class Reddy implements
      */
     protected $config;
 
+    /**
+     * @param string $namespace
+     * @param string $userKey
+     * @param string $userModel
+     */
     public function __construct(
         string $namespace = 'web',
         string $userKey = 'user',
         string $userModel = User::class
-    )  {
+    ) {
         $this->namespace    = $namespace;
         $this->userKey      = $userKey;
         $this->userModel    = $userModel;
@@ -47,9 +54,17 @@ class Reddy implements
     }
 
     /**
+     * @return string
+     */
+    public function getDirectory()
+    {
+        return $this->namespace . '.redis';
+    }
+
+    /**
      * @param string $key
      * @param null $default
-     * @return null
+     * @return mixed
      */
     public function get(string $key, $default = null)
     {
@@ -423,6 +438,17 @@ class Reddy implements
     }
 
     /**
+     * @param  int $inline
+     * @param  int $indent
+     * @return string
+     * @throws DumpException
+     */
+    public function toYml($inline = 3, $indent = 2)
+    {
+        return Yaml::dump($this->toArray(), $inline, $indent, true, false);
+    }
+
+    /**
      * @return Collection
      */
     public function toCollection(): Collection
@@ -756,6 +782,10 @@ class Reddy implements
         $this->store()->expire($k, $this->config['ttl'] ?? 3600);
     }
 
+    /**
+     * @param string $key
+     * @return int
+     */
     public function ttl(string $key)
     {
         return $this->store()->ttl($this->makeKey($key));
@@ -811,5 +841,52 @@ class Reddy implements
     protected function store()
     {
         return redis();
+    }
+
+    /**
+     * @param $k
+     * @param callable $c
+     * @param null $maxAge
+     * @param array $args
+     *
+     * @return mixed
+     */
+    public function until($k, callable $c, $maxAge = null, $args = [])
+    {
+        $keyAge = $k . '.maxage';
+        $v      = $this->get($k);
+
+        if ($v) {
+            if (is_null($maxAge)) {
+                return $v;
+            }
+
+            $age = $this->get($keyAge);
+
+            if (!$age) {
+                $age = $maxAge - 1;
+            }
+
+            if ($age >= $maxAge) {
+                return $v;
+            } else {
+                $this->delete($k);
+                $this->delete($keyAge);
+            }
+        }
+
+        $data = cf($c, ...$args);
+
+        $this->set($k, $data);
+
+        if (!is_null($maxAge)) {
+            if ($maxAge < 1000000000) {
+                $maxAge = ($maxAge * 60) + microtime(true);
+            }
+
+            $this->set($keyAge, $maxAge);
+        }
+
+        return $data;
     }
 }

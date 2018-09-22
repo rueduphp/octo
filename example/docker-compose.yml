@@ -27,11 +27,11 @@ services:
     volumes:
       - ~/data/octo/mysql:/var/lib/mysql
     environment:
-      - "MYSQL_ROOT_PASSWORD=root"
+      - MYSQL_ROOT_PASSWORD=root
       - MYSQL_ALLOW_EMPTY_PASSWORD=yes
-      - "MYSQL_DATABASE=octo"
-      - "MYSQL_USER=octo"
-      - "MYSQL_PASSWORD=octo"
+      - MYSQL_DATABASE=octo
+      - MYSQL_USER=octo
+      - MYSQL_PASSWORD=octo
     ports:
       - "3366:3306"
 

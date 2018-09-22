@@ -4,7 +4,6 @@ namespace App\Middlewares;
 use Interop\Http\ServerMiddleware\DelegateInterface;
 use Octo\FastMiddleware;
 use Octo\FastRequest;
-use function Octo\getCore;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 

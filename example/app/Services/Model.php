@@ -2,12 +2,17 @@
 namespace App\Services;
 
 use App\Facades\Search;
+use App\Traits\Decorate;
 use App\Traits\Remember;
+use Exception;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\MessageBag;
 use Mmanos\Search\Index;
 use Mmanos\Search\Query;
 use Octo\Elegant;
+use function Octo\dispatcher as AppDispatcher;
+use Octo\FastRequest;
 use function Octo\gi;
 use function Octo\hydrator;
 use Octo\Listener;
@@ -15,26 +20,13 @@ use Octo\Objet;
 
 class Model extends Elegant
 {
-    use Remember;
+    use Decorate, Remember;
 
     protected $indexables = [];
     protected $rules = [];
     protected $rulesMessages = [];
     protected $forceSave = false;
-
-    /**
-     * @param $id
-     * @param array $columns
-     * @return Model|null
-     */
-    public function findWithoutFail($id, $default = null, $columns = ['*'])
-    {
-        try {
-            return $this->find($id, $columns);
-        } catch (Exception $e) {
-            return $default;
-        }
-    }
+    protected $decorator;
 
     /**
      * @param array $attributes
@@ -52,29 +44,47 @@ class Model extends Elegant
      */
     protected static function boot()
     {
-        static::setEventDispatcher(\Octo\dispatcher('models'));
+        static::setEventDispatcher(AppDispatcher('models'));
 
         parent::boot();
 
-        static::saving(function ($item) {
-            if (!empty($item->rules) && false === $item->forceSave) {
-                $errors = $item->performValidation();
+        static::saving(function (Model $model) {
+            if (!empty($model->rules) && false === $model->forceSave) {
+                $errors = $model->performValidation();
 
                 if (0 !== count($errors)) {
-                    throw new \Exception(implode("\n", $errors->all()));
+                    throw new Exception(implode("\n", $errors->all()));
                 }
             }
         });
 
-        static::saved(function ($item) {
-            static::indexIt($item);
+        static::updating(function (Model $model) {
+            $model->replicate()->setRawAttributes($model->getOriginal());
         });
 
-        static::deleted(function ($item) {
-            if (!empty($item->indexables)) {
-                static::indexator()->delete($item->getKey());
+        static::saved(function (Model $model) {
+            static::indexIt($model);
+        });
+
+        static::deleted(function (Model $model) {
+            if (!empty($model->indexables)) {
+                static::indexator()->delete($model->getKey());
             }
         });
+    }
+
+    /**
+     * @param $id
+     * @param array $columns
+     * @return Model|null
+     */
+    public function findWithoutFail($id, $default = null, $columns = ['*'])
+    {
+        try {
+            return $this->find($id, $columns);
+        } catch (Exception $e) {
+            return $default;
+        }
     }
 
     /**
@@ -158,7 +168,6 @@ class Model extends Elegant
 
     /**
      * @param Model $item
-     * @throws \ReflectionException
      */
     public static function indexIt(Model $item)
     {
@@ -180,6 +189,9 @@ class Model extends Elegant
         }
     }
 
+    /**
+     * @return MessageBag
+     */
     public function performValidation()
     {
         $attributes = $this->getAttributes();
@@ -195,6 +207,9 @@ class Model extends Elegant
         return $errors;
     }
 
+    /**
+     * @return bool
+     */
     public function isValid()
     {
         $errors = $this->performValidation();
@@ -202,6 +217,10 @@ class Model extends Elegant
         return 0 === count($errors);
     }
 
+    /**
+     * @param array $options
+     * @return bool|Elegant
+     */
     public function forceSave(array $options = [])
     {
         $this->forceSave = true;
@@ -228,10 +247,25 @@ class Model extends Elegant
      * @param null|string $indexBy
      * @return \Doctrine\DBAL\Query\QueryBuilder
      */
-    public function qb(string $alias, ?string $indexBy = null)
+    public function qb(?string $alias = null, ?string $indexBy = null)
     {
-        return qb()->select($alias)
-            ->from($this->table, $alias, $indexBy);
+        $alias = $alias ?? substr($this->table, 0, 1);
+
+        return qb()->select($alias)->from($this->table, $alias, $indexBy);
+    }
+
+    /**
+     * @return QueryBuilder
+     */
+    public function getQueryBuilder()
+    {
+        $connection = $this->getConnection();
+
+        return new QueryBuilder(
+            $connection,
+            $connection->getQueryGrammar(),
+            $connection->getPostProcessor()
+        );
     }
 
     /**
@@ -284,5 +318,55 @@ class Model extends Elegant
     public function fireEvent(...$args)
     {
         return dispatcher('db')->fire(...$args);
+    }
+
+    /**
+     * @return Model|null
+     */
+    public static function lastUpdated()
+    {
+        $class = get_called_class();
+
+        return static::orderBy('updated_at', 'DESC')
+            ->select(
+                (new $class)->skName(),
+                'updated_at'
+            )
+            ->first()
+        ;
+    }
+
+    /**
+     * @param array|null $data
+     * @return bool|Elegant
+     */
+    public function saver(?array $data = null)
+    {
+        $data = $data ?? (new FastRequest)->getParsedBody();
+
+        foreach ($data as $key => $value) {
+            $this->setAttribute($key, $value);
+        }
+
+        return $this->save();
+    }
+
+    /**
+     * @param array|null $only
+     * @return bool|Elegant
+     */
+    public function posted(?array $only = null)
+    {
+        if (null === $only) {
+            $data = (new FastRequest)->getParsedBody();
+        } else {
+            if (is_array($only)) {
+                $data = (new FastRequest)->only($only);
+            } else {
+                $data = (new FastRequest)->only(...func_get_args());
+            }
+        }
+
+        return $this->saver($data);
     }
 }

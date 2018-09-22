@@ -15,7 +15,11 @@ class Data implements FastStorageInterface
     private $id;
     private static $instances = [];
 
-    private function getPath($k)
+    /**
+     * @param $k
+     * @return string
+     */
+    protected function getPath($k)
     {
         return $this->dir . '.' . $k;
     }
@@ -1577,10 +1581,10 @@ class Data implements FastStorageInterface
     }
 
     /**
-     * @param Builder $store
+     * @param $store
      * @return Data
      */
-    public function setStore(Builder $store)
+    public function setStore($store)
     {
         $this->store = $store;
 

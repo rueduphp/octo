@@ -13,9 +13,16 @@ use Traversable;
 
 class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
 {
+    /** @var array */
     private static $bound = [];
+
+    /** @var array */
     private static $factories = [];
+
+    /** @var array */
     private static $datas = [];
+
+    /** @var null|Container */
     private static $instance = null;
 
     /**
@@ -85,22 +92,53 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
      * @param string $key
      * @param $value
      * @return Container
-     * @throws \ReflectionException
      */
     public function set(string $key, $value): self
     {
-        resolver($key, $value, false);
+        $key = $this->check($key);
 
-        static::$bound[$key] = true;
+        if (is_callable($value)) {
+            resolver($key, $value, false);
+
+            static::$bound[$key] = true;
+        } elseif (is_string($value) && class_exists($value)) {
+            resolver($key, function () use ($value) {
+                return gi()->make($value);
+            }, false);
+
+            static::$bound[$key] = true;
+        } else {
+            $this->define($key, $value);
+        }
 
         return $this;
+    }
+
+    /**
+     * @param string $string
+     * @return array|string
+     */
+    protected function check(string $string)
+    {
+        if (strpos($string, '::') === false) {
+            if (strpos($string, '@') === false) {
+                if (strpos($string, '#') === false) {
+                    return $string;
+                } else {
+                    return explode('#', $string, 2);
+                }
+            } else {
+                return explode('@', $string, 2);
+            }
+        } else {
+            return explode('::', $string, 2);
+        }
     }
 
     /**
      * @param string $key
      * @param callable $value
      * @return Container
-     * @throws \ReflectionException
      */
     public function alter(string $key, callable $value)
     {
@@ -114,18 +152,20 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     /**
      * @param $concern
      * @return Container
-     * @throws \ReflectionException
      */
-    public function instance($concern)
+    public function instance($concern, $concrete = null)
     {
-        return $this->set(get_class($concern), \Octo\toClosure($concern));
+        if (null === $concrete) {
+            return $this->set(get_class($concern), \Octo\toClosure($concern));
+        }
+
+        return $this->set($concern, $concrete);
     }
 
     /**
      * @param string $key
      * @param $value
      * @return Container
-     * @throws \ReflectionException
      */
     public function factory(string $key, $value): self
     {
@@ -138,8 +178,6 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     /**
      * @param mixed ...$args
      * @return mixed|null|object
-     * @throws FastContainerException
-     * @throws \ReflectionException
      */
     public function make(...$args)
     {
@@ -149,7 +187,6 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     /**
      * @param mixed ...$args
      * @return mixed|null
-     * @throws \ReflectionException
      */
     public function call(...$args)
     {
@@ -157,10 +194,21 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     }
 
     /**
+     * @param $id
+     * @param $alias
+     * @return Container
+     */
+    public function alias($id, $alias)
+    {
+        if ($factory = isAke(static::$factories, $id, null)) {
+            return $this->set($alias, $factory);
+        }
+    }
+
+    /**
      * @param string $id
-     * @return mixed|null|object
+     * @return mixed|object
      * @throws FastContainerException
-     * @throws \ReflectionException
      */
     public function get($id)
     {
@@ -223,8 +271,6 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     /**
      * @param $id
      * @return mixed|null|object
-     * @throws FastContainerException
-     * @throws \ReflectionException
      */
     public function resolve($id)
     {
@@ -291,8 +337,6 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     /**
      * @param mixed $offset
      * @return mixed|null|object
-     * @throws FastContainerException
-     * @throws \ReflectionException
      */
     public function offsetGet($offset)
     {
@@ -302,11 +346,14 @@ class Container implements ContainerInterface, ArrayAccess, IteratorAggregate
     /**
      * @param mixed $offset
      * @param mixed $value
-     * @throws \ReflectionException
      */
     public function offsetSet($offset, $value)
     {
-        $this->set($offset, $value);
+        if (empty($offset) && is_object($value)) {
+            $this->instance($value);
+        } else {
+            $this->set($offset, $value);
+        }
     }
 
     /**

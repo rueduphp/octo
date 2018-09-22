@@ -5,17 +5,10 @@ use App\Facades\Redirect;
 use App\Facades\Route;
 use App\Facades\View;
 use App\Models\User;
-use App\Services\Auth;
 use App\Services\Module;
 
 class StaticModule extends Module
 {
-    public function boot()
-    {
-        /** @var Auth auth */
-        $this->auth = $this->getAuth();
-    }
-
     /**
      * @throws \Octo\Exception
      * @throws \ReflectionException
@@ -24,9 +17,9 @@ class StaticModule extends Module
     {
         View::addNamespace('mail', __DIR__ . '/../views/mails');
 
-        $this->dic(404, function () {
+        main()->container()['view.404'] = function () {
             return $this->view('static.404', ['pageTitle' => 'Error 404']);
-        });
+        };
 
         Route::get('/', function () {
             $pageTitle = 'Super Page';

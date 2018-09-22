@@ -837,6 +837,8 @@ class CliOcto
         list($micro, $timestamp) = explode(' ', $time, 2);
         list($dummy, $micro) = explode('.', $micro, 2);
 
+        return date('YmdHis');
+
         return substr($timestamp . $micro, 0, -4);
     }
 

@@ -213,6 +213,7 @@ class Elegant extends EloquentModel implements FastModelInterface
 class ElegantCollection
 {
     use Macroable;
+
     /**
      * @var EloquentCollection
      */

@@ -3,8 +3,9 @@
 namespace App\Services\Query;
 
 use DateTime;
+use Illuminate\Database\Query\Builder as EloquentBuilder;
 
-class Builder extends \Illuminate\Database\Query\Builder
+class Builder extends EloquentBuilder
 {
     /**
      * @var string

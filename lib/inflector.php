@@ -916,7 +916,7 @@
             }
 
             foreach ($patterns as $pattern) {
-                if ($pattern == $value) {
+                if ($pattern === $value || $pattern == $value) {
                     return true;
                 }
 

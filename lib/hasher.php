@@ -24,10 +24,19 @@ class Hasher
         return $hash;
     }
 
-    public function check(string $value, string $hashedValue, array $options = [])
+    /**
+     * @param string $value
+     * @param string $hashedValue
+     * @return bool
+     */
+    public function check(string $value, string $hashedValue)
     {
         if (strlen($hashedValue) === 0) {
             return false;
+        }
+
+        if (strlen($hashedValue) <= 32) { // if the hash is still md5
+            return $hashedValue === md5($value);
         }
 
         return password_verify($value, $hashedValue);

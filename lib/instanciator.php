@@ -16,9 +16,6 @@ class Instanciator
      */
     private $request;
 
-    /**
-     * @throws PHPException
-     */
     public function __construct()
     {
         $this->request = new FastRequest;
@@ -26,25 +23,19 @@ class Instanciator
 
     /**
      * @return Listener
-     * @throws \ReflectionException
      */
     public function resolving(...$args)
     {
         if (1 === count($args)) {
-            $event = 'all.resolving';
-
-            return $this->on($event, current($args));
+            return $this->on('all.resolving', current($args));
         } elseif (2 === count($args)) {
-            $event = current($args) . '.resolving';
-
-            return $this->on($event, end($args));
+            return $this->on(current($args) . '.resolving', end($args));
         }
     }
 
     /**
      * @param mixed ...$args
      * @return mixed|object
-     * @throws \ReflectionException
      */
     public function factory(...$args)
     {
@@ -55,8 +46,6 @@ class Instanciator
 
     /**
      * @return mixed|object
-     *
-     * @throws \ReflectionException
      */
     public function new(...$args)
     {
@@ -68,7 +57,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return mixed|object
-     * @throws \ReflectionException
      */
     public function foundry(...$args)
     {
@@ -78,7 +66,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return mixed|object
-     * @throws \ReflectionException
      */
     public function singleton(...$args)
     {
@@ -94,7 +81,6 @@ class Instanciator
      * @param array $args
      * @param bool $singleton
      * @return mixed|object
-     * @throws \ReflectionException
      */
     public function make(string $make, array $args = [], bool $singleton = true)
     {
@@ -283,7 +269,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return mixed
-     * @throws \ReflectionException
      */
     public function invoker(...$args)
     {
@@ -293,7 +278,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return mixed
-     * @throws \ReflectionException
      */
     public function callMethod(...$args)
     {
@@ -303,7 +287,6 @@ class Instanciator
     /**
      * @param $entity
      * @return mixed
-     * @throws \ReflectionException
      */
     private function makeModel($entity, $key)
     {
@@ -319,7 +302,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return null|mixed
-     * @throws \ReflectionException
      */
     public function once(...$args)
     {
@@ -358,7 +340,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return mixed
-     * @throws \ReflectionException
      */
     public function makeClosure(...$args)
     {
@@ -509,7 +490,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return mixed|null
-     * @throws \ReflectionException
      */
     public function interact(...$args)
     {
@@ -735,7 +715,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return Instanciator
-     * @throws \ReflectionException
      */
     public function set(...$args): self
     {
@@ -754,7 +733,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return Instanciator
-     * @throws \ReflectionException
      */
     public function setInstance(...$args): self
     {
@@ -765,7 +743,6 @@ class Instanciator
      * @param callable $callable
      * @param bool $return
      * @return mixed|null|Instanciator
-     * @throws \ReflectionException
      */
     public function factor(callable $callable, bool $return = false)
     {
@@ -783,7 +760,6 @@ class Instanciator
     /**
      * @param array ...$factories
      * @return Instanciator
-     * @throws \ReflectionException
      */
     public function factories(...$factories): self
     {
@@ -798,7 +774,6 @@ class Instanciator
      * @param callable $callable
      * @param bool $return
      * @return mixed|null|Instanciator
-     * @throws \ReflectionException
      */
     public function newFactor(callable $callable, bool $return = false)
     {
@@ -830,7 +805,6 @@ class Instanciator
     /**
      * @param mixed ...$args
      * @return Instanciator
-     * @throws \ReflectionException
      */
     public function __invoke(...$args): self
     {
@@ -840,7 +814,6 @@ class Instanciator
     /**
      * @param string $class
      * @return mixed|object
-     * @throws \ReflectionException
      */
     public function getOr(string $class)
     {
@@ -854,7 +827,6 @@ class Instanciator
     /**
      * @param array ...$args
      * @return bool
-     * @throws \ReflectionException
      */
     public function has(...$args): bool
     {
@@ -909,7 +881,6 @@ class Instanciator
     /**
      * @param $concern
      * @return Instanciator
-     * @throws \ReflectionException
      */
     public function share($concern): self
     {
@@ -947,7 +918,6 @@ class Instanciator
     /**
      * @param string $concern
      * @return mixed
-     * @throws \ReflectionException
      */
     public function shared(string $concern)
     {
@@ -958,7 +928,6 @@ class Instanciator
      * @param string $concern
      * @param null $default
      * @return mixed|null|object
-     * @throws \ReflectionException
      */
     public function get(string $concern, $default = null)
     {
@@ -1026,7 +995,6 @@ class Instanciator
      * @param string $concern
      * @param bool $raw
      * @return mixed
-     * @throws \ReflectionException
      */
     public function autowire(string $concern, bool $raw = false)
     {
@@ -1056,7 +1024,6 @@ class Instanciator
     /**
      * @param array ...$args
      * @return mixed|object|Instanciator
-     * @throws \ReflectionException
      */
     public function invokable(...$args)
     {
@@ -1151,8 +1118,6 @@ class Instanciator
      * @param string $key
      * @param callable|null $resolver
      * @return mixed|null|object
-     * @throws Exception
-     * @throws \ReflectionException
      */
     public function cache(string $key, ?callable $resolver = null)
     {
@@ -1208,7 +1173,6 @@ class Instanciator
      * @param string $name
      * @param string $class
      * @return Instanciator
-     * @throws \ReflectionException
      */
     public function alias(string $name, string $class): self
     {
@@ -1221,7 +1185,6 @@ class Instanciator
 
     /**
      * @param $concern
-     * @throws PHPException
      */
     public static function define($concern)
     {

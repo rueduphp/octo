@@ -40,6 +40,15 @@ class Option implements ArrayAccess
 
     /**
      * @param mixed $offset
+     * @return bool
+     */
+    public function has($offset)
+    {
+        return static::self()->has($offset);
+    }
+
+    /**
+     * @param mixed $offset
      * @return mixed|null
      */
     public function offsetGet($offset)

@@ -2,11 +2,13 @@
 
 use App\Facades\Db;
 use App\Facades\Event;
+use App\Managers\Main;
 use App\Models\Option;
 use App\Models\Setting;
 use App\Models\Settings;
 use App\Services\Auth;
 use App\Services\Cache;
+use App\Services\Data;
 use App\Services\Directives;
 use App\Services\Log;
 use App\Services\Logger;
@@ -44,6 +46,7 @@ use Octo\Fluent;
 use Octo\In;
 use Octo\Inflector;
 use Octo\Listener;
+use Octo\Octalia;
 use Octo\Pack;
 use Octo\Shoppingcart;
 use Octo\Ultimate;
@@ -183,6 +186,10 @@ function response($content = null, int $status = 200, array $headers = [])
     return $response;
 }
 
+/**
+ * @param null|Ultimate $session
+ * @return Component
+ */
 function flash(?Ultimate $session = null)
 {
     static $flash;
@@ -266,6 +273,105 @@ function flash(?Ultimate $session = null)
 }
 
 /**
+ * @param Ultimate $session
+ * @return Component
+ */
+function flasher(Ultimate $session)
+{
+    $flash = new Component;
+
+    $flash['set'] = function (string $type, string $message) use ($session, $flash) {
+        $session->push($type, $message);
+
+        return $flash;
+    };
+
+    $flash['get'] = function (string $type) use ($session) {
+        return $session->pull($type);
+    };
+
+    $flash['count'] = function (string $type) use ($session) {
+        $items = $session->get($type, []);
+
+        return count($items);
+    };
+
+    $flash['has'] = function (string $type) use ($session) {
+        return $session->has($type);
+    };
+
+    /** set */
+    $flash['success'] = function (string $message) use ($flash) {
+        return $flash->set('success', $message);
+    };
+
+    $flash['error'] = function (string $message) use ($flash) {
+        return $flash->set('error', $message);
+    };
+
+    $flash['warning'] = function (string $message) use ($flash) {
+        return $flash->set('warning', $message);
+    };
+
+    $flash['info'] = function (string $message) use ($flash) {
+        return $flash->set('warning', $message);
+    };
+
+    /** get */
+    $flash['getSuccess'] = function () use ($flash) {
+        return $flash->get('success');
+    };
+
+    $flash['getError'] = function () use ($flash) {
+        return $flash->get('error');
+    };
+
+    $flash['getWarning'] = function () use ($flash) {
+        return $flash->get('warning');
+    };
+
+    $flash['getInfo'] = function () use ($flash) {
+        return $flash->get('info');
+    };
+
+    /** has */
+    $flash['hasSuccess'] = function () use ($flash) {
+        return $flash->has('success');
+    };
+
+    $flash['hasError'] = function () use ($flash) {
+        return $flash->has('error');
+    };
+
+    $flash['hasWarning'] = function () use ($flash) {
+        return $flash->has('warning');
+    };
+
+    $flash['hasInfo'] = function () use ($flash) {
+        return $flash->has('info');
+    };
+
+    /** count */
+    $flash['countSuccess'] = function () use ($flash) {
+        return $flash->count('success');
+    };
+
+    $flash['countError'] = function () use ($flash) {
+        return $flash->count('error');
+    };
+
+    $flash['countWarning'] = function () use ($flash) {
+        return $flash->count('warning');
+    };
+
+    $flash['countInfo'] = function () use ($flash) {
+        return $flash->count('info');
+    };
+
+    return $flash;
+}
+
+/**
  * @param $method
  * @return HtmlString
  */
@@ -321,15 +427,12 @@ function route(string $name, array $args = [])
 /**
  * @param string $key
  * @param array $parameters
+ * @param string $scope
  * @return array|null|string
- * @throws ReflectionException
  */
-function __(string $key, array $parameters = [])
+function __(string $key, array $parameters = [], string $scope = 'main')
 {
-    /** @var FastTwigExtension $twig */
-    $twig = app(FastTwigExtension::class);
-
-    return $twig->lang($key, $parameters);
+    return \Octo\setTranslator(\Octo\lang_path(), main()->locale($scope))->get($key, $parameters);
 }
 
 /**
@@ -446,6 +549,16 @@ function url(string $path): string
 function fullRoute(string $name)
 {
     return Url::root() . route($name);
+}
+
+/**
+ * @param string $name
+ * @param array $args
+ * @return string
+ */
+function urlRoute(string $name, array $args = [])
+{
+    return Url::root() . route($name, $args);
 }
 
 /**
@@ -1163,7 +1276,13 @@ function dic(?string $key = null, $value = 'octodummy')
     }
 
     if ($value === 'octodummy') {
-        return $app[$key];
+        $value = $app[$key];
+
+        if (is_callable($value)) {
+            $value = cf($value);
+        }
+
+        return $value;
     }
 
     $app[$key] = $value;
@@ -1330,6 +1449,31 @@ function service(string $name)
 
 /**
  * @param string $name
+ * @return object
+ */
+function manager(string $name)
+{
+    if (!class_exists($name) || !Inflector::contains($name, 'App\Managers')) {
+        $class = '\\App\\Managers\\' . Inflector::camelize($name);
+    } else {
+        $class = $name;
+    }
+
+    return app($class);
+}
+
+/**
+ * @return Main|mixed
+ */
+function main(?string $scope = null, ...$params)
+{
+    $main = Main::getInstance();
+
+    return null === $scope ? $main : $main->{$scope}(...$params);
+}
+
+/**
+ * @param string $name
  * @return Dynamicentity
  */
 function eav(string $name): Dynamicentity
@@ -1373,9 +1517,7 @@ function sendToView(string $key, $value)
 /**
  * @param string $table
  * @param string $database
- * @return \Octo\Octalia
- * @throws ReflectionException
- * @throws \Octo\Exception
+ * @return Octalia
  */
 function dbstore(string $table, string $database = 'core')
 {
@@ -1388,12 +1530,90 @@ function dbstore(string $table, string $database = 'core')
             Octo\File::mkdir($path);
         }
 
-        $db = new Octo\Octalia($database, $table, new Octo\Cache('fs', $path), $path);
+        $db = new Octalia($database, $table, new Octo\Cache('fs', $path), $path);
 
         bag('instances')[$key] = $db;
     }
 
     return $db->reset();
+}
+
+/**
+ * @param string $table
+ * @param string $database
+ * @return Octalia
+ */
+function octalia(string $table, string $database = 'core')
+{
+    $key = 'octalia.' . $table . '.' . $database;
+
+    if (!$db = bag('instances')[$key])  {
+        $db = new Octalia($database, $table, (new Data('octalia'))->setStore((new \App\Models\Cache)->setNamespace('octalia')));
+
+        bag('instances')[$key] = $db;
+    }
+
+    return $db->reset();
+}
+
+/**
+ * @param string $table
+ * @param string $database
+ * @return Octalia
+ */
+function redisDb(string $table, string $database = 'core')
+{
+    $key = 'octared.' . $table . '.' . $database;
+
+    if (!$db = bag('instances')[$key])  {
+        $db = new Octalia($database, $table, new \App\Services\Reddy('octalia'));
+
+        bag('instances')[$key] = $db;
+    }
+
+    return $db->reset();
+}
+
+/**
+ * @param string $str
+ * @param string $char
+ * @return bool
+ */
+function str_has(string $str, string $char)
+{
+    return strpos($str, $char) !== false;
+}
+
+/**
+ * @param mixed ...$args
+ */
+function pred(...$args)
+{
+    foreach ($args as $arg) {
+        _pre($arg);
+    }
+
+    exit();
+}
+
+/**
+ * @param mixed ...$args
+ */
+function pre(...$args)
+{
+    foreach ($args as $arg) {
+        _pre($arg);
+    }
+}
+
+/**
+ * @param $arg
+ */
+function _pre($arg)
+{
+    echo "<pre>";
+    print_r($arg);
+    echo "</pre>";
 }
 
 /**
@@ -1547,7 +1767,7 @@ function cacheService($ttl = 60, $prefix = '', $connection = 'default')
 
 /**
  * @param string $name
- * @return \App\Services\Data
+ * @return Data
  */
 function dataStore(string $name = 'core')
 {
@@ -1725,7 +1945,6 @@ function cloner($arg)
  * @param string $name
  * @param Closure|null $resolver
  * @param bool $makeAlias
- * @throws ReflectionException
  */
 function resolver(string $name, ?Closure $resolver = null, bool $makeAlias = true)
 {
@@ -1847,12 +2066,101 @@ function setValue(&$object, string $property, $value)
 }
 
 /**
+ * @param $object
+ * @param string $method
+ * @return ReflectionMethod
+ */
+function setPublic($object, string $method)
+{
+    $reflector = new ReflectionObject($object);
+    $meth = $reflector->getMethod($method);
+    $meth->setAccessible(true);
+
+    return $meth;
+}
+
+/**
+ * @param $class
+ * @param array $args
+ * @param bool $singleton
+ * @return mixed
+ */
+function build($class, array $args = [], bool $singleton = true)
+{
+    static $bounds = [];
+
+    if (true === $singleton) {
+        $key = sha1($class);
+
+        if ($instance = $bounds[$key] ?? null) {
+            return $instance;
+        }
+    }
+
+    $reflector = new ReflectionClass($class);
+
+    if (!$reflector->isInstantiable()) {
+        return false;
+    }
+
+    $constructor = $reflector->getConstructor();
+
+    if (is_null($constructor)) {
+        $instance = new $class;
+
+        if (true === $singleton) {
+            $bounds[$key] = $instance;
+        }
+
+        return $instance;
+    }
+
+    $app = l();
+
+    if (!empty($args)) {
+        $prop = new ReflectionProperty($app, 'with');
+        $prop->setAccessible(true);
+        $prop->setValue($app, [$args]);
+    }
+
+    $dependencies = $constructor->getParameters();
+
+    $resolver = setPublic($app, 'resolveDependencies');
+
+    $instances = $resolver->invokeArgs(
+        $app, [$dependencies]
+    );
+
+    $instance = $reflector->newInstanceArgs($instances);
+
+    if (true === $singleton) {
+        $bounds[$key] = $instance;
+    }
+
+    return $instance;
+}
+
+/**
+ * @param string $string
+ * @param array $vars
+ * @return string
+ */
+function compileVars(string $string, array $vars): string
+{
+    foreach ($vars as $key => $value) {
+        $string = str_replace("<$key>", $value, $string);
+    }
+
+    return $string;
+}
+
+/**
  * @param string $path
  * @param string $manifestDirectory
  * @return string
  * @throws Exception
  */
-function mix(string $path, string $manifestDirectory = '')
+function mix(string $path, string $manifestDirectory = ''): string
 {
     return Octo\mix($path, $manifestDirectory);
 }
@@ -2179,6 +2487,23 @@ function execJobs()
 }
 
 /**
+ * @param $value
+ * @return array
+ */
+function wrap($value): array
+{
+    if (is_null($value)) {
+        return [];
+    }
+
+    if (arrayable($value)) {
+        return $value->toArray();
+    }
+
+    return !is_array($value) ? [$value] : $value;
+}
+
+/**
  * @param Throwable $e
  * @return bool
  */
@@ -2240,7 +2565,6 @@ function data($concern)
 /**
  * @param Elegant $item
  * @param array $fields
- * @throws Exception
  */
 function searchable(Elegant $item, array $fields = [])
 {
@@ -2269,7 +2593,6 @@ function searchable(Elegant $item, array $fields = [])
  * @param $a
  * @param Closure $c
  * @return mixed
- * @throws ReflectionException
  */
 function watch($concern, Closure $callback, ...$args)
 {
@@ -2278,7 +2601,6 @@ function watch($concern, Closure $callback, ...$args)
 
 /**
  * @return Connection
- * @throws \Doctrine\DBAL\DBALException
  */
 function em()
 {
@@ -2375,7 +2697,6 @@ function in_arrayi($needle, $haystack)
  * @param $callback
  * @param mixed ...$args
  * @return mixed|null
- * @throws ReflectionException
  */
 function call_func($callback, ...$args)
 {
@@ -2427,7 +2748,6 @@ function cf($callback, ...$args)
  * @param $callback
  * @param mixed ...$args
  * @return mixed|null
- * @throws ReflectionException
  */
 function caller($callback, ...$args)
 {
@@ -2649,7 +2969,6 @@ function setting(?string $key = null, $value = 'octodummy')
 /**
  * @param null|string $namespace
  * @return \App\Models\Cache
- * @throws ReflectionException
  */
 function store(?string $namespace = null)
 {
@@ -2992,6 +3311,7 @@ function remoteMail(
     $eol = "\r\n";
 
     $headers = "From: " . $from . $eol;
+    $headers .= "Date: Fri, 7 Sep 2018 16:42:50 +0200" . $eol;
     $headers .= "MIME-Version: 1.0" . $eol;
     $headers .= "Content-Type: multipart/alternative; charset=\"UTF-8\"; boundary=\"" . $separator . "\"" . $eol;
     $headers .= "Content-Transfer-Encoding: 8bit" . $eol;
@@ -3083,4 +3403,9 @@ function hooky(string $key, ...$args)
     }
 
     return null;
+}
+
+function bank(string $table)
+{
+    return new \Octo\Bank('main', $table, new \App\Services\RedisEngine);
 }

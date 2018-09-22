@@ -44,17 +44,16 @@ class Log implements PsrLoggerInterface
      * @param  \Monolog\Logger  $monolog
      * @return void
      */
-    public function __construct(Monologger $monolog)
+    public function __construct(Monologger $monolog, string $dispatcher = 'log')
     {
         $this->monolog = $monolog;
 
-        $this->dispatcher = dispatcher('log');
+        $this->dispatcher = dispatcher($dispatcher);
     }
 
     /**
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function emergency($message, array $context = [])
     {
@@ -64,7 +63,6 @@ class Log implements PsrLoggerInterface
     /**
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function alert($message, array $context = [])
     {
@@ -74,7 +72,6 @@ class Log implements PsrLoggerInterface
     /**
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function critical($message, array $context = [])
     {
@@ -84,7 +81,6 @@ class Log implements PsrLoggerInterface
     /**
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function error($message, array $context = [])
     {
@@ -94,7 +90,6 @@ class Log implements PsrLoggerInterface
     /**
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function warning($message, array $context = [])
     {
@@ -104,7 +99,6 @@ class Log implements PsrLoggerInterface
     /**
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function notice($message, array $context = [])
     {
@@ -114,7 +108,6 @@ class Log implements PsrLoggerInterface
     /**
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function info($message, array $context = [])
     {
@@ -124,7 +117,6 @@ class Log implements PsrLoggerInterface
     /**
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function debug($message, array $context = [])
     {
@@ -135,7 +127,6 @@ class Log implements PsrLoggerInterface
      * @param mixed $level
      * @param string $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function log($level, $message, array $context = [])
     {
@@ -146,7 +137,6 @@ class Log implements PsrLoggerInterface
      * @param $level
      * @param $message
      * @param array $context
-     * @throws \ReflectionException
      */
     public function write($level, $message, array $context = [])
     {
@@ -157,7 +147,6 @@ class Log implements PsrLoggerInterface
      * @param $level
      * @param $message
      * @param $context
-     * @throws \ReflectionException
      */
     protected function writeLog($level, $message, $context)
     {
@@ -169,7 +158,6 @@ class Log implements PsrLoggerInterface
     /**
      * @param $path
      * @param string $level
-     * @throws \Exception
      */
     public function useFiles($path, $level = 'debug')
     {
@@ -198,7 +186,7 @@ class Log implements PsrLoggerInterface
      * @param int $facility
      * @return Monologger
      */
-    public function useSyslog($name = 'laravel', $level = 'debug', $facility = LOG_USER)
+    public function useSyslog($name = 'octo', $level = 'debug', $facility = LOG_USER)
     {
         return $this->monolog->pushHandler(new SyslogHandler($name, $facility, $level));
     }
@@ -232,7 +220,6 @@ class Log implements PsrLoggerInterface
      * @param $level
      * @param $message
      * @param array $context
-     * @throws \ReflectionException
      */
     protected function fireLogEvent($level, $message, array $context = [])
     {

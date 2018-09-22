@@ -4,25 +4,42 @@ namespace App\Models;
 use App\Services\Model;
 use ArrayAccess;
 use Octo\Collection;
+use Symfony\Component\Yaml\Exception\DumpException;
+use Symfony\Component\Yaml\Yaml;
 
 class Cache extends Model implements ArrayAccess
 {
-    protected $namespace    = 'core';
-    protected $table        = 'kv';
-    protected $primaryKey   = 'k';
-    public $timestamps      = false;
-    public $incrementing    = false;
-    protected $forceCache   = false;
+    protected $namespace      = 'core';
+    protected $table          = 'kv';
+    protected $primaryKey     = 'k';
+    protected static $memory  = [];
+    protected static $cleaned = [];
+    public $timestamps        = false;
+    public $incrementing      = false;
+    protected $forceCache     = false;
+    protected $dates          = ['called_at'];
 
     public static function boot()
     {
         parent::boot();
-        static::clean();
+        static::clean('core');
     }
 
+    /**
+     * @return array
+     */
+    public function getMemory(): array
+    {
+        return static::$memory;
+    }
+
+    /**
+     * @param string $pattern
+     * @return array
+     */
     public function keys(string $pattern = '*')
     {
-        static::clean();
+        static::clean($this->namespace);
 
         $pattern = str_replace('*', '%', $pattern);
 
@@ -49,23 +66,34 @@ class Cache extends Model implements ArrayAccess
     {
         $key = $this->makeKey($key);
 
+        if (isset(static::$memory[$key])) {
+            return static::$memory[$key];
+        }
+
         $row = $this->firstOrCreate(['k' => $key]);
 
         $value = $row->getAttribute('v');
+
+        $row->update(['called_at' => now()]);
 
         if (empty($value)) {
             return $default;
         }
 
-        return unserialize($value);
+        $value = unserialize($value);
+
+        static::$memory[$key] = $value;
+
+        return $value;
     }
 
     /**
-     * @param $k
+     * @param $key
+     * @param int $expire
      * @param int $by
      * @return int
      */
-    public function incr($key, $by = 1)
+    public function incr($key, $expire = 0, $by = 1)
     {
         $key = $this->makeKey($key);
 
@@ -81,26 +109,38 @@ class Cache extends Model implements ArrayAccess
 
         $new = $old + $by;
 
-        $row->update(['v' => serialize($new)]);
+        $update = ['v' => serialize($new), 'called_at' => now()];
+
+        if (0 < $expire) {
+            $update['e'] = time() + ($expire * 60);
+        }
+
+        $row->update($update);
+
+        static::$memory[$key] = serialize($new);
 
         return $new;
     }
 
     /**
      * @param $key
+     * @param int $expire
      * @param int $by
      * @return int
      */
-    public function decr($key, $by = 1)
+    public function decr($key, $expire = 0, $by = 1)
     {
-        return  $this->incr($key, $by * -1);
+        return  $this->incr($key, $expire, $by * -1);
     }
 
     /**
+     * @param string $namespace
      * @return mixed
      */
-    public static function clean()
+    public static function clean(string $namespace)
     {
+        static::$cleaned[$namespace] = true;
+
         return static::where('e', '>', 0)->where('e', '<', time())->delete();
     }
 
@@ -111,6 +151,10 @@ class Cache extends Model implements ArrayAccess
     public function offsetExists($offset)
     {
         $key = $this->makeKey($offset);
+
+        if (isset(static::$memory[$key])) {
+            return true;
+        }
 
         $row = $this->find($key);
 
@@ -125,6 +169,10 @@ class Cache extends Model implements ArrayAccess
     {
         $key = $this->makeKey($offset);
 
+        if (isset(static::$memory[$key])) {
+            return true;
+        }
+
         $row = $this->find($key);
 
         return $row ? true : false;
@@ -138,10 +186,19 @@ class Cache extends Model implements ArrayAccess
     {
         $key = $this->makeKey($offset);
 
+        if (isset(static::$memory[$key])) {
+            return static::$memory[$key];
+        }
+
         $row = $this->find($key);
 
         if ($row) {
-            return unserialize($row->getAttribute('v'));
+            $row->update(['called_at' => now()]);
+
+            $value = unserialize($row->getAttribute('v'));
+            static::$memory[$key] = $value;
+
+            return $value;
         }
 
         return null;
@@ -155,11 +212,20 @@ class Cache extends Model implements ArrayAccess
     {
         $key = $this->makeKey($offset);
 
+        if (isset(static::$memory[$key])) {
+            return static::$memory[$key];
+        }
+
         /** @var Model $row */
         $row = $this->find($key);
 
         if ($row) {
-            return unserialize($row->getAttribute('v'));
+            $row->update(['called_at' => now()]);
+
+            $value = unserialize($row->getAttribute('v'));
+            static::$memory[$key] = $value;
+
+            return $value;
         }
 
         return null;
@@ -174,13 +240,17 @@ class Cache extends Model implements ArrayAccess
         $key = $this->makeKey($offset);
 
         $row = $this->firstOrCreate(['k' => $key]);
-        $row->update(['v' => serialize($value)]);
+        $serialized = serialize($value);
+        $row->update(['v' => $serialized]);
+
+        static::$memory[$key] = $serialized;
     }
 
     /**
      * @param string $offset
      * @param $value
      * @param int $expire
+     * @return $this
      */
     public function expire(string $offset, $value, $expire = 0)
     {
@@ -189,7 +259,12 @@ class Cache extends Model implements ArrayAccess
         $key = $this->makeKey($offset);
 
         $row = $this->firstOrCreate(['k' => $key]);
-        $row->update(['v' => serialize($value), 'e' => $e]);
+        $serialized = serialize($value);
+        $row->update(['v' => $serialized, 'e' => $e]);
+
+        static::$memory[$key] = $serialized;
+
+        return $this;
     }
 
     /**
@@ -201,7 +276,10 @@ class Cache extends Model implements ArrayAccess
         $key = $this->makeKey($offset);
 
         $row = $this->firstOrCreate(['k' => $key]);
-        $row->update(['v' => serialize($value)]);
+        $serialized = serialize($value);
+        $row->update(['v' => $serialized]);
+
+        static::$memory[$key] = $serialized;
     }
 
     /**
@@ -209,7 +287,7 @@ class Cache extends Model implements ArrayAccess
      */
     public function offsetUnset($offset)
     {
-        $key = $this->makeKey($offset);
+        unset(static::$memory[$key = $this->makeKey($offset)]);
 
         $this->find($key)->delete();
     }
@@ -219,9 +297,24 @@ class Cache extends Model implements ArrayAccess
      */
     public function __unset($offset)
     {
-        $key = $this->makeKey($offset);
+        unset(static::$memory[$key = $this->makeKey($offset)]);
 
-        $this->find($key)->delete();
+        $this->destroy($key);
+    }
+
+    /**
+     * @return int
+     */
+    public function flush(): int
+    {
+        $i = 0;
+
+        foreach($this->keys() as $key) {
+            ++$i;
+            unset($this[$key]);
+        }
+
+        return $i;
     }
 
     /**
@@ -232,7 +325,7 @@ class Cache extends Model implements ArrayAccess
         $collection = [];
 
         foreach($this->keys() as $key) {
-            $collection[$key] = unserialize($this->find($this->makeKey($key))->getAttribute('v'));
+            $collection[$key] = $this[$key];
         }
 
         return $collection;
@@ -255,6 +348,17 @@ class Cache extends Model implements ArrayAccess
     }
 
     /**
+     * @param  int $inline
+     * @param  int $indent
+     * @return string
+     * @throws DumpException
+     */
+    public function toYml($inline = 3, $indent = 2)
+    {
+        return Yaml::dump($this->toArray(), $inline, $indent, true, false);
+    }
+
+    /**
      * @return string
      */
     public function toJson($option = JSON_PRETTY_PRINT): string
@@ -268,7 +372,9 @@ class Cache extends Model implements ArrayAccess
      */
     private function makeKey(string $key): string
     {
-        static::clean();
+        if (!isset(static::$cleaned[$this->namespace])) {
+            static::clean($this->namespace);
+        }
 
         return $this->namespace . '.' . $key;
     }

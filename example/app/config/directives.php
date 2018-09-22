@@ -373,6 +373,26 @@ return [
         return "<?php echo url({$expression}); ?>";
     },
 
+    'doll' => function ($expression) {
+        return "<?php if (false === \\App\\Services\ViewCache::startDoll({$expression})): ?>";
+    },
+
+    'endDoll' => function ($expression) {
+        return "<?php endif; echo \\App\\Services\ViewCache::endDoll({$expression}); ?>";
+    },
+
+    'kh' => function ($expression) {
+        return "<?php if (false === \\App\\Services\ViewCache::startKh({$expression})): ?>";
+    },
+
+    'endKh' => function ($expression) {
+        $args       = Directives::parseMultipleArgs($expression);
+        $id         = $args->get(0);
+        $duration   = $args->get(1) ?? 60;
+
+        return "<?php endif; echo \\App\\Services\ViewCache::endKh({$id}, {$duration}); ?>";
+    },
+
     'cache' => function ($expression) {
         $class = ViewCache::class;
 

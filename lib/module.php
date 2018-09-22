@@ -14,9 +14,6 @@ class Module implements FastModuleInterface
     /** @var array */
     protected $vars = [];
 
-    /**
-     * @throws \ReflectionException
-     */
     public function __construct()
     {
         if ($path = in_path('views')) {

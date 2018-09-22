@@ -13,6 +13,7 @@ class CreateKv15329383200727
             $table->string('k')->primary()->unique();
             $table->longText('v')->nullable();
             $table->unsignedBigInteger('e')->index()->default(0);
+            $table->timestamp('called_at')->nullable()->useCurrent();
             $table->engine = 'InnoDB';
         });
     }

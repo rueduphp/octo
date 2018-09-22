@@ -25,6 +25,10 @@
 
             $driver = $driver ?? fmr("odb.$db.$table", $dir);
 
+            if (in_array('getDirectory', get_class_methods($driver))) {
+                $dir = $driver->getDirectory();
+            }
+
             if (empty($dir) && !$driver instanceof Now) {
                 throw new Exception('Provide a path to store.');
             }
@@ -32,8 +36,8 @@
             $this->ns       = "$db.$table";
             $this->path      = "$db.$table";
 
-            if ($driver instanceof Cache || $driver instanceof Cachelite) {
-                $this->ns .= str_replace(DS, '.', $driver->getDirectory());
+            if (in_array('getDirectory', get_class_methods($driver))) {
+                $this->ns .= '.' . str_replace(DS, '.', $driver->getDirectory());
             }
 
             $this->driver   = $driver;
@@ -309,9 +313,11 @@
 
         public function count()
         {
+            $count = count($this->iterator());
+
             $this->reset();
 
-            return $this->fire('count', count($this->iterator()), true);
+            return $this->fire('count', $count, true);
         }
 
         private function add($row, $fire = true)

@@ -440,7 +440,7 @@ trait Macroable
      */
     public function __call(string $method, array $parameters)
     {
-        if (! static::hasMacro($method)) {
+        if (!static::hasMacro($method)) {
             throw new BadMethodCallException("Method {$method} does not exist.");
         }
 

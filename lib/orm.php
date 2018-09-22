@@ -632,7 +632,7 @@
 
         /**
          * @param string $key
-         * @return int
+         * @return float
          */
         public function sum($key)
         {
@@ -1396,9 +1396,17 @@
          *
          * @return bool
          */
-        public function exists($id): bool
+        public function exists($id = null): bool
         {
-            return $this->find($id) !== null;
+            if (null === $id) {
+                return $this->find($id) !== null;
+            }
+
+            if (!empty($this->query)) {
+                return 0 < $this->count();
+            }
+
+            return false;
         }
 
         /**

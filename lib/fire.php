@@ -109,9 +109,8 @@ class Fire
     }
 
     /**
+     * @param mixed ...$args
      * @return array|mixed|null
-     *
-     * @throws \ReflectionException
      */
     public function emit(...$args)
     {

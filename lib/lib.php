@@ -1291,7 +1291,6 @@
      * @param null $concern
      * @param string $value
      * @return mixed|null|object|Instanciator
-     * @throws \ReflectionException
      */
     function gi($concern = null, $value = 'octodummy')
     {
@@ -5030,7 +5029,6 @@
      * @param string $k
      * @param null $d
      * @return mixed|null
-     * @throws \ReflectionException
      */
     function get(string $k, $d = null)
     {
@@ -5044,7 +5042,6 @@
      * @param string $k
      * @param null $d
      * @return mixed|null
-     * @throws \ReflectionException
      */
     function getDel(string $k, $d = null)
     {
@@ -5086,10 +5083,7 @@
 
     /**
      * @param string $k
-     *
      * @return bool
-     *
-     * @throws \ReflectionException
      */
     function has(string $k)
     {
@@ -5099,7 +5093,6 @@
     /**
      * @param string $k
      * @return bool
-     * @throws \ReflectionException
      */
     function forget(string $k)
     {
@@ -7227,7 +7220,6 @@
     /**
      * @param string $ns
      * @return \Illuminate\Events\Dispatcher
-     * @throws \ReflectionException
      */
     function dispatcher($ns = 'core.dispatcher')
     {

@@ -5,6 +5,7 @@ use App\Facades\Container;
 use App\Facades\Request;
 use App\Middlewares\Exception;
 use App\Middlewares\Gate;
+use App\Middlewares\NotFound;
 use App\Middlewares\Session;
 use App\Modules\CrudModule;
 use App\Modules\SocialLoginModule;
@@ -18,7 +19,6 @@ use Octo\Facades\Validator;
 use Octo\Fast;
 use Octo\Fastmiddlewarecsrf;
 use Octo\Fastmiddlewaredispatch;
-use Octo\Fastmiddlewarenotfound;
 use Octo\Fastmiddlewarerouter;
 use Octo\Fastmiddlewaretrailingslash;
 use function Octo\config_path;
@@ -102,7 +102,7 @@ class App
             ->addMiddleware(Fastmiddlewarerouter::class)
             ->addMiddleware(Gate::class)
             ->addMiddleware(Fastmiddlewaredispatch::class)
-            ->addMiddleware(Fastmiddlewarenotfound::class)
+            ->addMiddleware(NotFound::class)
         ;
     }
 

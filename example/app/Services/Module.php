@@ -14,6 +14,14 @@ class Module extends BaseModule
      */
     protected $auth;
 
+    public function __construct()
+    {
+        parent::__construct();
+
+        /** @var Auth auth */
+        $this->auth = $this->getAuth();
+    }
+
     /**
      * @param string $name
      * @return object
@@ -128,6 +136,15 @@ class Module extends BaseModule
     public function can(...$args): bool
     {
         return inInstance('auth')->can(...$args);
+    }
+
+    /**
+     * @param mixed ...$args
+     * @return bool
+     */
+    public function cannot(...$args): bool
+    {
+        return !inInstance('auth')->can(...$args);
     }
 
     /**
