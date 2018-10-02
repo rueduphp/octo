@@ -24,7 +24,6 @@
         "guzzlehttp/guzzle": "~6.0",
         "http-interop/response-sender": "^1.0",
         "psr/log": "~1.0",
-        "swiftmailer/swiftmailer": "~5.1",
         "zendframework/zend-expressive-fastroute": "2.2",
         "middlewares/utils": "@stable",
         "monolog/monolog": "~1.11",
